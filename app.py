@@ -78,6 +78,7 @@ class ImmichGoGUI(QMainWindow):
         self.create_configuration_tab()
         self.create_google_takeout_tab()
         self.create_local_upload_tab()
+        self.create_stack_tab()
 
         # Command Preview Section with refined size policy
         self.command_preview = QTextEdit()
@@ -103,6 +104,8 @@ class ImmichGoGUI(QMainWindow):
         self.update_binary()
 
         self.load_configuration()
+        
+        self.tab_widget.currentChanged.connect(self.update_command_preview)
 
     @staticmethod
     def get_latest_release_info():
@@ -355,7 +358,6 @@ class ImmichGoGUI(QMainWindow):
 
         return True
 
-
     def run_command(self, command_parts=None):
         if command_parts is None:
             command_parts = []
@@ -366,12 +368,14 @@ class ImmichGoGUI(QMainWindow):
                 QMessageBox.critical(self, "Error", "Immich-Go binary is missing or not executable.")
                 return
 
-        # Command structure changed: [binary] [main command] [sub-command] [options]
-        command = [self.binary_path] + command_parts + self.get_config_options()
+        # Command structure is strictly generated in update_command_preview and passed via command_parts
+        command = [self.binary_path] + command_parts
 
         try:
             self.run_local_button.setDisabled(True)
             self.run_takeout_button.setDisabled(True)
+            if hasattr(self, 'run_stack_button'):
+                self.run_stack_button.setDisabled(True)
 
             if sys.platform.startswith("win"):
                 # Properly format the command line for Windows
@@ -408,6 +412,8 @@ class ImmichGoGUI(QMainWindow):
                     QMessageBox.critical(self, "Error", "No suitable terminal emulator found.")
                     self.run_local_button.setDisabled(False)
                     self.run_takeout_button.setDisabled(False)
+                    if hasattr(self, 'run_stack_button'):
+                        self.run_stack_button.setDisabled(False)
                     return
 
             # Start timer to monitor process
@@ -419,6 +425,8 @@ class ImmichGoGUI(QMainWindow):
             QMessageBox.critical(self, "Error", f"Failed to run command: {e}")
             self.run_local_button.setDisabled(False)
             self.run_takeout_button.setDisabled(False)
+            if hasattr(self, 'run_stack_button'):
+                self.run_stack_button.setDisabled(False)
             self.running_process = None
 
 
@@ -444,6 +452,8 @@ class ImmichGoGUI(QMainWindow):
             self.running_process = None
             self.run_local_button.setDisabled(False)
             self.run_takeout_button.setDisabled(False)
+            if hasattr(self, 'run_stack_button'):
+                self.run_stack_button.setDisabled(False)
             self.status_indicator.setText("✓ Ready to go!")
             self.status_indicator.setStyleSheet("color: green; font-weight: bold;")
 
@@ -468,7 +478,6 @@ class ImmichGoGUI(QMainWindow):
         about_action = QAction("About Immich-Go", self)
         about_action.triggered.connect(self.open_github_link)
         help_menu.addAction(about_action)
-
     def create_configuration_tab(self):
         config_tab = QWidget()
         config_scroll = QScrollArea()
@@ -503,24 +512,47 @@ class ImmichGoGUI(QMainWindow):
         server_group.setLayout(server_form)
         layout.addWidget(server_group)
 
+        global_group = QGroupBox("Global Output Settings")
+        global_form = QFormLayout()
+        self.log_level_combo = QComboBox()
+        self.log_level_combo.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
+        self.log_type_combo = QComboBox()
+        self.log_type_combo.addItems(["TEXT", "JSON"])
+        self.no_ui_check = QCheckBox("Disable UI Output")
+        
+        global_form.addRow("Log Level:", self.log_level_combo)
+        global_form.addRow("Log Type:", self.log_type_combo)
+        global_form.addRow(self.no_ui_check)
+        global_group.setLayout(global_form)
+        layout.addWidget(global_group)
+
         adv_group = QGroupBox("Advanced Configuration")
         adv_group.setObjectName("Advanced Configuration")
         adv_group.setCheckable(True)
         adv_group.setChecked(False)
         adv_form = QFormLayout()
 
-        self.api_url_edit = QLineEdit()
         self.client_timeout_spin = QSpinBox()
         self.client_timeout_spin.setRange(1, 1440)
+        self.client_timeout_spin.setValue(20)
         self.client_timeout_spin.setSuffix(" minutes")
-        self.log_level_combo = QComboBox()
-        self.log_level_combo.addItems(["ERROR", "WARNING", "INFO"])
+        
+        self.concurrent_tasks_spin = QSpinBox()
+        self.concurrent_tasks_spin.setRange(1, 20)
+        self.concurrent_tasks_spin.setValue(2)
+        
         self.device_uuid_edit = QLineEdit()
+        self.pause_immich_jobs_check = QCheckBox("Pause Immich Jobs")
+        self.pause_immich_jobs_check.setChecked(True)
+        self.on_errors_combo = QComboBox()
+        self.on_errors_combo.addItems(["stop", "continue"])
 
-        adv_form.addRow("API URL:", self.api_url_edit)
         adv_form.addRow("Client Timeout:", self.client_timeout_spin)
-        adv_form.addRow("Log Level:", self.log_level_combo)
+        adv_form.addRow("Concurrent Tasks:", self.concurrent_tasks_spin)
         adv_form.addRow("Device UUID:", self.device_uuid_edit)
+        adv_form.addRow("On Errors:", self.on_errors_combo)
+        adv_form.addRow(self.pause_immich_jobs_check)
+        
         adv_group.setLayout(adv_form)
         layout.addWidget(adv_group)
 
@@ -531,7 +563,16 @@ class ImmichGoGUI(QMainWindow):
         self.api_key_edit.textChanged.connect(self.validate_inputs)
         self.server_url_edit.textChanged.connect(self.update_status)
         self.api_key_edit.textChanged.connect(self.update_status)
-
+        
+        self.log_level_combo.currentIndexChanged.connect(self.update_command_preview)
+        self.log_type_combo.currentIndexChanged.connect(self.update_command_preview)
+        self.no_ui_check.toggled.connect(self.update_command_preview)
+        self.client_timeout_spin.valueChanged.connect(self.update_command_preview)
+        self.concurrent_tasks_spin.valueChanged.connect(self.update_command_preview)
+        self.device_uuid_edit.textChanged.connect(self.update_command_preview)
+        self.on_errors_combo.currentIndexChanged.connect(self.update_command_preview)
+        self.pause_immich_jobs_check.toggled.connect(self.update_command_preview)
+        self.skip_ssl_checkbox.toggled.connect(self.update_command_preview)
     def create_google_takeout_tab(self):
         tab = QWidget()
         scroll = QScrollArea()
@@ -547,13 +588,6 @@ class ImmichGoGUI(QMainWindow):
             label.setToolTip(tooltip)
             label.setStyleSheet("color: #666; font-style: italic;")
             return label
-
-        def create_help_button(text):
-            btn = QPushButton("?")
-            btn.setFixedSize(20, 20)
-            btn.setStyleSheet("font-weight: bold;")
-            btn.clicked.connect(lambda: QMessageBox.information(self, "Help", text, QMessageBox.Ok))
-            return btn
 
         file_group = QGroupBox("Source Selection")
         file_layout = QFormLayout()
@@ -586,11 +620,15 @@ class ImmichGoGUI(QMainWindow):
 
         core_group = QGroupBox("Processing Options")
         core_form = QFormLayout()
-        self.create_albums_check = QCheckBox("Create Albums")
-        self.create_albums_check.setChecked(True)
-        self.auto_archive_check = QCheckBox("Auto Archive")
-        self.auto_archive_check.setChecked(True)
-        self.untitled_albums_check = QCheckBox("Keep Untitled Albums")
+        
+        self.sync_albums_check = QCheckBox("Sync Albums")
+        self.sync_albums_check.setChecked(True)
+        self.include_archived_check = QCheckBox("Include Archived Photos")
+        self.include_archived_check.setChecked(True)
+        self.include_partner_check = QCheckBox("Include Partner Photos")
+        self.include_partner_check.setChecked(True)
+        self.include_trashed_check = QCheckBox("Include Trashed")
+        self.include_trashed_check.setChecked(False)
         self.takeout_dry_run_check = QCheckBox("Dry Run Mode")
         self.run_takeout_button = QPushButton("Run Google Takeout")
         self.run_takeout_button.setEnabled(False) # Initially disabled
@@ -602,13 +640,14 @@ class ImmichGoGUI(QMainWindow):
             row.addStretch()
             form.addRow(row)
 
-        add_form_row(core_form, self.create_albums_check, "Create albums in Immich based on Takeout albums.")
-        add_form_row(core_form, self.auto_archive_check, "Automatically archive uploaded assets in Immich.")
-        add_form_row(core_form, self.untitled_albums_check, "Keep albums that have no title (usually event albums).")
-        add_form_row(core_form, self.takeout_dry_run_check, "Simulate the upload without actually transferring files.")
+        add_form_row(core_form, self.sync_albums_check, "Auto-create Immich albums matching Google Photos albums.")
+        add_form_row(core_form, self.include_archived_check, "Import photos marked as archived in Google Photos.")
+        add_form_row(core_form, self.include_partner_check, "Import partner-shared photos.")
+        add_form_row(core_form, self.include_trashed_check, "Import trashed photos.")
+        add_form_row(core_form, self.takeout_dry_run_check, "Simulate the upload without transferring files.")
+        
         core_group.setLayout(core_form)
         layout.addWidget(core_group)
-        layout.addWidget(self.run_takeout_button)
 
         adv_group = QGroupBox("Advanced Options")
         adv_group.setObjectName("Advanced Options")
@@ -616,15 +655,29 @@ class ImmichGoGUI(QMainWindow):
         adv_group.setChecked(False)
         adv_form = QFormLayout()
 
-        self.missing_json_check = QCheckBox("Upload Missing JSON")
-        self.album_folder_check = QCheckBox("Use Album Folder as Name")
-        self.discard_archived_check = QCheckBox("Discard Archived Photos")
+        self.include_unmatched_check = QCheckBox("Include Unmatched (No JSON)")
+        self.include_untitled_albums_check = QCheckBox("Include Untitled Albums")
+        self.takeout_tag_check = QCheckBox("Add Takeout Tag")
+        self.takeout_tag_check.setChecked(True)
+        self.people_tag_check = QCheckBox("Add People Tag")
+        self.people_tag_check.setChecked(True)
+        
+        self.from_album_name_edit = QLineEdit()
 
-        add_form_row(adv_form, self.missing_json_check, "Upload JSON files even if corresponding media is missing.")
-        add_form_row(adv_form, self.album_folder_check, "Use the name of the Takeout album folder as the album name in Immich.")
-        add_form_row(adv_form, self.discard_archived_check, "Do not upload photos that are marked as archived in Takeout data.")
+        add_form_row(adv_form, self.include_unmatched_check, "Import files that have no matching JSON metadata.")
+        add_form_row(adv_form, self.include_untitled_albums_check, "Include photos from untitled albums.")
+        add_form_row(adv_form, self.takeout_tag_check, "Tag assets with {takeout}/takeout-YYYYMMDD...")
+        add_form_row(adv_form, self.people_tag_check, "Tag assets with people/<name> from JSON data.")
+        
+        album_name_row = QHBoxLayout()
+        album_name_row.addWidget(self.from_album_name_edit)
+        album_name_row.addWidget(create_info_icon("Only import photos from one specific Google Photos album"))
+        album_name_row.addStretch()
+        adv_form.addRow("From Album Only:", album_name_row)
+        
         adv_group.setLayout(adv_form)
         layout.addWidget(adv_group)
+        layout.addWidget(self.run_takeout_button)
 
         layout.addStretch()
         self.tab_widget.addTab(scroll, "Google Takeout")
@@ -632,8 +685,19 @@ class ImmichGoGUI(QMainWindow):
         self.browse_btn.clicked.connect(self.browse_takeout_source)
         self.zip_radio.toggled.connect(self.update_browse_mode)
         self.folder_radio.toggled.connect(self.update_browse_mode)
-        self.run_takeout_button.clicked.connect(lambda: self.run_command(self.get_google_takeout_options()))
-
+        self.run_takeout_button.clicked.connect(lambda: self.run_command(self.get_command_and_tab_options()))
+        
+        self.source_path_edit.textChanged.connect(self.update_command_preview)
+        self.sync_albums_check.toggled.connect(self.update_command_preview)
+        self.include_archived_check.toggled.connect(self.update_command_preview)
+        self.include_partner_check.toggled.connect(self.update_command_preview)
+        self.include_trashed_check.toggled.connect(self.update_command_preview)
+        self.takeout_dry_run_check.toggled.connect(self.update_command_preview)
+        self.include_unmatched_check.toggled.connect(self.update_command_preview)
+        self.include_untitled_albums_check.toggled.connect(self.update_command_preview)
+        self.takeout_tag_check.toggled.connect(self.update_command_preview)
+        self.people_tag_check.toggled.connect(self.update_command_preview)
+        self.from_album_name_edit.textChanged.connect(self.update_command_preview)
     def create_local_upload_tab(self):
         tab = QWidget()
         scroll = QScrollArea()
@@ -720,23 +784,34 @@ class ImmichGoGUI(QMainWindow):
         upload_group = QGroupBox("Upload Options")
         upload_form = QFormLayout()
         self.album_name_edit = QLineEdit()
-        self.create_folder_check = QCheckBox("Create Album from Folders")
+        
+        self.folder_as_album_combo = QComboBox()
+        self.folder_as_album_combo.addItems(["NONE", "FOLDER", "PATH"])
+        self.folder_as_tags_check = QCheckBox("Folder as Tags")
+
+        self.manage_burst_combo = QComboBox()
+        self.manage_burst_combo.addItems(["NoStack", "Stack", "StackKeepRaw", "StackKeepJPEG"])
+        
+        self.manage_raw_jpeg_combo = QComboBox()
+        self.manage_raw_jpeg_combo.addItems(["NoStack", "KeepRaw", "KeepJPG", "StackCoverRaw", "StackCoverJPG"])
+        
+        self.manage_heic_jpeg_combo = QComboBox()
+        self.manage_heic_jpeg_combo.addItems(["NoStack", "KeepHeic", "KeepJPG", "StackCoverHeic", "StackCoverJPG"])
+
         self.dry_run_check = QCheckBox("Dry Run Mode")
         self.run_local_button = QPushButton("Run Local Upload")
         self.run_local_button.setEnabled(False) # Initially disabled
-
 
         album_name_row = QHBoxLayout()
         album_name_row.addWidget(self.album_name_edit)
         album_name_row.addWidget(create_info_icon("Specify an album name to upload all media into a single album."))
         album_name_row.addStretch()
-        upload_form.addRow("Album Name:", album_name_row)
-
-        create_folder_row = QHBoxLayout()
-        create_folder_row.addWidget(self.create_folder_check)
-        create_folder_row.addWidget(create_info_icon("Create albums in Immich based on the folder structure in the source path."))
-        create_folder_row.addStretch()
-        upload_form.addRow(create_folder_row)
+        upload_form.addRow("Into Album:", album_name_row)
+        upload_form.addRow("Folder as Album:", self.folder_as_album_combo)
+        upload_form.addRow(self.folder_as_tags_check)
+        upload_form.addRow("Manage Burst:", self.manage_burst_combo)
+        upload_form.addRow("Manage RAW+JPEG:", self.manage_raw_jpeg_combo)
+        upload_form.addRow("Manage HEIC+JPEG:", self.manage_heic_jpeg_combo)
 
         dry_run_row = QHBoxLayout()
         dry_run_row.addWidget(self.dry_run_check)
@@ -754,7 +829,78 @@ class ImmichGoGUI(QMainWindow):
         self.date_check.toggled.connect(lambda checked: self.toggle_dates(checked))
         self.type_check.toggled.connect(lambda checked: self.type_edit.setEnabled(checked))
         self.local_browse_btn.clicked.connect(self.browse_local_folder)
-        self.run_local_button.clicked.connect(lambda: self.run_command(self.get_local_upload_options()))
+        self.run_local_button.clicked.connect(lambda: self.run_command(self.get_command_and_tab_options()))
+        
+        self.local_path_edit.textChanged.connect(self.update_command_preview)
+        self.date_check.toggled.connect(self.update_command_preview)
+        self.start_date.dateChanged.connect(self.update_command_preview)
+        self.end_date.dateChanged.connect(self.update_command_preview)
+        self.type_check.toggled.connect(self.update_command_preview)
+        self.type_edit.textChanged.connect(self.update_command_preview)
+        self.album_name_edit.textChanged.connect(self.update_command_preview)
+        self.folder_as_album_combo.currentIndexChanged.connect(self.update_command_preview)
+        self.folder_as_tags_check.toggled.connect(self.update_command_preview)
+        self.manage_burst_combo.currentIndexChanged.connect(self.update_command_preview)
+        self.manage_raw_jpeg_combo.currentIndexChanged.connect(self.update_command_preview)
+        self.manage_heic_jpeg_combo.currentIndexChanged.connect(self.update_command_preview)
+        self.dry_run_check.toggled.connect(self.update_command_preview)
+    def create_stack_tab(self):
+        tab = QWidget()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(tab)
+
+        layout = QVBoxLayout(tab)
+        layout.setSpacing(15)
+        layout.setContentsMargins(15, 15, 15, 15)
+
+        def create_info_icon(tooltip):
+            label = QLabel("(i)")
+            label.setToolTip(tooltip)
+            label.setStyleSheet("color: #666; font-style: italic;")
+            return label
+
+        stack_group = QGroupBox("Stack Configuration")
+        stack_form = QFormLayout()
+
+        self.stack_manage_burst_combo = QComboBox()
+        self.stack_manage_burst_combo.addItems(["NoStack", "Stack", "StackKeepRaw", "StackKeepJPEG"])
+        
+        self.stack_manage_raw_jpeg_combo = QComboBox()
+        self.stack_manage_raw_jpeg_combo.addItems(["NoStack", "KeepRaw", "KeepJPG", "StackCoverRaw", "StackCoverJPG"])
+        
+        self.stack_manage_heic_jpeg_combo = QComboBox()
+        self.stack_manage_heic_jpeg_combo.addItems(["NoStack", "KeepHeic", "KeepJPG", "StackCoverHeic", "StackCoverJPG"])
+
+        self.manage_epson_fastfoto_check = QCheckBox("Manage Epson FastFoto")
+        self.stack_time_zone_edit = QLineEdit()
+        self.stack_dry_run_check = QCheckBox("Dry Run Mode")
+
+        stack_form.addRow("Manage Burst:", self.stack_manage_burst_combo)
+        stack_form.addRow("Manage RAW+JPEG:", self.stack_manage_raw_jpeg_combo)
+        stack_form.addRow("Manage HEIC+JPEG:", self.stack_manage_heic_jpeg_combo)
+        stack_form.addRow(self.manage_epson_fastfoto_check)
+        stack_form.addRow("Time Zone:", self.stack_time_zone_edit)
+        stack_form.addRow(self.stack_dry_run_check)
+
+        self.run_stack_button = QPushButton("Run Stack")
+        self.run_stack_button.setEnabled(False) # Initially disabled
+
+        stack_group.setLayout(stack_form)
+        layout.addWidget(stack_group)
+        layout.addWidget(self.run_stack_button)
+
+        layout.addStretch()
+        self.tab_widget.addTab(scroll, "Stack")
+
+        self.run_stack_button.clicked.connect(lambda: self.run_command(self.get_command_and_tab_options()))
+        
+        self.stack_manage_burst_combo.currentIndexChanged.connect(self.update_command_preview)
+        self.stack_manage_raw_jpeg_combo.currentIndexChanged.connect(self.update_command_preview)
+        self.stack_manage_heic_jpeg_combo.currentIndexChanged.connect(self.update_command_preview)
+        self.manage_epson_fastfoto_check.toggled.connect(self.update_command_preview)
+        self.stack_time_zone_edit.textChanged.connect(self.update_command_preview)
+        self.stack_dry_run_check.toggled.connect(self.update_command_preview)
 
     def validate_inputs(self):
         required = [
@@ -769,7 +915,6 @@ class ImmichGoGUI(QMainWindow):
             else:
                 field.setStyleSheet("")
         return is_valid_config # Return validation status
-
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         if event.mimeData().hasUrls():
@@ -816,113 +961,143 @@ class ImmichGoGUI(QMainWindow):
         if folder:
             self.local_path_edit.setText(folder)
             self.update_command_preview()
-
     def update_command_preview(self):
+        # Build command strictly in order: [binary] [global] command [subcmd] [server] [upload_opts] [tab_opts] [path]
         parts = [self.binary_path] if hasattr(self, "binary_path") else ["./immich-go"]
-        current_tab = self.tab_widget.tabText(self.tab_widget.currentIndex())
+        
+        parts += self.get_global_options()
+        parts += self.get_command_and_tab_options()
 
-        if current_tab == "Google Takeout":
-            parts += self.get_google_takeout_options()
-        elif current_tab == "Local Upload":
-            parts += self.get_local_upload_options()
-
-        # Add config options after main commands
-        parts += self.get_config_options()
-
-        # Quote each part for accurate command preview
         quoted_parts = [shlex.quote(part) for part in parts]
         command_text = " ".join(quoted_parts)
 
         if not self.server_url_edit.text():
-            command_text += "\n\n⚠️ MISSING SERVER URL"
+            command_text += "\\n\\n⚠️ MISSING SERVER URL"
         if not self.api_key_edit.text():
-            command_text += "\n⚠️ MISSING API KEY"
+            command_text += "\\n⚠️ MISSING API KEY"
 
         self.command_preview.setPlainText(command_text)
 
-    def get_config_options(self):
-        options = []
+    def get_global_options(self):
+        opts = []
+        if self.log_level_combo.currentText() != "INFO":
+            opts.append(f"--log-level={self.log_level_combo.currentText()}")
+        if self.log_type_combo.currentText() != "TEXT":
+            opts.append(f"--log-type={self.log_type_combo.currentText()}")
+        if self.no_ui_check.isChecked():
+            opts.append("--no-ui")
+        return opts
+
+    def get_server_options(self):
+        opts = []
         if self.server_url_edit.text():
-            options.append(f"--server={self.server_url_edit.text()}")
+            opts.append(f"--server={self.server_url_edit.text()}")
         if self.api_key_edit.text():
-            # Change -key to --api-key
-            options.append(f"--api-key={self.api_key_edit.text()}")
+            opts.append(f"--api-key={self.api_key_edit.text()}")
         if self.skip_ssl_checkbox.isChecked():
-            options.append("--skip-verify-ssl")
-        if self.api_url_edit.text():
-            options.append(f"--api-url={self.api_url_edit.text()}")
-        if self.client_timeout_spin.value() != 1:
-            options.append(f"--client-timeout={self.client_timeout_spin.value()}")
-        if self.log_level_combo.currentText() != "ERROR":
-            options.append(f"--log-level={self.log_level_combo.currentText()}")
+            opts.append("--skip-verify-ssl")
+        if self.client_timeout_spin.value() != 20:
+            opts.append(f"--client-timeout={self.client_timeout_spin.value()}m")
         if self.device_uuid_edit.text():
-            options.append(f"--device-uuid={self.device_uuid_edit.text()}")
-        return options
+            opts.append(f"--device-uuid={self.device_uuid_edit.text()}")
+        return opts
 
-    def get_google_takeout_options(self):
-        # Update to use the new from-google-photos subcommand
-        options = ["upload", "from-google-photos"]
-        flag_options = []  # Temporarily store flag-like options.
+    def get_upload_behavior_options(self):
+        opts = []
+        if self.concurrent_tasks_spin.value() != 2:
+            opts.append(f"--concurrent-tasks={self.concurrent_tasks_spin.value()}")
+        if not self.pause_immich_jobs_check.isChecked():
+            opts.append("--pause-immich-jobs=false")
+        if self.on_errors_combo.currentText() != "stop":
+            opts.append(f"--on-errors={self.on_errors_combo.currentText()}")
+        return opts
 
-        if self.create_albums_check.isChecked():
-            flag_options.append("--create-albums")
-        if self.auto_archive_check.isChecked():
-            flag_options.append("--auto-archive")
-        if self.untitled_albums_check.isChecked():
-            flag_options.append("--keep-untitled-albums")
-        if self.takeout_dry_run_check.isChecked():
-            flag_options.append("--dry-run")
-        if self.missing_json_check.isChecked():
-            flag_options.append("--upload-when-missing-JSON")
-        if self.album_folder_check.isChecked():
-            flag_options.append("--use-album-folder-as-name")
-        if self.discard_archived_check.isChecked():
-            flag_options.append("--discard-archived")
+    def get_command_and_tab_options(self):
+        current_tab = self.tab_widget.tabText(self.tab_widget.currentIndex())
+        opts = []
+        paths = []
+        
+        if current_tab == "Google Takeout":
+            opts += ["upload", "from-google-photos"]
+            opts += self.get_server_options()
+            opts += self.get_upload_behavior_options()
+            
+            if not self.sync_albums_check.isChecked():
+                opts.append("--sync-albums=false")
+            if not self.include_archived_check.isChecked():
+                opts.append("--include-archived=false")
+            if not self.include_partner_check.isChecked():
+                opts.append("--include-partner=false")
+            if self.include_trashed_check.isChecked():
+                opts.append("--include-trashed=true")
+            if self.include_unmatched_check.isChecked():
+                opts.append("--include-unmatched=true")
+            if self.include_untitled_albums_check.isChecked():
+                opts.append("--include-untitled-albums=true")
+            if not self.takeout_tag_check.isChecked():
+                opts.append("--takeout-tag=false")
+            if not self.people_tag_check.isChecked():
+                opts.append("--people-tag=false")
+            if self.from_album_name_edit.text():
+                opts.append(f'--from-album-name={self.from_album_name_edit.text()}')
+            if self.takeout_dry_run_check.isChecked():
+                opts.append("--dry-run")
+                
+            source_path = self.source_path_edit.text()
+            if self.zip_radio.isChecked() and source_path:
+                paths = [path.strip() for path in source_path.split(";") if path.strip()]
+            elif source_path:
+                paths = [source_path]
 
-        source_path = self.source_path_edit.text()
-        if self.zip_radio.isChecked():
-            zip_files = [path.strip() for path in source_path.split(";") if path.strip()]
-            options += flag_options  # Append flag-like options first
-            if zip_files:
-                options += zip_files  # Then, append paths.
-        elif source_path:
-            options += flag_options  # Append flag-like options first
-            options.append(source_path) #Finally add the path
-        else:
-            options += flag_options #Add the rest of the options at last
+        elif current_tab == "Local Upload":
+            opts += ["upload", "from-folder"]
+            opts += self.get_server_options()
+            opts += self.get_upload_behavior_options()
+            
+            if self.date_check.isChecked():
+                start = self.start_date.date().toString("yyyy-MM-dd")
+                end = self.end_date.date().toString("yyyy-MM-dd")
+                opts.append(f"--date-range={start},{end}")
+            if self.type_check.isChecked() and self.type_edit.text():
+                exts = self.type_edit.text().replace(" ", "").strip()
+                if exts:
+                    opts.append(f'--include-extensions={exts}')
+            if self.album_name_edit.text():
+                opts.append(f'--into-album={self.album_name_edit.text()}')
+            if self.folder_as_album_combo.currentText() != "NONE":
+                opts.append(f'--folder-as-album={self.folder_as_album_combo.currentText()}')
+            if self.folder_as_tags_check.isChecked():
+                opts.append("--folder-as-tags=true")
+            if self.manage_burst_combo.currentText() != "NoStack":
+                opts.append(f'--manage-burst={self.manage_burst_combo.currentText()}')
+            if self.manage_raw_jpeg_combo.currentText() != "NoStack":
+                opts.append(f'--manage-raw-jpeg={self.manage_raw_jpeg_combo.currentText()}')
+            if self.manage_heic_jpeg_combo.currentText() != "NoStack":
+                opts.append(f'--manage-heic-jpeg={self.manage_heic_jpeg_combo.currentText()}')
+            if self.dry_run_check.isChecked():
+                opts.append("--dry-run")
+                
+            if self.local_path_edit.text():
+                paths = [self.local_path_edit.text()]
+                
+        elif current_tab == "Stack":
+            opts += ["stack"]
+            opts += self.get_server_options()
+            
+            if self.stack_manage_burst_combo.currentText() != "NoStack":
+                opts.append(f'--manage-burst={self.stack_manage_burst_combo.currentText()}')
+            if self.stack_manage_raw_jpeg_combo.currentText() != "NoStack":
+                opts.append(f'--manage-raw-jpeg={self.stack_manage_raw_jpeg_combo.currentText()}')
+            if self.stack_manage_heic_jpeg_combo.currentText() != "NoStack":
+                opts.append(f'--manage-heic-jpeg={self.stack_manage_heic_jpeg_combo.currentText()}')
+            if self.manage_epson_fastfoto_check.isChecked():
+                opts.append("--manage-epson-fastfoto=true")
+            if self.stack_time_zone_edit.text():
+                opts.append(f'--time-zone={self.stack_time_zone_edit.text()}')
+            if self.stack_dry_run_check.isChecked():
+                opts.append("--dry-run")
 
-        return options
-
-    def get_local_upload_options(self):
-        # Update to use the new from-folder subcommand
-        options = ["upload", "from-folder"]
-        flag_options = []  # Temp
-
-        if self.date_check.isChecked():
-            start = self.start_date.date().toString("yyyy-MM-dd")
-            end = self.end_date.date().toString("yyyy-MM-dd")
-            flag_options.append(f"--date-filter={start},{end}")
-        if self.type_check.isChecked() and self.type_edit.text():
-            exts = self.type_edit.text().replace(" ", "").strip()
-            if exts:
-                flag_options.append(f'--file-filter="{exts}"')
-
-        if self.album_name_edit.text():
-            album_name = self.album_name_edit.text()
-            flag_options.append(f'--album="{album_name}"') # Quote album name if it contains spaces
-        if self.create_folder_check.isChecked():
-            flag_options.append("--create-album-folder")
-        if self.dry_run_check.isChecked():
-            flag_options.append("--dry-run")
-
-        source_path = self.local_path_edit.text()
-        if source_path:
-            options += flag_options
-            options.append(source_path) # Finally add the Path
-        else:
-            options += flag_options #Add the rest of the options at last
-        return options
-
+        return opts + paths
     def update_status(self):
         is_valid_config = self.validate_inputs() # Validate config and get status
         errors = []
@@ -941,7 +1116,8 @@ class ImmichGoGUI(QMainWindow):
         # Enable/Disable Run Buttons based on config validity
         self.run_takeout_button.setEnabled(is_valid_config)
         self.run_local_button.setEnabled(is_valid_config)
-
+        if hasattr(self, 'run_stack_button'):
+            self.run_stack_button.setEnabled(is_valid_config)
 
     def open_github_link(self):
         url = QUrl("https://github.com/simulot/immich-go")
@@ -949,24 +1125,35 @@ class ImmichGoGUI(QMainWindow):
 
     def save_configuration(self):
         self.settings.setValue("server_url", self.server_url_edit.text())
-        # We're still saving as "api_key" in settings - just the command line flag name changed
         self.settings.setValue("api_key", self.api_key_edit.text())
         self.settings.setValue("skip_ssl", self.skip_ssl_checkbox.isChecked())
-        self.settings.setValue("api_url", self.api_url_edit.text())
-        self.settings.setValue("client_timeout", self.client_timeout_spin.value())
+        
         self.settings.setValue("log_level", self.log_level_combo.currentText())
+        self.settings.setValue("log_type", self.log_type_combo.currentText())
+        self.settings.setValue("no_ui", self.no_ui_check.isChecked())
+        
+        self.settings.setValue("client_timeout", self.client_timeout_spin.value())
+        self.settings.setValue("concurrent_tasks", self.concurrent_tasks_spin.value())
         self.settings.setValue("device_uuid", self.device_uuid_edit.text())
+        self.settings.setValue("on_errors", self.on_errors_combo.currentText())
+        self.settings.setValue("pause_immich_jobs", self.pause_immich_jobs_check.isChecked())
 
         self.settings.setValue("google_takeout_zip_radio", self.zip_radio.isChecked())
         self.settings.setValue("google_takeout_folder_radio", self.folder_radio.isChecked())
         self.settings.setValue("google_takeout_source_path", self.source_path_edit.text())
-        self.settings.setValue("google_takeout_create_albums", self.create_albums_check.isChecked())
-        self.settings.setValue("google_takeout_auto_archive", self.auto_archive_check.isChecked())
-        self.settings.setValue("google_takeout_untitled_albums", self.untitled_albums_check.isChecked())
+        
+        self.settings.setValue("google_takeout_sync_albums", self.sync_albums_check.isChecked())
+        self.settings.setValue("google_takeout_include_archived", self.include_archived_check.isChecked())
+        self.settings.setValue("google_takeout_include_partner", self.include_partner_check.isChecked())
+        self.settings.setValue("google_takeout_include_trashed", self.include_trashed_check.isChecked())
         self.settings.setValue("google_takeout_dry_run", self.takeout_dry_run_check.isChecked())
-        self.settings.setValue("google_takeout_missing_json", self.missing_json_check.isChecked())
-        self.settings.setValue("google_takeout_album_folder_name", self.album_folder_check.isChecked())
-        self.settings.setValue("google_takeout_discard_archived", self.discard_archived_check.isChecked())
+        
+        self.settings.setValue("google_takeout_include_unmatched", self.include_unmatched_check.isChecked())
+        self.settings.setValue("google_takeout_include_untitled_albums", self.include_untitled_albums_check.isChecked())
+        self.settings.setValue("google_takeout_takeout_tag", self.takeout_tag_check.isChecked())
+        self.settings.setValue("google_takeout_people_tag", self.people_tag_check.isChecked())
+        self.settings.setValue("google_takeout_from_album_name", self.from_album_name_edit.text())
+        
         adv_group_config = self.tab_widget.widget(0).widget().findChild(QGroupBox, "Advanced Configuration")
         if adv_group_config is not None:
             self.settings.setValue("config_adv_group_checked", adv_group_config.isChecked())
@@ -980,30 +1167,54 @@ class ImmichGoGUI(QMainWindow):
         self.settings.setValue("local_upload_end_date", self.end_date.date())
         self.settings.setValue("local_upload_type_check", self.type_check.isChecked())
         self.settings.setValue("local_upload_type_edit", self.type_edit.text())
+        
         self.settings.setValue("local_upload_album_name", self.album_name_edit.text())
-        self.settings.setValue("local_upload_create_folder_check", self.create_folder_check.isChecked())
+        self.settings.setValue("local_upload_folder_as_album", self.folder_as_album_combo.currentText())
+        self.settings.setValue("local_upload_folder_as_tags", self.folder_as_tags_check.isChecked())
+        self.settings.setValue("local_upload_manage_burst", self.manage_burst_combo.currentText())
+        self.settings.setValue("local_upload_manage_raw_jpeg", self.manage_raw_jpeg_combo.currentText())
+        self.settings.setValue("local_upload_manage_heic_jpeg", self.manage_heic_jpeg_combo.currentText())
         self.settings.setValue("local_upload_dry_run_check", self.dry_run_check.isChecked())
+        
+        self.settings.setValue("stack_manage_burst", self.stack_manage_burst_combo.currentText())
+        self.settings.setValue("stack_manage_raw_jpeg", self.stack_manage_raw_jpeg_combo.currentText())
+        self.settings.setValue("stack_manage_heic_jpeg", self.stack_manage_heic_jpeg_combo.currentText())
+        self.settings.setValue("stack_manage_epson_fastfoto", self.manage_epson_fastfoto_check.isChecked())
+        self.settings.setValue("stack_time_zone", self.stack_time_zone_edit.text())
+        self.settings.setValue("stack_dry_run", self.stack_dry_run_check.isChecked())
 
     def load_configuration(self):
         self.server_url_edit.setText(self.settings.value("server_url", ""))
         self.api_key_edit.setText(self.settings.value("api_key", ""))
         self.skip_ssl_checkbox.setChecked(self.settings.value("skip_ssl", False, type=bool))
-        self.api_url_edit.setText(self.settings.value("api_url", ""))
-        self.client_timeout_spin.setValue(self.settings.value("client_timeout", 1, type=int))
-        self.log_level_combo.setCurrentText(self.settings.value("log_level", "ERROR"))
+        
+        self.log_level_combo.setCurrentText(self.settings.value("log_level", "INFO"))
+        self.log_type_combo.setCurrentText(self.settings.value("log_type", "TEXT"))
+        self.no_ui_check.setChecked(self.settings.value("no_ui", False, type=bool))
+        
+        self.client_timeout_spin.setValue(self.settings.value("client_timeout", 20, type=int))
+        self.concurrent_tasks_spin.setValue(self.settings.value("concurrent_tasks", 2, type=int))
         self.device_uuid_edit.setText(self.settings.value("device_uuid", ""))
+        self.on_errors_combo.setCurrentText(self.settings.value("on_errors", "stop"))
+        self.pause_immich_jobs_check.setChecked(self.settings.value("pause_immich_jobs", True, type=bool))
 
         self.zip_radio.setChecked(self.settings.value("google_takeout_zip_radio", True, type=bool))
         self.folder_radio.setChecked(self.settings.value("google_takeout_folder_radio", False, type=bool))
         self.update_browse_mode(self.zip_radio.isChecked())
         self.source_path_edit.setText(self.settings.value("google_takeout_source_path", ""))
-        self.create_albums_check.setChecked(self.settings.value("google_takeout_create_albums", True, type=bool))
-        self.auto_archive_check.setChecked(self.settings.value("google_takeout_auto_archive", True, type=bool))
-        self.untitled_albums_check.setChecked(self.settings.value("google_takeout_untitled_albums", False, type=bool))
+        
+        self.sync_albums_check.setChecked(self.settings.value("google_takeout_sync_albums", True, type=bool))
+        self.include_archived_check.setChecked(self.settings.value("google_takeout_include_archived", True, type=bool))
+        self.include_partner_check.setChecked(self.settings.value("google_takeout_include_partner", True, type=bool))
+        self.include_trashed_check.setChecked(self.settings.value("google_takeout_include_trashed", False, type=bool))
         self.takeout_dry_run_check.setChecked(self.settings.value("google_takeout_dry_run", False, type=bool))
-        self.missing_json_check.setChecked(self.settings.value("google_takeout_missing_json", False, type=bool))
-        self.album_folder_check.setChecked(self.settings.value("google_takeout_album_folder_name", False, type=bool))
-        self.discard_archived_check.setChecked(self.settings.value("google_takeout_discard_archived", False, type=bool))
+        
+        self.include_unmatched_check.setChecked(self.settings.value("google_takeout_include_unmatched", False, type=bool))
+        self.include_untitled_albums_check.setChecked(self.settings.value("google_takeout_include_untitled_albums", False, type=bool))
+        self.takeout_tag_check.setChecked(self.settings.value("google_takeout_takeout_tag", True, type=bool))
+        self.people_tag_check.setChecked(self.settings.value("google_takeout_people_tag", True, type=bool))
+        self.from_album_name_edit.setText(self.settings.value("google_takeout_from_album_name", ""))
+        
         adv_group_google_takeout = self.tab_widget.widget(1).widget().findChild(QGroupBox, "Advanced Options")
         if adv_group_google_takeout is not None:
             adv_group_google_takeout.setChecked(self.settings.value("google_takeout_adv_group_checked", False, type=bool))
@@ -1016,13 +1227,25 @@ class ImmichGoGUI(QMainWindow):
         self.type_check.setChecked(self.settings.value("local_upload_type_check", False, type=bool))
         self.type_edit.setEnabled(self.type_check.isChecked())
         self.type_edit.setText(self.settings.value("local_upload_type_edit", ""))
+        
         self.album_name_edit.setText(self.settings.value("local_upload_album_name", ""))
-        self.create_folder_check.setChecked(self.settings.value("local_upload_create_folder_check", False, type=bool))
+        self.folder_as_album_combo.setCurrentText(self.settings.value("local_upload_folder_as_album", "NONE"))
+        self.folder_as_tags_check.setChecked(self.settings.value("local_upload_folder_as_tags", False, type=bool))
+        self.manage_burst_combo.setCurrentText(self.settings.value("local_upload_manage_burst", "NoStack"))
+        self.manage_raw_jpeg_combo.setCurrentText(self.settings.value("local_upload_manage_raw_jpeg", "NoStack"))
+        self.manage_heic_jpeg_combo.setCurrentText(self.settings.value("local_upload_manage_heic_jpeg", "NoStack"))
         self.dry_run_check.setChecked(self.settings.value("local_upload_dry_run_check", False, type=bool))
+        
+        self.stack_manage_burst_combo.setCurrentText(self.settings.value("stack_manage_burst", "NoStack"))
+        self.stack_manage_raw_jpeg_combo.setCurrentText(self.settings.value("stack_manage_raw_jpeg", "NoStack"))
+        self.stack_manage_heic_jpeg_combo.setCurrentText(self.settings.value("stack_manage_heic_jpeg", "NoStack"))
+        self.manage_epson_fastfoto_check.setChecked(self.settings.value("stack_manage_epson_fastfoto", False, type=bool))
+        self.stack_time_zone_edit.setText(self.settings.value("stack_time_zone", ""))
+        self.stack_dry_run_check.setChecked(self.settings.value("stack_dry_run", False, type=bool))
+        
         adv_group_config = self.tab_widget.widget(0).widget().findChild(QGroupBox, "Advanced Configuration")
         if adv_group_config is not None:
             adv_group_config.setChecked(self.settings.value("config_adv_group_checked", False, type=bool))
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
