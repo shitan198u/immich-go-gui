@@ -28,7 +28,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxkbcommon-x11-0 libxcb-cursor0 xvfb
+          sudo apt-get install -y libxkbcommon-x11-0 libxcb-cursor0 xvfb libegl1 libgl1
 
       - name: Run Tests (Linux)
         if: runner.os == 'Linux'
