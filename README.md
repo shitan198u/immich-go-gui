@@ -22,23 +22,32 @@ Immich-Go GUI is a graphical front-end for immich-go, a tool for managing media 
 * **Configuration saving & loading**: Stores user preferences to streamline repeated usage.
 * **Drag & Drop Support**: Easily add files and directories to the application for processing.
 
-## Requirements
+## Download & Installation
 
-* Python 3.6 or newer
-* uv Package Manager
-* Install uv by following the installation guide available at:
-  https://docs.astral.sh/uv/getting-started/installation/
+The easiest way to use Immich-Go GUI is to download the pre-built executable for your operating system. We provide standalone applications that require no complex setup.
 
-## Installation & Running
+### 📥 Pre-built Binaries (Recommended)
 
-### 1. Clone the Repository
+1. Go to the [Releases page](https://github.com/shitan198u/immich-go-gui/releases/latest).
+
+---
+
+### 💻 Running from Source (Manual)
+
+If you prefer to run the application manually from source, you can use the `uv` package manager.
+
+#### 1. Prerequisites
+- Python 3.6 or newer
+- [uv Package Manager](https://docs.astral.sh/uv/getting-started/installation/)
+
+#### 2. Clone the Repository
 Navigate to your desired directory in a terminal and run:
 ```bash
 git clone https://github.com/shitan198u/immich-go-gui.git
 cd immich-go-gui
 ```
 
-### 2. Run the Application with uv
+#### 3. Run the Application with uv
 In the project directory, execute:
 ```bash
 uv run app.py
