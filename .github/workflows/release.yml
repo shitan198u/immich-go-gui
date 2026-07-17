@@ -107,7 +107,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
-          generate_release_notes: true
           files: |
             artifacts/Immich-Go-GUI-Windows.exe
             artifacts/Immich-Go-GUI-macOS.dmg
