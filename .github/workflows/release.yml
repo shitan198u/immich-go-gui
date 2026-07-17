@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - chore/nuitka-packaging
+      - master
     tags:
       - 'v*'
 
@@ -94,6 +94,8 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
