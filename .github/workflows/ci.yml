@@ -28,10 +28,12 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxkbcommon-x11-0 libxcb-cursor0 xvfb libegl1 libgl1
+          sudo apt-get install -y libxkbcommon-x11-0 libxcb-cursor0 xvfb libegl1 libgl1 libxcb-xinerama0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0
 
       - name: Run Tests (Linux)
         if: runner.os == 'Linux'
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: xvfb-run uv run pytest
 
       - name: Run Tests (macOS / Windows)
