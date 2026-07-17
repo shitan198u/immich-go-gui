@@ -3,8 +3,8 @@ name: Build and Release Apps
 on:
   workflow_dispatch:
   push:
-    branches:
-      - master
+    # branches:
+    #   - master
     tags:
       - 'v*'
 
