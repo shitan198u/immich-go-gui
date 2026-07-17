@@ -1,0 +1,123 @@
+name: Build and Release Apps
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - chore/nuitka-packaging
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            name: linux
+          - os: windows-latest
+            name: windows
+          - os: macos-latest
+            name: macos
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Add Nuitka
+        run: uv add --dev nuitka
+
+      # --- WINDOWS BUILD ---
+      - name: Build Windows
+        if: matrix.name == 'windows'
+        run: |
+          uv run python -m nuitka --assume-yes-for-downloads --onefile --windows-console-mode=disable --enable-plugin=pyside6 --include-data-files=immich-go-gui-icon.svg=immich-go-gui-icon.svg app.py
+          mv app.exe Immich-Go-GUI-Windows.exe
+
+      # --- MACOS BUILD ---
+      - name: Build macOS
+        if: matrix.name == 'macos'
+        run: |
+          uv run python -m nuitka --assume-yes-for-downloads --macos-create-app-bundle --enable-plugin=pyside6 --include-data-files=immich-go-gui-icon.svg=immich-go-gui-icon.svg app.py
+          npm install -g create-dmg
+          create-dmg app.app || true
+          mv *.dmg Immich-Go-GUI-macOS.dmg
+
+      # --- LINUX APPIMAGE BUILD ---
+      - name: Build Linux AppImage
+        if: matrix.name == 'linux'
+        run: |
+          uv run python -m nuitka --assume-yes-for-downloads --standalone --enable-plugin=pyside6 --include-data-files=immich-go-gui-icon.svg=immich-go-gui-icon.svg app.py
+          
+          mkdir -p AppDir/usr/bin
+          cp -r app.dist/* AppDir/usr/bin/
+          cp immich-go-gui-icon.svg AppDir/
+          
+          cat << 'EOF' > AppDir/immich-go-gui.desktop
+          [Desktop Entry]
+          Name=Immich-Go GUI
+          Exec=app.bin
+          Icon=immich-go-gui-icon
+          Type=Application
+          Categories=Utility;
+          EOF
+          
+          cat << 'EOF' > AppDir/AppRun
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "${0}")")"
+          exec "${HERE}/usr/bin/app.bin" "$@"
+          EOF
+          chmod +x AppDir/AppRun
+          
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+          chmod +x appimagetool
+          ./appimagetool --appimage-extract-and-run AppDir Immich-Go-GUI-Linux.AppImage
+
+      # --- UPLOAD ARTIFACTS ---
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Immich-Go-GUI-${{ matrix.name }}
+          path: |
+            Immich-Go-GUI-Windows.exe
+            Immich-Go-GUI-macOS.dmg
+            Immich-Go-GUI-Linux.AppImage
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      
+      - name: Create Official Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/Immich-Go-GUI-Windows.exe
+            artifacts/Immich-Go-GUI-macOS.dmg
+            artifacts/Immich-Go-GUI-Linux.AppImage
+
+      - name: Create Test Pre-Release
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: test-build
+          name: "Test Build (Unofficial)"
+          prerelease: true
+          files: |
+            artifacts/Immich-Go-GUI-Windows.exe
+            artifacts/Immich-Go-GUI-macOS.dmg
+            artifacts/Immich-Go-GUI-Linux.AppImage

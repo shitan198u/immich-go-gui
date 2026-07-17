@@ -1249,6 +1249,15 @@ class ImmichGoGUI(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    
+    # Set app metadata for Wayland/X11 to correctly match the desktop file and icon
+    app.setApplicationName("Immich-Go-GUI")
+    app.setDesktopFileName("immich-go-gui")
+    
+    # Set application icon
+    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "immich-go-gui-icon.svg")
+    app.setWindowIcon(QIcon(icon_path))
+    
     app.setStyle("Fusion")
     from PySide6.QtGui import QFont
     app.setFont(QFont("Segoe UI", 10))

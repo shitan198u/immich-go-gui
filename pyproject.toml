@@ -12,6 +12,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "nuitka>=4.1.3",
     "pytest>=9.1.1",
     "pytest-qt>=4.5.0",
 ]
