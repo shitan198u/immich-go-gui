@@ -38,14 +38,14 @@ jobs:
       - name: Build Windows
         if: matrix.name == 'windows'
         run: |
-          uv run python -m nuitka --onefile --windows-console-mode=disable --enable-plugin=pyside6 --include-data-files=immich-go-gui-icon.svg=immich-go-gui-icon.svg app.py
+          uv run python -m nuitka --assume-yes-for-downloads --onefile --windows-console-mode=disable --enable-plugin=pyside6 --include-data-files=immich-go-gui-icon.svg=immich-go-gui-icon.svg app.py
           mv app.exe Immich-Go-GUI-Windows.exe
 
       # --- MACOS BUILD ---
       - name: Build macOS
         if: matrix.name == 'macos'
         run: |
-          uv run python -m nuitka --macos-create-app-bundle --enable-plugin=pyside6 --include-data-files=immich-go-gui-icon.svg=immich-go-gui-icon.svg app.py
+          uv run python -m nuitka --assume-yes-for-downloads --macos-create-app-bundle --enable-plugin=pyside6 --include-data-files=immich-go-gui-icon.svg=immich-go-gui-icon.svg app.py
           npm install -g create-dmg
           create-dmg app.app || true
           mv *.dmg Immich-Go-GUI-macOS.dmg
@@ -54,7 +54,7 @@ jobs:
       - name: Build Linux AppImage
         if: matrix.name == 'linux'
         run: |
-          uv run python -m nuitka --standalone --enable-plugin=pyside6 --include-data-files=immich-go-gui-icon.svg=immich-go-gui-icon.svg app.py
+          uv run python -m nuitka --assume-yes-for-downloads --standalone --enable-plugin=pyside6 --include-data-files=immich-go-gui-icon.svg=immich-go-gui-icon.svg app.py
           
           mkdir -p AppDir/usr/bin
           cp -r app.dist/* AppDir/usr/bin/
