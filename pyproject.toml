@@ -9,3 +9,9 @@ dependencies = [
     "pyside6>=6.8.2",
     "requests>=2.32.3",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-qt>=4.5.0",
+]
