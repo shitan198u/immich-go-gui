@@ -23,3 +23,6 @@ apper.py
 *.dmg
 *.AppImage
 AppDir/
+
+# Personal documentation
+GitReadme.md
