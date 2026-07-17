@@ -1255,7 +1255,7 @@ if __name__ == "__main__":
     app.setDesktopFileName("immich-go-gui")
     
     # Set application icon
-    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "immich-go-gui-icon.svg")
+    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "immich-go-gui.png")
     app.setWindowIcon(QIcon(icon_path))
     
     app.setStyle("Fusion")
