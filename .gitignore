@@ -13,3 +13,13 @@ apper.py
 
 # Testing
 .pytest_cache/
+
+# Nuitka and Packaging artifacts
+*.build/
+*.dist/
+*.bin
+*.exe
+*.app/
+*.dmg
+*.AppImage
+AppDir/
