@@ -1,0 +1,39 @@
+name: CI Checks
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v2
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Install Linux Desktop Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-x11-0 libxcb-cursor0 xvfb
+
+      - name: Run Tests (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run uv run pytest
+
+      - name: Run Tests (macOS / Windows)
+        if: runner.os != 'Linux'
+        run: uv run pytest
