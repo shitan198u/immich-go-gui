@@ -10,3 +10,6 @@ wheels/
 .venv
 immich-go/*
 apper.py
+
+# Testing
+.pytest_cache/
