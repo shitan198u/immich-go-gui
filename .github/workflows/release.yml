@@ -114,9 +114,11 @@ jobs:
 
       - name: Setup nFPM
         if: matrix.name == 'linux'
-        uses: secondlife/setup-nfpm@v5
+        uses: goreleaser/goreleaser-action@v6
         with:
-          version: '2.47.0'
+          distribution: nfpm
+          version: '~> 2'
+          install-only: true
 
       - name: Build DEB and RPM
         if: matrix.name == 'linux'
