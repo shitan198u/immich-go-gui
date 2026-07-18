@@ -116,7 +116,7 @@ jobs:
         if: matrix.name == 'linux'
         uses: secondlife/setup-nfpm@v5
         with:
-          version: 'latest'
+          version: '2.47.0'
 
       - name: Build DEB and RPM
         if: matrix.name == 'linux'
