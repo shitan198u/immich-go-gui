@@ -261,7 +261,7 @@ class ImmichGoGUI(QMainWindow):
         self.footer.setVisible(False)  # Hide footer on config tab
         
         self.settings = QSettings("YourOrganization", "ImmichGoGUI")
-        self.update_binary()
+        self.check_binary_version()
         self.load_configuration()
         
         # Validation timer
@@ -341,27 +341,13 @@ class ImmichGoGUI(QMainWindow):
         status_frame.setObjectName("StatusFrame")
         status_layout = QVBoxLayout(status_frame)
         
-        row1 = QHBoxLayout()
         self.lbl_binary_status = QLabel("🟢 Binary: Ready")
         self.lbl_binary_status.setObjectName("StatusText")
-        row1.addWidget(self.lbl_binary_status)
-        row1.addStretch()
-        btn_update = QPushButton("Update")
-        btn_update.setObjectName("ActionLink")
-        btn_update.clicked.connect(self.update_binary)
-        row1.addWidget(btn_update)
-        status_layout.addLayout(row1)
+        status_layout.addWidget(self.lbl_binary_status)
         
-        row2 = QHBoxLayout()
         self.status_indicator = QLabel("🔴 Server: Not Set")
         self.status_indicator.setObjectName("StatusText")
-        row2.addWidget(self.status_indicator)
-        row2.addStretch()
-        btn_setup = QPushButton("Setup")
-        btn_setup.setObjectName("ActionLink")
-        btn_setup.clicked.connect(lambda: self.switch_tab(0, "configuration", self.btn_config))
-        row2.addWidget(btn_setup)
-        status_layout.addLayout(row2)
+        status_layout.addWidget(self.status_indicator)
         
         sidebar_layout.addWidget(status_frame)
         self.main_layout.addWidget(sidebar)
@@ -508,12 +494,13 @@ class ImmichGoGUI(QMainWindow):
         # Binary Management
         card, card_layout = self.create_card("Binary Management")
         row = QHBoxLayout()
-        lbl = QLabel("Current Version: v0.22.0\nLocated at: ./immich-go/")
-        lbl.setObjectName("FieldLabel")
-        row.addWidget(lbl)
+        self.lbl_binary_info = QLabel("Checking version...")
+        self.lbl_binary_info.setObjectName("FieldLabel")
+        row.addWidget(self.lbl_binary_info)
         row.addStretch()
         btn_check = QPushButton("Check for Updates")
-        btn_check.clicked.connect(self.update_binary)
+        self.btn_check_updates = btn_check
+        btn_check.clicked.connect(self.check_for_updates)
         row.addWidget(btn_check)
         card_layout.addLayout(row)
         layout.addWidget(card)
@@ -1246,170 +1233,170 @@ class ImmichGoGUI(QMainWindow):
         if tab_key == "config":
             return []
             
-        opts = []
         c = self.inputs[tab_key]
         
-        # Base command
-        if tab_key == "upload-folder": opts += ["upload", "from-folder"]
-        elif tab_key == "upload-gp": opts += ["upload", "from-google-photos"]
-        elif tab_key == "upload-immich": opts += ["upload", "from-immich"]
-        elif tab_key == "archive-folder": opts += ["archive", "from-folder"]
-        elif tab_key == "archive-immich": opts += ["archive", "from-immich"]
-        elif tab_key == "stack": opts += ["stack"]
+        global_opts = ["--no-ui"]  # Always disable interactive UI
+        cmd = []
+        cmd_opts = []
+        path_opt = []
         
-        opts.append("--no-ui")  # Always disable interactive UI
+        # Extract global log-level from the current tab
+        if 'log-level' in c and c['log-level'].currentText() != "INFO":
+            global_opts.append(f"--log-level={c['log-level'].currentText()}")
+        
+        # Base command
+        if tab_key == "upload-folder": cmd = ["upload", "from-folder"]
+        elif tab_key == "upload-gp": cmd = ["upload", "from-google-photos"]
+        elif tab_key == "upload-immich": cmd = ["upload", "from-immich"]
+        elif tab_key == "archive-folder": cmd = ["archive", "from-folder"]
+        elif tab_key == "archive-immich": cmd = ["archive", "from-immich"]
+        elif tab_key == "stack": cmd = ["stack"]
         
         # Server options (except for local archive)
         if tab_key != "archive-folder":
             srv = self.inputs['config']['server'].text()
             api = self.inputs['config']['api_key'].text()
-            if srv: opts.append(f"--server={srv}")
-            if api: opts.append(f"--api-key={api}")
+            if srv: cmd_opts.append(f"--server={srv}")
+            if api: cmd_opts.append(f"--api-key={api}")
             
         # Run behavior (from config advanced)
         conc = self.inputs['config']['concurrent'].value()
-        if conc != 2: opts.append(f"--concurrent-tasks={conc}")
+        if conc != 2: cmd_opts.append(f"--concurrent-tasks={conc}")
         
         if 'pause-jobs' in c:
-            if not c['pause-jobs'].isChecked(): opts.append("--pause-immich-jobs=false")
+            if not c['pause-jobs'].isChecked(): cmd_opts.append("--pause-immich-jobs=false")
         elif not self.inputs['config']['pause_jobs'].isChecked():
-            opts.append("--pause-immich-jobs=false")
+            cmd_opts.append("--pause-immich-jobs=false")
             
         if 'on-errors' in c:
-            if c['on-errors'].currentText() != "stop": opts.append(f"--on-errors={c['on-errors'].currentText()}")
+            if c['on-errors'].currentText() != "stop": cmd_opts.append(f"--on-errors={c['on-errors'].currentText()}")
         elif self.inputs['config']['on_errors'].currentText() != "stop":
-            opts.append(f"--on-errors={self.inputs['config']['on_errors'].currentText()}")
+            cmd_opts.append(f"--on-errors={self.inputs['config']['on_errors'].currentText()}")
 
         # Tab specific options
         if tab_key == "upload-folder":
-            if c['include-type'].currentText() != "all": opts.append(f"--include-type={c['include-type'].currentText()}")
-            if c['folder-album'].currentText() != "NONE": opts.append(f"--folder-as-album={c['folder-album'].currentText()}")
-            if c['into-album'].text(): opts.append(f'--into-album={c["into-album"].text()}')
-            if c['overwrite'].isChecked(): opts.append("--overwrite")
-            if c['manage-burst'].currentText() != "NoStack": opts.append(f"--manage-burst={c['manage-burst'].currentText()}")
-            if c['manage-raw-jpeg'].currentText() != "NoStack": opts.append(f"--manage-raw-jpeg={c['manage-raw-jpeg'].currentText()}")
-            if c['manage-heic-jpeg'].currentText() != "NoStack": opts.append(f"--manage-heic-jpeg={c['manage-heic-jpeg'].currentText()}")
+            if c['include-type'].currentText() != "all": cmd_opts.append(f"--include-type={c['include-type'].currentText()}")
+            if c['folder-album'].currentText() != "NONE": cmd_opts.append(f"--folder-as-album={c['folder-album'].currentText()}")
+            if c['into-album'].text(): cmd_opts.append(f'--into-album={c["into-album"].text()}')
+            if c['overwrite'].isChecked(): cmd_opts.append("--overwrite")
+            if c['manage-burst'].currentText() != "NoStack": cmd_opts.append(f"--manage-burst={c['manage-burst'].currentText()}")
+            if c['manage-raw-jpeg'].currentText() != "NoStack": cmd_opts.append(f"--manage-raw-jpeg={c['manage-raw-jpeg'].currentText()}")
+            if c['manage-heic-jpeg'].currentText() != "NoStack": cmd_opts.append(f"--manage-heic-jpeg={c['manage-heic-jpeg'].currentText()}")
             
             # Advanced
-            if c['date-range'].text(): opts.append(f'--date-range={c["date-range"].text()}')
-            if c['include-ext'].text(): opts.append(f'--include-extensions={c["include-ext"].text()}')
-            if c['exclude-ext'].text(): opts.append(f'--exclude-extensions={c["exclude-ext"].text()}')
+            if c['date-range'].text(): cmd_opts.append(f'--date-range={c["date-range"].text()}')
+            if c['include-ext'].text(): cmd_opts.append(f'--include-extensions={c["include-ext"].text()}')
+            if c['exclude-ext'].text(): cmd_opts.append(f'--exclude-extensions={c["exclude-ext"].text()}')
             for line in c['ban-file'].toPlainText().split('\n'):
-                if line.strip(): opts.append(f'--ban-file="{line.strip()}"')
-            if c['ignore-sidecar'].isChecked(): opts.append("--ignore-sidecar-files")
-            if not c['date-from-name'].isChecked(): opts.append("--date-from-name=false")
+                if line.strip(): cmd_opts.append(f'--ban-file="{line.strip()}"')
+            if c['ignore-sidecar'].isChecked(): cmd_opts.append("--ignore-sidecar-files")
+            if not c['date-from-name'].isChecked(): cmd_opts.append("--date-from-name=false")
             
             if c['tag'].text():
                 for t in c['tag'].text().split(','):
-                    if t.strip(): opts.append(f'--tag="{t.strip()}"')
-            if c['session-tag'].isChecked(): opts.append("--session-tag")
-            if c['folder-tags'].isChecked(): opts.append("--folder-as-tags")
+                    if t.strip(): cmd_opts.append(f'--tag="{t.strip()}"')
+            if c['session-tag'].isChecked(): cmd_opts.append("--session-tag")
+            if c['folder-tags'].isChecked(): cmd_opts.append("--folder-as-tags")
             
-            if c['skip-ssl'].isChecked(): opts.append("--skip-verify-ssl")
-            if c['log-level'].currentText() != "INFO": opts.append(f"--log-level={c['log-level'].currentText()}")
-            if c['api-trace'].isChecked(): opts.append("--api-trace")
+            if c['skip-ssl'].isChecked(): cmd_opts.append("--skip-verify-ssl")
+            if c['api-trace'].isChecked(): cmd_opts.append("--api-trace")
             
-            if c['path'].text(): opts.append(f'"{c["path"].text()}"')
+            if c['path'].text(): path_opt.append(f'"{c["path"].text()}"')
 
         elif tab_key == "upload-gp":
-            if c['include-type'].currentText() != "all": opts.append(f"--include-type={c['include-type'].currentText()}")
-            if c['into-album'].text(): opts.append(f'--into-album={c["into-album"].text()}')
-            if c['include-unmatched'].isChecked(): opts.append("--include-unmatched=true")
-            if not c['include-partner'].isChecked(): opts.append("--include-partner=false")
-            if not c['sync-albums'].isChecked(): opts.append("--sync-albums=false")
-            if c['manage-burst'].currentText() != "NoStack": opts.append(f"--manage-burst={c['manage-burst'].currentText()}")
-            if c['manage-heic-jpeg'].currentText() != "NoStack": opts.append(f"--manage-heic-jpeg={c['manage-heic-jpeg'].currentText()}")
+            if c['include-type'].currentText() != "all": cmd_opts.append(f"--include-type={c['include-type'].currentText()}")
+            if c['into-album'].text(): cmd_opts.append(f'--into-album={c["into-album"].text()}')
+            if c['include-unmatched'].isChecked(): cmd_opts.append("--include-unmatched=true")
+            if not c['include-partner'].isChecked(): cmd_opts.append("--include-partner=false")
+            if not c['sync-albums'].isChecked(): cmd_opts.append("--sync-albums=false")
+            if c['manage-burst'].currentText() != "NoStack": cmd_opts.append(f"--manage-burst={c['manage-burst'].currentText()}")
+            if c['manage-heic-jpeg'].currentText() != "NoStack": cmd_opts.append(f"--manage-heic-jpeg={c['manage-heic-jpeg'].currentText()}")
             
             # Advanced
-            if c['from-album-name'].text(): opts.append(f'--from-album-name={c["from-album-name"].text()}')
-            if not c['include-archived'].isChecked(): opts.append("--include-archived=false")
-            if c['include-trashed'].isChecked(): opts.append("--include-trashed=true")
-            if c['partner-album'].text(): opts.append(f'--partner-shared-album={c["partner-album"].text()}')
-            if not c['takeout-tag'].isChecked(): opts.append("--takeout-tag=false")
-            if not c['people-tag'].isChecked(): opts.append("--people-tag=false")
+            if c['from-album-name'].text(): cmd_opts.append(f'--from-album-name={c["from-album-name"].text()}')
+            if not c['include-archived'].isChecked(): cmd_opts.append("--include-archived=false")
+            if c['include-trashed'].isChecked(): cmd_opts.append("--include-trashed=true")
+            if c['partner-album'].text(): cmd_opts.append(f'--partner-shared-album={c["partner-album"].text()}')
+            if not c['takeout-tag'].isChecked(): cmd_opts.append("--takeout-tag=false")
+            if not c['people-tag'].isChecked(): cmd_opts.append("--people-tag=false")
             
             if c['tag'].text():
                 for t in c['tag'].text().split(','):
-                    if t.strip(): opts.append(f'--tag="{t.strip()}"')
-            if c['session-tag'].isChecked(): opts.append("--session-tag")
+                    if t.strip(): cmd_opts.append(f'--tag="{t.strip()}"')
+            if c['session-tag'].isChecked(): cmd_opts.append("--session-tag")
             
-            if c['skip-ssl'].isChecked(): opts.append("--skip-verify-ssl")
-            if c['log-level'].currentText() != "INFO": opts.append(f"--log-level={c['log-level'].currentText()}")
+            if c['skip-ssl'].isChecked(): cmd_opts.append("--skip-verify-ssl")
             
-            if c['path'].text(): opts.append(f'"{c["path"].text()}"')
+            if c['path'].text(): path_opt.append(f'"{c["path"].text()}"')
 
         elif tab_key == "upload-immich":
-            if c['from-server'].text(): opts.append(f"--from-server={c['from-server'].text()}")
-            if c['from-api-key'].text(): opts.append(f"--from-api-key={c['from-api-key'].text()}")
-            if c['from-favorite'].isChecked(): opts.append("--from-favorite=true")
-            if c['from-archived'].isChecked(): opts.append("--from-archived=true")
-            if c['from-trash'].isChecked(): opts.append("--from-trash=true")
+            if c['from-server'].text(): cmd_opts.append(f"--from-server={c['from-server'].text()}")
+            if c['from-api-key'].text(): cmd_opts.append(f"--from-api-key={c['from-api-key'].text()}")
+            if c['from-favorite'].isChecked(): cmd_opts.append("--from-favorite=true")
+            if c['from-archived'].isChecked(): cmd_opts.append("--from-archived=true")
+            if c['from-trash'].isChecked(): cmd_opts.append("--from-trash=true")
             
             # Advanced
-            if c['from-date-range'].text(): opts.append(f'--from-date-range={c["from-date-range"].text()}')
+            if c['from-date-range'].text(): cmd_opts.append(f'--from-date-range={c["from-date-range"].text()}')
             if c['from-albums'].text():
                 for a in c['from-albums'].text().split(','):
-                    if a.strip(): opts.append(f'--from-albums="{a.strip()}"')
-            if c['from-minimal-rating'].value() > 0: opts.append(f"--from-minimal-rating={c['from-minimal-rating'].value()}")
+                    if a.strip(): cmd_opts.append(f'--from-albums="{a.strip()}"')
+            if c['from-minimal-rating'].value() > 0: cmd_opts.append(f"--from-minimal-rating={c['from-minimal-rating'].value()}")
             if c['from-people'].text():
                 for p in c['from-people'].text().split(','):
-                    if p.strip(): opts.append(f'--from-people="{p.strip()}"')
+                    if p.strip(): cmd_opts.append(f'--from-people="{p.strip()}"')
             if c['from-tags'].text():
                 for t in c['from-tags'].text().split(','):
-                    if t.strip(): opts.append(f'--from-tags="{t.strip()}"')
+                    if t.strip(): cmd_opts.append(f'--from-tags="{t.strip()}"')
                     
-            if c['from-city'].text(): opts.append(f'--from-city={c["from-city"].text()}')
-            if c['from-state'].text(): opts.append(f'--from-state={c["from-state"].text()}')
-            if c['from-country'].text(): opts.append(f'--from-country={c["from-country"].text()}')
-            if c['from-make'].text(): opts.append(f'--from-make={c["from-make"].text()}')
-            if c['from-model'].text(): opts.append(f'--from-model={c["from-model"].text()}')
+            if c['from-city'].text(): cmd_opts.append(f'--from-city={c["from-city"].text()}')
+            if c['from-state'].text(): cmd_opts.append(f'--from-state={c["from-state"].text()}')
+            if c['from-country'].text(): cmd_opts.append(f'--from-country={c["from-country"].text()}')
+            if c['from-make'].text(): cmd_opts.append(f'--from-make={c["from-make"].text()}')
+            if c['from-model'].text(): cmd_opts.append(f'--from-model={c["from-model"].text()}')
             
-            if c['skip-ssl'].isChecked(): opts.append("--skip-verify-ssl")
-            if c['from-skip-ssl'].isChecked(): opts.append("--from-skip-verify-ssl")
-            if c['log-level'].currentText() != "INFO": opts.append(f"--log-level={c['log-level'].currentText()}")
+            if c['skip-ssl'].isChecked(): cmd_opts.append("--skip-verify-ssl")
+            if c['from-skip-ssl'].isChecked(): cmd_opts.append("--from-skip-verify-ssl")
 
         elif tab_key == "archive-folder":
-            if c['write-to'].text(): opts.append(f'--write-to-folder={c["write-to"].text()}')
-            if c['manage-raw-jpeg'].currentText() != "NoStack": opts.append(f"--manage-raw-jpeg={c['manage-raw-jpeg'].currentText()}")
+            if c['write-to'].text(): cmd_opts.append(f'--write-to-folder={c["write-to"].text()}')
+            if c['manage-raw-jpeg'].currentText() != "NoStack": cmd_opts.append(f"--manage-raw-jpeg={c['manage-raw-jpeg'].currentText()}")
             
             # Advanced
-            if c['date-range'].text(): opts.append(f'--date-range={c["date-range"].text()}')
-            if c['log-level'].currentText() != "INFO": opts.append(f"--log-level={c['log-level'].currentText()}")
+            if c['date-range'].text(): cmd_opts.append(f'--date-range={c["date-range"].text()}')
             
-            if c['path'].text(): opts.append(f'"{c["path"].text()}"')
+            if c['path'].text(): path_opt.append(f'"{c["path"].text()}"')
 
         elif tab_key == "archive-immich":
-            if c['write-to'].text(): opts.append(f'--write-to-folder={c["write-to"].text()}')
-            if c['manage-burst'].currentText() != "NoStack": opts.append(f"--manage-burst={c['manage-burst'].currentText()}")
-            if c['manage-raw-jpeg'].currentText() != "NoStack": opts.append(f"--manage-raw-jpeg={c['manage-raw-jpeg'].currentText()}")
+            if c['write-to'].text(): cmd_opts.append(f'--write-to-folder={c["write-to"].text()}')
+            if c['manage-burst'].currentText() != "NoStack": cmd_opts.append(f"--manage-burst={c['manage-burst'].currentText()}")
+            if c['manage-raw-jpeg'].currentText() != "NoStack": cmd_opts.append(f"--manage-raw-jpeg={c['manage-raw-jpeg'].currentText()}")
             
             # Advanced
-            if c['from-date-range'].text(): opts.append(f'--from-date-range={c["from-date-range"].text()}')
+            if c['from-date-range'].text(): cmd_opts.append(f'--from-date-range={c["from-date-range"].text()}')
             if c['from-albums'].text():
                 for a in c['from-albums'].text().split(','):
-                    if a.strip(): opts.append(f'--from-albums="{a.strip()}"')
+                    if a.strip(): cmd_opts.append(f'--from-albums="{a.strip()}"')
                     
-            if c['skip-ssl'].isChecked(): opts.append("--skip-verify-ssl")
-            if c['log-level'].currentText() != "INFO": opts.append(f"--log-level={c['log-level'].currentText()}")
+            if c['skip-ssl'].isChecked(): cmd_opts.append("--skip-verify-ssl")
 
         elif tab_key == "stack":
-            if c['manage-burst'].currentText() != "NoStack": opts.append(f"--manage-burst={c['manage-burst'].currentText()}")
-            if c['manage-raw-jpeg'].currentText() != "NoStack": opts.append(f"--manage-raw-jpeg={c['manage-raw-jpeg'].currentText()}")
-            if c['manage-heic-jpeg'].currentText() != "NoStack": opts.append(f"--manage-heic-jpeg={c['manage-heic-jpeg'].currentText()}")
+            if c['manage-burst'].currentText() != "NoStack": cmd_opts.append(f"--manage-burst={c['manage-burst'].currentText()}")
+            if c['manage-raw-jpeg'].currentText() != "NoStack": cmd_opts.append(f"--manage-raw-jpeg={c['manage-raw-jpeg'].currentText()}")
+            if c['manage-heic-jpeg'].currentText() != "NoStack": cmd_opts.append(f"--manage-heic-jpeg={c['manage-heic-jpeg'].currentText()}")
             
             # Advanced
-            if c['time-zone'].text(): opts.append(f'--time-zone={c["time-zone"].text()}')
-            if c['manage-epson'].isChecked(): opts.append("--manage-epson-fastfoto=true")
+            if c['time-zone'].text(): cmd_opts.append(f'--time-zone={c["time-zone"].text()}')
+            if c['manage-epson'].isChecked(): cmd_opts.append("--manage-epson-fastfoto=true")
             
-            if c['skip-ssl'].isChecked(): opts.append("--skip-verify-ssl")
-            if c['log-level'].currentText() != "INFO": opts.append(f"--log-level={c['log-level'].currentText()}")
+            if c['skip-ssl'].isChecked(): cmd_opts.append("--skip-verify-ssl")
 
         if dry_run:
-            if "--dry-run" not in opts: opts.append("--dry-run")
+            if "--dry-run" not in cmd_opts: cmd_opts.append("--dry-run")
         else:
-            if "--dry-run" in opts: opts.remove("--dry-run")
+            if "--dry-run" in cmd_opts: cmd_opts.remove("--dry-run")
             
-        return opts
+        return global_opts + cmd + cmd_opts + path_opt
 
     def show_confirm_dialog(self, is_dry_run):
         if self.stacked_widget.currentIndex() == 0: return
@@ -1502,21 +1489,261 @@ class ImmichGoGUI(QMainWindow):
             return f'https://github.com/simulot/immich-go/releases/download/{version}/{filename}'
         return None
 
-    def update_binary(self):
+    def check_binary_version(self):
         binary_folder = os.path.abspath(os.path.join(os.getcwd(), "immich-go"))
-        if not os.path.exists(binary_folder): os.makedirs(binary_folder)
-        
+        binary_filename = "immich-go.exe" if sys.platform.startswith("win") else "immich-go"
+        self.binary_path = os.path.join(binary_folder, binary_filename)
+
+        if not os.path.exists(self.binary_path):
+            if hasattr(self, 'lbl_binary_info'):
+                self.lbl_binary_info.setText(f"Current Version: Not found\nLocated at: {self.binary_path}")
+            if hasattr(self, 'lbl_binary_status'):
+                self.lbl_binary_status.setText("🔴 Binary: Missing")
+            if hasattr(self, 'btn_check_updates'):
+                self.btn_check_updates.setText("Download Immich-Go")
+            return
+            
+        try:
+            result = subprocess.run([self.binary_path, "version"], capture_output=True, text=True, timeout=2)
+            version_text = result.stdout.strip() if result.stdout else "Unknown version"
+            if "," in version_text: version_text = version_text.split(",")[0]
+            if hasattr(self, 'lbl_binary_info'):
+                self.lbl_binary_info.setText(f"Current Version: {version_text}\nLocated at: {self.binary_path}")
+            if hasattr(self, 'lbl_binary_status'):
+                self.lbl_binary_status.setText("🟢 Binary: Ready")
+            if hasattr(self, 'btn_check_updates'):
+                self.btn_check_updates.setText("Check for Updates")
+        except Exception:
+            if hasattr(self, 'lbl_binary_info'):
+                self.lbl_binary_info.setText(f"Current Version: Unknown\nLocated at: {self.binary_path}")
+            if hasattr(self, 'lbl_binary_status'):
+                self.lbl_binary_status.setText("🟢 Binary: Ready")
+            if hasattr(self, 'btn_check_updates'):
+                self.btn_check_updates.setText("Check for Updates")
+
+    def check_for_updates(self):
+        self.check_binary_version()
+        latest_version = self.get_latest_release_info()
+        if not latest_version:
+            QMessageBox.warning(self, "Update Check", "Failed to fetch the latest version information from GitHub.")
+            return
+            
+        current_version = "Unknown"
+        if hasattr(self, 'lbl_binary_info'):
+            info = self.lbl_binary_info.text()
+            if "Current Version: " in info:
+                current_version = info.split("Current Version: ")[1].split("\n")[0]
+                
+        if current_version == "Not found":
+            reply = QMessageBox.question(self, "Download Immich-Go", 
+                f"The latest version is {latest_version}.\n\nDo you want to download and install it now?",
+                QMessageBox.Yes | QMessageBox.No)
+        else:
+            reply = QMessageBox.question(self, "Update Check", 
+                f"Latest version: {latest_version}\nCurrent version: {current_version}\n\nDo you want to download and install the latest version?",
+                QMessageBox.Yes | QMessageBox.No)
+            
+        if reply == QMessageBox.Yes:
+            self.update_binary(force_download=True)
+
+    def update_binary(self, force_download=False):
+        binary_folder = os.path.abspath(os.path.join(os.getcwd(), "immich-go"))
+        if not os.path.exists(binary_folder):
+            os.makedirs(binary_folder)
+
+        # Determine correct binary name for OS
         binary_filename = "immich-go.exe" if sys.platform.startswith("win") else "immich-go"
         binary_path = os.path.join(binary_folder, binary_filename)
         self.binary_path = binary_path
 
-        if os.path.exists(binary_path):
-            self.lbl_binary_status.setText("🟢 Binary: Ready")
-            return True
+        # Check if binary exists
+        if not os.path.exists(binary_path) or force_download:
+            # Create download progress dialog
+            progress_dialog = QDialog(self)
+            progress_dialog.setWindowTitle("Downloading Immich-Go")
+            progress_dialog.setFixedWidth(400)
 
-        self.lbl_binary_status.setText("🔴 Binary: Missing")
-        QMessageBox.warning(self, "Binary Missing", "Please download the immich-go binary and place it in the 'immich-go' folder.")
-        return False
+            layout = QVBoxLayout()
+
+            # Status label
+            status_label = QLabel("Downloading Immich-Go binary...")
+            layout.addWidget(status_label)
+
+            # Progress bar
+            progress_bar = QProgressBar()
+            progress_bar.setRange(0, 100)
+            layout.addWidget(progress_bar)
+
+            # Cancel button
+            cancel_button = QPushButton("Cancel")
+            layout.addWidget(cancel_button)
+
+            progress_dialog.setLayout(layout)
+
+            # Prevent closing the dialog
+            progress_dialog.setWindowFlags(progress_dialog.windowFlags() & ~Qt.WindowCloseButtonHint)
+
+            # Thread for download to keep UI responsive
+            class DownloadThread(QThread):
+                download_progress = Signal(int)
+                download_complete = Signal(bytes)
+                download_error = Signal(str)
+
+                def __init__(self, download_url):
+                    super().__init__()
+                    self.download_url = download_url
+
+                def run(self):
+                    try:
+                        response = requests.get(self.download_url, stream=True)
+                        response.raise_for_status()
+
+                        total_size = int(response.headers.get('content-length', 0))
+                        block_size = 1024  # 1 Kibibyte
+                        downloaded_size = 0
+
+                        # Buffer to store downloaded content
+                        content = io.BytesIO()
+
+                        for data in response.iter_content(block_size):
+                            downloaded_size += len(data)
+                            content.write(data)
+
+                            # Calculate and emit progress
+                            if total_size > 0:
+                                progress = int((downloaded_size / total_size) * 100)
+                                self.download_progress.emit(progress)
+
+                        self.download_complete.emit(content.getvalue())
+
+                    except Exception as e:
+                        self.download_error.emit(str(e))
+
+            # Set up download thread
+            try:
+                download_url = self.get_download_url()
+
+                if not download_url:
+                    raise ValueError("Could not determine download URL for your system")
+
+                download_thread = DownloadThread(download_url)
+
+                # Connect signals
+                def update_progress(value):
+                    progress_bar.setValue(value)
+
+                def handle_download_complete(content):
+                    progress_dialog.accept()
+
+                    # Determine extraction method based on file type
+                    try:
+                        if download_url.endswith('.zip'):
+                            import zipfile
+                            with zipfile.ZipFile(io.BytesIO(content)) as z:
+                                # Extract the binary, handling different archive structures
+                                for filename in z.namelist():
+                                    if filename.endswith('immich-go') or filename.endswith('immich-go.exe'):
+                                        with z.open(filename) as source, open(binary_path, 'wb') as target:
+                                            target.write(source.read())
+                                        break
+                        elif download_url.endswith('.tar.gz'):
+                            import tarfile
+                            with tarfile.open(fileobj=io.BytesIO(content), mode='r:gz') as tar:
+                                # Extract the binary, handling different archive structures
+                                for member in tar.getmembers():
+                                    if member.name.endswith('immich-go') or member.name.endswith('immich-go.exe'):
+                                        source = tar.extractfile(member)
+                                        with open(binary_path, 'wb') as target:
+                                            target.write(source.read())
+                                        break
+                        else:
+                            raise ValueError("Unsupported archive type")
+
+                        if sys.platform.startswith("win"):
+                            self.check_binary_version()
+
+                        # Set executable permissions for non-Windows systems
+                        if not sys.platform.startswith("win"):
+                            os.chmod(binary_path, 0o755)
+                            self.check_binary_version()
+
+                    except Exception as extraction_error:
+                        QMessageBox.critical(self, "Extraction Error",
+                            f"Failed to extract binary: {str(extraction_error)}\n\n" "Please download manually from GitHub.")
+
+                def handle_download_error(error):
+                    progress_dialog.reject()
+                    # If download fails, show manual download dialog
+                    error_dialog = QDialog(self)
+                    error_dialog.setWindowTitle("Binary Download Failed")
+                    error_dialog.setFixedWidth(450)
+
+                    layout = QVBoxLayout()
+
+                    # Error message
+                    error_label = QLabel("Automatic binary download failed")
+                    error_label.setStyleSheet("color: red; font-weight: bold;")
+                    layout.addWidget(error_label)
+
+                    # Detailed error information
+                    details_label = QLabel(f"Error: {error}")
+                    details_label.setWordWrap(True)
+                    layout.addWidget(details_label)
+
+                    # Manual download instructions
+                    version = self.get_latest_release_info() or "latest"
+                    download_url = "https://github.com/simulot/immich-go/releases/tag/" + version
+
+                    instructions_label = QLabel(
+                        "Please download the binary manually:\n\n" f"1. Visit: {download_url}\n" f"2. Download the appropriate binary for your system\n" f"3. Place it in: {binary_folder}\n" "4. Rename to 'immich-go' (or 'immich-go.exe' on Windows)\n" "5. Ensure it has executable permissions"
+                    )
+                    instructions_label.setWordWrap(True)
+                    layout.addWidget(instructions_label)
+
+                    # URL copy button
+                    url_layout = QHBoxLayout()
+                    url_edit = QLineEdit(download_url)
+                    url_edit.setReadOnly(True)
+                    copy_btn = QPushButton("Copy URL")
+                    copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(download_url))
+                    url_layout.addWidget(url_edit)
+                    url_layout.addWidget(copy_btn)
+                    layout.addLayout(url_layout)
+
+                    # Open browser button
+                    open_btn = QPushButton("Open Download Page")
+                    open_btn.clicked.connect(lambda: webbrowser.open(download_url))
+                    layout.addWidget(open_btn)
+
+                    error_dialog.setLayout(layout)
+                    error_dialog.exec()
+
+                # Connect thread signals
+                download_thread.download_progress.connect(update_progress)
+                download_thread.download_complete.connect(handle_download_complete)
+                download_thread.download_error.connect(handle_download_error)
+
+                # Setup cancel button
+                def cancel_download():
+                    download_thread.terminate()
+                    progress_dialog.reject()
+
+                cancel_button.clicked.connect(cancel_download)
+
+                # Start the download
+                progress_dialog.show()
+                download_thread.start()
+
+                # Block until dialog is closed
+                progress_dialog.exec()
+
+            except Exception as e:
+                QMessageBox.critical(self, "Download Error",
+                    f"Failed to initiate download: {str(e)}\n\n" "Please download manually from GitHub.")
+                return False
+
+        return True
+
 
     def run_command(self, command_parts=None):
         if command_parts is None: command_parts = []
