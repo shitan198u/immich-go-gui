@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Immich-Go GUI
+Exec=/opt/immich-go-gui/app.bin
+Icon=immich-go-gui
+Type=Application
+Categories=Utility;
