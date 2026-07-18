@@ -126,6 +126,15 @@ jobs:
           nfpm pkg --packager deb --target ../../Immich-Go-GUI-Linux.deb
           nfpm pkg --packager rpm --target ../../Immich-Go-GUI-Linux.rpm
 
+      - name: Build Flatpak
+        if: matrix.name == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak-builder --user --install-deps-from=flathub --repo=repo build-dir packaging/linux/org.immich.ImmichGoGUI.yml --force-clean
+          flatpak build-bundle --runtime-repo=https://flathub.org/repo/flathub.flatpakrepo repo Immich-Go-GUI-Linux.flatpak org.immich.ImmichGoGUI
+
       # --- UPLOAD ARTIFACTS ---
       - name: Upload Artifacts
         uses: actions/upload-artifact@v7
@@ -137,6 +146,7 @@ jobs:
             Immich-Go-GUI-Linux.AppImage
             Immich-Go-GUI-Linux.deb
             Immich-Go-GUI-Linux.rpm
+            Immich-Go-GUI-Linux.flatpak
 
   release:
     needs: build
@@ -160,6 +170,7 @@ jobs:
             artifacts/Immich-Go-GUI-Linux.AppImage
             artifacts/Immich-Go-GUI-Linux.deb
             artifacts/Immich-Go-GUI-Linux.rpm
+            artifacts/Immich-Go-GUI-Linux.flatpak
 
       - name: Create Test Pre-Release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
@@ -174,3 +185,4 @@ jobs:
             artifacts/Immich-Go-GUI-Linux.AppImage
             artifacts/Immich-Go-GUI-Linux.deb
             artifacts/Immich-Go-GUI-Linux.rpm
+            artifacts/Immich-Go-GUI-Linux.flatpak
