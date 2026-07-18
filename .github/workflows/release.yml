@@ -112,13 +112,12 @@ jobs:
           chmod +x appimagetool
           ./appimagetool --appimage-extract-and-run AppDir Immich-Go-GUI-Linux.AppImage
 
-      - name: Setup nFPM
+      - name: Install nFPM
         if: matrix.name == 'linux'
-        uses: goreleaser/goreleaser-action@v7
-        with:
-          distribution: nfpm
-          version: '~> 2'
-          install-only: true
+        run: |
+          URL=$(curl -s https://api.github.com/repos/goreleaser/nfpm/releases/latest | jq -r '.assets[] | select(.name | endswith("Linux_x86_64.tar.gz")) | .browser_download_url')
+          curl -sL $URL | tar xz nfpm
+          sudo mv nfpm /usr/local/bin/
 
       - name: Build DEB and RPM
         if: matrix.name == 'linux'
