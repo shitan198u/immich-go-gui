@@ -1,0 +1,17 @@
+#!/bin/bash
+
+echo "Running pre-commit hooks..."
+uv run pre-commit run
+
+# If pre-commit fails, it might be because a formatter modified files.
+if [ $? -ne 0 ]; then
+    echo "Pre-commit modified files or found errors. Staging changes and re-running..."
+    git add -u
+    uv run pre-commit run
+    
+    # If it fails again, there are real unfixable errors.
+    if [ $? -ne 0 ]; then
+        echo "Pre-commit checks failed after formatting! Please fix the errors manually."
+        exit 1
+    fi
+fi
