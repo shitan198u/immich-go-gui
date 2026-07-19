@@ -1,0 +1,521 @@
+from PySide6.QtWidgets import QApplication, QStyleFactory
+from PySide6.QtGui import QGuiApplication, QPalette, QColor
+from PySide6.QtCore import Qt
+
+THEME_SYSTEM = "System"
+THEME_LIGHT = "Light"
+THEME_DARK = "Dark"
+
+def normalize_theme_mode(mode):
+    m = str(mode).strip().lower()
+    if m == "system": return THEME_SYSTEM
+    if m == "light": return THEME_LIGHT
+    if m == "dark": return THEME_DARK
+    return THEME_SYSTEM
+
+def set_fusion_style():
+    app = QApplication.instance()
+    if not app: return
+    style = QStyleFactory.create("Fusion")
+    if style: app.setStyle(style)
+
+def detect_system_theme() -> str:
+    try:
+        hints = QGuiApplication.styleHints()
+        if hasattr(hints, "colorScheme"):
+            scheme = hints.colorScheme()
+            if scheme == Qt.ColorScheme.Dark: return "dark"
+            if scheme == Qt.ColorScheme.Light: return "light"
+    except Exception: pass
+
+    app = QApplication.instance()
+    if app is None: return "dark"
+    pal = app.palette()
+    bg = pal.color(QPalette.ColorRole.Window)
+    fg = pal.color(QPalette.ColorRole.WindowText)
+    return "dark" if fg.lightness() > bg.lightness() else "light"
+
+def theme_tokens(theme: str) -> dict:
+    if theme == "dark":
+        return {
+            "bg": "#0E1113", "sidebar": "#121619", "surface": "#151A1E", "surface_alt": "#1B2126",
+            "input_bg": "#1B2126", "input_focus_bg": "#20272D", "border": "#262D34", "border_strong": "#343C43",
+            "text": "#E8ECEF", "text_muted": "#97A1AA", "text_faint": "#6B757D",
+            "accent": "#4FB3A4", "accent_hover": "#6FD6C5", "accent_subtle": "#17332F",
+            "primary": "#E1512E", "primary_hover": "#F1603D", "primary_subtle": "#3A1D15", "on_primary": "#FFFFFF",
+            "button_bg": "#20262B", "button_hover": "#2A3238", "scrollbar": "#0E1113", "scrollbar_handle": "#3A434B",
+            "terminal_bg": "#0B0D0E", "terminal_text": "#ECE7DD",
+        }
+    return {
+        "bg": "#F5F7F9", "sidebar": "#FFFFFF", "surface": "#FFFFFF", "surface_alt": "#F8FAFC",
+        "input_bg": "#F8FAFC", "input_focus_bg": "#FFFFFF", "border": "#D8DEE4", "border_strong": "#C7CED6",
+        "text": "#18222C", "text_muted": "#5D6B7A", "text_faint": "#7C8794",
+        "accent": "#0F766E", "accent_hover": "#14B8A6", "accent_subtle": "#E4F5F2",
+        "primary": "#C2410C", "primary_hover": "#EA580C", "primary_subtle": "#FFEDD5", "on_primary": "#FFFFFF",
+        "button_bg": "#EEF1F4", "button_hover": "#E2E7EC", "scrollbar": "#EEF1F4", "scrollbar_handle": "#AEB8C2",
+        "terminal_bg": "#111827", "terminal_text": "#F9FAFB",
+    }
+
+def build_stylesheet(theme: str) -> str:
+    t = theme_tokens(theme)
+    return f"""
+QMainWindow, QDialog, QWidget {{
+    background-color: {t['bg']};
+    color: {t['text']};
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+}}
+
+QToolTip {{
+    background-color: {t['surface']};
+    color: {t['text']};
+    border: 1px solid {t['border']};
+    padding: 6px 8px;
+    border-radius: 6px;
+}}
+
+/* Header and footer */
+#HeaderFrame, #FooterFrame {{
+    background-color: {t['bg']};
+    border: none;
+}}
+
+#HeaderFrame {{
+    border-bottom: 1px solid {t['border']};
+}}
+
+#FooterFrame {{
+    border-top: 1px solid {t['border']};
+}}
+
+QLabel#AppName {{
+    font-family: "Consolas", monospace;
+    font-weight: 600;
+    font-size: 16px;
+    color: {t['text']};
+}}
+
+QLabel#Crumb {{
+    font-family: "Consolas", monospace;
+    font-size: 12px;
+    color: {t['text_muted']};
+}}
+
+QLabel#ModeLabel {{
+    font-family: "Consolas", monospace;
+    font-size: 12px;
+    color: {t['text_muted']};
+    padding-right: 8px;
+}}
+
+/* Sidebar */
+#Sidebar {{
+    background-color: {t['sidebar']};
+    border-right: 1px solid {t['border']};
+}}
+
+QPushButton#NavBtn {{
+    text-align: left;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: {t['text_muted']};
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+}}
+
+QPushButton#NavBtn:hover {{
+    background-color: {t['surface_alt']};
+    color: {t['text']};
+}}
+
+QPushButton#NavBtn:checked {{
+    background-color: {t['accent_subtle']};
+    color: {t['accent']};
+    border: 1px solid {t['accent']};
+}}
+
+QLabel#NavTitle {{
+    font-family: "Consolas", monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: {t['text_faint']};
+    padding: 0 12px;
+    margin-top: 16px;
+}}
+
+/* Status area */
+#StatusFrame {{
+    border-top: 1px solid {t['border']};
+    padding: 16px;
+    background-color: {t['sidebar']};
+}}
+
+QFrame#StatusCard {{
+    background-color: {t['surface_alt']};
+    border: 1px solid {t['border']};
+    border-radius: 8px;
+}}
+
+QLabel#StatusText {{
+    font-size: 12px;
+    color: {t['text_muted']};
+}}
+
+QPushButton#ActionLink {{
+    color: {t['accent']};
+    background: transparent;
+    border: none;
+    font-size: 11px;
+    font-family: "Consolas", monospace;
+    text-align: left;
+    padding: 0;
+}}
+
+QPushButton#ActionLink:hover {{
+    color: {t['accent_hover']};
+}}
+
+/* Cards */
+QFrame#Card {{
+    background-color: {t['surface']};
+    border: 1px solid {t['border']};
+    border-radius: 8px;
+}}
+
+QLabel#CardTitle {{
+    font-family: "Consolas", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: {t['text_muted']};
+    letter-spacing: 0.4px;
+    margin-bottom: 12px;
+}}
+
+QLabel#ReqBadge {{
+    font-size: 10px;
+    color: {t['primary']};
+    background-color: {t['primary_subtle']};
+    border: 1px solid {t['primary']};
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: "Segoe UI", sans-serif;
+    font-weight: normal;
+}}
+
+QLabel#Subhead {{
+    font-family: "Consolas", monospace;
+    font-size: 11px;
+    color: {t['text_faint']};
+    letter-spacing: 0.4px;
+    margin-top: 16px;
+    margin-bottom: 8px;
+    border-top: 1px solid {t['border']};
+    padding-top: 12px;
+}}
+
+QLabel#FieldLabel {{
+    font-size: 13px;
+    font-weight: 500;
+    color: {t['text']};
+}}
+
+QLabel#Hint {{
+    font-size: 12px;
+    color: {t['text_muted']};
+}}
+
+/* Inputs */
+QLineEdit,
+QComboBox,
+QSpinBox,
+QPlainTextEdit {{
+    background-color: {t['input_bg']};
+    border: 1px solid {t['border_strong']};
+    color: {t['text']};
+    padding: 9px 11px;
+    border-radius: 6px;
+    font-size: 14px;
+    selection-background-color: {t['accent']};
+    selection-color: {t['on_primary']};
+}}
+
+QLineEdit:hover,
+QComboBox:hover,
+QSpinBox:hover,
+QPlainTextEdit:hover {{
+    border-color: {t['accent']};
+}}
+
+QLineEdit:focus,
+QComboBox:focus,
+QSpinBox:focus,
+QPlainTextEdit:focus {{
+    border: 1px solid {t['accent']};
+    background-color: {t['input_focus_bg']};
+}}
+
+QLineEdit:disabled,
+QComboBox:disabled,
+QSpinBox:disabled,
+QPlainTextEdit:disabled {{
+    background-color: {t['surface_alt']};
+    color: {t['text_faint']};
+    border-color: {t['border']};
+}}
+
+QLineEdit[readOnly="true"],
+QPlainTextEdit[readOnly="true"] {{
+    background-color: {t['surface_alt']};
+    color: {t['text_muted']};
+}}
+
+QComboBox::drop-down {{
+    border: none;
+    width: 20px;
+}}
+
+QComboBox QAbstractItemView {{
+    background-color: {t['surface']};
+    color: {t['text']};
+    selection-background-color: {t['accent_subtle']};
+    selection-color: {t['accent']};
+    border: 1px solid {t['border']};
+}}
+
+QCheckBox {{
+    color: {t['text']};
+    spacing: 8px;
+}}
+
+QCheckBox:disabled {{
+    color: {t['text_faint']};
+}}
+
+/* Buttons */
+QPushButton {{
+    background-color: {t['button_bg']};
+    color: {t['text']};
+    border: 1px solid {t['border']};
+    border-radius: 6px;
+    padding: 8px 16px;
+}}
+
+QPushButton:hover {{
+    background-color: {t['button_hover']};
+}}
+
+QPushButton:disabled {{
+    background-color: {t['surface_alt']};
+    color: {t['text_faint']};
+    border-color: {t['border']};
+}}
+
+QPushButton#BtnRun {{
+    background-color: {t['primary']};
+    color: {t['on_primary']};
+    border: none;
+    border-radius: 7px;
+    padding: 10px 18px;
+    font-weight: 600;
+    font-size: 13.5px;
+}}
+
+QPushButton#BtnRun:hover {{
+    background-color: {t['primary_hover']};
+}}
+
+QPushButton#BtnRun:disabled {{
+    background-color: {t['surface_alt']};
+    color: {t['text_faint']};
+    border: 1px solid {t['border']};
+}}
+
+QPushButton#BtnPreview {{
+    background-color: {t['accent_subtle']};
+    color: {t['accent']};
+    border: 1px solid {t['accent']};
+    border-radius: 7px;
+    padding: 10px 18px;
+    font-weight: 600;
+    font-size: 13.5px;
+}}
+
+QPushButton#BtnPreview:hover {{
+    background-color: {t['button_hover']};
+}}
+
+QPushButton#BtnPreview:disabled {{
+    background-color: {t['surface_alt']};
+    color: {t['text_faint']};
+    border-color: {t['border']};
+}}
+
+/* Dialogs */
+QDialog {{
+    background-color: {t['surface']};
+    color: {t['text']};
+    border: 1px solid {t['border']};
+    border-radius: 12px;
+}}
+
+QLabel#DlgKicker {{
+    font-family: "Consolas", monospace;
+    font-size: 11px;
+    color: {t['text_faint']};
+    letter-spacing: 0.4px;
+}}
+
+QLabel#DlgTitle {{
+    font-size: 18px;
+    font-weight: 600;
+    color: {t['text']};
+}}
+
+QLabel#DlgDesc {{
+    font-size: 13px;
+    color: {t['text_muted']};
+}}
+
+QPlainTextEdit#CmdBlock {{
+    background-color: {t['terminal_bg']};
+    border: 1px solid {t['border']};
+    color: {t['terminal_text']};
+    font-family: "Consolas", monospace;
+    font-size: 13px;
+    border-radius: 8px;
+    padding: 16px;
+}}
+
+/* Progress */
+QProgressBar {{
+    border: 1px solid {t['border']};
+    border-radius: 6px;
+    background-color: {t['surface_alt']};
+    color: {t['text']};
+    height: 18px;
+    text-align: center;
+}}
+
+QProgressBar::chunk {{
+    background-color: {t['accent']};
+    border-radius: 5px;
+}}
+
+/* Scroll areas */
+QScrollArea {{
+    border: none;
+    background: transparent;
+}}
+
+QScrollBar:vertical {{
+    border: none;
+    background: {t['scrollbar']};
+    width: 8px;
+    margin: 0;
+}}
+
+QScrollBar::handle:vertical {{
+    background: {t['scrollbar_handle']};
+    min-height: 20px;
+    border-radius: 4px;
+}}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {{
+    height: 0;
+}}
+
+QScrollBar:horizontal {{
+    border: none;
+    background: {t['scrollbar']};
+    height: 8px;
+    margin: 0;
+}}
+
+QScrollBar::handle:horizontal {{
+    background: {t['scrollbar_handle']};
+    min-width: 20px;
+    border-radius: 4px;
+}}
+
+QScrollBar::add-line:horizontal,
+QScrollBar::sub-line:horizontal {{
+    width: 0;
+}}
+
+/* Menus */
+QMenuBar {{
+    background-color: {t['bg']};
+    color: {t['text']};
+    border-bottom: 1px solid {t['border']};
+}}
+
+QMenuBar::item {{
+    background: transparent;
+    padding: 6px 10px;
+}}
+
+QMenuBar::item:selected {{
+    background-color: {t['surface_alt']};
+}}
+
+QMenu {{
+    background-color: {t['surface']};
+    color: {t['text']};
+    border: 1px solid {t['border']};
+}}
+
+QMenu::item {{
+    padding: 6px 24px;
+}}
+
+QMenu::item:selected {{
+    background-color: {t['accent_subtle']};
+    color: {t['accent']};
+}}
+"""
+
+def apply_base_palette(theme: str):
+    app = QApplication.instance()
+    if app is None: return
+    t = theme_tokens(theme)
+    pal = QPalette()
+    pal.setColor(QPalette.ColorRole.Window, QColor(t["bg"]))
+    pal.setColor(QPalette.ColorRole.WindowText, QColor(t["text"]))
+    pal.setColor(QPalette.ColorRole.Base, QColor(t["input_bg"]))
+    pal.setColor(QPalette.ColorRole.AlternateBase, QColor(t["surface_alt"]))
+    pal.setColor(QPalette.ColorRole.Text, QColor(t["text"]))
+    pal.setColor(QPalette.ColorRole.Button, QColor(t["button_bg"]))
+    pal.setColor(QPalette.ColorRole.ButtonText, QColor(t["text"]))
+    pal.setColor(QPalette.ColorRole.Highlight, QColor(t["accent"]))
+    pal.setColor(QPalette.ColorRole.HighlightedText, QColor(t["on_primary"]))
+    pal.setColor(QPalette.ColorRole.ToolTipBase, QColor(t["surface"]))
+    pal.setColor(QPalette.ColorRole.ToolTipText, QColor(t["text"]))
+    pal.setColor(QPalette.ColorRole.Link, QColor(t["accent"]))
+    pal.setColor(QPalette.ColorRole.LinkVisited, QColor(t["accent"]))
+    pal.setColor(QPalette.ColorRole.PlaceholderText, QColor(t["text_faint"]))
+    pal.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, QColor(t["text_faint"]))
+    pal.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText, QColor(t["text_faint"]))
+    pal.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, QColor(t["text_faint"]))
+    app.setPalette(pal)
+
+def apply_application_theme(mode: str) -> str:
+    mode = normalize_theme_mode(mode)
+    resolved = detect_system_theme() if mode == THEME_SYSTEM else mode.lower()
+    app = QApplication.instance()
+    if app is None: return resolved
+    app.setProperty("theme", resolved)
+    apply_base_palette(resolved)
+    app.setStyleSheet(build_stylesheet(resolved))
+    return resolved
+
+def connect_system_theme_changes(callback):
+    try:
+        hints = QGuiApplication.styleHints()
+        if hasattr(hints, "colorSchemeChanged"):
+            hints.colorSchemeChanged.connect(lambda *_: callback())
+            return True
+    except Exception: pass
+    return False
