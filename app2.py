@@ -1617,8 +1617,10 @@ class ImmichGoGUI(QMainWindow):
         self.binary_path = os.path.join(binary_folder, binary_filename)
 
         if not os.path.exists(self.binary_path):
-            if hasattr(self, 'lbl_binary_info'):
-                self.lbl_binary_info.setText(f"Current Version: Not found\nLocated at: {self.binary_path}")
+            if hasattr(self, 'lbl_binary_version'):
+                self.lbl_binary_version.setText("Current Version: Not found")
+                self.lbl_binary_path.setText(self.binary_path)
+                self.current_version = "Not found"
             if hasattr(self, 'status_card'):
                 self.status_card.set_binary("err", "Binary: Missing")
             if hasattr(self, 'btn_check_updates'):
@@ -1629,15 +1631,19 @@ class ImmichGoGUI(QMainWindow):
             result = subprocess.run([self.binary_path, "version"], capture_output=True, text=True, timeout=2)
             version_text = result.stdout.strip() if result.stdout else "Unknown version"
             if "," in version_text: version_text = version_text.split(",")[0]
-            if hasattr(self, 'lbl_binary_info'):
-                self.lbl_binary_info.setText(f"Current Version: {version_text}\nLocated at: {self.binary_path}")
+            if hasattr(self, 'lbl_binary_version'):
+                self.lbl_binary_version.setText(f"Current Version: {version_text}")
+                self.lbl_binary_path.setText(self.binary_path)
+                self.current_version = version_text
             if hasattr(self, 'status_card'):
                 self.status_card.set_binary("ok",  "Binary: Ready")
             if hasattr(self, 'btn_check_updates'):
                 self.btn_check_updates.setText("Check for Updates")
         except Exception:
-            if hasattr(self, 'lbl_binary_info'):
-                self.lbl_binary_info.setText(f"Current Version: Unknown\nLocated at: {self.binary_path}")
+            if hasattr(self, 'lbl_binary_version'):
+                self.lbl_binary_version.setText("Current Version: Unknown")
+                self.lbl_binary_path.setText(self.binary_path)
+                self.current_version = "Unknown"
             if hasattr(self, 'status_card'):
                 self.status_card.set_binary("ok",  "Binary: Ready")
             if hasattr(self, 'btn_check_updates'):
@@ -1650,11 +1656,7 @@ class ImmichGoGUI(QMainWindow):
             QMessageBox.warning(self, "Update Check", "Failed to fetch the latest version information from GitHub.")
             return
             
-        current_version = "Unknown"
-        if hasattr(self, 'lbl_binary_info'):
-            info = self.lbl_binary_info.text()
-            if "Current Version: " in info:
-                current_version = info.split("Current Version: ")[1].split("\n")[0]
+        current_version = getattr(self, "current_version", "Unknown")
                 
         if current_version == "Not found":
             reply = QMessageBox.question(self, "Download Immich-Go", 
