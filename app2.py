@@ -278,7 +278,7 @@ class BasePage(QWidget):
         self.scroll_layout.setContentsMargins(0, 0, 0, 0)
         
         self.container = QWidget()
-        self.container.setMaximumWidth(1100)
+        self.container.setMaximumWidth(900)
         self.container.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
         
         self.layout = QVBoxLayout(self.container)
@@ -342,7 +342,8 @@ class ImmichGoGUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Immich Go GUI")
-        self.resize(1100, 750)
+        self.resize(1250, 750)
+        self.setMinimumSize(900, 600)
         self.setStyleSheet(DARK_THEME)
         
         self.is_advanced = False
@@ -1891,7 +1892,20 @@ class ImmichGoGUI(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    app.setFont(QFont("Segoe UI", 10))
+
+    # Build a font stack that degrades gracefully across platforms and
+    # includes an emoji-capable fallback so icon glyphs (📁 📦 🔄 etc.)
+    # don't render as empty "tofu" boxes when the primary UI font has
+    # no color-emoji coverage (common on Linux).
+    base_font = QFont()
+    base_font.setFamilies([
+        "Segoe UI", "Segoe UI Emoji",   # Windows
+        "Helvetica Neue", "Apple Color Emoji",  # macOS
+        "Noto Sans", "Noto Color Emoji", "DejaVu Sans", "Ubuntu",  # Linux
+        "sans-serif",
+    ])
+    base_font.setPointSize(10)
+    app.setFont(base_font)
     window = ImmichGoGUI()
     window.show()
     sys.exit(app.exec())
