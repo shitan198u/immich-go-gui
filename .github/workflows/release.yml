@@ -184,8 +184,8 @@ jobs:
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: "v${{ needs.build.outputs.version }}"
-          name: "Test Build v${{ needs.build.outputs.version }}"
+          tag_name: "test-${{ needs.build.outputs.version }}"
+          name: "Test Build test-${{ needs.build.outputs.version }}"
           prerelease: true
           files: |
             artifacts/Immich-Go-GUI-Windows-Setup.exe
