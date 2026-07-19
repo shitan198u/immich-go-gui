@@ -1059,7 +1059,7 @@ class ImmichGoGUI(QMainWindow):
         self.inputs['archive-folder']['path'] = p_edit
         form.add_row("Source Folder Path", p_edit)
         
-        browse_action = self.source_path_edit.addAction(self.style().standardIcon(QStyle.SP_DirIcon), QLineEdit.TrailingPosition)
+        browse_action = p_edit.addAction(self.style().standardIcon(QStyle.SP_DirIcon), QLineEdit.TrailingPosition)
         browse_action.triggered.connect(self.browse_local_folder)
         card.layout.addLayout(form)
         page.addWidget(card)
