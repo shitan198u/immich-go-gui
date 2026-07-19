@@ -57,8 +57,8 @@ DARK_THEME = """
         padding: 9px 11px; border-radius: 6px; font-size: 14px;
         selection-background-color: #4fb3a4;
     }
-    QLineEdit:hover, QComboBox:hover, QSpinBox:hover, QPlainTextEdit:hover { border-color: #5b6267; }
-    QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QPlainTextEdit:focus { border-color: #4fb3a4; background-color: #23282c; }
+    QLineEdit:hover, QComboBox:hover, QSpinBox:hover, QPlainTextEdit:hover { border-color: #4c545b; }
+    QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QPlainTextEdit:focus { border: 2px solid #4fb3a4; padding: 9px 11px; background-color: #23282c; }
     QLineEdit:disabled { background-color: #15181b; color: #5b6267; border-color: #2a3034; }
     QComboBox::drop-down { border: none; width: 20px; }
     QComboBox QAbstractItemView { background-color: #1d2226; color: #ece7dd; selection-background-color: #4fb3a4; border: 1px solid #3a4045; }
@@ -112,12 +112,12 @@ LIGHT_THEME = """
     QPushButton#ActionLink { color: #0f766e; background: transparent; border: none; font-size: 11px; font-family: 'Consolas'; text-align: left; padding: 0; }
     QPushButton#ActionLink:hover { color: #14b8a6; }
     
-    QFrame#Card { background-color: #ffffff; border: 1px solid #d1d5db; border-radius: 8px; }
+    QFrame#Card { background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px; }
     QLabel#CardTitle { font-family: 'Consolas'; font-size: 12px; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
     QLabel#ReqBadge { font-size: 10px; color: #c2410c; background-color: #fed7aa; border: 1px solid #fb923c; padding: 2px 6px; border-radius: 4px; font-family: 'Segoe UI'; font-weight: normal; text-transform: none; }
     QLabel#Subhead { font-family: 'Consolas'; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; margin-top: 16px; margin-bottom: 8px; border-top: 1px solid #d1d5db; padding-top: 12px; }
     
-    QLabel#FieldLabel { font-size: 13px; font-weight: 500; color: #1f2937; }
+    QLabel#FieldLabel { font-size: 12px; font-weight: 600; color: #1f2937; letter-spacing: .4px; margin-bottom: 2px; }
     QLabel#Hint { font-size: 12px; color: #6b7280; }
     
     QLineEdit, QComboBox, QSpinBox, QPlainTextEdit {
@@ -125,8 +125,8 @@ LIGHT_THEME = """
         padding: 9px 11px; border-radius: 6px; font-size: 14px;
         selection-background-color: #0f766e;
     }
-    QLineEdit:hover, QComboBox:hover, QSpinBox:hover, QPlainTextEdit:hover { border-color: #6b7280; }
-    QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QPlainTextEdit:focus { border-color: #0f766e; background-color: #eef0f2; }
+    QLineEdit:hover, QComboBox:hover, QSpinBox:hover, QPlainTextEdit:hover { border-color: #9ca3af; }
+    QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QPlainTextEdit:focus { border: 2px solid #0f766e; padding: 9px 11px; background-color: #ffffff; }
     QLineEdit:disabled { background-color: #eef0f2; color: #6b7280; border-color: #d1d5db; }
     QComboBox::drop-down { border: none; width: 20px; }
     QComboBox QAbstractItemView { background-color: #f8f9fa; color: #1f2937; selection-background-color: #0f766e; border: 1px solid #9ca3af; }
@@ -423,7 +423,8 @@ class ImmichGoGUI(QMainWindow):
         card = QFrame()
         card.setObjectName("Card")
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(18)
         
         title_layout = QHBoxLayout()
         title_label = QLabel(title.upper())
@@ -437,14 +438,15 @@ class ImmichGoGUI(QMainWindow):
             
         title_layout.addStretch()
         layout.addLayout(title_layout)
+        layout.addSpacing(16)
         
         return card, layout
 
     def create_form_row(self, label_text, widget, hint=""):
         row_widget = QWidget()
         layout = QVBoxLayout(row_widget)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(4)
+        layout.setContentsMargins(0, 0, 0, 12)
+        layout.setSpacing(8)
         
         lbl = QLabel(label_text)
         lbl.setObjectName("FieldLabel")
@@ -455,7 +457,11 @@ class ImmichGoGUI(QMainWindow):
             hint_lbl.setObjectName("Hint")
             layout.addWidget(hint_lbl)
             
-        layout.addWidget(widget)
+        widget.setMaximumWidth(900)
+        row = QHBoxLayout()
+        row.addWidget(widget)
+        row.addStretch()
+        layout.addLayout(row)
         return row_widget
 
     def add_subhead(self, parent_layout, text):
@@ -470,6 +476,7 @@ class ImmichGoGUI(QMainWindow):
         scroll.setWidget(tab)
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(32, 32, 32, 32)
+        layout.setSpacing(24)
         self.inputs['config'] = {}
 
         # Server Connection
@@ -572,6 +579,7 @@ class ImmichGoGUI(QMainWindow):
         scroll.setWidget(tab)
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(32, 32, 32, 32)
+        layout.setSpacing(24)
         self.inputs['upload-folder'] = {}
 
         # Source Config
@@ -585,8 +593,12 @@ class ImmichGoGUI(QMainWindow):
         card_layout.addWidget(self.create_form_row("Folder to upload", self.source_path_edit, "Every file inside this folder will be considered."))
         
         btn_browse = QPushButton("Browse")
+        btn_browse.setMaximumWidth(180)
         btn_browse.clicked.connect(self.browse_local_folder)
-        card_layout.addWidget(btn_browse)
+        browse_row = QHBoxLayout()
+        browse_row.addWidget(btn_browse)
+        browse_row.addStretch()
+        card_layout.addLayout(browse_row)
         layout.addWidget(card)
 
         # Options
@@ -704,6 +716,7 @@ class ImmichGoGUI(QMainWindow):
         scroll.setWidget(tab)
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(32, 32, 32, 32)
+        layout.setSpacing(24)
         self.inputs['upload-gp'] = {}
 
         # Source Config
@@ -717,8 +730,12 @@ class ImmichGoGUI(QMainWindow):
         card_layout.addWidget(self.create_form_row("Takeout File/Folder Path", self.gp_path_edit))
         
         btn_browse = QPushButton("Browse")
+        btn_browse.setMaximumWidth(180)
         btn_browse.clicked.connect(self.browse_takeout_source)
-        card_layout.addWidget(btn_browse)
+        browse_row = QHBoxLayout()
+        browse_row.addWidget(btn_browse)
+        browse_row.addStretch()
+        card_layout.addLayout(browse_row)
         layout.addWidget(card)
 
         # Options
@@ -832,6 +849,7 @@ class ImmichGoGUI(QMainWindow):
         scroll.setWidget(tab)
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(32, 32, 32, 32)
+        layout.setSpacing(24)
         self.inputs['upload-immich'] = {}
 
         # Source Config
@@ -938,6 +956,7 @@ class ImmichGoGUI(QMainWindow):
         scroll.setWidget(tab)
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(32, 32, 32, 32)
+        layout.setSpacing(24)
         self.inputs['archive-folder'] = {}
 
         # Source Config
@@ -950,8 +969,12 @@ class ImmichGoGUI(QMainWindow):
         card_layout.addWidget(self.create_form_row("Source Folder Path", p_edit))
         
         btn_browse = QPushButton("Browse")
+        btn_browse.setMaximumWidth(180)
         btn_browse.clicked.connect(self.browse_local_folder)
-        card_layout.addWidget(btn_browse)
+        browse_row = QHBoxLayout()
+        browse_row.addWidget(btn_browse)
+        browse_row.addStretch()
+        card_layout.addLayout(browse_row)
         layout.addWidget(card)
 
         # Options
@@ -996,6 +1019,7 @@ class ImmichGoGUI(QMainWindow):
         scroll.setWidget(tab)
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(32, 32, 32, 32)
+        layout.setSpacing(24)
         self.inputs['archive-immich'] = {}
 
         # Target Server
@@ -1059,6 +1083,7 @@ class ImmichGoGUI(QMainWindow):
         scroll.setWidget(tab)
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(32, 32, 32, 32)
+        layout.setSpacing(24)
         self.inputs['stack'] = {}
 
         # Target Server
