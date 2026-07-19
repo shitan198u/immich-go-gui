@@ -2,7 +2,7 @@ app-id: org.immich.ImmichGoGUI
 runtime: org.freedesktop.Platform
 runtime-version: '24.08'
 sdk: org.freedesktop.Sdk
-command: app.bin
+command: Immich-Go-GUI
 finish-args:
   - --share=network
   - --share=ipc
@@ -17,7 +17,7 @@ modules:
       - mkdir -p /app/bin
       - cp -r app.dist/* /app/bin/
       - install -Dm644 immich-go-gui.png /app/share/icons/hicolor/512x512/apps/org.immich.ImmichGoGUI.png
-      - sed -i 's|Exec=/opt/immich-go-gui/app.bin|Exec=app.bin|' immich-go-gui.desktop
+      - sed -i 's|Exec=/opt/immich-go-gui/Immich-Go-GUI|Exec=Immich-Go-GUI|' immich-go-gui.desktop
       - install -Dm644 immich-go-gui.desktop /app/share/applications/org.immich.ImmichGoGUI.desktop
     sources:
       - type: dir

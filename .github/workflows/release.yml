@@ -63,6 +63,14 @@ jobs:
         run: |
           uv run python -m nuitka --assume-yes-for-downloads --standalone --windows-console-mode=disable --enable-plugin=pyside6 --include-data-files=immich-go-gui.png=immich-go-gui.png app.py
 
+      - name: Create Windows Portable Archive
+        if: matrix.name == 'windows'
+        shell: bash
+        run: |
+          mv app.dist/app.exe app.dist/Immich-Go-GUI.exe
+          echo "To launch the application, simply double-click the file named Immich-Go-GUI.exe. You do not need to install anything else." > app.dist/README.txt
+          cd app.dist && zip -r ../Immich-Go-GUI-Windows-Portable.zip .
+
       - name: Compile Windows Installer
         if: matrix.name == 'windows'
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
@@ -85,6 +93,13 @@ jobs:
         run: |
           uv run python -m nuitka --assume-yes-for-downloads --standalone --enable-plugin=pyside6 --include-data-files=immich-go-gui.png=immich-go-gui.png app.py
 
+      - name: Create Linux Portable Archive
+        if: matrix.name == 'linux'
+        run: |
+          mv app.dist/app.bin app.dist/Immich-Go-GUI
+          echo "To launch the application, double-click the file named Immich-Go-GUI, or run ./Immich-Go-GUI in the terminal. You do not need to install anything else." > app.dist/README.txt
+          tar -czvf Immich-Go-GUI-Linux-Portable.tar.gz -C app.dist .
+
       - name: Build Linux AppImage
         if: matrix.name == 'linux'
         run: |
@@ -95,7 +110,7 @@ jobs:
           cat << 'EOF' > AppDir/immich-go-gui.desktop
           [Desktop Entry]
           Name=Immich-Go GUI
-          Exec=app.bin
+          Exec=Immich-Go-GUI
           Icon=immich-go-gui
           Type=Application
           Categories=Utility;
@@ -104,7 +119,7 @@ jobs:
           cat << 'EOF' > AppDir/AppRun
           #!/bin/sh
           HERE="$(dirname "$(readlink -f "${0}")")"
-          exec "${HERE}/usr/bin/app.bin" "$@"
+          exec "${HERE}/usr/bin/Immich-Go-GUI" "$@"
           EOF
           chmod +x AppDir/AppRun
 
@@ -142,8 +157,10 @@ jobs:
           name: Immich-Go-GUI-${{ matrix.name }}
           path: |
             Immich-Go-GUI-Windows-Setup.exe
+            Immich-Go-GUI-Windows-Portable.zip
             Immich-Go-GUI-macOS.dmg
             Immich-Go-GUI-Linux.AppImage
+            Immich-Go-GUI-Linux-Portable.tar.gz
             Immich-Go-GUI-Linux.deb
             Immich-Go-GUI-Linux.rpm
             Immich-Go-GUI-Linux.flatpak
@@ -166,8 +183,10 @@ jobs:
         with:
           files: |
             artifacts/Immich-Go-GUI-Windows-Setup.exe
+            artifacts/Immich-Go-GUI-Windows-Portable.zip
             artifacts/Immich-Go-GUI-macOS.dmg
             artifacts/Immich-Go-GUI-Linux.AppImage
+            artifacts/Immich-Go-GUI-Linux-Portable.tar.gz
             artifacts/Immich-Go-GUI-Linux.deb
             artifacts/Immich-Go-GUI-Linux.rpm
             artifacts/Immich-Go-GUI-Linux.flatpak
@@ -181,8 +200,10 @@ jobs:
           prerelease: true
           files: |
             artifacts/Immich-Go-GUI-Windows-Setup.exe
+            artifacts/Immich-Go-GUI-Windows-Portable.zip
             artifacts/Immich-Go-GUI-macOS.dmg
             artifacts/Immich-Go-GUI-Linux.AppImage
+            artifacts/Immich-Go-GUI-Linux-Portable.tar.gz
             artifacts/Immich-Go-GUI-Linux.deb
             artifacts/Immich-Go-GUI-Linux.rpm
             artifacts/Immich-Go-GUI-Linux.flatpak
