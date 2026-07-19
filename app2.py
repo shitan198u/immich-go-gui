@@ -315,15 +315,15 @@ class BasePage(QWidget):
         self.scroll_layout.setSizeConstraint(QLayout.SetMinimumSize)
         
         self.container = QWidget()
-        self.container.setMaximumWidth(900)
-        self.container.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.container.setMaximumWidth(1100)
+        self.container.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         
         self.layout = QVBoxLayout(self.container)
         self.layout.setContentsMargins(32, 32, 32, 32)
         self.layout.setSpacing(24)
         
         self.scroll_layout.addStretch()
-        self.scroll_layout.addWidget(self.container)
+        self.scroll_layout.addWidget(self.container, 1)
         self.scroll_layout.addStretch()
         
         self.scroll.setWidget(self.scroll_content)
