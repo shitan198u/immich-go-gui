@@ -14,12 +14,12 @@ from PySide6.QtWidgets import (
     QLabel, QLineEdit, QCheckBox, QComboBox, QPushButton, QFileDialog,
     QPlainTextEdit, QStackedWidget, QFrame, QSizePolicy,
     QScrollArea, QMessageBox, QDialog, QProgressBar, QSpinBox, QStyle, QLayout,
-    QFormLayout, QStyleFactory
+    QFormLayout
 )
 
 from PySide6.QtGui import (
     QAction, QDragEnterEvent, QDropEvent, QIcon, QPainter, QPen, QColor,
-    QBrush, QFont, QGuiApplication, QPalette
+    QBrush, QFont
 )
 
 from PySide6.QtCore import (
