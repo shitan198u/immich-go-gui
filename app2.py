@@ -336,10 +336,13 @@ class BasePage(QWidget):
 
 class NavItem(QPushButton):
     def __init__(self, text, icon, parent=None):
-        super().__init__(f" {icon}  {text}", parent)
+        super().__init__(text, parent)
         self.setObjectName("NavBtn")
         self.setCheckable(True)
         self.setCursor(Qt.PointingHandCursor)
+        if icon is not None and not icon.isNull():
+            self.setIcon(icon)
+            self.setIconSize(QSize(16, 16))
 
 class NavGroup(QWidget):
     def __init__(self, title, items, parent=None):
@@ -357,20 +360,30 @@ class NavGroup(QWidget):
             layout.addWidget(item)
 
 class StatusCard(QFrame):
+    _DOT = {"ok": "#22c55e", "warn": "#f59e0b", "err": "#ef4444"}
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("StatusCard")
-        self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(16, 16, 16, 16)
-        self.layout.setSpacing(8)
-        
-        self.lbl_binary_status = QLabel("🟢 Binary: Ready")
-        self.lbl_binary_status.setObjectName("StatusText")
-        self.layout.addWidget(self.lbl_binary_status)
-        
-        self.status_indicator = QLabel("🔴 Server: Not Set")
-        self.status_indicator.setObjectName("StatusText")
-        self.layout.addWidget(self.status_indicator)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(16, 16, 16, 16); lay.setSpacing(8)
+        self.dot_b, self.txt_b = self._row(lay, "Binary: …")
+        self.dot_s, self.txt_s = self._row(lay, "Server: Not Set")
+        self.set_binary("err", "Binary: Checking…")
+        self.set_server("err", "Server: Not Set")
+
+    def _row(self, lay, text):
+        dot = QLabel(); dot.setFixedSize(10, 10)
+        txt = QLabel(text); txt.setObjectName("StatusText")
+        r = QHBoxLayout(); r.setSpacing(8)
+        r.addWidget(dot, 0, Qt.AlignVCenter); r.addWidget(txt, 1); r.addStretch()
+        lay.addLayout(r)
+        return dot, txt
+
+    def _paint(self, dot, state):
+        dot.setStyleSheet(f"background:{self._DOT.get(state, self._DOT['err'])};border-radius:5px;")
+
+    def set_binary(self, state, text): self._paint(self.dot_b, state); self.txt_b.setText(text)
+    def set_server(self, state, text): self._paint(self.dot_s, state); self.txt_s.setText(text)
 
 # ==========================================
 # MAIN APPLICATION
@@ -446,6 +459,9 @@ class ImmichGoGUI(QMainWindow):
     # ==========================================
     # UI STRUCTURE BUILDERS
     # ==========================================
+    def _nav_icon(self, theme_name, sp_fallback):
+        return QIcon.fromTheme(theme_name, self.style().standardIcon(sp_fallback, None, self))
+
     def _build_sidebar(self):
         sidebar = QFrame()
         sidebar.setObjectName("Sidebar")
@@ -453,34 +469,32 @@ class ImmichGoGUI(QMainWindow):
         sidebar_layout = QVBoxLayout(sidebar)
         sidebar_layout.setContentsMargins(12, 16, 12, 16)
         
-        self.btn_config = NavItem("Configuration", "⚙")
+        self.btn_config = NavItem("Configuration", self._nav_icon("preferences-system", QStyle.SP_FileDialogDetailedView))
         self.btn_config.setChecked(True)
         self.btn_config.clicked.connect(lambda: self.switch_tab(0, "configuration", self.btn_config))
         sidebar_layout.addWidget(NavGroup("", [self.btn_config]))
         
-        self.btn_upload_folder = NavItem("Folder Upload", "📁")
+        self.btn_upload_folder = NavItem("Folder Upload", self._nav_icon("folder", QStyle.SP_DirOpenIcon))
         self.btn_upload_folder.clicked.connect(lambda: self.switch_tab(1, "upload · from-folder", self.btn_upload_folder))
-        self.btn_upload_gp = NavItem("Google Takeout", "📦")
+        self.btn_upload_gp = NavItem("Google Takeout", self._nav_icon("package-x-generic", QStyle.SP_DialogSaveButton))
         self.btn_upload_gp.clicked.connect(lambda: self.switch_tab(2, "upload · from-google-photos", self.btn_upload_gp))
-        self.btn_upload_immich = NavItem("From Immich Server", "🔄")
+        self.btn_upload_immich = NavItem("From Immich Server", self._nav_icon("view-refresh", QStyle.SP_BrowserReload))
         self.btn_upload_immich.clicked.connect(lambda: self.switch_tab(3, "upload · from-immich", self.btn_upload_immich))
         sidebar_layout.addWidget(NavGroup("UPLOAD", [self.btn_upload_folder, self.btn_upload_gp, self.btn_upload_immich]))
         
-        self.btn_archive_folder = NavItem("Archive Folder", "🗄️")
+        self.btn_archive_folder = NavItem("Archive Folder", self._nav_icon("drive-harddisk", QStyle.SP_DriveHDIcon))
         self.btn_archive_folder.clicked.connect(lambda: self.switch_tab(4, "archive · from-folder", self.btn_archive_folder))
-        self.btn_archive_immich = NavItem("Archive Server", "💾")
+        self.btn_archive_immich = NavItem("Archive Server", self._nav_icon("network-server", QStyle.SP_DriveNetIcon))
         self.btn_archive_immich.clicked.connect(lambda: self.switch_tab(5, "archive · from-immich", self.btn_archive_immich))
         sidebar_layout.addWidget(NavGroup("ARCHIVE", [self.btn_archive_folder, self.btn_archive_immich]))
         
-        self.btn_stack = NavItem("Stack Assets", "📚")
+        self.btn_stack = NavItem("Stack Assets", self._nav_icon("view-list", QStyle.SP_FileDialogListView))
         self.btn_stack.clicked.connect(lambda: self.switch_tab(6, "stack", self.btn_stack))
         sidebar_layout.addWidget(NavGroup("ORGANIZE", [self.btn_stack]))
         
         sidebar_layout.addStretch()
         
         self.status_card = StatusCard()
-        self.lbl_binary_status = self.status_card.lbl_binary_status
-        self.status_indicator = self.status_card.status_indicator
         sidebar_layout.addWidget(self.status_card)
         self.main_layout.addWidget(sidebar)
 
@@ -1309,11 +1323,11 @@ class ImmichGoGUI(QMainWindow):
 
     def update_status(self):
         if self.validate_inputs():
-            self.status_indicator.setText("🟢 Server: Ready")
+            self.status_card.set_server("ok",  "Server: Ready")
             self.btn_run.setEnabled(True)
             self.btn_dry_run.setEnabled(True)
         else:
-            self.status_indicator.setText("🔴 Server: Not Set")
+            self.status_card.set_server("err", "Server: Not Set")
             self.btn_run.setEnabled(False)
             self.btn_dry_run.setEnabled(False)
             
@@ -1605,8 +1619,8 @@ class ImmichGoGUI(QMainWindow):
         if not os.path.exists(self.binary_path):
             if hasattr(self, 'lbl_binary_info'):
                 self.lbl_binary_info.setText(f"Current Version: Not found\nLocated at: {self.binary_path}")
-            if hasattr(self, 'lbl_binary_status'):
-                self.lbl_binary_status.setText("🔴 Binary: Missing")
+            if hasattr(self, 'status_card'):
+                self.status_card.set_binary("err", "Binary: Missing")
             if hasattr(self, 'btn_check_updates'):
                 self.btn_check_updates.setText("Download Immich-Go")
             return
@@ -1617,15 +1631,15 @@ class ImmichGoGUI(QMainWindow):
             if "," in version_text: version_text = version_text.split(",")[0]
             if hasattr(self, 'lbl_binary_info'):
                 self.lbl_binary_info.setText(f"Current Version: {version_text}\nLocated at: {self.binary_path}")
-            if hasattr(self, 'lbl_binary_status'):
-                self.lbl_binary_status.setText("🟢 Binary: Ready")
+            if hasattr(self, 'status_card'):
+                self.status_card.set_binary("ok",  "Binary: Ready")
             if hasattr(self, 'btn_check_updates'):
                 self.btn_check_updates.setText("Check for Updates")
         except Exception:
             if hasattr(self, 'lbl_binary_info'):
                 self.lbl_binary_info.setText(f"Current Version: Unknown\nLocated at: {self.binary_path}")
-            if hasattr(self, 'lbl_binary_status'):
-                self.lbl_binary_status.setText("🟢 Binary: Ready")
+            if hasattr(self, 'status_card'):
+                self.status_card.set_binary("ok",  "Binary: Ready")
             if hasattr(self, 'btn_check_updates'):
                 self.btn_check_updates.setText("Check for Updates")
 
@@ -1913,7 +1927,7 @@ class ImmichGoGUI(QMainWindow):
             if hasattr(self.running_process, "poll") and self.running_process.poll() is None: still_running = True
 
         if still_running:
-            self.status_indicator.setText("⚠️ Running... Close terminal to continue.")
+            self.status_card.set_server("warn", "Running... Close terminal to continue.")
         else:
             self.check_process_timer.stop()
             self.running_process = None
