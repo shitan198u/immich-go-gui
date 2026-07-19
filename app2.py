@@ -10,10 +10,10 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QLabel, QLineEdit, QCheckBox, QComboBox, QPushButton, QFileDialog,
     QPlainTextEdit, QStackedWidget, QFrame, QSizePolicy,
-    QScrollArea, QMessageBox, QDialog, QProgressBar, QSpinBox, QStyle
+    QScrollArea, QMessageBox, QDialog, QProgressBar, QSpinBox, QStyle, QLayout
 )
 from PySide6.QtGui import QAction, QDragEnterEvent, QDropEvent, QIcon, QPainter, QPen, QColor, QBrush, QFont
-from PySide6.QtCore import Qt, QDate, QTimer, QUrl, QSettings, QThread, Signal
+from PySide6.QtCore import Qt, QEvent, QDate, QTimer, QUrl, QSettings, QThread, Signal, QSize
 import psutil
 import requests
 
@@ -263,6 +263,42 @@ class FormSection(QFormLayout):
         else:
             self.addRow(lbl, widget)
 
+class ElidingLabel(QLabel):
+    """Preferred width = full text; minimum width = tiny. Elides when shrunk."""
+    def __init__(self, text="", elide=Qt.ElideMiddle, parent=None):
+        super().__init__(parent)
+        self._elide = elide
+        self._full = text
+        self.setWordWrap(False)
+        self._refresh()
+
+    def setText(self, text):
+        self._full = text
+        self._refresh()
+
+    def text(self):
+        return self._full
+
+    def _refresh(self):
+        fm = self.fontMetrics()
+        w = self.contentsRect().width() or self.width()
+        super().setText(fm.elidedText(self._full, self._elide, w) if w > 0 else self._full)
+
+    def sizeHint(self):
+        fm = self.fontMetrics()
+        return QSize(fm.horizontalAdvance(self._full) + 2, fm.lineSpacing())
+
+    def minimumSizeHint(self):
+        fm = self.fontMetrics()
+        return QSize(fm.horizontalAdvance("…") + 4, fm.lineSpacing())
+
+    def resizeEvent(self, e):  super().resizeEvent(e);  self._refresh()
+    def showEvent(self, e):    super().showEvent(e);    self._refresh()
+    def changeEvent(self, e):
+        super().changeEvent(e)
+        if e.type() in (QEvent.Type.FontChange, QEvent.Type.StyleChange):
+            self._refresh()
+
 class BasePage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -276,6 +312,7 @@ class BasePage(QWidget):
         self.scroll_content = QWidget()
         self.scroll_layout = QHBoxLayout(self.scroll_content)
         self.scroll_layout.setContentsMargins(0, 0, 0, 0)
+        self.scroll_layout.setSizeConstraint(QLayout.SetMinimumSize)
         
         self.container = QWidget()
         self.container.setMaximumWidth(900)
@@ -536,14 +573,23 @@ class ImmichGoGUI(QMainWindow):
         # Binary Management
         card2 = Card("Binary Management")
         row = QHBoxLayout()
-        self.lbl_binary_info = QLabel("Checking version...")
-        self.lbl_binary_info.setObjectName("FieldLabel")
-        row.addWidget(self.lbl_binary_info)
-        row.addStretch()
+        row.setSpacing(16)
+        row.setAlignment(Qt.AlignTop)
+
+        info = QVBoxLayout(); info.setSpacing(2)
+        self.lbl_binary_version = QLabel("Checking version…")
+        self.lbl_binary_version.setObjectName("FieldLabel")
+        self.lbl_binary_version.setWordWrap(True)
+        self.lbl_binary_path = ElidingLabel("", Qt.ElideMiddle)
+        self.lbl_binary_path.setObjectName("Hint")
+        info.addWidget(self.lbl_binary_version)
+        info.addWidget(self.lbl_binary_path)
+        row.addLayout(info, 1)
+
         btn_check = QPushButton("Check for Updates")
         self.btn_check_updates = btn_check
         btn_check.clicked.connect(self.check_for_updates)
-        row.addWidget(btn_check)
+        row.addWidget(btn_check, 0, Qt.AlignTop)
         card2.layout.addLayout(row)
         page.addWidget(card2)
 
