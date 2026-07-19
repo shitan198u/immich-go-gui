@@ -511,36 +511,29 @@ class ImmichGoGUI(QMainWindow):
         self.main_layout.addWidget(content_frame)
 
     def _build_config_tab(self):
-        tab = QWidget()
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setWidget(tab)
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(32, 32, 32, 32)
-        layout.setSpacing(24)
+        page = BasePage()
         self.inputs['config'] = {}
 
         # Server Connection
-        card, card_layout = self.create_card("Immich Server Connection", required=True)
+        card = Card("Immich Server Connection", required=True)
+        form = FormSection()
         
         self.server_url_edit = QLineEdit()
         self.server_url_edit.setPlaceholderText("http://localhost:2283")
         self.inputs['config']['server'] = self.server_url_edit
-        card_layout.addLayout(self.create_form_row("Server URL", self.server_url_edit))
+        form.add_row("Server URL", self.server_url_edit)
         
         self.api_key_edit = QLineEdit()
         self.api_key_edit.setEchoMode(QLineEdit.Password)
         self.api_key_edit.setPlaceholderText("Paste your Immich API key")
         self.inputs['config']['api_key'] = self.api_key_edit
-        card_layout.addLayout(self.create_form_row("API Key", self.api_key_edit))
+        form.add_row("API Key", self.api_key_edit, "You can generate an API key in Immich under Account Settings -> API Keys.")
         
-        hint = QLabel("You can generate an API key in Immich under Account Settings -> API Keys.")
-        hint.setObjectName("Hint")
-        card_layout.addWidget(hint)
-        layout.addWidget(card)
+        card.layout.addLayout(form)
+        page.addWidget(card)
 
         # Binary Management
-        card, card_layout = self.create_card("Binary Management")
+        card2 = Card("Binary Management")
         row = QHBoxLayout()
         self.lbl_binary_info = QLabel("Checking version...")
         self.lbl_binary_info.setObjectName("FieldLabel")
@@ -550,12 +543,12 @@ class ImmichGoGUI(QMainWindow):
         self.btn_check_updates = btn_check
         btn_check.clicked.connect(self.check_for_updates)
         row.addWidget(btn_check)
-        card_layout.addLayout(row)
-        layout.addWidget(card)
+        card2.layout.addLayout(row)
+        page.addWidget(card2)
 
         # Appearance
-        card, card_layout = self.create_card("Appearance")
-        row = QHBoxLayout()
+        card3 = Card("Appearance")
+        row2 = QHBoxLayout()
         txt_box = QVBoxLayout()
         l1 = QLabel("Light Theme")
         l1.setObjectName("FieldLabel")
@@ -563,53 +556,53 @@ class ImmichGoGUI(QMainWindow):
         l2.setObjectName("Hint")
         txt_box.addWidget(l1)
         txt_box.addWidget(l2)
-        row.addLayout(txt_box)
-        row.addStretch()
+        row2.addLayout(txt_box)
+        row2.addStretch()
         
         self.switch_theme = SwitchButton()
         self.switch_theme.toggled.connect(self.toggle_theme)
-        row.addWidget(self.switch_theme)
-        card_layout.addLayout(row)
-        layout.addWidget(card)
+        row2.addWidget(self.switch_theme)
+        card3.layout.addLayout(row2)
+        page.addWidget(card3)
 
         # Advanced Config
-        adv_card, adv_layout = self.create_card("Advanced Configuration")
-        adv_form = adv_layout
+        adv_card = Card("Advanced Configuration")
+        adv_form = FormSection()
         
         self.client_timeout_spin = QSpinBox()
         self.client_timeout_spin.setRange(1, 1440)
         self.client_timeout_spin.setValue(20)
         self.client_timeout_spin.setSuffix(" minutes")
         self.inputs['config']['client_timeout'] = self.client_timeout_spin
-        adv_form.addLayout(self.create_form_row("Client Timeout", self.client_timeout_spin))
+        adv_form.add_row("Client Timeout", self.client_timeout_spin)
         
         self.concurrent_tasks_spin = QSpinBox()
         self.concurrent_tasks_spin.setRange(1, 20)
         self.concurrent_tasks_spin.setValue(2)
         self.inputs['config']['concurrent'] = self.concurrent_tasks_spin
-        adv_form.addLayout(self.create_form_row("Concurrent Tasks", self.concurrent_tasks_spin))
+        adv_form.add_row("Concurrent Tasks", self.concurrent_tasks_spin)
         
         self.device_uuid_edit = QLineEdit()
         self.inputs['config']['device_uuid'] = self.device_uuid_edit
-        adv_form.addLayout(self.create_form_row("Device UUID", self.device_uuid_edit))
+        adv_form.add_row("Device UUID", self.device_uuid_edit)
         
         self.on_errors_combo = QComboBox()
         self.on_errors_combo.addItems(["stop", "continue"])
         self.inputs['config']['on_errors'] = self.on_errors_combo
-        adv_form.addLayout(self.create_form_row("On Errors", self.on_errors_combo))
+        adv_form.add_row("On Errors", self.on_errors_combo)
         
         self.pause_immich_jobs_check = QCheckBox("Pause Immich Jobs")
         self.pause_immich_jobs_check.setChecked(True)
         self.inputs['config']['pause_jobs'] = self.pause_immich_jobs_check
-        adv_form.addWidget(self.pause_immich_jobs_check)
+        adv_form.addRow("", self.pause_immich_jobs_check)
         
-
+        adv_card.layout.addLayout(adv_form)
         adv_card.setVisible(False)
-        layout.addWidget(adv_card)
+        page.addWidget(adv_card)
         self.adv_frames.append(adv_card)
         
-        layout.addStretch()
-        return scroll
+        page.addStretch()
+        return page
 
     def _build_upload_folder_tab(self):
         page = BasePage()
