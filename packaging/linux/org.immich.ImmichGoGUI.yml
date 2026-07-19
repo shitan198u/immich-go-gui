@@ -20,6 +20,7 @@ modules:
       - sed -i 's|Exec=/opt/immich-go-gui/Immich-Go-GUI|Exec=Immich-Go-GUI|' immich-go-gui.desktop
       - sed -i 's|Icon=immich-go-gui|Icon=org.immich.ImmichGoGUI|' immich-go-gui.desktop
       - install -Dm644 immich-go-gui.desktop /app/share/applications/org.immich.ImmichGoGUI.desktop
+      - install -Dm644 org.immich.ImmichGoGUI.metainfo.xml /app/share/metainfo/org.immich.ImmichGoGUI.metainfo.xml
     sources:
       - type: dir
         path: ../../app.dist
@@ -28,3 +29,5 @@ modules:
         path: ../../immich-go-gui.png
       - type: file
         path: immich-go-gui.desktop
+      - type: file
+        path: org.immich.ImmichGoGUI.metainfo.xml

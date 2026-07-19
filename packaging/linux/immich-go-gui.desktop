@@ -4,3 +4,6 @@ Exec=/opt/immich-go-gui/Immich-Go-GUI
 Icon=immich-go-gui
 Type=Application
 Categories=Utility;
+Comment=An unofficial graphical user interface for the immich-go CLI tool
+GenericName=Photo Backup Utility
+Keywords=photo;backup;immich;uploader;sync;

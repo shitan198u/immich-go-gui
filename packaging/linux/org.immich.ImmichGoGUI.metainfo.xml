@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.immich.ImmichGoGUI</id>
+  <metadata_license>FSFAP</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Immich-Go GUI</name>
+  <summary>A powerful graphical interface for the immich-go CLI</summary>
+  <description>
+    <p>
+      Immich-Go GUI is an unofficial, user-friendly graphical interface for the immich-go command-line tool. It simplifies the process of uploading, archiving, and organizing photos on your Immich server.
+    </p>
+    <p>
+      Whether you are migrating from Google Photos with Takeout archives, uploading local folders, or archiving your entire Immich server, this tool provides a native, robust interface to manage your tasks without touching the terminal.
+    </p>
+    <ul>
+      <li>Upload from local folders or Google Photos Takeout archives.</li>
+      <li>Archive photos and metadata from your Immich server.</li>
+      <li>Organize assets and manage RAW+JPEG/HEIC+JPEG stacking automatically.</li>
+      <li>Extensive filtering options for dates, albums, tags, and camera models.</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">org.immich.ImmichGoGUI.desktop</launchable>
+  <developer id="shitan198u">
+    <name>shitan198u</name>
+  </developer>
+  <url type="homepage">https://github.com/shitan198u/immich-go-gui</url>
+  <url type="bugtracker">https://github.com/shitan198u/immich-go-gui/issues</url>
+  <!-- Optional: Screenshots section. You should add actual screenshot URLs when ready to publish to Flathub.
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/shitan198u/immich-go-gui/master/screenshot.png</image>
+    </screenshot>
+  </screenshots>
+  -->
+  <content_rating type="oars-1.1"/>
+</component>
