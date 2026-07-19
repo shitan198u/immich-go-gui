@@ -65,11 +65,10 @@ jobs:
 
       - name: Create Windows Portable Archive
         if: matrix.name == 'windows'
-        shell: bash
         run: |
-          mv app.dist/app.exe app.dist/Immich-Go-GUI.exe
-          echo "To launch the application, simply double-click the file named Immich-Go-GUI.exe. You do not need to install anything else." > app.dist/README.txt
-          cd app.dist && zip -r ../Immich-Go-GUI-Windows-Portable.zip .
+          Rename-Item -Path "app.dist/app.exe" -NewName "Immich-Go-GUI.exe"
+          Set-Content -Path "app.dist/README.txt" -Value "To launch the application, simply double-click the file named Immich-Go-GUI.exe. You do not need to install anything else."
+          Compress-Archive -Path "app.dist/*" -DestinationPath "Immich-Go-GUI-Windows-Portable.zip"
 
       - name: Compile Windows Installer
         if: matrix.name == 'windows'
