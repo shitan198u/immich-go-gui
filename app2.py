@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QLabel, QLineEdit, QCheckBox, QComboBox, QPushButton, QFileDialog,
     QPlainTextEdit, QStackedWidget, QFrame, QSizePolicy,
-    QScrollArea, QMessageBox, QDialog, QProgressBar, QSpinBox
+    QScrollArea, QMessageBox, QDialog, QProgressBar, QSpinBox, QStyle
 )
 from PySide6.QtGui import QAction, QDragEnterEvent, QDropEvent, QIcon, QPainter, QPen, QColor, QBrush, QFont
 from PySide6.QtCore import Qt, QDate, QTimer, QUrl, QSettings, QThread, Signal
@@ -297,6 +297,44 @@ class BasePage(QWidget):
     def addStretch(self):
         self.layout.addStretch()
 
+class NavItem(QPushButton):
+    def __init__(self, text, icon, parent=None):
+        super().__init__(f" {icon}  {text}", parent)
+        self.setObjectName("NavBtn")
+        self.setCheckable(True)
+        self.setCursor(Qt.PointingHandCursor)
+
+class NavGroup(QWidget):
+    def __init__(self, title, items, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 16)
+        layout.setSpacing(4)
+        
+        if title:
+            lbl = QLabel(title.upper())
+            lbl.setObjectName("NavTitle")
+            layout.addWidget(lbl)
+            
+        for item in items:
+            layout.addWidget(item)
+
+class StatusCard(QFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("StatusCard")
+        self.layout = QVBoxLayout(self)
+        self.layout.setContentsMargins(16, 16, 16, 16)
+        self.layout.setSpacing(8)
+        
+        self.lbl_binary_status = QLabel("🟢 Binary: Ready")
+        self.lbl_binary_status.setObjectName("StatusText")
+        self.layout.addWidget(self.lbl_binary_status)
+        
+        self.status_indicator = QLabel("🔴 Server: Not Set")
+        self.status_indicator.setObjectName("StatusText")
+        self.layout.addWidget(self.status_indicator)
+
 # ==========================================
 # MAIN APPLICATION
 # ==========================================
@@ -350,10 +388,22 @@ class ImmichGoGUI(QMainWindow):
         self.check_binary_version()
         self.load_configuration()
         
-        # Validation timer
-        self.command_update_timer = QTimer(self)
-        self.command_update_timer.timeout.connect(self.update_status)
-        self.command_update_timer.start(300)
+        # Connect signals for validation
+        self.stacked_widget.currentChanged.connect(lambda: self.update_status())
+        for tab_dict in self.inputs.values():
+            for widget in tab_dict.values():
+                if isinstance(widget, QLineEdit):
+                    widget.textChanged.connect(lambda _, w=widget: self.update_status())
+                elif isinstance(widget, QCheckBox):
+                    widget.toggled.connect(lambda _, w=widget: self.update_status())
+                elif isinstance(widget, QComboBox):
+                    widget.currentIndexChanged.connect(lambda _, w=widget: self.update_status())
+                elif isinstance(widget, QSpinBox):
+                    widget.valueChanged.connect(lambda _, w=widget: self.update_status())
+                elif isinstance(widget, QPlainTextEdit):
+                    widget.textChanged.connect(lambda w=widget: self.update_status())
+        
+        self.update_status()
 
     # ==========================================
     # UI STRUCTURE BUILDERS
@@ -365,77 +415,35 @@ class ImmichGoGUI(QMainWindow):
         sidebar_layout = QVBoxLayout(sidebar)
         sidebar_layout.setContentsMargins(12, 16, 12, 16)
         
-        self.btn_config = QPushButton(" ⚙  Configuration")
-        self.btn_config.setObjectName("NavBtn")
-        self.btn_config.setCheckable(True)
+        self.btn_config = NavItem("Configuration", "⚙")
         self.btn_config.setChecked(True)
         self.btn_config.clicked.connect(lambda: self.switch_tab(0, "configuration", self.btn_config))
-        sidebar_layout.addWidget(self.btn_config)
+        sidebar_layout.addWidget(NavGroup("", [self.btn_config]))
         
-        lbl_upload = QLabel("UPLOAD")
-        lbl_upload.setObjectName("NavTitle")
-        sidebar_layout.addWidget(lbl_upload)
-        
-        self.btn_upload_folder = QPushButton(" 📁  Folder Upload")
-        self.btn_upload_folder.setObjectName("NavBtn")
-        self.btn_upload_folder.setCheckable(True)
+        self.btn_upload_folder = NavItem("Folder Upload", "📁")
         self.btn_upload_folder.clicked.connect(lambda: self.switch_tab(1, "upload · from-folder", self.btn_upload_folder))
-        sidebar_layout.addWidget(self.btn_upload_folder)
-        
-        self.btn_upload_gp = QPushButton(" 📦  Google Takeout")
-        self.btn_upload_gp.setObjectName("NavBtn")
-        self.btn_upload_gp.setCheckable(True)
+        self.btn_upload_gp = NavItem("Google Takeout", "📦")
         self.btn_upload_gp.clicked.connect(lambda: self.switch_tab(2, "upload · from-google-photos", self.btn_upload_gp))
-        sidebar_layout.addWidget(self.btn_upload_gp)
-        
-        self.btn_upload_immich = QPushButton(" 🔄  From Immich Server")
-        self.btn_upload_immich.setObjectName("NavBtn")
-        self.btn_upload_immich.setCheckable(True)
+        self.btn_upload_immich = NavItem("From Immich Server", "🔄")
         self.btn_upload_immich.clicked.connect(lambda: self.switch_tab(3, "upload · from-immich", self.btn_upload_immich))
-        sidebar_layout.addWidget(self.btn_upload_immich)
+        sidebar_layout.addWidget(NavGroup("UPLOAD", [self.btn_upload_folder, self.btn_upload_gp, self.btn_upload_immich]))
         
-        lbl_archive = QLabel("ARCHIVE")
-        lbl_archive.setObjectName("NavTitle")
-        sidebar_layout.addWidget(lbl_archive)
-        
-        self.btn_archive_folder = QPushButton(" 🗄️  Archive Folder")
-        self.btn_archive_folder.setObjectName("NavBtn")
-        self.btn_archive_folder.setCheckable(True)
+        self.btn_archive_folder = NavItem("Archive Folder", "🗄️")
         self.btn_archive_folder.clicked.connect(lambda: self.switch_tab(4, "archive · from-folder", self.btn_archive_folder))
-        sidebar_layout.addWidget(self.btn_archive_folder)
-        
-        self.btn_archive_immich = QPushButton(" 💾  Archive Server")
-        self.btn_archive_immich.setObjectName("NavBtn")
-        self.btn_archive_immich.setCheckable(True)
+        self.btn_archive_immich = NavItem("Archive Server", "💾")
         self.btn_archive_immich.clicked.connect(lambda: self.switch_tab(5, "archive · from-immich", self.btn_archive_immich))
-        sidebar_layout.addWidget(self.btn_archive_immich)
+        sidebar_layout.addWidget(NavGroup("ARCHIVE", [self.btn_archive_folder, self.btn_archive_immich]))
         
-        lbl_organize = QLabel("ORGANIZE")
-        lbl_organize.setObjectName("NavTitle")
-        sidebar_layout.addWidget(lbl_organize)
-        
-        self.btn_stack = QPushButton(" 📚  Stack Assets")
-        self.btn_stack.setObjectName("NavBtn")
-        self.btn_stack.setCheckable(True)
+        self.btn_stack = NavItem("Stack Assets", "📚")
         self.btn_stack.clicked.connect(lambda: self.switch_tab(6, "stack", self.btn_stack))
-        sidebar_layout.addWidget(self.btn_stack)
+        sidebar_layout.addWidget(NavGroup("ORGANIZE", [self.btn_stack]))
         
         sidebar_layout.addStretch()
         
-        # Status Frame
-        status_frame = QFrame()
-        status_frame.setObjectName("StatusFrame")
-        status_layout = QVBoxLayout(status_frame)
-        
-        self.lbl_binary_status = QLabel("🟢 Binary: Ready")
-        self.lbl_binary_status.setObjectName("StatusText")
-        status_layout.addWidget(self.lbl_binary_status)
-        
-        self.status_indicator = QLabel("🔴 Server: Not Set")
-        self.status_indicator.setObjectName("StatusText")
-        status_layout.addWidget(self.status_indicator)
-        
-        sidebar_layout.addWidget(status_frame)
+        self.status_card = StatusCard()
+        self.lbl_binary_status = self.status_card.lbl_binary_status
+        self.status_indicator = self.status_card.status_indicator
+        sidebar_layout.addWidget(self.status_card)
         self.main_layout.addWidget(sidebar)
 
     def _build_content_area(self):
@@ -618,13 +626,8 @@ class ImmichGoGUI(QMainWindow):
         self.inputs['upload-folder']['path'] = self.source_path_edit
         form.add_row("Folder to upload", self.source_path_edit, "Every file inside this folder will be considered.")
         
-        btn_browse = QPushButton("Browse")
-        btn_browse.setMaximumWidth(180)
-        btn_browse.clicked.connect(self.browse_local_folder)
-        browse_row = QHBoxLayout()
-        browse_row.addWidget(btn_browse)
-        browse_row.addStretch()
-        card.layout.addLayout(browse_row)
+        browse_action = self.source_path_edit.addAction(self.style().standardIcon(QStyle.SP_DirIcon), QLineEdit.TrailingPosition)
+        browse_action.triggered.connect(self.browse_local_folder)
         card.layout.addLayout(form)
         page.addWidget(card)
 
@@ -760,13 +763,8 @@ class ImmichGoGUI(QMainWindow):
         self.inputs['upload-gp']['path'] = self.gp_path_edit
         form.add_row("Takeout File/Folder Path", self.gp_path_edit)
         
-        btn_browse = QPushButton("Browse")
-        btn_browse.setMaximumWidth(180)
-        btn_browse.clicked.connect(self.browse_takeout_source)
-        browse_row = QHBoxLayout()
-        browse_row.addWidget(btn_browse)
-        browse_row.addStretch()
-        card.layout.addLayout(browse_row)
+        browse_action = self.gp_path_edit.addAction(self.style().standardIcon(QStyle.SP_DirIcon), QLineEdit.TrailingPosition)
+        browse_action.triggered.connect(self.browse_takeout_source)
         card.layout.addLayout(form)
         page.addWidget(card)
 
@@ -1007,13 +1005,8 @@ class ImmichGoGUI(QMainWindow):
         self.inputs['archive-folder']['path'] = p_edit
         form.add_row("Source Folder Path", p_edit)
         
-        btn_browse = QPushButton("Browse")
-        btn_browse.setMaximumWidth(180)
-        btn_browse.clicked.connect(self.browse_local_folder)
-        browse_row = QHBoxLayout()
-        browse_row.addWidget(btn_browse)
-        browse_row.addStretch()
-        card.layout.addLayout(browse_row)
+        browse_action = self.source_path_edit.addAction(self.style().standardIcon(QStyle.SP_DirIcon), QLineEdit.TrailingPosition)
+        browse_action.triggered.connect(self.browse_local_folder)
         card.layout.addLayout(form)
         page.addWidget(card)
 
