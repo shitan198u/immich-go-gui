@@ -7,155 +7,371 @@ import shlex
 import platform
 import webbrowser
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
+    QApplication, QMainWindow, QWidget, QStyleFactory, QVBoxLayout, QHBoxLayout, 
     QLabel, QLineEdit, QCheckBox, QComboBox, QPushButton, QFileDialog,
     QPlainTextEdit, QStackedWidget, QFrame, QSizePolicy,
     QScrollArea, QMessageBox, QDialog, QProgressBar, QSpinBox, QStyle, QLayout
 )
-from PySide6.QtGui import QAction, QDragEnterEvent, QDropEvent, QIcon, QPainter, QPen, QColor, QBrush, QFont
+from PySide6.QtGui import QAction, QDragEnterEvent, QDropEvent, QGuiApplication, QPalette, QIcon, QPainter, QPen, QColor, QBrush, QFont
 from PySide6.QtCore import Qt, QEvent, QDate, QTimer, QUrl, QSettings, QThread, Signal, QSize
 import psutil
 import requests
 
 # ==========================================
-# STYLESHEETS (Dark / Light Themes)
+# STYLESHEETS & THEME ENGINE
 # ==========================================
-DARK_THEME = """
-    QMainWindow, QWidget { background-color: #0b0d0e; color: #ece7dd; font-family: 'Segoe UI', sans-serif; font-size: 14px; }
-    
-    /* Header & Footer */
-    #HeaderFrame, #FooterFrame { background-color: rgba(11,13,14,0.95); border: none; }
-    #HeaderFrame { border-bottom: 1px solid #2a3034; }
-    #FooterFrame { border-top: 1px solid #2a3034; }
-    QLabel#AppName { font-family: 'Consolas', monospace; font-weight: 600; font-size: 16px; color: #ece7dd; }
-    QLabel#Crumb { font-family: 'Consolas', monospace; font-size: 12px; color: #8b9298; }
-    QLabel#ModeLabel { font-family: 'Consolas', monospace; font-size: 12px; color: #8b9298; padding-right: 8px; }
-    
-    /* Sidebar */
-    #Sidebar { background-color: #15181b; border-right: 1px solid #2a3034; }
-    QPushButton#NavBtn { text-align: left; padding: 10px 12px; font-size: 14px; font-weight: 500; color: #8b9298; border: 1px solid transparent; border-radius: 6px; background: transparent; }
-    QPushButton#NavBtn:hover { background-color: #1d2226; color: #ece7dd; }
-    QPushButton#NavBtn:checked { background-color: #23282c; color: #4fb3a4; border: 1px solid #3a4045; }
-    QLabel#NavTitle { font-family: 'Consolas'; font-size: 10px; font-weight: 600; color: #5b6267; padding: 0 12px; margin-top: 16px; }
-    
-    #StatusFrame { border-top: 1px solid #2a3034; padding: 16px; background-color: #15181b; }
-    QLabel#StatusText { font-size: 12px; color: #8b9298; }
-    QPushButton#ActionLink { color: #4fb3a4; background: transparent; border: none; font-size: 11px; font-family: 'Consolas'; text-align: left; padding: 0; }
-    QPushButton#ActionLink:hover { color: #6fd6c5; }
-    
-    /* Cards & Form Elements */
-    QFrame#Card { background-color: #15181b; border: 1px solid #2a3034; border-radius: 8px; }
-    QLabel#CardTitle { font-family: 'Consolas'; font-size: 12px; font-weight: 600; color: #8b9298; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
-    QLabel#ReqBadge { font-size: 10px; color: #e1512e; background-color: rgba(225,81,46,0.08); border: 1px solid #4a2318; padding: 2px 6px; border-radius: 4px; font-family: 'Segoe UI'; font-weight: normal; text-transform: none; }
-    QLabel#Subhead { font-family: 'Consolas'; font-size: 11px; color: #5b6267; text-transform: uppercase; letter-spacing: 1px; margin-top: 16px; margin-bottom: 8px; border-top: 1px solid #2a3034; padding-top: 12px; }
-    
-    QLabel#FieldLabel { font-size: 13px; font-weight: 500; color: #ece7dd; }
-    QLabel#Hint { font-size: 12px; color: #5b6267; }
-    
-    QLineEdit, QComboBox, QSpinBox, QPlainTextEdit {
-        background-color: #1d2226; border: 1px solid #3a4045; color: #ece7dd; 
-        padding: 9px 11px; border-radius: 6px; font-size: 14px;
-        selection-background-color: #4fb3a4;
+
+THEME_SYSTEM = "System"
+THEME_LIGHT = "Light"
+THEME_DARK = "Dark"
+
+def theme_tokens(theme: str) -> dict:
+    if theme == "dark":
+        return {
+            "bg": "#0E1113",
+            "sidebar": "#121619",
+            "surface": "#151A1E",
+            "surface_alt": "#1B2126",
+            "input_bg": "#1B2126",
+            "input_focus_bg": "#20272D",
+            "border": "#262D34",
+            "border_strong": "#343C43",
+            "text": "#E8ECEF",
+            "text_muted": "#97A1AA",
+            "text_faint": "#6B757D",
+            "accent": "#4FB3A4",
+            "accent_hover": "#6FD6C5",
+            "accent_subtle": "#17332F",
+            "primary": "#E1512E",
+            "primary_hover": "#F1603D",
+            "on_primary": "#FFFFFF",
+            "button_bg": "#20262B",
+            "button_hover": "#2A3238",
+            "scrollbar": "#0E1113",
+            "scrollbar_handle": "#3A434B",
+        }
+    return {
+        "bg": "#F5F7F9",
+        "sidebar": "#FFFFFF",
+        "surface": "#FFFFFF",
+        "surface_alt": "#F8FAFC",
+        "input_bg": "#F8FAFC",
+        "input_focus_bg": "#FFFFFF",
+        "border": "#D8DEE4",
+        "border_strong": "#C7CED6",
+        "text": "#18222C",
+        "text_muted": "#5D6B7A",
+        "text_faint": "#7C8794",
+        "accent": "#0F766E",
+        "accent_hover": "#14B8A6",
+        "accent_subtle": "#E4F5F2",
+        "primary": "#C2410C",
+        "primary_hover": "#EA580C",
+        "on_primary": "#FFFFFF",
+        "button_bg": "#EEF1F4",
+        "button_hover": "#E2E7EC",
+        "scrollbar": "#EEF1F4",
+        "scrollbar_handle": "#AEB8C2",
     }
-    QLineEdit:hover, QComboBox:hover, QSpinBox:hover, QPlainTextEdit:hover { border-color: #4c545b; }
-    QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QPlainTextEdit:focus { border: 2px solid #4fb3a4; padding: 9px 11px; background-color: #23282c; }
-    QLineEdit:disabled { background-color: #15181b; color: #5b6267; border-color: #2a3034; }
-    QComboBox::drop-down { border: none; width: 20px; }
-    QComboBox QAbstractItemView { background-color: #1d2226; color: #ece7dd; selection-background-color: #4fb3a4; border: 1px solid #3a4045; }
-    
-    /* Buttons */
-    QPushButton#BtnRun { background-color: #e1512e; color: #ffffff; border: none; border-radius: 7px; padding: 10px 18px; font-weight: 600; font-size: 13.5px; }
-    QPushButton#BtnRun:hover { background-color: #f1603d; }
-    QPushButton#BtnRun:disabled { background: #4a2318; color: #8b9298; }
-    
-    QPushButton#BtnPreview { background-color: #1b3733; color: #6fd6c5; border: 1px solid #4fb3a4; border-radius: 7px; padding: 10px 18px; font-weight: 600; font-size: 13.5px; }
-    QPushButton#BtnPreview:hover { background-color: #234a42; }
-    QPushButton#BtnPreview:disabled { background: #15181b; color: #5b6267; border-color: #2a3034; }
-    
-    QPushButton { background-color: #2a3034; color: #ece7dd; border: none; border-radius: 6px; padding: 8px 16px; }
-    QPushButton:hover { background-color: #3a4045; }
-    
-    /* Dialog */
-    QDialog { background-color: #15181b; color: #ece7dd; border: 1px solid #3a4045; border-radius: 12px; }
-    QLabel#DlgKicker { font-family: 'Consolas'; font-size: 11px; color: #5b6267; text-transform: uppercase; letter-spacing: 1px; }
-    QLabel#DlgTitle { font-size: 18px; font-weight: 600; }
-    QLabel#DlgDesc { font-size: 13px; color: #8b9298; }
-    QPlainTextEdit#CmdBlock { background-color: #08090a; border: 1px solid #2a3034; color: #ece7dd; font-family: 'Consolas'; font-size: 13px; border-radius: 8px; padding: 16px; }
-    
-    QScrollArea { border: none; background: transparent; }
-    QScrollBar:vertical { border: none; background: #0b0d0e; width: 8px; margin: 0; }
-    QScrollBar::handle:vertical { background: #3a4045; min-height: 20px; border-radius: 4px; }
-    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
-    
-    QMenu { background-color: #15181b; color: #ece7dd; border: 1px solid #3a4045; }
-    QMenu::item:selected { background-color: #23282c; }
+
+def build_stylesheet(theme: str) -> str:
+    t = theme_tokens(theme)
+    return f"""
+QMainWindow, QWidget {{
+    background-color: {t["bg"]};
+    color: {t["text"]};
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+}}
+#HeaderFrame, #FooterFrame {{
+    background-color: {t["bg"]};
+    border: none;
+}}
+#HeaderFrame {{
+    border-bottom: 1px solid {t["border"]};
+}}
+#FooterFrame {{
+    border-top: 1px solid {t["border"]};
+}}
+QLabel#AppName {{
+    font-family: "Consolas", monospace;
+    font-weight: 600;
+    font-size: 16px;
+    color: {t["text"]};
+}}
+QLabel#Crumb {{
+    font-family: "Consolas", monospace;
+    font-size: 12px;
+    color: {t["text_muted"]};
+}}
+QLabel#ModeLabel {{
+    font-family: "Consolas", monospace;
+    font-size: 12px;
+    color: {t["text_muted"]};
+    padding-right: 8px;
+}}
+#Sidebar {{
+    background-color: {t["sidebar"]};
+    border-right: 1px solid {t["border"]};
+}}
+QPushButton#NavBtn {{
+    text-align: left;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: {t["text_muted"]};
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+}}
+QPushButton#NavBtn:hover {{
+    background-color: {t["surface_alt"]};
+    color: {t["text"]};
+}}
+QPushButton#NavBtn:checked {{
+    background-color: {t["accent_subtle"]};
+    color: {t["accent"]};
+    border: 1px solid {t["accent"]};
+}}
+QLabel#NavTitle {{
+    font-family: "Consolas", monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: {t["text_faint"]};
+    padding: 0 12px;
+    margin-top: 16px;
+}}
+QFrame#Card {{
+    background-color: {t["surface"]};
+    border: 1px solid {t["border"]};
+    border-radius: 8px;
+}}
+QLabel#CardTitle {{
+    font-family: "Consolas", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: {t["text_muted"]};
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+}}
+QLabel#ReqBadge {{
+    font-size: 10px;
+    color: {t["primary"]};
+    background-color: {t["accent_subtle"]};
+    border: 1px solid {t["primary"]};
+    padding: 2px 6px;
+    border-radius: 4px;
+}}
+QLabel#Subhead {{
+    font-family: "Consolas", monospace;
+    font-size: 11px;
+    color: {t["text_faint"]};
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 16px;
+    margin-bottom: 8px;
+    border-top: 1px solid {t["border"]};
+    padding-top: 12px;
+}}
+QLabel#FieldLabel {{
+    font-size: 13px;
+    font-weight: 500;
+    color: {t["text"]};
+}}
+QLabel#Hint {{
+    font-size: 12px;
+    color: {t["text_muted"]};
+}}
+QLineEdit, QComboBox, QSpinBox, QPlainTextEdit {{
+    background-color: {t["input_bg"]};
+    border: 1px solid {t["border_strong"]};
+    color: {t["text"]};
+    padding: 9px 11px;
+    border-radius: 6px;
+    font-size: 14px;
+    selection-background-color: {t["accent"]};
+}}
+QLineEdit:hover, QComboBox:hover, QSpinBox:hover, QPlainTextEdit:hover {{
+    border-color: {t["accent"]};
+}}
+QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QPlainTextEdit:focus {{
+    border: 1px solid {t["accent"]};
+    background-color: {t["input_focus_bg"]};
+}}
+QLineEdit:disabled {{
+    background-color: {t["surface_alt"]};
+    color: {t["text_faint"]};
+    border-color: {t["border"]};
+}}
+QComboBox::drop-down {{
+    border: none;
+    width: 20px;
+}}
+QComboBox QAbstractItemView {{
+    background-color: {t["surface"]};
+    color: {t["text"]};
+    selection-background-color: {t["accent_subtle"]};
+    selection-color: {t["accent"]};
+    border: 1px solid {t["border"]};
+}}
+QPushButton {{
+    background-color: {t["button_bg"]};
+    color: {t["text"]};
+    border: 1px solid {t["border"]};
+    border-radius: 6px;
+    padding: 8px 16px;
+}}
+QPushButton:hover {{
+    background-color: {t["button_hover"]};
+}}
+QPushButton#BtnRun {{
+    background-color: {t["primary"]};
+    color: {t["on_primary"]};
+    border: none;
+    border-radius: 7px;
+    padding: 10px 18px;
+    font-weight: 600;
+    font-size: 13.5px;
+}}
+QPushButton#BtnRun:hover {{
+    background-color: {t["primary_hover"]};
+}}
+QPushButton#BtnRun:disabled {{
+    background-color: {t["surface_alt"]};
+    color: {t["text_faint"]};
+    border: 1px solid {t["border"]};
+}}
+QPushButton#BtnPreview {{
+    background-color: {t["accent_subtle"]};
+    color: {t["accent"]};
+    border: 1px solid {t["accent"]};
+    border-radius: 7px;
+    padding: 10px 18px;
+    font-weight: 600;
+    font-size: 13.5px;
+}}
+QPushButton#BtnPreview:hover {{
+    background-color: {t["button_hover"]};
+}}
+QPushButton#BtnPreview:disabled {{
+    background-color: {t["surface_alt"]};
+    color: {t["text_faint"]};
+    border-color: {t["border"]};
+}}
+QDialog {{
+    background-color: {t["surface"]};
+    color: {t["text"]};
+    border: 1px solid {t["border"]};
+    border-radius: 12px;
+}}
+QLabel#DlgKicker {{
+    font-family: "Consolas", monospace;
+    font-size: 11px;
+    color: {t["text_faint"]};
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}}
+QLabel#DlgTitle {{
+    font-size: 18px;
+    font-weight: 600;
+    color: {t["text"]};
+}}
+QLabel#DlgDesc {{
+    font-size: 13px;
+    color: {t["text_muted"]};
+}}
+QPlainTextEdit#CmdBlock {{
+    background-color: #0B0D0E;
+    border: 1px solid {t["border"]};
+    color: #ECE7DD;
+    font-family: "Consolas", monospace;
+    font-size: 13px;
+    border-radius: 8px;
+    padding: 16px;
+}}
+QScrollArea {{
+    border: none;
+    background: transparent;
+}}
+QScrollBar:vertical, QScrollBar:horizontal {{
+    border: none;
+    background: {t["scrollbar"]};
+    width: 8px;
+    height: 8px;
+    margin: 0;
+}}
+QScrollBar::handle:vertical, QScrollBar::handle:horizontal {{
+    background: {t["scrollbar_handle"]};
+    min-height: 20px;
+    min-width: 20px;
+    border-radius: 4px;
+}}
+QScrollBar::add-line, QScrollBar::sub-line {{
+    height: 0; width: 0;
+}}
+QMenu {{
+    background-color: {t["surface"]};
+    color: {t["text"]};
+    border: 1px solid {t["border"]};
+}}
+QMenu::item:selected {{
+    background-color: {t["accent_subtle"]};
+    color: {t["accent"]};
+}}
 """
 
-LIGHT_THEME = """
-    QMainWindow, QWidget { background-color: #f4f5f7; color: #1f2937; font-family: 'Segoe UI', sans-serif; font-size: 14px; }
-    
-    #HeaderFrame, #FooterFrame { background-color: rgba(248,249,250,0.95); border: none; }
-    #HeaderFrame { border-bottom: 1px solid #d1d5db; }
-    #FooterFrame { border-top: 1px solid #d1d5db; }
-    QLabel#AppName { font-family: 'Consolas', monospace; font-weight: 600; font-size: 16px; color: #1f2937; }
-    QLabel#Crumb { font-family: 'Consolas', monospace; font-size: 12px; color: #4b5563; }
-    QLabel#ModeLabel { font-family: 'Consolas', monospace; font-size: 12px; color: #4b5563; padding-right: 8px; }
-    
-    #Sidebar { background-color: #ffffff; border-right: 1px solid #d1d5db; }
-    QPushButton#NavBtn { text-align: left; padding: 10px 12px; font-size: 14px; font-weight: 500; color: #4b5563; border: 1px solid transparent; border-radius: 6px; background: transparent; }
-    QPushButton#NavBtn:hover { background-color: #f8f9fa; color: #1f2937; }
-    QPushButton#NavBtn:checked { background-color: #eef0f2; color: #0f766e; border: 1px solid #9ca3af; }
-    QLabel#NavTitle { font-family: 'Consolas'; font-size: 10px; font-weight: 600; color: #6b7280; padding: 0 12px; margin-top: 16px; }
-    
-    #StatusFrame { border-top: 1px solid #d1d5db; padding: 16px; background-color: #ffffff; }
-    QLabel#StatusText { font-size: 12px; color: #4b5563; }
-    QPushButton#ActionLink { color: #0f766e; background: transparent; border: none; font-size: 11px; font-family: 'Consolas'; text-align: left; padding: 0; }
-    QPushButton#ActionLink:hover { color: #14b8a6; }
-    
-    QFrame#Card { background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 10px; }
-    QLabel#CardTitle { font-family: 'Consolas'; font-size: 12px; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
-    QLabel#ReqBadge { font-size: 10px; color: #c2410c; background-color: #fed7aa; border: 1px solid #fb923c; padding: 2px 6px; border-radius: 4px; font-family: 'Segoe UI'; font-weight: normal; text-transform: none; }
-    QLabel#Subhead { font-family: 'Consolas'; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; margin-top: 16px; margin-bottom: 8px; border-top: 1px solid #d1d5db; padding-top: 12px; }
-    
-    QLabel#FieldLabel { font-size: 12px; font-weight: 600; color: #1f2937; letter-spacing: .4px; margin-bottom: 2px; }
-    QLabel#Hint { font-size: 12px; color: #6b7280; }
-    
-    QLineEdit, QComboBox, QSpinBox, QPlainTextEdit {
-        background-color: #f8f9fa; border: 1px solid #9ca3af; color: #1f2937; 
-        padding: 9px 11px; border-radius: 6px; font-size: 14px;
-        selection-background-color: #0f766e;
-    }
-    QLineEdit:hover, QComboBox:hover, QSpinBox:hover, QPlainTextEdit:hover { border-color: #9ca3af; }
-    QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QPlainTextEdit:focus { border: 2px solid #0f766e; padding: 9px 11px; background-color: #ffffff; }
-    QLineEdit:disabled { background-color: #eef0f2; color: #6b7280; border-color: #d1d5db; }
-    QComboBox::drop-down { border: none; width: 20px; }
-    QComboBox QAbstractItemView { background-color: #f8f9fa; color: #1f2937; selection-background-color: #0f766e; border: 1px solid #9ca3af; }
-    
-    QPushButton#BtnRun { background-color: #c2410c; color: #ffffff; border: none; border-radius: 7px; padding: 10px 18px; font-weight: 600; font-size: 13.5px; }
-    QPushButton#BtnRun:hover { background-color: #ea580c; }
-    QPushButton#BtnRun:disabled { background: #fed7aa; color: #c2410c; }
-    
-    QPushButton#BtnPreview { background-color: #ccfbf1; color: #0f766e; border: 1px solid #14b8a6; border-radius: 7px; padding: 10px 18px; font-weight: 600; font-size: 13.5px; }
-    QPushButton#BtnPreview:hover { background-color: #99f6e4; }
-    QPushButton#BtnPreview:disabled { background: #f8f9fa; color: #6b7280; border-color: #d1d5db; }
-    
-    QPushButton { background-color: #eef0f2; color: #1f2937; border: none; border-radius: 6px; padding: 8px 16px; }
-    QPushButton:hover { background-color: #d1d5db; }
-    
-    QDialog { background-color: #ffffff; color: #1f2937; border: 1px solid #9ca3af; border-radius: 12px; }
-    QLabel#DlgKicker { font-family: 'Consolas'; font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; }
-    QLabel#DlgTitle { font-size: 18px; font-weight: 600; }
-    QLabel#DlgDesc { font-size: 13px; color: #4b5563; }
-    QPlainTextEdit#CmdBlock { background-color: #1e1e1e; border: 1px solid #d1d5db; color: #ece7dd; font-family: 'Consolas'; font-size: 13px; border-radius: 8px; padding: 16px; }
-    
-    QScrollArea { border: none; background: transparent; }
-    QScrollBar:vertical { border: none; background: #eef0f2; width: 8px; margin: 0; }
-    QScrollBar::handle:vertical { background: #9ca3af; min-height: 20px; border-radius: 4px; }
-    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
-    
-    QMenu { background-color: #ffffff; color: #1f2937; border: 1px solid #9ca3af; }
-    QMenu::item:selected { background-color: #eef0f2; }
-"""
+def detect_system_theme() -> str:
+    try:
+        hints = QGuiApplication.styleHints()
+        if hasattr(hints, "colorScheme"):
+            scheme = hints.colorScheme()
+            if scheme == Qt.ColorScheme.Dark: return "dark"
+            if scheme == Qt.ColorScheme.Light: return "light"
+    except Exception:
+        pass
+    app = QApplication.instance()
+    if app is None: return "dark"
+    pal = app.palette()
+    try:
+        bg = pal.color(QPalette.ColorRole.Window)
+        fg = pal.color(QPalette.ColorRole.WindowText)
+    except AttributeError:
+        bg = pal.color(QPalette.Window)
+        fg = pal.color(QPalette.WindowText)
+    return "dark" if fg.lightness() > bg.lightness() else "light"
+
+def apply_base_palette(theme: str):
+    t = theme_tokens(theme)
+    app = QApplication.instance()
+    if app is None: return
+    pal = QPalette()
+    pal.setColor(QPalette.Window, QColor(t["bg"]))
+    pal.setColor(QPalette.WindowText, QColor(t["text"]))
+    pal.setColor(QPalette.Base, QColor(t["input_bg"]))
+    pal.setColor(QPalette.AlternateBase, QColor(t["surface_alt"]))
+    pal.setColor(QPalette.Text, QColor(t["text"]))
+    pal.setColor(QPalette.Button, QColor(t["button_bg"]))
+    pal.setColor(QPalette.ButtonText, QColor(t["text"]))
+    pal.setColor(QPalette.Highlight, QColor(t["accent"]))
+    pal.setColor(QPalette.HighlightedText, QColor("#FFFFFF"))
+    pal.setColor(QPalette.ToolTipBase, QColor(t["surface"]))
+    pal.setColor(QPalette.ToolTipText, QColor(t["text"]))
+    app.setPalette(pal)
+
+def apply_application_theme(mode: str) -> str:
+    resolved = detect_system_theme() if mode == THEME_SYSTEM else mode.lower()
+    app = QApplication.instance()
+    if app is None: return resolved
+    app.setProperty("theme", resolved)
+    apply_base_palette(resolved)
+    app.setStyleSheet(build_stylesheet(resolved))
+    return resolved
+
+
+
+
+
 
 # ==========================================
 # CUSTOM WIDGETS
@@ -394,10 +610,13 @@ class ImmichGoGUI(QMainWindow):
         self.setWindowTitle("Immich Go GUI")
         self.resize(1250, 750)
         self.setMinimumSize(900, 600)
-        self.setStyleSheet(DARK_THEME)
+        
+        self.settings = QSettings("YourOrganization", "ImmichGoGUI")
         
         self.is_advanced = False
-        self.is_light_theme = False
+        self.theme_mode = self.settings.value("theme_mode", THEME_SYSTEM)
+        
+        apply_application_theme(self.theme_mode)
         
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -438,6 +657,8 @@ class ImmichGoGUI(QMainWindow):
         self.settings = QSettings("YourOrganization", "ImmichGoGUI")
         self.check_binary_version()
         self.load_configuration()
+        self.apply_theme(self.theme_mode)
+        self.connect_system_theme_changes()
         
         # Connect signals for validation
         self.stacked_widget.currentChanged.connect(lambda: self.update_status())
@@ -459,6 +680,43 @@ class ImmichGoGUI(QMainWindow):
     # ==========================================
     # UI STRUCTURE BUILDERS
     # ==========================================
+
+    def apply_theme(self, mode=None):
+        if mode is None:
+            mode = getattr(self, "theme_mode", THEME_SYSTEM)
+        
+        self.theme_mode = mode
+        
+        if hasattr(self, "theme_mode_combo"):
+            self.theme_mode_combo.blockSignals(True)
+            self.theme_mode_combo.setCurrentText(mode)
+            self.theme_mode_combo.blockSignals(False)
+            
+        apply_application_theme(mode)
+        
+        for widget in self.findChildren(QWidget):
+            widget.update()
+            
+        self.update()
+
+    def connect_system_theme_changes(self):
+        try:
+            hints = QGuiApplication.styleHints()
+            if hasattr(hints, "colorSchemeChanged"):
+                hints.colorSchemeChanged.connect(lambda *_: self.on_system_theme_changed())
+        except Exception:
+            pass
+
+    def on_system_theme_changed(self):
+        if getattr(self, "theme_mode", THEME_SYSTEM) == THEME_SYSTEM:
+            QTimer.singleShot(0, lambda: self.apply_theme(THEME_SYSTEM))
+
+    def event(self, e):
+        if e.type() == QEvent.Type.ThemeChange:
+            if getattr(self, "theme_mode", THEME_SYSTEM) == THEME_SYSTEM:
+                QTimer.singleShot(0, lambda: self.apply_theme(THEME_SYSTEM))
+        return super().event(e)
+
     def _nav_icon(self, theme_name, sp_fallback):
         return QIcon.fromTheme(theme_name, self.style().standardIcon(sp_fallback, None, self))
 
@@ -609,21 +867,20 @@ class ImmichGoGUI(QMainWindow):
 
         # Appearance
         card3 = Card("Appearance")
-        row2 = QHBoxLayout()
-        txt_box = QVBoxLayout()
-        l1 = QLabel("Light Theme")
-        l1.setObjectName("FieldLabel")
-        l2 = QLabel("Toggle between dark and light interface modes")
-        l2.setObjectName("Hint")
-        txt_box.addWidget(l1)
-        txt_box.addWidget(l2)
-        row2.addLayout(txt_box)
-        row2.addStretch()
-        
-        self.switch_theme = SwitchButton()
-        self.switch_theme.toggled.connect(self.toggle_theme)
-        row2.addWidget(self.switch_theme)
-        card3.layout.addLayout(row2)
+        appearance_form = FormSection()
+
+        self.theme_mode_combo = QComboBox()
+        self.theme_mode_combo.addItems([THEME_SYSTEM, THEME_LIGHT, THEME_DARK])
+        self.theme_mode_combo.setCurrentText(THEME_SYSTEM)
+        self.theme_mode_combo.currentTextChanged.connect(self.apply_theme)
+
+        appearance_form.add_row(
+            "Theme",
+            self.theme_mode_combo,
+            "System follows your operating system theme when supported."
+        )
+
+        card3.layout.addLayout(appearance_form)
         page.addWidget(card3)
 
         # Advanced Config
@@ -1237,12 +1494,6 @@ class ImmichGoGUI(QMainWindow):
     # ==========================================
     # UI INTERACTIONS & LOGIC
     # ==========================================
-    def toggle_theme(self, checked):
-        self.is_light_theme = checked
-        if checked:
-            self.setStyleSheet(LIGHT_THEME)
-        else:
-            self.setStyleSheet(DARK_THEME)
 
     def toggle_advanced(self, checked):
         self.is_advanced = checked
@@ -1943,11 +2194,20 @@ class ImmichGoGUI(QMainWindow):
     def save_configuration(self):
         self.settings.setValue("server_url", self.inputs['config']['server'].text())
         self.settings.setValue("api_key", self.inputs['config']['api_key'].text())
+        if hasattr(self, "theme_mode_combo"):
+            self.settings.setValue("theme_mode", self.theme_mode_combo.currentText())
         QMessageBox.information(self, "Saved", "Configuration saved successfully.")
 
     def load_configuration(self):
         self.inputs['config']['server'].setText(self.settings.value("server_url", ""))
         self.inputs['config']['api_key'].setText(self.settings.value("api_key", ""))
+        theme_mode = self.settings.value("theme_mode", THEME_SYSTEM)
+        if hasattr(self, "theme_mode_combo"):
+            self.theme_mode_combo.blockSignals(True)
+            self.theme_mode_combo.setCurrentText(theme_mode)
+            self.theme_mode_combo.blockSignals(False)
+        self.theme_mode = theme_mode
+        self.apply_theme(theme_mode)
 
     def open_github_link(self):
         webbrowser.open("https://github.com/simulot/immich-go")
