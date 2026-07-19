@@ -695,7 +695,10 @@ class ImmichGoGUI(QMainWindow):
         apply_application_theme(mode)
         
         for widget in self.findChildren(QWidget):
-            widget.update()
+            try:
+                widget.update()
+            except TypeError:
+                pass
             
         self.update()
 
