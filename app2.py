@@ -443,8 +443,7 @@ class ImmichGoGUI(QMainWindow):
         return card, layout
 
     def create_form_row(self, label_text, widget, hint=""):
-        row_widget = QWidget()
-        layout = QVBoxLayout(row_widget)
+        layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 12)
         layout.setSpacing(8)
         
@@ -462,7 +461,7 @@ class ImmichGoGUI(QMainWindow):
         row.addWidget(widget)
         row.addStretch()
         layout.addLayout(row)
-        return row_widget
+        return layout
 
     def add_subhead(self, parent_layout, text):
         lbl = QLabel(text)
@@ -485,13 +484,13 @@ class ImmichGoGUI(QMainWindow):
         self.server_url_edit = QLineEdit()
         self.server_url_edit.setPlaceholderText("http://localhost:2283")
         self.inputs['config']['server'] = self.server_url_edit
-        card_layout.addWidget(self.create_form_row("Server URL", self.server_url_edit))
+        card_layout.addLayout(self.create_form_row("Server URL", self.server_url_edit))
         
         self.api_key_edit = QLineEdit()
         self.api_key_edit.setEchoMode(QLineEdit.Password)
         self.api_key_edit.setPlaceholderText("Paste your Immich API key")
         self.inputs['config']['api_key'] = self.api_key_edit
-        card_layout.addWidget(self.create_form_row("API Key", self.api_key_edit))
+        card_layout.addLayout(self.create_form_row("API Key", self.api_key_edit))
         
         hint = QLabel("You can generate an API key in Immich under Account Settings -> API Keys.")
         hint.setObjectName("Hint")
@@ -533,38 +532,36 @@ class ImmichGoGUI(QMainWindow):
 
         # Advanced Config
         adv_card, adv_layout = self.create_card("Advanced Configuration")
-        adv_container = QWidget()
-        adv_form = QVBoxLayout(adv_container)
+        adv_form = adv_layout
         
         self.client_timeout_spin = QSpinBox()
         self.client_timeout_spin.setRange(1, 1440)
         self.client_timeout_spin.setValue(20)
         self.client_timeout_spin.setSuffix(" minutes")
         self.inputs['config']['client_timeout'] = self.client_timeout_spin
-        adv_form.addWidget(self.create_form_row("Client Timeout", self.client_timeout_spin))
+        adv_form.addLayout(self.create_form_row("Client Timeout", self.client_timeout_spin))
         
         self.concurrent_tasks_spin = QSpinBox()
         self.concurrent_tasks_spin.setRange(1, 20)
         self.concurrent_tasks_spin.setValue(2)
         self.inputs['config']['concurrent'] = self.concurrent_tasks_spin
-        adv_form.addWidget(self.create_form_row("Concurrent Tasks", self.concurrent_tasks_spin))
+        adv_form.addLayout(self.create_form_row("Concurrent Tasks", self.concurrent_tasks_spin))
         
         self.device_uuid_edit = QLineEdit()
         self.inputs['config']['device_uuid'] = self.device_uuid_edit
-        adv_form.addWidget(self.create_form_row("Device UUID", self.device_uuid_edit))
+        adv_form.addLayout(self.create_form_row("Device UUID", self.device_uuid_edit))
         
         self.on_errors_combo = QComboBox()
         self.on_errors_combo.addItems(["stop", "continue"])
         self.inputs['config']['on_errors'] = self.on_errors_combo
-        adv_form.addWidget(self.create_form_row("On Errors", self.on_errors_combo))
+        adv_form.addLayout(self.create_form_row("On Errors", self.on_errors_combo))
         
         self.pause_immich_jobs_check = QCheckBox("Pause Immich Jobs")
         self.pause_immich_jobs_check.setChecked(True)
         self.inputs['config']['pause_jobs'] = self.pause_immich_jobs_check
         adv_form.addWidget(self.pause_immich_jobs_check)
         
-        adv_layout.addWidget(adv_container)
-        self.adv_frames.append(adv_container)
+
         adv_card.setVisible(False)
         layout.addWidget(adv_card)
         self.adv_frames.append(adv_card)
@@ -590,7 +587,7 @@ class ImmichGoGUI(QMainWindow):
         self.source_path_edit.dragEnterEvent = self.dragEnterEvent
         self.source_path_edit.dropEvent = self.dropEvent
         self.inputs['upload-folder']['path'] = self.source_path_edit
-        card_layout.addWidget(self.create_form_row("Folder to upload", self.source_path_edit, "Every file inside this folder will be considered."))
+        card_layout.addLayout(self.create_form_row("Folder to upload", self.source_path_edit, "Every file inside this folder will be considered."))
         
         btn_browse = QPushButton("Browse")
         btn_browse.setMaximumWidth(180)
@@ -606,50 +603,49 @@ class ImmichGoGUI(QMainWindow):
         
         c_type = QComboBox(); c_type.addItems(["all", "IMAGE", "VIDEO"])
         self.inputs['upload-folder']['include-type'] = c_type
-        card_layout.addWidget(self.create_form_row("Media Type", c_type))
+        card_layout.addLayout(self.create_form_row("Media Type", c_type))
         
         c_album = QComboBox(); c_album.addItems(["NONE", "FOLDER", "PATH"])
         self.inputs['upload-folder']['folder-album'] = c_album
-        card_layout.addWidget(self.create_form_row("Album Organization", c_album))
+        card_layout.addLayout(self.create_form_row("Album Organization", c_album))
         
         t_album = QLineEdit(); t_album.setPlaceholderText("e.g. Family Archive")
         self.inputs['upload-folder']['into-album'] = t_album
-        card_layout.addWidget(self.create_form_row("Put all into Album", t_album))
+        card_layout.addLayout(self.create_form_row("Put all into Album", t_album))
         
         c_burst = QComboBox(); c_burst.addItems(["NoStack", "Stack", "StackKeepRaw", "StackKeepJPEG"])
         self.inputs['upload-folder']['manage-burst'] = c_burst
-        card_layout.addWidget(self.create_form_row("Burst Photos", c_burst))
+        card_layout.addLayout(self.create_form_row("Burst Photos", c_burst))
         
         c_raw = QComboBox(); c_raw.addItems(["NoStack", "KeepRaw", "KeepJPG", "StackCoverRaw", "StackCoverJPG"])
         self.inputs['upload-folder']['manage-raw-jpeg'] = c_raw
-        card_layout.addWidget(self.create_form_row("RAW + JPEG Pairs", c_raw))
+        card_layout.addLayout(self.create_form_row("RAW + JPEG Pairs", c_raw))
         
         c_heic = QComboBox(); c_heic.addItems(["NoStack", "KeepHeic", "KeepJPG", "StackCoverHeic", "StackCoverJPG"])
         self.inputs['upload-folder']['manage-heic-jpeg'] = c_heic
-        card_layout.addWidget(self.create_form_row("HEIC + JPEG Pairs", c_heic))
+        card_layout.addLayout(self.create_form_row("HEIC + JPEG Pairs", c_heic))
         layout.addWidget(card)
 
         # Advanced Options
         adv_card, adv_layout = self.create_card("Advanced Options")
-        adv_container = QWidget()
-        adv_form = QVBoxLayout(adv_container)
+        adv_form = adv_layout
         
         self.add_subhead(adv_form, "Filtering")
         d_range = QLineEdit(); d_range.setPlaceholderText("YYYY-MM-DD,YYYY-MM-DD")
         self.inputs['upload-folder']['date-range'] = d_range
-        adv_form.addWidget(self.create_form_row("Date range", d_range))
+        adv_form.addLayout(self.create_form_row("Date range", d_range))
         
         inc_ext = QLineEdit(); inc_ext.setPlaceholderText(".jpg,.heic,.mp4")
         self.inputs['upload-folder']['include-ext'] = inc_ext
-        adv_form.addWidget(self.create_form_row("Include extensions", inc_ext))
+        adv_form.addLayout(self.create_form_row("Include extensions", inc_ext))
         
         exc_ext = QLineEdit(); exc_ext.setPlaceholderText(".thm,.xmp")
         self.inputs['upload-folder']['exclude-ext'] = exc_ext
-        adv_form.addWidget(self.create_form_row("Exclude extensions", exc_ext))
+        adv_form.addLayout(self.create_form_row("Exclude extensions", exc_ext))
         
         ban_file = QPlainTextEdit(); ban_file.setPlaceholderText("@eaDir/\n.DS_Store")
         self.inputs['upload-folder']['ban-file'] = ban_file
-        adv_form.addWidget(self.create_form_row("Skip files matching patterns", ban_file))
+        adv_form.addLayout(self.create_form_row("Skip files matching patterns", ban_file))
         
         chk_ignore = QCheckBox("Ignore sidecar files")
         self.inputs['upload-folder']['ignore-sidecar'] = chk_ignore
@@ -663,7 +659,7 @@ class ImmichGoGUI(QMainWindow):
         self.add_subhead(adv_form, "Tagging")
         t_tags = QLineEdit(); t_tags.setPlaceholderText("vacation, family/reunion")
         self.inputs['upload-folder']['tag'] = t_tags
-        adv_form.addWidget(self.create_form_row("Custom Tags (comma separated)", t_tags))
+        adv_form.addLayout(self.create_form_row("Custom Tags (comma separated)", t_tags))
         
         chk_sess = QCheckBox("Session Tag")
         self.inputs['upload-folder']['session-tag'] = chk_sess
@@ -676,7 +672,7 @@ class ImmichGoGUI(QMainWindow):
         self.add_subhead(adv_form, "Run Behavior")
         c_err = QComboBox(); c_err.addItems(["stop", "continue"])
         self.inputs['upload-folder']['on-errors'] = c_err
-        adv_form.addWidget(self.create_form_row("If a file fails", c_err))
+        adv_form.addLayout(self.create_form_row("If a file fails", c_err))
         
         chk_overwrite = QCheckBox("Overwrite Existing")
         self.inputs['upload-folder']['overwrite'] = chk_overwrite
@@ -694,14 +690,13 @@ class ImmichGoGUI(QMainWindow):
         
         c_log = QComboBox(); c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
         self.inputs['upload-folder']['log-level'] = c_log
-        adv_form.addWidget(self.create_form_row("Log Level", c_log))
+        adv_form.addLayout(self.create_form_row("Log Level", c_log))
         
         chk_trace = QCheckBox("Enable API Trace")
         self.inputs['upload-folder']['api-trace'] = chk_trace
         adv_form.addWidget(chk_trace)
         
-        adv_layout.addWidget(adv_container)
-        self.adv_frames.append(adv_container)
+
         adv_card.setVisible(False)
         layout.addWidget(adv_card)
         self.adv_frames.append(adv_card)
@@ -727,7 +722,7 @@ class ImmichGoGUI(QMainWindow):
         self.gp_path_edit.dragEnterEvent = self.dragEnterEvent
         self.gp_path_edit.dropEvent = self.dropEvent
         self.inputs['upload-gp']['path'] = self.gp_path_edit
-        card_layout.addWidget(self.create_form_row("Takeout File/Folder Path", self.gp_path_edit))
+        card_layout.addLayout(self.create_form_row("Takeout File/Folder Path", self.gp_path_edit))
         
         btn_browse = QPushButton("Browse")
         btn_browse.setMaximumWidth(180)
@@ -743,11 +738,11 @@ class ImmichGoGUI(QMainWindow):
         
         c_type = QComboBox(); c_type.addItems(["all", "IMAGE", "VIDEO"])
         self.inputs['upload-gp']['include-type'] = c_type
-        card_layout.addWidget(self.create_form_row("Media Type", c_type))
+        card_layout.addLayout(self.create_form_row("Media Type", c_type))
         
         t_album = QLineEdit(); t_album.setPlaceholderText("e.g. Family Archive")
         self.inputs['upload-gp']['into-album'] = t_album
-        card_layout.addWidget(self.create_form_row("Put all into Album", t_album))
+        card_layout.addLayout(self.create_form_row("Put all into Album", t_album))
         
         chk_unmatched = QCheckBox("Include Unmatched Files")
         self.inputs['upload-gp']['include-unmatched'] = chk_unmatched
@@ -765,22 +760,21 @@ class ImmichGoGUI(QMainWindow):
         
         c_burst = QComboBox(); c_burst.addItems(["NoStack", "Stack", "StackKeepRaw", "StackKeepJPEG"])
         self.inputs['upload-gp']['manage-burst'] = c_burst
-        card_layout.addWidget(self.create_form_row("Burst Photos", c_burst))
+        card_layout.addLayout(self.create_form_row("Burst Photos", c_burst))
         
         c_heic = QComboBox(); c_heic.addItems(["NoStack", "KeepHeic", "KeepJPG", "StackCoverHeic", "StackCoverJPG"])
         self.inputs['upload-gp']['manage-heic-jpeg'] = c_heic
-        card_layout.addWidget(self.create_form_row("HEIC + JPEG Pairs", c_heic))
+        card_layout.addLayout(self.create_form_row("HEIC + JPEG Pairs", c_heic))
         layout.addWidget(card)
 
         # Advanced Options
         adv_card, adv_layout = self.create_card("Advanced Options")
-        adv_container = QWidget()
-        adv_form = QVBoxLayout(adv_container)
+        adv_form = adv_layout
         
         self.add_subhead(adv_form, "Takeout Specifics")
         t_album_name = QLineEdit(); t_album_name.setPlaceholderText("Album Name")
         self.inputs['upload-gp']['from-album-name'] = t_album_name
-        adv_form.addWidget(self.create_form_row("From Specific Album", t_album_name))
+        adv_form.addLayout(self.create_form_row("From Specific Album", t_album_name))
         
         chk_archived = QCheckBox("Include Archived")
         chk_archived.setChecked(True)
@@ -793,7 +787,7 @@ class ImmichGoGUI(QMainWindow):
         
         t_partner_album = QLineEdit(); t_partner_album.setPlaceholderText("Album name for partner photos")
         self.inputs['upload-gp']['partner-album'] = t_partner_album
-        adv_form.addWidget(self.create_form_row("Partner Shared Album", t_partner_album))
+        adv_form.addLayout(self.create_form_row("Partner Shared Album", t_partner_album))
         
         chk_takeout_tag = QCheckBox("Takeout Tag")
         chk_takeout_tag.setChecked(True)
@@ -808,7 +802,7 @@ class ImmichGoGUI(QMainWindow):
         self.add_subhead(adv_form, "Tagging")
         t_tags = QLineEdit(); t_tags.setPlaceholderText("vacation, family/reunion")
         self.inputs['upload-gp']['tag'] = t_tags
-        adv_form.addWidget(self.create_form_row("Custom Tags (comma separated)", t_tags))
+        adv_form.addLayout(self.create_form_row("Custom Tags (comma separated)", t_tags))
         
         chk_sess = QCheckBox("Session Tag")
         self.inputs['upload-gp']['session-tag'] = chk_sess
@@ -817,7 +811,7 @@ class ImmichGoGUI(QMainWindow):
         self.add_subhead(adv_form, "Run Behavior")
         c_err = QComboBox(); c_err.addItems(["stop", "continue"])
         self.inputs['upload-gp']['on-errors'] = c_err
-        adv_form.addWidget(self.create_form_row("If a file fails", c_err))
+        adv_form.addLayout(self.create_form_row("If a file fails", c_err))
         
         chk_pause = QCheckBox("Pause background jobs")
         chk_pause.setChecked(True)
@@ -831,10 +825,9 @@ class ImmichGoGUI(QMainWindow):
         
         c_log = QComboBox(); c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
         self.inputs['upload-gp']['log-level'] = c_log
-        adv_form.addWidget(self.create_form_row("Log Level", c_log))
+        adv_form.addLayout(self.create_form_row("Log Level", c_log))
         
-        adv_layout.addWidget(adv_container)
-        self.adv_frames.append(adv_container)
+
         adv_card.setVisible(False)
         layout.addWidget(adv_card)
         self.adv_frames.append(adv_card)
@@ -856,11 +849,11 @@ class ImmichGoGUI(QMainWindow):
         card, card_layout = self.create_card("Source Configuration", required=True)
         t_server = QLineEdit(); t_server.setPlaceholderText("http://old-server:2283")
         self.inputs['upload-immich']['from-server'] = t_server
-        card_layout.addWidget(self.create_form_row("Source Server URL", t_server))
+        card_layout.addLayout(self.create_form_row("Source Server URL", t_server))
         
         t_api = QLineEdit(); t_api.setEchoMode(QLineEdit.Password); t_api.setPlaceholderText("Source API Key")
         self.inputs['upload-immich']['from-api-key'] = t_api
-        card_layout.addWidget(self.create_form_row("Source API Key", t_api))
+        card_layout.addLayout(self.create_form_row("Source API Key", t_api))
         
         chk_fav = QCheckBox("Only Favorites")
         self.inputs['upload-immich']['from-favorite'] = chk_fav
@@ -877,55 +870,54 @@ class ImmichGoGUI(QMainWindow):
 
         # Advanced Options
         adv_card, adv_layout = self.create_card("Advanced Options")
-        adv_container = QWidget()
-        adv_form = QVBoxLayout(adv_container)
+        adv_form = adv_layout
         
         self.add_subhead(adv_form, "Source Filtering")
         d_range = QLineEdit(); d_range.setPlaceholderText("2023-01-01,2023-12-31")
         self.inputs['upload-immich']['from-date-range'] = d_range
-        adv_form.addWidget(self.create_form_row("Date Range Filter", d_range))
+        adv_form.addLayout(self.create_form_row("Date Range Filter", d_range))
         
         t_albums = QLineEdit(); t_albums.setPlaceholderText("Family, Travel")
         self.inputs['upload-immich']['from-albums'] = t_albums
-        adv_form.addWidget(self.create_form_row("Filter by Albums", t_albums))
+        adv_form.addLayout(self.create_form_row("Filter by Albums", t_albums))
         
         s_rating = QSpinBox(); s_rating.setRange(0, 5)
         self.inputs['upload-immich']['from-minimal-rating'] = s_rating
-        adv_form.addWidget(self.create_form_row("Minimum Rating", s_rating))
+        adv_form.addLayout(self.create_form_row("Minimum Rating", s_rating))
         
         t_people = QLineEdit(); t_people.setPlaceholderText("John, Jane")
         self.inputs['upload-immich']['from-people'] = t_people
-        adv_form.addWidget(self.create_form_row("Filter by People", t_people))
+        adv_form.addLayout(self.create_form_row("Filter by People", t_people))
         
         t_tags = QLineEdit(); t_tags.setPlaceholderText("vacation, work")
         self.inputs['upload-immich']['from-tags'] = t_tags
-        adv_form.addWidget(self.create_form_row("Filter by Tags", t_tags))
+        adv_form.addLayout(self.create_form_row("Filter by Tags", t_tags))
         
         self.add_subhead(adv_form, "Metadata Filtering")
         t_city = QLineEdit(); t_city.setPlaceholderText("New York")
         self.inputs['upload-immich']['from-city'] = t_city
-        adv_form.addWidget(self.create_form_row("City", t_city))
+        adv_form.addLayout(self.create_form_row("City", t_city))
         
         t_state = QLineEdit(); t_state.setPlaceholderText("NY")
         self.inputs['upload-immich']['from-state'] = t_state
-        adv_form.addWidget(self.create_form_row("State", t_state))
+        adv_form.addLayout(self.create_form_row("State", t_state))
         
         t_country = QLineEdit(); t_country.setPlaceholderText("USA")
         self.inputs['upload-immich']['from-country'] = t_country
-        adv_form.addWidget(self.create_form_row("Country", t_country))
+        adv_form.addLayout(self.create_form_row("Country", t_country))
         
         t_make = QLineEdit(); t_make.setPlaceholderText("Canon")
         self.inputs['upload-immich']['from-make'] = t_make
-        adv_form.addWidget(self.create_form_row("Camera Make", t_make))
+        adv_form.addLayout(self.create_form_row("Camera Make", t_make))
         
         t_model = QLineEdit(); t_model.setPlaceholderText("EOS R5")
         self.inputs['upload-immich']['from-model'] = t_model
-        adv_form.addWidget(self.create_form_row("Camera Model", t_model))
+        adv_form.addLayout(self.create_form_row("Camera Model", t_model))
         
         self.add_subhead(adv_form, "Run Behavior")
         c_err = QComboBox(); c_err.addItems(["stop", "continue"])
         self.inputs['upload-immich']['on-errors'] = c_err
-        adv_form.addWidget(self.create_form_row("If a file fails", c_err))
+        adv_form.addLayout(self.create_form_row("If a file fails", c_err))
         
         self.add_subhead(adv_form, "Connection & Debug")
         chk_ssl = QCheckBox("Skip SSL Verification")
@@ -938,10 +930,9 @@ class ImmichGoGUI(QMainWindow):
         
         c_log = QComboBox(); c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
         self.inputs['upload-immich']['log-level'] = c_log
-        adv_form.addWidget(self.create_form_row("Log Level", c_log))
+        adv_form.addLayout(self.create_form_row("Log Level", c_log))
         
-        adv_layout.addWidget(adv_container)
-        self.adv_frames.append(adv_container)
+
         adv_card.setVisible(False)
         layout.addWidget(adv_card)
         self.adv_frames.append(adv_card)
@@ -966,7 +957,7 @@ class ImmichGoGUI(QMainWindow):
         p_edit.dragEnterEvent = self.dragEnterEvent
         p_edit.dropEvent = self.dropEvent
         self.inputs['archive-folder']['path'] = p_edit
-        card_layout.addWidget(self.create_form_row("Source Folder Path", p_edit))
+        card_layout.addLayout(self.create_form_row("Source Folder Path", p_edit))
         
         btn_browse = QPushButton("Browse")
         btn_browse.setMaximumWidth(180)
@@ -981,30 +972,28 @@ class ImmichGoGUI(QMainWindow):
         card, card_layout = self.create_card("Options")
         t_write = QLineEdit(); t_write.setPlaceholderText("/organized-photos")
         self.inputs['archive-folder']['write-to'] = t_write
-        card_layout.addWidget(self.create_form_row("Destination Folder", t_write))
+        card_layout.addLayout(self.create_form_row("Destination Folder", t_write))
         
         c_raw = QComboBox(); c_raw.addItems(["NoStack", "KeepRaw", "KeepJPG", "StackCoverRaw", "StackCoverJPG"])
         self.inputs['archive-folder']['manage-raw-jpeg'] = c_raw
-        card_layout.addWidget(self.create_form_row("Manage RAW+JPEG", c_raw))
+        card_layout.addLayout(self.create_form_row("Manage RAW+JPEG", c_raw))
         layout.addWidget(card)
 
         # Advanced Options
         adv_card, adv_layout = self.create_card("Advanced Options")
-        adv_container = QWidget()
-        adv_form = QVBoxLayout(adv_container)
+        adv_form = adv_layout
         
         self.add_subhead(adv_form, "Filtering")
         d_range = QLineEdit(); d_range.setPlaceholderText("YYYY-MM-DD,YYYY-MM-DD")
         self.inputs['archive-folder']['date-range'] = d_range
-        adv_form.addWidget(self.create_form_row("Date Range", d_range))
+        adv_form.addLayout(self.create_form_row("Date Range", d_range))
         
         self.add_subhead(adv_form, "Connection & Debug")
         c_log = QComboBox(); c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
         self.inputs['archive-folder']['log-level'] = c_log
-        adv_form.addWidget(self.create_form_row("Log Level", c_log))
+        adv_form.addLayout(self.create_form_row("Log Level", c_log))
         
-        adv_layout.addWidget(adv_container)
-        self.adv_frames.append(adv_container)
+
         adv_card.setVisible(False)
         layout.addWidget(adv_card)
         self.adv_frames.append(adv_card)
@@ -1026,37 +1015,36 @@ class ImmichGoGUI(QMainWindow):
         card, card_layout = self.create_card("Target Server")
         t_server = QLineEdit(); t_server.setEnabled(False); t_server.setText("Not Configured")
         self.inputs['archive-immich']['target-server'] = t_server
-        card_layout.addWidget(self.create_form_row("Immich Server URL", t_server, "Update in Configuration tab."))
+        card_layout.addLayout(self.create_form_row("Immich Server URL", t_server, "Update in Configuration tab."))
         layout.addWidget(card)
 
         # Options
         card, card_layout = self.create_card("Options")
         t_write = QLineEdit(); t_write.setPlaceholderText("/backup/photos")
         self.inputs['archive-immich']['write-to'] = t_write
-        card_layout.addWidget(self.create_form_row("Destination Folder", t_write))
+        card_layout.addLayout(self.create_form_row("Destination Folder", t_write))
         
         c_burst = QComboBox(); c_burst.addItems(["NoStack", "Stack", "StackKeepRaw", "StackKeepJPEG"])
         self.inputs['archive-immich']['manage-burst'] = c_burst
-        card_layout.addWidget(self.create_form_row("Manage Bursts", c_burst))
+        card_layout.addLayout(self.create_form_row("Manage Bursts", c_burst))
         
         c_raw = QComboBox(); c_raw.addItems(["NoStack", "KeepRaw", "KeepJPG", "StackCoverRaw", "StackCoverJPG"])
         self.inputs['archive-immich']['manage-raw-jpeg'] = c_raw
-        card_layout.addWidget(self.create_form_row("Manage RAW+JPEG", c_raw))
+        card_layout.addLayout(self.create_form_row("Manage RAW+JPEG", c_raw))
         layout.addWidget(card)
 
         # Advanced Options
         adv_card, adv_layout = self.create_card("Advanced Options")
-        adv_container = QWidget()
-        adv_form = QVBoxLayout(adv_container)
+        adv_form = adv_layout
         
         self.add_subhead(adv_form, "Source Filtering")
         d_range = QLineEdit(); d_range.setPlaceholderText("2023-01-01,2023-12-31")
         self.inputs['archive-immich']['from-date-range'] = d_range
-        adv_form.addWidget(self.create_form_row("Date Range Filter", d_range))
+        adv_form.addLayout(self.create_form_row("Date Range Filter", d_range))
         
         t_albums = QLineEdit(); t_albums.setPlaceholderText("Family, Travel")
         self.inputs['archive-immich']['from-albums'] = t_albums
-        adv_form.addWidget(self.create_form_row("Specific Albums", t_albums))
+        adv_form.addLayout(self.create_form_row("Specific Albums", t_albums))
         
         self.add_subhead(adv_form, "Connection & Debug")
         chk_ssl = QCheckBox("Skip SSL Verification")
@@ -1065,10 +1053,9 @@ class ImmichGoGUI(QMainWindow):
         
         c_log = QComboBox(); c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
         self.inputs['archive-immich']['log-level'] = c_log
-        adv_form.addWidget(self.create_form_row("Log Level", c_log))
+        adv_form.addLayout(self.create_form_row("Log Level", c_log))
         
-        adv_layout.addWidget(adv_container)
-        self.adv_frames.append(adv_container)
+
         adv_card.setVisible(False)
         layout.addWidget(adv_card)
         self.adv_frames.append(adv_card)
@@ -1090,33 +1077,32 @@ class ImmichGoGUI(QMainWindow):
         card, card_layout = self.create_card("Target Server")
         t_server = QLineEdit(); t_server.setEnabled(False); t_server.setText("Not Configured")
         self.inputs['stack']['target-server'] = t_server
-        card_layout.addWidget(self.create_form_row("Immich Server URL", t_server, "Update in Configuration tab."))
+        card_layout.addLayout(self.create_form_row("Immich Server URL", t_server, "Update in Configuration tab."))
         layout.addWidget(card)
 
         # Options
         card, card_layout = self.create_card("Options")
         c_burst = QComboBox(); c_burst.addItems(["NoStack", "Stack", "StackKeepRaw", "StackKeepJPEG"])
         self.inputs['stack']['manage-burst'] = c_burst
-        card_layout.addWidget(self.create_form_row("Manage Bursts", c_burst))
+        card_layout.addLayout(self.create_form_row("Manage Bursts", c_burst))
         
         c_raw = QComboBox(); c_raw.addItems(["NoStack", "KeepRaw", "KeepJPG", "StackCoverRaw", "StackCoverJPG"])
         self.inputs['stack']['manage-raw-jpeg'] = c_raw
-        card_layout.addWidget(self.create_form_row("Manage RAW+JPEG", c_raw))
+        card_layout.addLayout(self.create_form_row("Manage RAW+JPEG", c_raw))
         
         c_heic = QComboBox(); c_heic.addItems(["NoStack", "KeepHeic", "KeepJPG", "StackCoverHeic", "StackCoverJPG"])
         self.inputs['stack']['manage-heic-jpeg'] = c_heic
-        card_layout.addWidget(self.create_form_row("Manage HEIC+JPEG", c_heic))
+        card_layout.addLayout(self.create_form_row("Manage HEIC+JPEG", c_heic))
         layout.addWidget(card)
 
         # Advanced Options
         adv_card, adv_layout = self.create_card("Advanced Options")
-        adv_container = QWidget()
-        adv_form = QVBoxLayout(adv_container)
+        adv_form = adv_layout
         
         self.add_subhead(adv_form, "Detection Tuning")
         t_tz = QLineEdit(); t_tz.setPlaceholderText("America/New_York")
         self.inputs['stack']['time-zone'] = t_tz
-        adv_form.addWidget(self.create_form_row("Time Zone Override", t_tz))
+        adv_form.addLayout(self.create_form_row("Time Zone Override", t_tz))
         
         chk_epson = QCheckBox("Manage Epson FastFoto")
         self.inputs['stack']['manage-epson'] = chk_epson
@@ -1129,10 +1115,9 @@ class ImmichGoGUI(QMainWindow):
         
         c_log = QComboBox(); c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
         self.inputs['stack']['log-level'] = c_log
-        adv_form.addWidget(self.create_form_row("Log Level", c_log))
+        adv_form.addLayout(self.create_form_row("Log Level", c_log))
         
-        adv_layout.addWidget(adv_container)
-        self.adv_frames.append(adv_container)
+
         adv_card.setVisible(False)
         layout.addWidget(adv_card)
         self.adv_frames.append(adv_card)
