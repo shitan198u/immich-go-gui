@@ -16,7 +16,12 @@ modules:
     build-commands:
       - cp -r app.dist/* /app/bin/
       - install -Dm644 immich-go-gui.png /app/share/icons/hicolor/512x512/apps/org.immich.ImmichGoGUI.png
-      - install -Dm644 packaging/linux/immich-go-gui.desktop /app/share/applications/org.immich.ImmichGoGUI.desktop
+      - install -Dm644 immich-go-gui.desktop /app/share/applications/org.immich.ImmichGoGUI.desktop
     sources:
       - type: dir
-        path: .
+        path: ../../app.dist
+        dest: app.dist
+      - type: file
+        path: ../../immich-go-gui.png
+      - type: file
+        path: immich-go-gui.desktop
