@@ -60,6 +60,7 @@ jobs:
       # --- WINDOWS BUILD ---
       - name: Build Windows
         if: matrix.name == 'windows'
+        shell: bash
         run: |
           uv run python -c "from PIL import Image; Image.open('immich-go-gui.png').save('immich-go-gui.ico')"
           NUMERIC_VERSION=$(echo "${{ env.VERSION }}" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' || echo "1.0.0")
