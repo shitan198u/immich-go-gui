@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.4](https://github.com/shitan198u/immich-go-gui/compare/v0.9.3...v0.9.4) (2026-07-20)
+
+
+### Bug Fixes
+
+* resolve permission denied error for installer builds by downloading binary to user home directory ([4369e57](https://github.com/shitan198u/immich-go-gui/commit/4369e57e53c6dc27185ff40ddd908be492917f62))
+* resolve permission denied error on installer builds ([1ec5068](https://github.com/shitan198u/immich-go-gui/commit/1ec5068da9ba18d9d9d5eca897279a72d7da75aa))
+
 ## [0.9.3](https://github.com/shitan198u/immich-go-gui/compare/v0.9.2...v0.9.3) (2026-07-20)
 
 
