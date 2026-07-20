@@ -31,9 +31,9 @@ The easiest way to use Immich-Go GUI is to download the pre-built executable for
 1. Go to the [Releases page](https://github.com/shitan198u/immich-go-gui/releases/latest).
 
 > **Note on Windows Antivirus Warnings (False Positives):**
-> When downloading the Windows executable, Windows Defender or other antivirus software (like VirusTotal reporting `Trojan:Win32/Wacatac.B!ml` or similar ML-based detections) may flag it as malicious. This is a common **false positive** that occurs because the executable is compiled using Nuitka (a tool that packages Python applications into standalone executables), and antivirus machine-learning heuristics often mistakenly flag packaged software.
+> Windows Defender or VirusTotal (e.g., `Trojan:Win32/Wacatac.B!ml`) may flag the executable as malicious. This is a common **false positive** because the app is compiled with Nuitka and lacks a paid Windows digital signature.
 > 
-> You can safely ignore this warning, or if you prefer, you can inspect the source code and run the application manually from source following the instructions below.
+> You can safely ignore this warning or choose to run the application manually from source using the instructions below.
 
 ---
 
