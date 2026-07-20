@@ -158,7 +158,9 @@ class ImmichGoGUI(QMainWindow):
         return None
 
     def update_binary(self):
-        binary_folder = os.path.abspath(os.path.join(os.getcwd(), "immich-go"))
+        # Use user's home directory to ensure write permissions (especially for Windows Program Files installations)
+        user_home = os.path.expanduser("~")
+        binary_folder = os.path.abspath(os.path.join(user_home, ".immich-go-gui", "bin"))
         if not os.path.exists(binary_folder):
             os.makedirs(binary_folder)
 
