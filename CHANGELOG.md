@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/shitan198u/immich-go-gui/compare/v1.0.0...v1.0.1) (2026-07-21)
+
+
+### Bug Fixes
+
+* ensure Nuitka packages assets directory containing SVG icons ([56e823c](https://github.com/shitan198u/immich-go-gui/commit/56e823c3c18fd347f7bf5e91f6b489cbac466442))
+* ensure Nuitka packages SVG icons ([37e0883](https://github.com/shitan198u/immich-go-gui/commit/37e08837cd2e4a234076ca90f0356a460ac86fe2))
+
 ## [1.0.0](https://github.com/shitan198u/immich-go-gui/compare/v0.9.4...v1.0.0) (2026-07-21)
 
 
