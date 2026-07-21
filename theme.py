@@ -506,7 +506,7 @@ QProgressBar::chunk {{
 /* Scroll areas */
 QScrollArea {{
     border: none;
-    background: transparent;
+    background-color: {t['bg']};
 }}
 
 QScrollBar:vertical {{
