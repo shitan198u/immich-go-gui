@@ -8,10 +8,11 @@ from app import (
     collect_paths,
     mask_command_for_display,
     build_environment,
-    SecretStore
+    SecretStore,
+    DroppablePlainTextEdit,
 )
 from PySide6.QtWidgets import QApplication, QLineEdit, QPlainTextEdit
-from PySide6.QtCore import QUrl, Qt, QMimeData
+from PySide6.QtCore import QUrl, Qt, QMimeData, QPointF
 from PySide6.QtGui import QDropEvent
 
 
@@ -52,7 +53,6 @@ def test_mask_command_from_api_key():
     assert "--from-api-key=********" in masked
 
 
-# FIX: new test — admin-api-key masking
 def test_mask_command_admin_api_key():
     cmd = ["immich-go", "stack", "--admin-api-key=ADMIN_SECRET"]
     masked = mask_command_for_display(cmd)
@@ -60,7 +60,6 @@ def test_mask_command_admin_api_key():
     assert "--admin-api-key=********" in masked
 
 
-# FIX: new test — no trailing spaces in env var names
 def test_build_environment_no_trailing_spaces():
     env = build_environment("upload-folder", "http://s", "key", "http://fs", "fkey")
     for k in env:
@@ -100,20 +99,57 @@ def qapp():
     yield app
 
 
-@pytest.fixture
-def gui(qapp, qtbot):
-    with patch.object(ImmichGoGUI, 'check_binary_version'), \
-         patch.object(ImmichGoGUI, 'load_configuration'):
-        gui = ImmichGoGUI()
-        gui.binary_path = "./immich-go"
-        qtbot.addWidget(gui)
-        yield gui
+@pytest.fixture(scope="session")
+def gui(qapp):
+    with patch.object(ImmichGoGUI, "check_binary_version"), \
+         patch.object(ImmichGoGUI, "load_configuration"):
+        g = ImmichGoGUI()
+        g.binary_path = "./immich-go"
+        yield g
+        g.close()
 
 
-# FIX: new test — global flag ordering
+@pytest.fixture(autouse=True)
+def _reset_shared_config(gui):
+    cfg = gui.inputs["config"]
+    cfg["skip-ssl"].setChecked(False)
+    cfg["client_timeout"].setValue(20)
+    cfg["device_uuid"].setText("")
+    cfg["on_errors"].setCurrentText("stop")
+    cfg["concurrent"].setValue(min(max(os.cpu_count() or 2, 1), 20))
+    yield
+
+
+def test_tab_switching_updates_crumb(gui):
+    gui.stacked_widget.setCurrentIndex(1)  # Upload page
+    gui.upload_tabs.setCurrentIndex(1)    # Google Takeout sub-tab
+    assert gui.lbl_crumb.text() == "upload · from-google-photos"
+
+    gui.upload_tabs.setCurrentIndex(2)    # From Immich sub-tab
+    assert gui.lbl_crumb.text() == "upload · from-immich"
+
+    gui.stacked_widget.setCurrentIndex(2)  # Archive page
+    gui.archive_tabs.setCurrentIndex(1)    # Archive Server sub-tab
+    assert gui.lbl_crumb.text() == "archive · from-immich"
+
+
+def test_droppable_plain_text_edit_drop(qapp, qtbot):
+    edit = DroppablePlainTextEdit()
+    qtbot.addWidget(edit)
+    mime = QMimeData()
+    mime.setUrls([QUrl.fromLocalFile("/path/a.zip"), QUrl.fromLocalFile("/path/b.zip")])
+    event = QDropEvent(
+        QPointF(0, 0), Qt.DropAction.CopyAction, mime,
+        Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier
+    )
+    edit.dropEvent(event)
+    assert edit.toPlainText() == "/path/a.zip\n/path/b.zip"
+
+
 def test_global_flag_ordering(gui):
     """Global opts (--log-level) must appear BEFORE the command (upload)."""
-    gui.stacked_widget.setCurrentIndex(1)  # upload-folder
+    gui.stacked_widget.setCurrentIndex(1)  # upload page
+    gui.upload_tabs.setCurrentIndex(0)     # upload-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["upload-folder"]["log-level"].setCurrentText("DEBUG")
@@ -124,9 +160,9 @@ def test_global_flag_ordering(gui):
     assert log_idx < upload_idx, "--log-level must come before 'upload'"
 
 
-# FIX: new test — pause-immich-jobs only on upload tabs
 def test_pause_jobs_not_on_archive(gui):
-    gui.stacked_widget.setCurrentIndex(4)  # archive-folder
+    gui.stacked_widget.setCurrentIndex(2)  # archive page
+    gui.archive_tabs.setCurrentIndex(0)    # archive-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["archive-folder"]["path"].setText("/src")
@@ -136,16 +172,16 @@ def test_pause_jobs_not_on_archive(gui):
 
 
 def test_pause_jobs_not_on_stack(gui):
-    gui.stacked_widget.setCurrentIndex(6)  # stack
+    gui.stacked_widget.setCurrentIndex(3)  # stack
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     opts = gui.build_command(dry_run=False)
     assert not any("--pause-immich-jobs" in o for o in opts)
 
 
-# FIX: new test — on-errors only on upload tabs
 def test_on_errors_not_on_archive(gui):
-    gui.stacked_widget.setCurrentIndex(4)  # archive-folder
+    gui.stacked_widget.setCurrentIndex(2)  # archive page
+    gui.archive_tabs.setCurrentIndex(0)    # archive-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["archive-folder"]["path"].setText("/src")
@@ -155,9 +191,9 @@ def test_on_errors_not_on_archive(gui):
     assert not any("--on-errors" in o for o in opts)
 
 
-# FIX: new test — client-timeout emitted
 def test_client_timeout_emitted(gui):
-    gui.stacked_widget.setCurrentIndex(1)
+    gui.stacked_widget.setCurrentIndex(1)  # upload page
+    gui.upload_tabs.setCurrentIndex(0)     # upload-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["config"]["client_timeout"].setValue(60)
@@ -166,9 +202,9 @@ def test_client_timeout_emitted(gui):
     assert "--client-timeout=60m" in opts
 
 
-# FIX: new test — device-uuid emitted
 def test_device_uuid_emitted(gui):
-    gui.stacked_widget.setCurrentIndex(1)
+    gui.stacked_widget.setCurrentIndex(1)  # upload page
+    gui.upload_tabs.setCurrentIndex(0)     # upload-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["config"]["device_uuid"].setText("my-device-123")
@@ -177,9 +213,9 @@ def test_device_uuid_emitted(gui):
     assert "--device-uuid=my-device-123" in opts
 
 
-# FIX: new test — api-trace on upload-gp
 def test_api_trace_on_upload_gp(gui):
-    gui.stacked_widget.setCurrentIndex(2)  # upload-gp
+    gui.stacked_widget.setCurrentIndex(1)  # upload page
+    gui.upload_tabs.setCurrentIndex(1)     # upload-gp
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["upload-gp"]["path"].setPlainText("/takeout")
@@ -188,9 +224,8 @@ def test_api_trace_on_upload_gp(gui):
     assert "--api-trace" in opts
 
 
-# FIX: new test — api-trace on stack
 def test_api_trace_on_stack(gui):
-    gui.stacked_widget.setCurrentIndex(6)
+    gui.stacked_widget.setCurrentIndex(3)  # stack
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["stack"]["api-trace"].setChecked(True)
@@ -198,9 +233,9 @@ def test_api_trace_on_stack(gui):
     assert "--api-trace" in opts
 
 
-# FIX: new test — from-client-timeout on upload-immich
 def test_from_client_timeout(gui):
-    gui.stacked_widget.setCurrentIndex(3)  # upload-immich
+    gui.stacked_widget.setCurrentIndex(1)  # upload page
+    gui.upload_tabs.setCurrentIndex(2)     # upload-immich
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
@@ -210,9 +245,9 @@ def test_from_client_timeout(gui):
     assert "--from-client-timeout=60m" in opts
 
 
-# FIX: new test — GP multi-path via collect_paths
 def test_gp_multi_path(gui):
-    gui.stacked_widget.setCurrentIndex(2)
+    gui.stacked_widget.setCurrentIndex(1)  # upload page
+    gui.upload_tabs.setCurrentIndex(1)     # upload-gp
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["upload-gp"]["path"].setPlainText("/takeout-001.zip\n/takeout-002.zip")
@@ -221,10 +256,10 @@ def test_gp_multi_path(gui):
     assert "/takeout-002.zip" in opts
 
 
-# FIX: new test — skip-ssl from config only
 def test_global_skip_ssl_option(gui):
     gui.inputs["config"]["skip-ssl"].setChecked(True)
-    gui.stacked_widget.setCurrentIndex(1)
+    gui.stacked_widget.setCurrentIndex(1)  # upload page
+    gui.upload_tabs.setCurrentIndex(0)     # upload-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["upload-folder"]["path"].setText("/photos")
@@ -232,7 +267,6 @@ def test_global_skip_ssl_option(gui):
     assert "--skip-verify-ssl" in opts
 
 
-# FIX: new test — SecretStore integration
 def test_secret_store_save_load():
     with patch("app.keyring") as mock_kr:
         mock_kr.get_password.return_value = "STORED"
@@ -255,11 +289,11 @@ def test_secret_store_migration():
 
 
 # ==============================================================================
-# 3. EXISTING TESTS (kept verbatim from original)
+# 3. EXISTING TESTS (adapted for 4-page navigation structure)
 # ==============================================================================
 
 def test_build_command_stack(gui):
-    gui.stacked_widget.setCurrentIndex(6)
+    gui.stacked_widget.setCurrentIndex(3)  # stack
     gui.inputs["config"]["server"].setText("http://stack:2283")
     gui.inputs["config"]["api_key"].setText("stack-key")
     gui.inputs["stack"]["manage-burst"].setCurrentText("StackKeepRaw")
@@ -278,7 +312,8 @@ def test_build_command_stack(gui):
 
 
 def test_build_command_upload_immich(gui):
-    gui.stacked_widget.setCurrentIndex(3)
+    gui.stacked_widget.setCurrentIndex(1)  # upload page
+    gui.upload_tabs.setCurrentIndex(2)     # upload-immich sub-tab
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("local-key")
     gui.inputs["upload-immich"]["from-server"].setText("http://remote:2283")
@@ -323,7 +358,8 @@ def test_build_command_upload_immich(gui):
 
 
 def test_build_command_archive_folder(gui):
-    gui.stacked_widget.setCurrentIndex(4)
+    gui.stacked_widget.setCurrentIndex(2)  # archive page
+    gui.archive_tabs.setCurrentIndex(0)    # archive-folder sub-tab
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["archive-folder"]["path"].setText("/source/folder")
     gui.inputs["archive-folder"]["write-to"].setText("/dest/folder")
@@ -341,7 +377,8 @@ def test_build_command_archive_folder(gui):
 
 
 def test_build_command_archive_immich(gui):
-    gui.stacked_widget.setCurrentIndex(5)
+    gui.stacked_widget.setCurrentIndex(2)  # archive page
+    gui.archive_tabs.setCurrentIndex(1)    # archive-immich sub-tab
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["archive-immich"]["write-to"].setText("/dest/folder")

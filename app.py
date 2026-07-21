@@ -33,7 +33,7 @@ from PySide6.QtWidgets import (
     QLabel, QLineEdit, QCheckBox, QComboBox, QPushButton, QFileDialog,
     QPlainTextEdit, QStackedWidget, QFrame, QSizePolicy,
     QScrollArea, QMessageBox, QDialog, QProgressBar, QSpinBox, QStyle, QLayout,
-    QFormLayout
+    QFormLayout, QToolButton, QTabWidget
 )
 from PySide6.QtGui import (
     QAction, QDragEnterEvent, QDropEvent, QIcon, QPainter, QPen, QColor,
@@ -159,6 +159,51 @@ class SecretStore:
 # ==========================================================
 # CUSTOM WIDGETS
 # ==========================================================
+
+class DroppableLineEdit(QLineEdit):
+    filesDropped = Signal(list)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        paths = [url.toLocalFile() for url in event.mimeData().urls() if url.isLocalFile()]
+        if paths:
+            self.setText(paths[0])
+            self.filesDropped.emit(paths)
+        event.acceptProposedAction()
+
+
+class DroppablePlainTextEdit(QPlainTextEdit):
+    filesDropped = Signal(list)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        paths = [url.toLocalFile() for url in event.mimeData().urls() if url.isLocalFile()]
+        if paths:
+            self.setPlainText("\n".join(paths))
+            self.filesDropped.emit(paths)
+        event.acceptProposedAction()
 
 class SwitchButton(QWidget):
     toggled = Signal(bool)
@@ -404,11 +449,8 @@ class StatusCard(QFrame):
 class ImmichGoGUI(QMainWindow):
     TAB_KEYS = [
         "config",
-        "upload-folder",
-        "upload-gp",
-        "upload-immich",
-        "archive-folder",
-        "archive-immich",
+        "upload",
+        "archive",
         "stack",
     ]
 
@@ -447,19 +489,13 @@ class ImmichGoGUI(QMainWindow):
         self.create_menu_bar()
 
         self.config_tab = self._build_config_tab()
-        self.upload_folder_tab = self._build_upload_folder_tab()
-        self.upload_gp_tab = self._build_upload_gp_tab()
-        self.upload_immich_tab = self._build_upload_immich_tab()
-        self.archive_folder_tab = self._build_archive_folder_tab()
-        self.archive_immich_tab = self._build_archive_immich_tab()
+        self.upload_page = self._build_upload_page()
+        self.archive_page = self._build_archive_page()
         self.stack_tab = self._build_stack_tab()
 
         self.stacked_widget.addWidget(self.config_tab)
-        self.stacked_widget.addWidget(self.upload_folder_tab)
-        self.stacked_widget.addWidget(self.upload_gp_tab)
-        self.stacked_widget.addWidget(self.upload_immich_tab)
-        self.stacked_widget.addWidget(self.archive_folder_tab)
-        self.stacked_widget.addWidget(self.archive_immich_tab)
+        self.stacked_widget.addWidget(self.upload_page)
+        self.stacked_widget.addWidget(self.archive_page)
         self.stacked_widget.addWidget(self.stack_tab)
 
         self.stacked_widget.setCurrentIndex(0)
@@ -487,6 +523,28 @@ class ImmichGoGUI(QMainWindow):
                     widget.textChanged.connect(lambda w=widget: self.update_status())
 
         self.update_status()
+
+    def _get_active_tab_key(self) -> str:
+        idx = self.stacked_widget.currentIndex()
+        if idx == 0:
+            return "config"
+        elif idx == 1:
+            u_idx = self.upload_tabs.currentIndex() if hasattr(self, "upload_tabs") else 0
+            if u_idx == 0:
+                return "upload-folder"
+            elif u_idx == 1:
+                return "upload-gp"
+            else:
+                return "upload-immich"
+        elif idx == 2:
+            a_idx = self.archive_tabs.currentIndex() if hasattr(self, "archive_tabs") else 0
+            if a_idx == 0:
+                return "archive-folder"
+            else:
+                return "archive-immich"
+        elif idx == 3:
+            return "stack"
+        return "config"
 
     # ==========================================================
     # THEME METHODS
@@ -516,9 +574,8 @@ class ImmichGoGUI(QMainWindow):
         if not hasattr(self, "btn_config"):
             return
         nav_buttons = [
-            self.btn_config, self.btn_upload_folder, self.btn_upload_gp,
-            self.btn_upload_immich, self.btn_archive_folder,
-            self.btn_archive_immich, self.btn_stack
+            self.btn_config, self.btn_upload,
+            self.btn_archive, self.btn_stack
         ]
         for btn in nav_buttons:
             if hasattr(btn, "icon_name") and btn.icon_name:
@@ -544,17 +601,6 @@ class ImmichGoGUI(QMainWindow):
 
     def _nav_icon(self, theme_name, sp_fallback):
         return QIcon.fromTheme(theme_name, self.style().standardIcon(sp_fallback, None, self))
-
-    def _enable_folder_drop(self, line_edit):
-        line_edit.setAcceptDrops(True)
-        line_edit.dragEnterEvent = self.dragEnterEvent
-        line_edit.dropEvent = lambda e, le=line_edit: self.dropEvent(e, le)
-
-    # FIX Phase 3 #30: also enable drop on QPlainTextEdit
-    def _enable_folder_drop_plain(self, plain_edit):
-        plain_edit.setAcceptDrops(True)
-        plain_edit.dragEnterEvent = self.dragEnterEvent
-        plain_edit.dropEvent = lambda e, pe=plain_edit: self.dropEvent(e, pe)
 
     def _add_ssl_skip_row(self, form: FormSection, tab_dict: dict,
                           key: str = "skip-ssl",
@@ -586,11 +632,61 @@ class ImmichGoGUI(QMainWindow):
         )
         action.icon_name = "folder"
         action.triggered.connect(lambda: self._browse_into(line_edit, title))
+        for child in line_edit.findChildren(QToolButton):
+            child.setAutoRaise(True)
+            child.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
     def _browse_into(self, line_edit: QLineEdit, title: str):
         folder = QFileDialog.getExistingDirectory(self, title)
         if folder:
             line_edit.setText(folder)
+
+    def _build_upload_page(self):
+        page = BasePage()
+        self.upload_tabs = QTabWidget()
+
+        self.upload_folder_tab = self._build_upload_folder_tab()
+        self.upload_gp_tab = self._build_upload_gp_tab()
+        self.upload_immich_tab = self._build_upload_immich_tab()
+
+        self.upload_tabs.addTab(self.upload_folder_tab, "From Folder")
+        self.upload_tabs.addTab(self.upload_gp_tab, "Google Takeout")
+        self.upload_tabs.addTab(self.upload_immich_tab, "From Immich")
+
+        page.addWidget(self.upload_tabs)
+        self.upload_tabs.currentChanged.connect(self._on_upload_tab_changed)
+        return page
+
+    def _on_upload_tab_changed(self, index: int):
+        crumbs = {
+            0: "upload · from-folder",
+            1: "upload · from-google-photos",
+            2: "upload · from-immich",
+        }
+        self.update_header_crumb(crumbs.get(index, "upload"))
+        self.update_status()
+
+    def _build_archive_page(self):
+        page = BasePage()
+        self.archive_tabs = QTabWidget()
+
+        self.archive_folder_tab = self._build_archive_folder_tab()
+        self.archive_immich_tab = self._build_archive_immich_tab()
+
+        self.archive_tabs.addTab(self.archive_folder_tab, "From Folder")
+        self.archive_tabs.addTab(self.archive_immich_tab, "From Immich")
+
+        page.addWidget(self.archive_tabs)
+        self.archive_tabs.currentChanged.connect(self._on_archive_tab_changed)
+        return page
+
+    def _on_archive_tab_changed(self, index: int):
+        crumbs = {
+            0: "archive · from-folder",
+            1: "archive · from-immich",
+        }
+        self.update_header_crumb(crumbs.get(index, "archive"))
+        self.update_status()
 
     def _build_sidebar(self):
         sidebar = QFrame()
@@ -607,50 +703,24 @@ class ImmichGoGUI(QMainWindow):
         )
         sidebar_layout.addWidget(NavGroup("", [self.btn_config]))
 
-        self.btn_upload_folder = NavItem("Folder Upload", None)
-        self.btn_upload_folder.icon_name = "folder-up"
-        self.btn_upload_folder.clicked.connect(
-            lambda: self.switch_tab(1, "upload · from-folder", self.btn_upload_folder)
+        self.btn_upload = NavItem("Upload", None)
+        self.btn_upload.icon_name = "upload"
+        self.btn_upload.clicked.connect(
+            lambda: self.switch_tab(1, "upload", self.btn_upload)
         )
-        self.btn_upload_gp = NavItem("Google Takeout", None)
-        self.btn_upload_gp.icon_name = "archive"
-        self.btn_upload_gp.clicked.connect(
-            lambda: self.switch_tab(2, "upload · from-google-photos", self.btn_upload_gp)
-        )
-        self.btn_upload_immich = NavItem("From Immich Server", None)
-        self.btn_upload_immich.icon_name = "download-cloud"
-        self.btn_upload_immich.clicked.connect(
-            lambda: self.switch_tab(3, "upload · from-immich", self.btn_upload_immich)
-        )
-        sidebar_layout.addWidget(
-            NavGroup("UPLOAD", [
-                self.btn_upload_folder,
-                self.btn_upload_gp,
-                self.btn_upload_immich,
-            ])
-        )
+        sidebar_layout.addWidget(NavGroup("UPLOAD", [self.btn_upload]))
 
-        self.btn_archive_folder = NavItem("Archive Folder", None)
-        self.btn_archive_folder.icon_name = "hard-drive"
-        self.btn_archive_folder.clicked.connect(
-            lambda: self.switch_tab(4, "archive · from-folder", self.btn_archive_folder)
+        self.btn_archive = NavItem("Archive", None)
+        self.btn_archive.icon_name = "archive"
+        self.btn_archive.clicked.connect(
+            lambda: self.switch_tab(2, "archive", self.btn_archive)
         )
-        self.btn_archive_immich = NavItem("Archive Server", None)
-        self.btn_archive_immich.icon_name = "database"
-        self.btn_archive_immich.clicked.connect(
-            lambda: self.switch_tab(5, "archive · from-immich", self.btn_archive_immich)
-        )
-        sidebar_layout.addWidget(
-            NavGroup("ARCHIVE", [
-                self.btn_archive_folder,
-                self.btn_archive_immich,
-            ])
-        )
+        sidebar_layout.addWidget(NavGroup("ARCHIVE", [self.btn_archive]))
 
         self.btn_stack = NavItem("Stack Assets", None)
         self.btn_stack.icon_name = "layers"
         self.btn_stack.clicked.connect(
-            lambda: self.switch_tab(6, "stack", self.btn_stack)
+            lambda: self.switch_tab(3, "stack", self.btn_stack)
         )
         sidebar_layout.addWidget(NavGroup("ORGANIZE", [self.btn_stack]))
 
@@ -849,9 +919,8 @@ class ImmichGoGUI(QMainWindow):
         card = Card("Source Configuration", required=True)
         form = FormSection()
 
-        self.source_path_edit = QLineEdit()
+        self.source_path_edit = DroppableLineEdit()
         self.source_path_edit.setPlaceholderText("/path/to/files or /path/to/archive.zip")
-        self._enable_folder_drop(self.source_path_edit)
         self.inputs["upload-folder"]["path"] = self.source_path_edit
         form.add_row(
             "Folder to upload",
@@ -866,6 +935,9 @@ class ImmichGoGUI(QMainWindow):
         )
         browse_action.icon_name = "folder"
         browse_action.triggered.connect(self.browse_local_folder)
+        for child in self.source_path_edit.findChildren(QToolButton):
+            child.setAutoRaise(True)
+            child.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         card.layout.addLayout(form)
         page.addWidget(card)
@@ -1008,7 +1080,7 @@ class ImmichGoGUI(QMainWindow):
         form = FormSection()
 
         # FIX Phase 3 #27: QPlainTextEdit for multi-ZIP / glob input
-        self.gp_path_edit = QPlainTextEdit()
+        self.gp_path_edit = DroppablePlainTextEdit()
         self.gp_path_edit.setPlaceholderText(
             "/path/to/takeout-*.zip\n"
             "/path/to/takeout-001.zip\n"
@@ -1016,21 +1088,8 @@ class ImmichGoGUI(QMainWindow):
             "…or an extracted folder path"
         )
         self.gp_path_edit.setMaximumHeight(100)
-        self._enable_folder_drop_plain(self.gp_path_edit)
         self.inputs["upload-gp"]["path"] = self.gp_path_edit
-        form.add_row(
-            "Takeout File/Folder Path",
-            self.gp_path_edit,
-            "Paste multiple ZIP paths (one per line) or a glob pattern like takeout-*.zip"
-        )
-
-        theme = getattr(self, "theme_mode", "dark")
-        browse_action = self.gp_path_edit.addAction(
-            load_themed_icon("folder", theme),
-            QLineEdit.ActionPosition.TrailingPosition
-        ) if hasattr(self.gp_path_edit, 'addAction') else None
-        # QPlainTextEdit doesn't have addAction; use a button row instead
-        # FIX Phase 3 #28: multi-ZIP file picker
+        # FIX Phase 3 #28: multi-ZIP file picker with browse button
         gp_btn_row = QHBoxLayout()
         gp_btn_row.setContentsMargins(0, 0, 0, 0)
         gp_btn_row.setSpacing(6)
@@ -1041,8 +1100,11 @@ class ImmichGoGUI(QMainWindow):
         gp_btn_row.addWidget(btn_browse_zips, 0, Qt.AlignmentFlag.AlignTop)
         gp_container = QWidget()
         gp_container.setLayout(gp_btn_row)
-        # Replace the form row widget
-        form.addRow("Takeout Source", gp_container)
+        form.add_row(
+            "Takeout Source",
+            gp_container,
+            "Paste multiple ZIP paths (one per line) or a glob pattern like takeout-*.zip"
+        )
 
         card.layout.addLayout(form)
         page.addWidget(card)
@@ -1320,9 +1382,8 @@ class ImmichGoGUI(QMainWindow):
         card = Card("Source Configuration", required=True)
         form = FormSection()
 
-        p_edit = QLineEdit()
+        p_edit = DroppableLineEdit()
         p_edit.setPlaceholderText("/path/to/files")
-        self._enable_folder_drop(p_edit)
         self.inputs["archive-folder"]["path"] = p_edit
         form.add_row("Source Folder Path", p_edit)
 
@@ -1333,6 +1394,9 @@ class ImmichGoGUI(QMainWindow):
         )
         browse_action.icon_name = "folder"
         browse_action.triggered.connect(self.browse_local_folder)
+        for child in p_edit.findChildren(QToolButton):
+            child.setAutoRaise(True)
+            child.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         card.layout.addLayout(form)
         page.addWidget(card)
@@ -1340,7 +1404,7 @@ class ImmichGoGUI(QMainWindow):
         card = Card("Options")
         form = FormSection()
 
-        t_write = QLineEdit()
+        t_write = DroppableLineEdit()
         t_write.setPlaceholderText("/organized-photos")
         self.inputs["archive-folder"]["write-to"] = t_write
         # FIX Phase 3 #32: browse button on archive destination
@@ -1403,7 +1467,7 @@ class ImmichGoGUI(QMainWindow):
         card = Card("Options")
         form = FormSection()
 
-        t_write = QLineEdit()
+        t_write = DroppableLineEdit()
         t_write.setPlaceholderText("/backup/photos")
         self.inputs["archive-immich"]["write-to"] = t_write
         # FIX Phase 3 #32: browse button on archive destination
@@ -1548,20 +1612,30 @@ class ImmichGoGUI(QMainWindow):
 
     def switch_tab(self, index, crumb, btn):
         self.stacked_widget.setCurrentIndex(index)
+        if index == 1 and hasattr(self, "upload_tabs"):
+            u_crumbs = {
+                0: "upload · from-folder",
+                1: "upload · from-google-photos",
+                2: "upload · from-immich",
+            }
+            crumb = u_crumbs.get(self.upload_tabs.currentIndex(), "upload")
+        elif index == 2 and hasattr(self, "archive_tabs"):
+            a_crumbs = {
+                0: "archive · from-folder",
+                1: "archive · from-immich",
+            }
+            crumb = a_crumbs.get(self.archive_tabs.currentIndex(), "archive")
         self.update_header_crumb(crumb)
         for w in [
             self.btn_config,
-            self.btn_upload_folder,
-            self.btn_upload_gp,
-            self.btn_upload_immich,
-            self.btn_archive_folder,
-            self.btn_archive_immich,
+            self.btn_upload,
+            self.btn_archive,
             self.btn_stack,
         ]:
             w.setChecked(False)
         btn.setChecked(True)
         self.footer.setVisible(index != 0)
-        tab_key = self.TAB_KEYS[index]
+        tab_key = self._get_active_tab_key()
         if tab_key in self.inputs and "target-server" in self.inputs[tab_key]:
             srv_edit = self.inputs.get("config", {}).get("server")
             srv = srv_edit.text() if srv_edit else ""
@@ -1587,23 +1661,6 @@ class ImmichGoGUI(QMainWindow):
         about_action.triggered.connect(self.open_github_link)
         help_menu.addAction(about_action)
 
-    def dragEnterEvent(self, event: QDragEnterEvent):
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
-
-    def dropEvent(self, event: QDropEvent, target=None):
-        if target is None:
-            return
-        paths = [url.toLocalFile() for url in event.mimeData().urls()]
-        if not paths:
-            return
-        # FIX Phase 3 #30: QPlainTextEdit gets all paths; QLineEdit gets first
-        if isinstance(target, QPlainTextEdit):
-            target.setPlainText("\n".join(paths))
-        elif isinstance(target, QLineEdit):
-            target.setText(paths[0])
-        event.acceptProposedAction()
-
     def browse_takeout_source(self):
         # FIX Phase 3 #28: multi-ZIP file picker
         files, _ = QFileDialog.getOpenFileNames(
@@ -1622,7 +1679,9 @@ class ImmichGoGUI(QMainWindow):
     def browse_local_folder(self):
         # FIX Phase 3 #31: allow ZIP selection for upload from-folder
         idx = self.stacked_widget.currentIndex()
-        if idx == 1:  # upload-folder
+        is_upload_folder = (idx == 1 and hasattr(self, "upload_tabs") and self.upload_tabs.currentIndex() == 0)
+        is_archive_folder = (idx == 2 and hasattr(self, "archive_tabs") and self.archive_tabs.currentIndex() == 0)
+        if is_upload_folder:
             file_path, _ = QFileDialog.getOpenFileName(
                 self, "Select ZIP archive", "",
                 "ZIP archives (*.zip *.ZIP);;All Files (*)"
@@ -1632,9 +1691,9 @@ class ImmichGoGUI(QMainWindow):
                 return
         folder = QFileDialog.getExistingDirectory(self, "Select Folder")
         if folder:
-            if idx == 1:
+            if is_upload_folder:
                 self.inputs["upload-folder"]["path"].setText(folder)
-            elif idx == 4:
+            elif is_archive_folder:
                 self.inputs["archive-folder"]["path"].setText(folder)
 
     def validate_inputs(self):
@@ -1675,8 +1734,7 @@ class ImmichGoGUI(QMainWindow):
     # ==========================================================
 
     def build_command(self, dry_run):
-        idx = self.stacked_widget.currentIndex()
-        tab_key = self.TAB_KEYS[idx]
+        tab_key = self._get_active_tab_key()
         if tab_key == "config":
             return []
 
@@ -2272,8 +2330,7 @@ class ImmichGoGUI(QMainWindow):
 
     def build_environment(self, tab_key: str = None) -> dict:
         if tab_key is None:
-            idx = self.stacked_widget.currentIndex()
-            tab_key = self.TAB_KEYS[idx] if idx < len(self.TAB_KEYS) else ""
+            tab_key = self._get_active_tab_key()
         server = self.inputs.get("config", {}).get("server").text().strip() if self.inputs.get("config", {}).get("server") else ""
         api_key = self.inputs.get("config", {}).get("api_key").text().strip() if self.inputs.get("config", {}).get("api_key") else ""
         from_server = self.inputs.get("upload-immich", {}).get("from-server").text().strip() if self.inputs.get("upload-immich", {}).get("from-server") else ""
@@ -2293,8 +2350,7 @@ class ImmichGoGUI(QMainWindow):
                 return
 
         # FIX Phase 1 #5: build env with secrets, strip secret flags from CLI args
-        idx = self.stacked_widget.currentIndex()
-        tab_key = self.TAB_KEYS[idx] if idx < len(self.TAB_KEYS) else ""
+        tab_key = self._get_active_tab_key()
         env = self.build_environment(tab_key)
 
         # Strip --api-key / --from-api-key from CLI args (they go via env)
