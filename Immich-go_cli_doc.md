@@ -171,7 +171,7 @@ Create an Immich API key (**Account Settings → API Keys → New API Key**) wit
 - `tag.create`
 - `user.read`
 
-Because Immich-Go can pause Immich's own background jobs during upload for better performance, it also needs an **admin-linked API key** with two extra permissions if you want to use that feature (`--pause-immich-jobs`):
+Because Immich-Go can pause Immich's own background jobs during upload/stacking operations for better performance, it can use an **admin-linked API key** (supplied via the `--admin-api-key` flag) with two extra permissions if you want to use that feature (`--pause-immich-jobs`):
 
 - `job.create`
 - `job.read`
@@ -193,6 +193,8 @@ immich-go [global-options] command sub-command [command-options] [path]
 | `upload` | Upload photos/videos **to** an Immich server | `from-folder`, `from-google-photos`, `from-icloud`, `from-picasa`, `from-immich` |
 | `archive` | Export/archive photos **from** any source **to** a local, date-organized folder structure | `from-folder`, `from-google-photos`, `from-icloud`, `from-picasa`, `from-immich` |
 | `stack` | Organize related assets already on the server into stacks (no upload) | *(none)* |
+| `completion` | Generate the autocompletion script for the specified shell | `bash`, `fish`, `powershell`, `zsh` |
+| `help` | Help about any command | *(none)* |
 | `version` | Display version information | *(none)* |
 
 Notice that `upload` and `archive` share the exact same set of five sub-commands — the only difference is the **destination**: `upload` pushes assets into an Immich server, while `archive` writes them to a local folder. This symmetry means everything you learn about filtering/organizing options for `upload from-google-photos`, for instance, applies identically to `archive from-google-photos`.
@@ -213,6 +215,38 @@ immich-go stack --server=http://localhost:2283 --api-key=your-key --manage-burst
 immich-go version
 ```
 
+### 4.1 Shell Autocompletion (`completion`)
+
+Generate the autocompletion script for `immich-go` for the specified shell. 
+
+**Usage:**
+```bash
+immich-go completion [command]
+```
+
+**Available Shells:**
+*   `bash`: Generate the autocompletion script for bash
+*   `fish`: Generate the autocompletion script for fish
+*   `powershell`: Generate the autocompletion script for powershell
+*   `zsh`: Generate the autocompletion script for zsh
+
+**Flags:**
+*   `-h, --help`: Help for completion
+*   `--no-descriptions`: Disable completion descriptions
+
+#### Loading completions in your current session:
+*   **Bash**: `source <(immich-go completion bash)`
+*   **Fish**: `immich-go completion fish | source`
+*   **PowerShell**: `immich-go completion powershell | Out-String | Invoke-Expression`
+*   **Zsh**: `source <(immich-go completion zsh)`
+
+#### Persisting completions (once-off setup):
+*   **Linux (Bash)**: `immich-go completion bash > /etc/bash_completion.d/immich-go`
+*   **macOS (Bash)**: `immich-go completion bash > $(brew --prefix)/etc/bash_completion.d/immich-go`
+*   **Fish**: `immich-go completion fish > ~/.config/fish/completions/immich-go.fish`
+*   **Linux (Zsh)**: `immich-go completion zsh > "${fpath[1]}/_immich-go"`
+*   **macOS (Zsh)**: `immich-go completion zsh > $(brew --prefix)/share/zsh/site-functions/_immich-go`
+
 ---
 
 ## 5. Global Options & Logging
@@ -224,7 +258,12 @@ These options work with **every** command:
 | `-h, --help` | – | Show help information |
 | `-l, --log-file` | Auto-generated | Write log messages to the specified file |
 | `--log-level` | `INFO` | Logging verbosity: `DEBUG`, `INFO`, `WARN`, `ERROR` |
-| `--log-type` | `TEXT` | Log format: `TEXT` or `JSON` |
+| `--log-type` | `text` | Log format: `text` or `json` |
+| `--config` | `./immich-go.yaml` | Specify a custom configuration file path |
+| `--concurrent-tasks` | `16` | Number of concurrent tasks (1-20) |
+| `--dry-run` | `false` | Dry run mode |
+| `--on-errors` | `stop` | What to do when an error occurs (`stop`, `continue`, or `accept N errors at max`) |
+| `--save-config` | `false` | Save the command parameters to the config file `immich-go.yaml` |
 | `-v, --version` | – | Display the current version |
 
 ### Default Log File Locations
@@ -267,6 +306,7 @@ immich-go upload <sub-command> [options] <source-path>
 |---|---|---|
 | `-s, --server` | ✅ | Immich server URL (e.g., `http://localhost:2283`) |
 | `-k, --api-key` | ✅ | Your API key |
+| `--admin-api-key` | | Admin's API key for managing server's jobs |
 | `--skip-verify-ssl` | | Skip SSL certificate verification |
 | `--client-timeout` | | Server-call timeout (default: `20m`) |
 
@@ -470,8 +510,13 @@ Destination options are the same server-connection flags used everywhere else (`
 |---|---|
 | `--from-server` | Source Immich server URL |
 | `--from-api-key` | Source server API key |
-| `--from-client-timeout` | Source server call timeout |
+| `--from-admin-api-key` | Source server admin API key |
+| `--from-client-timeout` | Source server call timeout (default `20m0s`) |
 | `--from-skip-verify-ssl` | Skip SSL verification for the source |
+| `--from-device-uuid` | Set a device UUID for the source (default `"K3502ZA"`) |
+| `--from-api-trace` | Enable API trace logging on the source |
+| `--from-dry-run` | Simulate source actions |
+| `--from-pause-immich-jobs` | Pause jobs on the source server during read (default `true`) |
 
 **Source filtering** (the fullest filtering surface in the whole tool — see the [environment variable table](#10-environment-variables) for the complete list, which also includes `--from-city`, `--from-country`, `--from-state`, `--from-make`, `--from-model`, `--from-no-album`, `--from-albums`, `--from-people`, `--from-tags`, and more)
 
@@ -482,6 +527,11 @@ Destination options are the same server-connection flags used everywhere else (`
 | `--from-trash` | Include trashed source assets |
 | `--from-favorite` | Only include favorited source assets |
 | `--from-minimal-rating` | Minimum star rating filter |
+| `--from-exclude-extensions` | Comma-separated list of extensions to exclude |
+| `--from-include-extensions` | Comma-separated list of extensions to include |
+| `--from-include-type` | Single file type to include (`VIDEO` or `IMAGE`) |
+| `--from-partners` | Get partner's assets as well |
+| `--from-time-zone` | Override time zone for source assets |
 
 **Examples**
 
@@ -624,6 +674,17 @@ immich-go archive from-google-photos \
 immich-go archive from-folder \
   --write-to-folder=/organized \
   /messy/photo/folders
+
+# Archive from iCloud export
+immich-go archive from-icloud \
+  --write-to-folder=/organized-icloud \
+  --memories \
+  /path/to/icloud-export
+
+# Archive from Picasa folders
+immich-go archive from-picasa \
+  --write-to-folder=/organized-picasa \
+  /path/to/picasa-export
 ```
 
 ### 7.6 Common Use Cases
@@ -664,6 +725,7 @@ immich-go stack [options]
 |---|---|---|
 | `-s, --server` | ✅ | Immich server URL |
 | `-k, --api-key` | ✅ | API key |
+| `--admin-api-key` | | Admin API key (needed to manage and pause server jobs) |
 | `--skip-verify-ssl` | | Skip SSL verification (default `false`) |
 | `--client-timeout` | | Server call timeout (default `20m`) |
 | `--api-trace` | | Trace API calls (default `false`) |
@@ -845,6 +907,14 @@ upload:
 ### 9.4 Auto-Saving Your Config
 
 Set the global flag/setting `--save-config=true` (or `save-config = true` in the file) and Immich-Go will persist your current settings to `immich-go.yaml`, so you can build a working command once interactively and then reuse it non-interactively later (e.g. in cron).
+
+### 9.5 Custom Configuration Path
+
+By default, `immich-go` looks for `immich-go.toml` (or `.yaml` / `.json`) in the current directory. You can specify a custom configuration file path using the global `--config` flag:
+
+```bash
+immich-go --config=/path/to/my-config.yaml upload from-folder /photos
+```
 
 ---
 
