@@ -1,3 +1,23 @@
+# nuitka-project: --assume-yes-for-downloads
+# nuitka-project: --enable-plugin=pyside6
+# nuitka-project: --include-data-files=immich-go-gui.png=immich-go-gui.png
+# nuitka-project: --include-data-dir=assets=assets
+
+# nuitka-project-if: {OS} == "Windows":
+#    nuitka-project: --standalone
+#    nuitka-project: --windows-console-mode=disable
+#    nuitka-project: --windows-icon-from-ico=immich-go-gui.ico
+#    nuitka-project: --company-name="Shitan198u"
+#    nuitka-project: --product-name="Immich-Go GUI"
+#    nuitka-project: --file-description="Immich-Go Graphical User Interface"
+#    nuitka-project: --copyright="MIT License"
+
+# nuitka-project-if: {OS} == "Darwin":
+#    nuitka-project: --macos-create-app-bundle
+
+# nuitka-project-if: {OS} == "Linux":
+#    nuitka-project: --standalone
+
 import sys
 import os
 import re
