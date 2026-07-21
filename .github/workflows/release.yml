@@ -75,7 +75,7 @@ jobs:
 
       - name: Compile Windows Installer
         if: matrix.name == 'windows'
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
         with:
           path: packaging/windows/installer.iss
           options: /O"${{ github.workspace }}" /DMyAppVersion=${{ env.VERSION }}
