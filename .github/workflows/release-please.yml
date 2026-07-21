@@ -27,4 +27,4 @@ jobs:
         run: |
           TAG_NAME="${{ steps.release.outputs.tag_name }}"
           VERSION="${TAG_NAME#v}"
-          gh workflow run release.yml --ref "$TAG_NAME" -f version="$VERSION"
+          gh workflow run release.yml --repo ${{ github.repository }} --ref "$TAG_NAME" -f version="$VERSION"
