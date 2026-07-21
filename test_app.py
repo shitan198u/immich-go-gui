@@ -33,7 +33,6 @@ def test_build_command_global_options(gui):
     assert "--log-level=DEBUG" in opts
     assert "--no-ui" in opts
 
-@pytest.mark.skip(reason="Tests need to be decoupled from UI after rewrite")
 def test_build_command_google_takeout(gui):
     gui.stacked_widget.setCurrentIndex(2) # Google Takeout
     gui.inputs["config"]["server"].setText("http://immich:2283")
@@ -228,3 +227,24 @@ def test_build_command_archive_immich(gui):
     assert "--from-date-range=2024-01-01,2024-02-01" in opts
     assert "--from-albums=ArchiveAlbum" in opts
     assert "--dry-run" not in opts
+
+
+def test_build_command_google_takeout_multiple_paths(gui, tmp_path):
+    file1 = tmp_path / "takeout-001.zip"
+    file1.touch()
+    file2 = tmp_path / "takeout-002.zip"
+    file2.touch()
+    
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.inputs["config"]["server"].setText("http://immich:2283")
+    gui.inputs["config"]["api_key"].setText("takeout-key")
+    
+    non_existent = str(tmp_path / "takeout-999.zip")
+    glob_pattern = str(tmp_path / "takeout-*.zip")
+    gui.inputs["upload-gp"]["path"].setText(f"{non_existent}\n{glob_pattern}")
+    
+    opts = gui.build_command(dry_run=True)
+    
+    assert non_existent in opts
+    assert str(file1) in opts
+    assert str(file2) in opts

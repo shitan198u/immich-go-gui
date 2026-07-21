@@ -28,18 +28,19 @@ import platform
 import webbrowser
 import zipfile
 import tarfile
+import glob
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QLineEdit, QCheckBox, QComboBox, QPushButton, QFileDialog,
     QPlainTextEdit, QStackedWidget, QFrame, QSizePolicy,
     QScrollArea, QMessageBox, QDialog, QProgressBar, QSpinBox, QStyle, QLayout,
-    QFormLayout
+    QFormLayout, QMenu
 )
 
 from PySide6.QtGui import (
     QAction, QDragEnterEvent, QDropEvent, QIcon, QPainter, QPen, QColor,
-    QBrush, QFont
+    QBrush, QFont, QCursor
 )
 
 from PySide6.QtCore import (
@@ -220,6 +221,17 @@ class ElidingLabel(QLabel):
         super().changeEvent(e)
         if e.type() in (QEvent.Type.FontChange, QEvent.Type.StyleChange):
             self._refresh()
+
+
+class MultiPathEdit(QPlainTextEdit):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    def setText(self, text: str):
+        self.setPlainText(text)
+
+    def text(self) -> str:
+        return self.toPlainText()
 
 
 class BasePage(QWidget):
@@ -775,18 +787,28 @@ class ImmichGoGUI(QMainWindow):
         self.inputs["upload-folder"]["path"] = self.source_path_edit
 
         form.add_row(
-            "Folder to upload",
+            "Upload Source Path",
             self.source_path_edit,
-            "Every file inside this folder will be considered."
+            "Select a local folder or a ZIP archive to upload. Every file inside will be processed."
         )
 
         theme = getattr(self, "theme_mode", "dark")
-        browse_action = self.source_path_edit.addAction(
+
+        browse_folder_action = self.source_path_edit.addAction(
             load_themed_icon("folder", theme),
             QLineEdit.ActionPosition.TrailingPosition
         )
-        browse_action.icon_name = "folder"
-        browse_action.triggered.connect(self.browse_local_folder)
+        browse_folder_action.icon_name = "folder"
+        browse_folder_action.setToolTip("Select upload folder")
+        browse_folder_action.triggered.connect(self.browse_upload_folder)
+
+        browse_zip_action = self.source_path_edit.addAction(
+            load_themed_icon("archive", theme),
+            QLineEdit.ActionPosition.TrailingPosition
+        )
+        browse_zip_action.icon_name = "archive"
+        browse_zip_action.setToolTip("Select ZIP archive")
+        browse_zip_action.triggered.connect(self.browse_upload_zip)
 
         card.layout.addLayout(form)
         page.addWidget(card)
@@ -932,19 +954,33 @@ class ImmichGoGUI(QMainWindow):
         form = FormSection()
 
         self.gp_path_edit = QLineEdit()
-        self.gp_path_edit.setPlaceholderText("/path/to/takeout")
+        self.gp_path_edit.setPlaceholderText("/path/to/takeout-*.zip or /path/to/takeout-001.zip")
         self._enable_folder_drop(self.gp_path_edit)
         self.inputs["upload-gp"]["path"] = self.gp_path_edit
 
-        form.add_row("Takeout File/Folder Path", self.gp_path_edit)
+        form.add_row(
+            "Takeout File/Folder Path",
+            self.gp_path_edit,
+            "Select multiple takeout ZIP files, an extracted folder, or enter a glob pattern (e.g. /path/to/takeout-*.zip)."
+        )
 
         theme = getattr(self, "theme_mode", "dark")
-        browse_action = self.gp_path_edit.addAction(
+
+        browse_zips_action = self.gp_path_edit.addAction(
+            load_themed_icon("archive", theme),
+            QLineEdit.ActionPosition.TrailingPosition
+        )
+        browse_zips_action.icon_name = "archive"
+        browse_zips_action.setToolTip("Select Takeout ZIP file(s)")
+        browse_zips_action.triggered.connect(self.browse_takeout_zips)
+
+        browse_folder_action = self.gp_path_edit.addAction(
             load_themed_icon("folder", theme),
             QLineEdit.ActionPosition.TrailingPosition
         )
-        browse_action.icon_name = "folder"
-        browse_action.triggered.connect(self.browse_takeout_source)
+        browse_folder_action.icon_name = "folder"
+        browse_folder_action.setToolTip("Select extracted Takeout folder")
+        browse_folder_action.triggered.connect(self.browse_takeout_folder)
 
         card.layout.addLayout(form)
         page.addWidget(card)
@@ -1233,8 +1269,17 @@ class ImmichGoGUI(QMainWindow):
 
         t_write = QLineEdit()
         t_write.setPlaceholderText("/organized-photos")
+        self._enable_folder_drop(t_write)
         self.inputs["archive-folder"]["write-to"] = t_write
-        form.add_row("Destination Folder", t_write)
+        form.add_row("Destination Folder", t_write, "Select local folder where organized files will be saved.")
+
+        theme = getattr(self, "theme_mode", "dark")
+        browse_write_action = t_write.addAction(
+            load_themed_icon("folder", theme),
+            QLineEdit.ActionPosition.TrailingPosition
+        )
+        browse_write_action.icon_name = "folder"
+        browse_write_action.triggered.connect(lambda _, le=t_write: self.browse_write_to(le))
 
         c_raw = QComboBox()
         c_raw.addItems(["NoStack", "KeepRaw", "KeepJPG", "StackCoverRaw", "StackCoverJPG"])
@@ -1295,8 +1340,17 @@ class ImmichGoGUI(QMainWindow):
 
         t_write = QLineEdit()
         t_write.setPlaceholderText("/backup/photos")
+        self._enable_folder_drop(t_write)
         self.inputs["archive-immich"]["write-to"] = t_write
-        form.add_row("Destination Folder", t_write)
+        form.add_row("Destination Folder", t_write, "Select local folder where organized files will be saved.")
+
+        theme = getattr(self, "theme_mode", "dark")
+        browse_write_action = t_write.addAction(
+            load_themed_icon("folder", theme),
+            QLineEdit.ActionPosition.TrailingPosition
+        )
+        browse_write_action.icon_name = "folder"
+        browse_write_action.triggered.connect(lambda _, le=t_write: self.browse_write_to(le))
 
         c_burst = QComboBox()
         c_burst.addItems(["NoStack", "Stack", "StackKeepRaw", "StackKeepJPEG"])
@@ -1498,13 +1552,80 @@ class ImmichGoGUI(QMainWindow):
         paths = [url.toLocalFile() for url in event.mimeData().urls()]
 
         if paths:
-            target.setText(paths[0])
+            if isinstance(target, QPlainTextEdit):
+                target.setPlainText("\n".join(paths))
+            else:
+                target.setText(paths[0])
             event.acceptProposedAction()
 
-    def browse_takeout_source(self):
-        folder = QFileDialog.getExistingDirectory(self, "Select Extracted Folder")
+    def browse_takeout_zips(self):
+        files, _ = QFileDialog.getOpenFileNames(
+            self,
+            "Select Google Takeout ZIP Parts",
+            "",
+            "ZIP Archives (*.zip);;All Files (*)",
+        )
+        if files:
+            formatted = " ".join(f'"{f}"' if " " in f else f for f in files)
+            self.inputs["upload-gp"]["path"].setText(formatted)
+
+    def browse_takeout_folder(self):
+        folder = QFileDialog.getExistingDirectory(self, "Select Extracted Takeout Folder")
         if folder:
             self.inputs["upload-gp"]["path"].setText(folder)
+
+    def browse_upload_folder(self):
+        folder = QFileDialog.getExistingDirectory(self, "Select Upload Folder")
+        if folder:
+            self.inputs["upload-folder"]["path"].setText(folder)
+
+    def browse_upload_zip(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select ZIP Archive",
+            "",
+            "ZIP Archives (*.zip);;All Files (*)",
+        )
+        if file_path:
+            self.inputs["upload-folder"]["path"].setText(file_path)
+
+    def collect_paths(self, raw_text: str) -> list[str]:
+        paths = []
+        lines = raw_text.splitlines()
+        raw_items = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                parsed = shlex.split(line)
+                if parsed:
+                    raw_items.extend(parsed)
+                else:
+                    raw_items.append(line)
+            except Exception:
+                raw_items.append(line)
+
+        for item in raw_items:
+            item = item.strip()
+            if not item:
+                continue
+            if glob.has_magic(item):
+                expanded = glob.glob(item, recursive=True)
+                if expanded:
+                    paths.extend(expanded)
+                else:
+                    paths.append(item)
+            else:
+                paths.append(item)
+        return paths
+
+
+
+    def browse_write_to(self, line_edit):
+        folder = QFileDialog.getExistingDirectory(self, "Select Destination Folder")
+        if folder:
+            line_edit.setText(folder)
 
     def browse_local_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Select Upload Folder")
@@ -1728,8 +1849,9 @@ class ImmichGoGUI(QMainWindow):
             if c["skip-ssl"].isChecked():
                 cmd_opts.append("--skip-verify-ssl")
 
-            if c["path"].text():
-                path_opt.append(c["path"].text())
+            paths_text = c["path"].text()
+            if paths_text:
+                path_opt.extend(self.collect_paths(paths_text))
 
         elif tab_key == "upload-immich":
             if c["from-server"].text():
