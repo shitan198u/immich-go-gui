@@ -302,6 +302,35 @@ QComboBox QAbstractItemView {{
     border: 1px solid {t['border']};
 }}
 
+        /* ---- Item-view headers: explicit so they don't fall back to black under an app stylesheet ---- */
+        QHeaderView {{
+            background-color: {t['surface_alt']};
+            border: none;
+        }}
+        QHeaderView::section {{
+            background-color: {t['surface_alt']};
+            color: {t['text_muted']};
+            border: none;
+            border-right: 1px solid {t['border']};
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 600;
+        }}
+        QHeaderView::section:last {{
+            border-right: none;
+        }}
+        /* keep the dialog's tree/list body on a real plane too (rows already read from palette Base) */
+        QAbstractItemView {{
+            background-color: {t['surface']};
+            color: {t['text']};
+            border: 1px solid {t['border']};
+            outline: 0;
+        }}
+        QAbstractItemView::item:selected {{
+            background-color: {t['accent_subtle']};
+            color: {t['accent']};
+        }}
+
 QCheckBox {{
     color: {t['text']};
     spacing: 8px;

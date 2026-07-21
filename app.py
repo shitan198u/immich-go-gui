@@ -644,6 +644,7 @@ class ImmichGoGUI(QMainWindow):
     def _build_upload_page(self):
         page = BasePage()
         self.upload_tabs = QTabWidget()
+        self.upload_tabs.setDocumentMode(True)
 
         self.upload_folder_tab = self._build_upload_folder_tab()
         self.upload_gp_tab = self._build_upload_gp_tab()
@@ -655,6 +656,7 @@ class ImmichGoGUI(QMainWindow):
 
         page.addWidget(self.upload_tabs)
         self.upload_tabs.currentChanged.connect(self._on_upload_tab_changed)
+        self._on_upload_tab_changed(self.upload_tabs.currentIndex())
         return page
 
     def _on_upload_tab_changed(self, index: int):
@@ -669,6 +671,7 @@ class ImmichGoGUI(QMainWindow):
     def _build_archive_page(self):
         page = BasePage()
         self.archive_tabs = QTabWidget()
+        self.archive_tabs.setDocumentMode(True)
 
         self.archive_folder_tab = self._build_archive_folder_tab()
         self.archive_immich_tab = self._build_archive_immich_tab()
@@ -678,6 +681,7 @@ class ImmichGoGUI(QMainWindow):
 
         page.addWidget(self.archive_tabs)
         self.archive_tabs.currentChanged.connect(self._on_archive_tab_changed)
+        self._on_archive_tab_changed(self.archive_tabs.currentIndex())
         return page
 
     def _on_archive_tab_changed(self, index: int):
@@ -913,7 +917,10 @@ class ImmichGoGUI(QMainWindow):
         self.on_errors_spin.setVisible(text == "custom…")
 
     def _build_upload_folder_tab(self):
-        page = BasePage()
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 16, 0, 0)
+        lay.setSpacing(24)
         self.inputs["upload-folder"] = {}
 
         card = Card("Source Configuration", required=True)
@@ -940,7 +947,7 @@ class ImmichGoGUI(QMainWindow):
             child.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         card.layout.addLayout(form)
-        page.addWidget(card)
+        lay.addWidget(card)
 
         card = Card("Options")
         form = FormSection()
@@ -976,7 +983,7 @@ class ImmichGoGUI(QMainWindow):
         form.add_row("HEIC + JPEG Pairs", c_heic)
 
         card.layout.addLayout(form)
-        page.addWidget(card)
+        lay.addWidget(card)
 
         adv_card = Card("Advanced Options")
         form = FormSection()
@@ -1066,14 +1073,17 @@ class ImmichGoGUI(QMainWindow):
 
         adv_card.setVisible(False)
         adv_card.layout.addLayout(form)
-        page.addWidget(adv_card)
+        lay.addWidget(adv_card)
         self.adv_frames.append(adv_card)
 
-        page.addStretch()
+        lay.addStretch()
         return page
 
     def _build_upload_gp_tab(self):
-        page = BasePage()
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 16, 0, 0)
+        lay.setSpacing(24)
         self.inputs["upload-gp"] = {}
 
         card = Card("Source Configuration", required=True)
@@ -1107,7 +1117,7 @@ class ImmichGoGUI(QMainWindow):
         )
 
         card.layout.addLayout(form)
-        page.addWidget(card)
+        lay.addWidget(card)
 
         card = Card("Options")
         form = FormSection()
@@ -1147,7 +1157,7 @@ class ImmichGoGUI(QMainWindow):
         form.add_row("HEIC + JPEG Pairs", c_heic)
 
         card.layout.addLayout(form)
-        page.addWidget(card)
+        lay.addWidget(card)
 
         adv_card = Card("Advanced Options")
         form = FormSection()
@@ -1230,14 +1240,17 @@ class ImmichGoGUI(QMainWindow):
 
         adv_card.setVisible(False)
         adv_card.layout.addLayout(form)
-        page.addWidget(adv_card)
+        lay.addWidget(adv_card)
         self.adv_frames.append(adv_card)
 
-        page.addStretch()
+        lay.addStretch()
         return page
 
     def _build_upload_immich_tab(self):
-        page = BasePage()
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 16, 0, 0)
+        lay.setSpacing(24)
         self.inputs["upload-immich"] = {}
 
         card = Card("Source Configuration", required=True)
@@ -1275,7 +1288,7 @@ class ImmichGoGUI(QMainWindow):
         form.addRow("", chk_trash)
 
         card.layout.addLayout(form)
-        page.addWidget(card)
+        lay.addWidget(card)
 
         adv_card = Card("Advanced Options")
         form = FormSection()
@@ -1369,14 +1382,17 @@ class ImmichGoGUI(QMainWindow):
 
         adv_card.setVisible(False)
         adv_card.layout.addLayout(form)
-        page.addWidget(adv_card)
+        lay.addWidget(adv_card)
         self.adv_frames.append(adv_card)
 
-        page.addStretch()
+        lay.addStretch()
         return page
 
     def _build_archive_folder_tab(self):
-        page = BasePage()
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 16, 0, 0)
+        lay.setSpacing(24)
         self.inputs["archive-folder"] = {}
 
         card = Card("Source Configuration", required=True)
@@ -1399,7 +1415,7 @@ class ImmichGoGUI(QMainWindow):
             child.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         card.layout.addLayout(form)
-        page.addWidget(card)
+        lay.addWidget(card)
 
         card = Card("Options")
         form = FormSection()
@@ -1417,7 +1433,7 @@ class ImmichGoGUI(QMainWindow):
         form.add_row("Manage RAW+JPEG", c_raw)
 
         card.layout.addLayout(form)
-        page.addWidget(card)
+        lay.addWidget(card)
 
         adv_card = Card("Advanced Options")
         form = FormSection()
@@ -1442,14 +1458,17 @@ class ImmichGoGUI(QMainWindow):
 
         adv_card.setVisible(False)
         adv_card.layout.addLayout(form)
-        page.addWidget(adv_card)
+        lay.addWidget(adv_card)
         self.adv_frames.append(adv_card)
 
-        page.addStretch()
+        lay.addStretch()
         return page
 
     def _build_archive_immich_tab(self):
-        page = BasePage()
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 16, 0, 0)
+        lay.setSpacing(24)
         self.inputs["archive-immich"] = {}
 
         card = Card("Target Server")
@@ -1462,7 +1481,7 @@ class ImmichGoGUI(QMainWindow):
         form.add_row("Immich Server URL", t_server, "Update in Configuration tab.")
 
         card.layout.addLayout(form)
-        page.addWidget(card)
+        lay.addWidget(card)
 
         card = Card("Options")
         form = FormSection()
@@ -1485,7 +1504,7 @@ class ImmichGoGUI(QMainWindow):
         form.add_row("Manage RAW+JPEG", c_raw)
 
         card.layout.addLayout(form)
-        page.addWidget(card)
+        lay.addWidget(card)
 
         adv_card = Card("Advanced Options")
         form = FormSection()
@@ -1517,10 +1536,10 @@ class ImmichGoGUI(QMainWindow):
 
         adv_card.setVisible(False)
         adv_card.layout.addLayout(form)
-        page.addWidget(adv_card)
+        lay.addWidget(adv_card)
         self.adv_frames.append(adv_card)
 
-        page.addStretch()
+        lay.addStretch()
         return page
 
     def _build_stack_tab(self):
