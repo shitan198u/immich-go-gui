@@ -248,3 +248,36 @@ def test_build_command_google_takeout_multiple_paths(gui, tmp_path):
     assert non_existent in opts
     assert str(file1) in opts
     assert str(file2) in opts
+
+
+def test_mask_command_for_display():
+    from app import mask_command_for_display
+    cmd = ["./immich-go", "upload", "from-folder", "--server=http://localhost:2283", "--api-key=secret123", "--from-api-key=remote456"]
+    masked = mask_command_for_display(cmd)
+    
+    assert "./immich-go" in masked
+    assert "--server=http://localhost:2283" in masked
+    assert "--api-key=********" in masked
+    assert "--from-api-key=********" in masked
+    assert "--api-key=secret123" not in masked
+    assert "--from-api-key=remote456" not in masked
+
+
+def test_build_environment(gui):
+    gui.inputs["config"]["server"].setText("http://immich:2283")
+    gui.inputs["config"]["api_key"].setText("my-secret-key")
+    
+    env = gui.build_environment("upload-folder")
+    assert env.get("IMMICH_GO_UPLOAD_SERVER") == "http://immich:2283"
+    assert env.get("IMMICH_GO_UPLOAD_API_KEY") == "my-secret-key"
+
+
+def test_secret_store():
+    from app import SecretStore
+    store = SecretStore()
+    store.set_api_key("test_secret")
+    val = store.get_api_key()
+    assert val == "test_secret"
+    
+    store.set_api_key("")
+    assert store.get_api_key() == ""
