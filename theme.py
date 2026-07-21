@@ -45,6 +45,7 @@ def theme_tokens(theme: str) -> dict:
             "text": "#E8ECEF", "text_muted": "#97A1AA", "text_faint": "#6B757D",
             "accent": "#4FB3A4", "accent_hover": "#6FD6C5", "accent_subtle": "#17332F",
             "primary": "#E1512E", "primary_hover": "#F1603D", "primary_subtle": "#3A1D15", "on_primary": "#FFFFFF",
+            "warning": "#E5C07B",
             "button_bg": "#20262B", "button_hover": "#2A3238", "scrollbar": "#0E1113", "scrollbar_handle": "#3A434B",
             "terminal_bg": "#0B0D0E", "terminal_text": "#ECE7DD",
         }
@@ -54,6 +55,7 @@ def theme_tokens(theme: str) -> dict:
         "text": "#18222C", "text_muted": "#5D6B7A", "text_faint": "#7C8794",
         "accent": "#0F766E", "accent_hover": "#14B8A6", "accent_subtle": "#E4F5F2",
         "primary": "#C2410C", "primary_hover": "#EA580C", "primary_subtle": "#FFEDD5", "on_primary": "#FFFFFF",
+        "warning": "#B45309",
         "button_bg": "#EEF1F4", "button_hover": "#E2E7EC", "scrollbar": "#EEF1F4", "scrollbar_handle": "#AEB8C2",
         "terminal_bg": "#111827", "terminal_text": "#F9FAFB",
     }
@@ -226,6 +228,12 @@ QLabel#FieldLabel {{
 QLabel#Hint {{
     font-size: 12px;
     color: {t['text_muted']};
+}}
+
+QLabel#WarningHint {{
+    font-size: 12px;
+    font-weight: 500;
+    color: {t['warning']};
 }}
 
 /* Inputs */
