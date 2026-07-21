@@ -64,7 +64,7 @@ jobs:
         run: |
           uv run python -c "from PIL import Image; Image.open('immich-go-gui.png').save('immich-go-gui.ico')"
           NUMERIC_VERSION=$(echo "${{ env.VERSION }}" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' || echo "1.0.0")
-          uv run python -m nuitka --assume-yes-for-downloads --standalone --windows-console-mode=disable --enable-plugin=pyside6 --windows-icon-from-ico=immich-go-gui.ico --company-name="Shitan198u" --product-name="Immich-Go GUI" --file-version="${NUMERIC_VERSION}.0" --product-version="${NUMERIC_VERSION}.0" --file-description="Immich-Go Graphical User Interface" --copyright="MIT License" --include-data-files=immich-go-gui.png=immich-go-gui.png --include-data-dir=assets=assets app.py
+          uv run python -m nuitka --file-version="${NUMERIC_VERSION}.0" --product-version="${NUMERIC_VERSION}.0" app.py
 
       - name: Create Windows Portable Archive
         if: matrix.name == 'windows'
@@ -84,7 +84,7 @@ jobs:
       - name: Build macOS
         if: matrix.name == 'macos'
         run: |
-          uv run python -m nuitka --assume-yes-for-downloads --macos-create-app-bundle --enable-plugin=pyside6 --include-data-files=immich-go-gui.png=immich-go-gui.png --include-data-dir=assets=assets app.py
+          uv run python -m nuitka app.py
           npm install -g create-dmg
           create-dmg app.app || true
           mv *.dmg Immich-Go-GUI-macOS.dmg
@@ -93,7 +93,7 @@ jobs:
       - name: Build Linux Standalone
         if: matrix.name == 'linux'
         run: |
-          uv run python -m nuitka --assume-yes-for-downloads --standalone --enable-plugin=pyside6 --include-data-files=immich-go-gui.png=immich-go-gui.png --include-data-dir=assets=assets app.py
+          uv run python -m nuitka app.py
 
       - name: Create Linux Portable Archive
         if: matrix.name == 'linux'
