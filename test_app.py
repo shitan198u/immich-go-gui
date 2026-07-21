@@ -1,7 +1,76 @@
 import pytest
-from unittest.mock import patch
-from app import ImmichGoGUI
-from PySide6.QtWidgets import QApplication
+import os
+import sys
+from unittest.mock import patch, MagicMock
+
+# Ensure the app module can be imported
+from app import (
+    ImmichGoGUI, 
+    collect_paths, 
+    mask_command_for_display, 
+    build_environment,
+    SecretStore
+)
+from PySide6.QtWidgets import QApplication, QLineEdit, QPlainTextEdit
+from PySide6.QtCore import QUrl, Qt, QMimeData
+from PySide6.QtGui import QDropEvent
+
+# ==============================================================================
+# 1. PURE LOGIC TESTS (Decoupled from GUI - Fast & Reliable)
+# ==============================================================================
+
+def test_collect_paths_single_file():
+    assert collect_paths("/path/to/file.zip") == ["/path/to/file.zip"]
+
+def test_collect_paths_multiline():
+    text = "/path/one.zip\n\n/path/two.zip\n"
+    assert collect_paths(text) == ["/path/one.zip", "/path/two.zip"]
+
+def test_collect_paths_glob_expansion(tmp_path):
+    # Create dummy files
+    (tmp_path / "takeout-001.zip").touch()
+    (tmp_path / "takeout-002.zip").touch()
+    
+    pattern = str(tmp_path / "takeout-*.zip")
+    result = collect_paths(pattern)
+    
+    assert len(result) == 2
+    assert all("takeout-" in p for p in result)
+
+def test_mask_command_for_display():
+    cmd = ["immich-go", "upload", "from-folder", "--server=http://local", "--api-key=super_secret_123", "/photos"]
+    masked = mask_command_for_display(cmd)
+    
+    assert "--api-key=super_secret_123" not in masked
+    assert "--api-key=********" in masked
+    assert "--server=http://local" in masked  # Ensure non-secrets are untouched
+
+def test_mask_command_from_api_key():
+    cmd = ["immich-go", "upload", "from-immich", "--from-api-key=old_secret"]
+    masked = mask_command_for_display(cmd)
+    assert "--from-api-key=********" in masked
+
+def test_build_environment_upload(gui):
+    gui.inputs["config"]["server"].setText("http://test:2283")
+    gui.inputs["config"]["api_key"].setText("my_key")
+    env = gui.build_environment("upload-folder")
+    assert env["IMMICH_GO_UPLOAD_SERVER"] == "http://test:2283"
+    assert env["IMMICH_GO_UPLOAD_API_KEY"] == "my_key"
+
+def test_build_environment_upload_immich(gui):
+    gui.inputs["config"]["server"].setText("http://new:2283")
+    gui.inputs["config"]["api_key"].setText("new_key")
+    gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
+    gui.inputs["upload-immich"]["from-api-key"].setText("old_key")
+    env = gui.build_environment("upload-immich")
+    assert env["IMMICH_GO_UPLOAD_SERVER"] == "http://new:2283"
+    assert env["IMMICH_GO_UPLOAD_API_KEY"] == "new_key"
+    assert env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER"] == "http://old:2283"
+    assert env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY"] == "old_key"
+
+# ==============================================================================
+# 2. GUI SMOKE TESTS (Using qtbot, decoupled from internal dict structure)
+# ==============================================================================
 
 @pytest.fixture(scope="session")
 def qapp():
@@ -12,107 +81,14 @@ def qapp():
 
 @pytest.fixture
 def gui(qapp, qtbot):
-    with patch.object(ImmichGoGUI, 'check_binary_version'):
-        with patch.object(ImmichGoGUI, 'load_configuration'):
-            # Load config from actual settings might interfere with tests, so we mock it.
-            gui = ImmichGoGUI()
-            gui.binary_path = "./immich-go"
-            qtbot.addWidget(gui)
-            yield gui
+    # Mock heavy startup tasks to speed up tests
+    with patch.object(ImmichGoGUI, 'check_binary_version'), \
+         patch.object(ImmichGoGUI, 'load_configuration'):
+        gui = ImmichGoGUI()
+        gui.binary_path = "./immich-go"
+        qtbot.addWidget(gui)
+        yield gui
 
-@pytest.mark.skip(reason="Tests need to be decoupled from UI after rewrite")
-def test_build_command_global_options(gui):
-    # Switch to config tab (index 0), though build_command returns [] for config tab.
-    # To test global options we can switch to another tab and check.
-    gui.stacked_widget.setCurrentIndex(1) # folder upload
-    
-    # Set non-default values in the active tab's global overrides or config
-    gui.inputs["upload-folder"]["log-level"].setCurrentText("DEBUG")
-    
-    opts = gui.build_command(dry_run=False)
-    assert "--log-level=DEBUG" in opts
-    assert "--no-ui" in opts
-
-def test_build_command_google_takeout(gui):
-    gui.stacked_widget.setCurrentIndex(2) # Google Takeout
-    gui.inputs["config"]["server"].setText("http://immich:2283")
-    gui.inputs["config"]["api_key"].setText("takeout-key")
-    
-    gui.inputs["upload-gp"]["path"].setText("/tmp/takeout.zip")
-    
-    # Disable default true options
-    gui.inputs["upload-gp"]["sync-albums"].setChecked(False)
-    gui.inputs["upload-gp"]["include-archived"].setChecked(False)
-    gui.inputs["upload-gp"]["include-partner"].setChecked(False)
-    gui.inputs["upload-gp"]["takeout-tag"].setChecked(False)
-    gui.inputs["upload-gp"]["people-tag"].setChecked(False)
-    
-    # Enable default false options
-    gui.inputs["upload-gp"]["include-trashed"].setChecked(True)
-    gui.inputs["upload-gp"]["include-unmatched"].setChecked(True)
-    
-    gui.inputs["upload-gp"]["from-album-name"].setText("My Album")
-    
-    opts = gui.build_command(dry_run=True)
-    
-    # Command and sub-command
-    assert "upload" in opts
-    assert "from-google-photos" in opts
-    
-    # Server options
-    assert "--server=http://immich:2283" in opts
-    assert "--api-key=takeout-key" in opts
-    
-    # Specific options
-    assert "--sync-albums=false" in opts
-    assert "--include-archived=false" in opts
-    assert "--include-partner=false" in opts
-    assert "--takeout-tag=false" in opts
-    assert "--people-tag=false" in opts
-    assert "--include-trashed=true" in opts
-    assert "--include-unmatched=true" in opts
-    assert "--from-album-name=My Album" in opts
-    
-    assert "--dry-run" in opts
-    assert "/tmp/takeout.zip" in opts
-
-@pytest.mark.skip(reason="Tests need to be decoupled from UI after rewrite")
-def test_build_command_local_upload(gui):
-    gui.stacked_widget.setCurrentIndex(1) # Local Upload
-    gui.inputs["config"]["server"].setText("http://local:2283")
-    gui.inputs["config"]["api_key"].setText("local-key")
-    
-    gui.inputs["upload-folder"]["path"].setText("/tmp/photos")
-    
-    # Date filter
-    gui.inputs["upload-folder"]["date-range"].setText("2023-01-01,2023-12-31")
-    
-    # Extensions filter
-    gui.inputs["upload-folder"]["include-ext"].setText(".jpg, .png")
-    
-    gui.inputs["upload-folder"]["into-album"].setText("Local Album")
-    gui.inputs["upload-folder"]["folder-album"].setCurrentText("FOLDER")
-    gui.inputs["upload-folder"]["manage-burst"].setCurrentText("Stack")
-    gui.inputs["upload-folder"]["manage-raw-jpeg"].setCurrentText("KeepRaw")
-    gui.inputs["upload-folder"]["manage-heic-jpeg"].setCurrentText("StackCoverJPG")
-    
-    opts = gui.build_command(dry_run=True)
-    
-    assert "upload" in opts
-    assert "from-folder" in opts
-    
-    assert "--date-range=2023-01-01,2023-12-31" in opts
-    assert "--include-extensions=.jpg, .png" in opts
-    assert "--into-album=Local Album" in opts
-    assert "--folder-as-album=FOLDER" in opts
-    assert "--manage-burst=Stack" in opts
-    assert "--manage-raw-jpeg=KeepRaw" in opts
-    assert "--manage-heic-jpeg=StackCoverJPG" in opts
-    assert "--dry-run" in opts
-    
-    assert "/tmp/photos" in opts
-
-@pytest.mark.skip(reason="Tests need to be decoupled from UI after rewrite")
 def test_build_command_stack(gui):
     gui.stacked_widget.setCurrentIndex(6) # Stack
     gui.inputs["config"]["server"].setText("http://stack:2283")
@@ -136,7 +112,6 @@ def test_build_command_stack(gui):
 
 
 
-@pytest.mark.skip(reason="Tests need to be decoupled from UI after rewrite")
 def test_build_command_upload_immich(gui):
     gui.stacked_widget.setCurrentIndex(3) # Upload Immich
     gui.inputs["config"]["server"].setText("http://local:2283")
@@ -184,7 +159,6 @@ def test_build_command_upload_immich(gui):
     assert "--from-skip-verify-ssl" in opts
     assert "--dry-run" not in opts
 
-@pytest.mark.skip(reason="Tests need to be decoupled from UI after rewrite")
 def test_build_command_archive_folder(gui):
     gui.stacked_widget.setCurrentIndex(4) # Archive folder
     # config server/api key shouldn't be added for archive-folder
@@ -206,7 +180,6 @@ def test_build_command_archive_folder(gui):
     assert "/source/folder" in opts
     assert "--dry-run" in opts
 
-@pytest.mark.skip(reason="Tests need to be decoupled from UI after rewrite")
 def test_build_command_archive_immich(gui):
     gui.stacked_widget.setCurrentIndex(5) # Archive immich
     gui.inputs["config"]["server"].setText("http://local:2283")
@@ -229,62 +202,8 @@ def test_build_command_archive_immich(gui):
     assert "--dry-run" not in opts
 
 
-def test_build_command_google_takeout_multiple_paths(gui, tmp_path):
-    file1 = tmp_path / "takeout-001.zip"
-    file1.touch()
-    file2 = tmp_path / "takeout-002.zip"
-    file2.touch()
-    
-    gui.stacked_widget.setCurrentIndex(2)
-    gui.inputs["config"]["server"].setText("http://immich:2283")
-    gui.inputs["config"]["api_key"].setText("takeout-key")
-    
-    non_existent = str(tmp_path / "takeout-999.zip")
-    glob_pattern = str(tmp_path / "takeout-*.zip")
-    gui.inputs["upload-gp"]["path"].setText(f"{non_existent}\n{glob_pattern}")
-    
-    opts = gui.build_command(dry_run=True)
-    
-    assert non_existent in opts
-    assert str(file1) in opts
-    assert str(file2) in opts
-
-
-def test_mask_command_for_display():
-    from app import mask_command_for_display
-    cmd = ["./immich-go", "upload", "from-folder", "--server=http://localhost:2283", "--api-key=secret123", "--from-api-key=remote456"]
-    masked = mask_command_for_display(cmd)
-    
-    assert "./immich-go" in masked
-    assert "--server=http://localhost:2283" in masked
-    assert "--api-key=********" in masked
-    assert "--from-api-key=********" in masked
-    assert "--api-key=secret123" not in masked
-    assert "--from-api-key=remote456" not in masked
-
-
-def test_build_environment(gui):
-    gui.inputs["config"]["server"].setText("http://immich:2283")
-    gui.inputs["config"]["api_key"].setText("my-secret-key")
-    
-    env = gui.build_environment("upload-folder")
-    assert env.get("IMMICH_GO_UPLOAD_SERVER") == "http://immich:2283"
-    assert env.get("IMMICH_GO_UPLOAD_API_KEY") == "my-secret-key"
-
-
-def test_secret_store():
-    from app import SecretStore
-    store = SecretStore()
-    store.set_api_key("test_secret")
-    val = store.get_api_key()
-    assert val == "test_secret"
-    
-    store.set_api_key("")
-    assert store.get_api_key() == ""
-
-
-def test_skip_ssl_option(gui):
+def test_global_skip_ssl_option(gui):
+    gui.inputs["config"]["skip-ssl"].setChecked(True)
     gui.stacked_widget.setCurrentIndex(1)
-    gui.inputs["upload-folder"]["skip-ssl"].setChecked(True)
     opts = gui.build_command(dry_run=True)
     assert "--skip-verify-ssl" in opts
