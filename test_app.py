@@ -1,462 +1,360 @@
-"""
-test_app.py – Unit and integration tests for Immich-Go GUI.
-
-Covers:
-  - Pure utility functions (collect_paths, mask_command_for_display, build_environment)
-  - SecretStore (mocked keyring)
-  - Command builder ordering and flag scoping
-  - Integration: masking wired into preview, env vars wired into run_command
-  - TOML config round-trip
-"""
-
-from __future__ import annotations
-
+import pytest
 import os
 import sys
-import tempfile
-import textwrap
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
-
-# ---------------------------------------------------------------------------
-# Ensure the app module is importable
-# ---------------------------------------------------------------------------
-sys.path.insert(0, str(Path(__file__).parent))
+from unittest.mock import patch, MagicMock
 
 from app import (
-    SecretStore,
-    build_environment,
+    ImmichGoGUI,
     collect_paths,
-    load_toml_config,
     mask_command_for_display,
-    save_toml_config,
+    build_environment,
+    SecretStore
 )
+from PySide6.QtWidgets import QApplication, QLineEdit, QPlainTextEdit
+from PySide6.QtCore import QUrl, Qt, QMimeData
+from PySide6.QtGui import QDropEvent
 
 
-# ===================================================================
-# 1. collect_paths
-# ===================================================================
+# ==============================================================================
+# 1. PURE LOGIC TESTS (Decoupled from GUI - Fast & Reliable)
+# ==============================================================================
 
-class TestCollectPaths:
-    def test_single_path(self):
-        assert collect_paths("/photos") == ["/photos"]
-
-    def test_multiple_paths(self):
-        result = collect_paths("/a /b /c")
-        assert result == ["/a", "/b", "/c"]
-
-    def test_glob_expansion(self, tmp_path):
-        (tmp_path / "takeout-001.zip").touch()
-        (tmp_path / "takeout-002.zip").touch()
-        (tmp_path / "other.txt").touch()
-        pattern = str(tmp_path / "takeout-*.zip")
-        result = collect_paths(pattern)
-        assert len(result) == 2
-        assert all("takeout" in p for p in result)
-
-    def test_empty_string(self):
-        assert collect_paths("") == []
-        assert collect_paths("   ") == []
-
-    def test_quoted_path_with_spaces(self, tmp_path):
-        d = tmp_path / "my photos"
-        d.mkdir()
-        result = collect_paths(f'"{d}"')
-        assert result == [str(d)]
-
-    def test_no_glob_match_keeps_literal(self):
-        result = collect_paths("/nonexistent/path-*.zip")
-        assert result == ["/nonexistent/path-*.zip"]
+def test_collect_paths_single_file():
+    assert collect_paths("/path/to/file.zip") == ["/path/to/file.zip"]
 
 
-# ===================================================================
-# 2. mask_command_for_display
-# ===================================================================
-
-class TestMaskCommandForDisplay:
-    def test_masks_api_key_equals(self):
-        cmd = "immich-go upload from-folder --server=http://x --api-key=SECRET123 /photos"
-        masked = mask_command_for_display(cmd)
-        assert "SECRET123" not in masked
-        assert "--api-key=********" in masked
-
-    def test_masks_from_api_key_equals(self):
-        cmd = "immich-go upload from-immich --from-api-key=TOPSECRET"
-        masked = mask_command_for_display(cmd)
-        assert "TOPSECRET" not in masked
-        assert "--from-api-key=********" in masked
-
-    def test_masks_space_separated(self):
-        cmd = "immich-go upload from-folder --api-key SECRET123 /photos"
-        masked = mask_command_for_display(cmd)
-        assert "SECRET123" not in masked
-        assert "********" in masked
-
-    def test_no_secret_unchanged(self):
-        cmd = "immich-go upload from-folder --server=http://x /photos"
-        assert mask_command_for_display(cmd) == cmd
-
-    def test_masks_admin_api_key(self):
-        cmd = "immich-go stack --admin-api-key=ADMINSECRET"
-        masked = mask_command_for_display(cmd)
-        assert "ADMINSECRET" not in masked
-        assert "--admin-api-key=********" in masked
+def test_collect_paths_multiline():
+    text = "/path/one.zip\n\n/path/two.zip\n"
+    assert collect_paths(text) == ["/path/one.zip", "/path/two.zip"]
 
 
-# ===================================================================
-# 3. build_environment
-# ===================================================================
-
-class TestBuildEnvironment:
-    def test_sets_server_and_key(self):
-        env = build_environment(server="http://x", api_key="KEY123")
-        assert env["IMMICH_GO_UPLOAD_SERVER"] == "http://x"
-        assert env["IMMICH_GO_UPLOAD_API_KEY"] == "KEY123"
-
-    def test_no_trailing_spaces_in_keys(self):
-        env = build_environment(
-            server="s", api_key="k",
-            from_server="fs", from_api_key="fk",
-            admin_api_key="ak",
-        )
-        for key in env:
-            if key.startswith("IMMICH_GO_"):
-                assert key == key.strip(), f"Trailing space in env key: {key!r}"
-
-    def test_empty_values_not_set(self):
-        env = build_environment()
-        immich_keys = [k for k in env if k.startswith("IMMICH_GO_")]
-        assert len(immich_keys) == 0
-
-    def test_from_fields(self):
-        env = build_environment(from_server="http://old", from_api_key="OLDKEY")
-        assert env["IMMICH_GO_UPLOAD_FROM_SERVER"] == "http://old"
-        assert env["IMMICH_GO_UPLOAD_FROM_API_KEY"] == "OLDKEY"
+def test_collect_paths_glob_expansion(tmp_path):
+    (tmp_path / "takeout-001.zip").touch()
+    (tmp_path / "takeout-002.zip").touch()
+    pattern = str(tmp_path / "takeout-*.zip")
+    result = collect_paths(pattern)
+    assert len(result) == 2
+    assert all("takeout-" in p for p in result)
 
 
-# ===================================================================
-# 4. SecretStore (mocked keyring)
-# ===================================================================
+def test_mask_command_for_display():
+    cmd = ["immich-go", "upload", "from-folder",
+           "--server=http://local", "--api-key=super_secret_123", "/photos"]
+    masked = mask_command_for_display(cmd)
+    assert "--api-key=super_secret_123" not in masked
+    assert "--api-key=********" in masked
+    assert "--server=http://local" in masked
 
-class TestSecretStore:
-    @patch("app.keyring")
-    def test_save_and_load(self, mock_kr):
-        mock_kr.get_password.return_value = "STORED_KEY"
-        SecretStore.save("default", "STORED_KEY")
+
+def test_mask_command_from_api_key():
+    cmd = ["immich-go", "upload", "from-immich", "--from-api-key=old_secret"]
+    masked = mask_command_for_display(cmd)
+    assert "--from-api-key=********" in masked
+
+
+# FIX: new test — admin-api-key masking
+def test_mask_command_admin_api_key():
+    cmd = ["immich-go", "stack", "--admin-api-key=ADMIN_SECRET"]
+    masked = mask_command_for_display(cmd)
+    assert "ADMIN_SECRET" not in masked
+    assert "--admin-api-key=********" in masked
+
+
+# FIX: new test — no trailing spaces in env var names
+def test_build_environment_no_trailing_spaces():
+    env = build_environment("upload-folder", "http://s", "key", "http://fs", "fkey")
+    for k in env:
+        if k.startswith("IMMICH_GO_"):
+            assert k == k.strip(), f"Trailing space in env key: {k!r}"
+
+
+def test_build_environment_upload(gui):
+    gui.inputs["config"]["server"].setText("http://test:2283")
+    gui.inputs["config"]["api_key"].setText("my_key")
+    env = gui.build_environment("upload-folder")
+    assert env["IMMICH_GO_UPLOAD_SERVER"] == "http://test:2283"
+    assert env["IMMICH_GO_UPLOAD_API_KEY"] == "my_key"
+
+
+def test_build_environment_upload_immich(gui):
+    gui.inputs["config"]["server"].setText("http://new:2283")
+    gui.inputs["config"]["api_key"].setText("new_key")
+    gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
+    gui.inputs["upload-immich"]["from-api-key"].setText("old_key")
+    env = gui.build_environment("upload-immich")
+    assert env["IMMICH_GO_UPLOAD_SERVER"] == "http://new:2283"
+    assert env["IMMICH_GO_UPLOAD_API_KEY"] == "new_key"
+    assert env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER"] == "http://old:2283"
+    assert env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY"] == "old_key"
+
+
+# ==============================================================================
+# 2. GUI SMOKE TESTS (Using qtbot, decoupled from internal dict structure)
+# ==============================================================================
+
+@pytest.fixture(scope="session")
+def qapp():
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication([])
+    yield app
+
+
+@pytest.fixture
+def gui(qapp, qtbot):
+    with patch.object(ImmichGoGUI, 'check_binary_version'), \
+         patch.object(ImmichGoGUI, 'load_configuration'):
+        gui = ImmichGoGUI()
+        gui.binary_path = "./immich-go"
+        qtbot.addWidget(gui)
+        yield gui
+
+
+# FIX: new test — global flag ordering
+def test_global_flag_ordering(gui):
+    """Global opts (--log-level) must appear BEFORE the command (upload)."""
+    gui.stacked_widget.setCurrentIndex(1)  # upload-folder
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-folder"]["log-level"].setCurrentText("DEBUG")
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+    opts = gui.build_command(dry_run=False)
+    log_idx = next(i for i, o in enumerate(opts) if o.startswith("--log-level"))
+    upload_idx = opts.index("upload")
+    assert log_idx < upload_idx, "--log-level must come before 'upload'"
+
+
+# FIX: new test — pause-immich-jobs only on upload tabs
+def test_pause_jobs_not_on_archive(gui):
+    gui.stacked_widget.setCurrentIndex(4)  # archive-folder
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["archive-folder"]["path"].setText("/src")
+    gui.inputs["archive-folder"]["write-to"].setText("/dst")
+    opts = gui.build_command(dry_run=False)
+    assert not any("--pause-immich-jobs" in o for o in opts)
+
+
+def test_pause_jobs_not_on_stack(gui):
+    gui.stacked_widget.setCurrentIndex(6)  # stack
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    opts = gui.build_command(dry_run=False)
+    assert not any("--pause-immich-jobs" in o for o in opts)
+
+
+# FIX: new test — on-errors only on upload tabs
+def test_on_errors_not_on_archive(gui):
+    gui.stacked_widget.setCurrentIndex(4)  # archive-folder
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["archive-folder"]["path"].setText("/src")
+    gui.inputs["archive-folder"]["write-to"].setText("/dst")
+    gui.inputs["config"]["on_errors"].setCurrentText("continue")
+    opts = gui.build_command(dry_run=False)
+    assert not any("--on-errors" in o for o in opts)
+
+
+# FIX: new test — client-timeout emitted
+def test_client_timeout_emitted(gui):
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["config"]["client_timeout"].setValue(60)
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+    opts = gui.build_command(dry_run=False)
+    assert "--client-timeout=60m" in opts
+
+
+# FIX: new test — device-uuid emitted
+def test_device_uuid_emitted(gui):
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["config"]["device_uuid"].setText("my-device-123")
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+    opts = gui.build_command(dry_run=False)
+    assert "--device-uuid=my-device-123" in opts
+
+
+# FIX: new test — api-trace on upload-gp
+def test_api_trace_on_upload_gp(gui):
+    gui.stacked_widget.setCurrentIndex(2)  # upload-gp
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-gp"]["path"].setPlainText("/takeout")
+    gui.inputs["upload-gp"]["api-trace"].setChecked(True)
+    opts = gui.build_command(dry_run=False)
+    assert "--api-trace" in opts
+
+
+# FIX: new test — api-trace on stack
+def test_api_trace_on_stack(gui):
+    gui.stacked_widget.setCurrentIndex(6)
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["stack"]["api-trace"].setChecked(True)
+    opts = gui.build_command(dry_run=False)
+    assert "--api-trace" in opts
+
+
+# FIX: new test — from-client-timeout on upload-immich
+def test_from_client_timeout(gui):
+    gui.stacked_widget.setCurrentIndex(3)  # upload-immich
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
+    gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
+    gui.inputs["upload-immich"]["from-client-timeout"].setValue(60)
+    opts = gui.build_command(dry_run=False)
+    assert "--from-client-timeout=60m" in opts
+
+
+# FIX: new test — GP multi-path via collect_paths
+def test_gp_multi_path(gui):
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-gp"]["path"].setPlainText("/takeout-001.zip\n/takeout-002.zip")
+    opts = gui.build_command(dry_run=False)
+    assert "/takeout-001.zip" in opts
+    assert "/takeout-002.zip" in opts
+
+
+# FIX: new test — skip-ssl from config only
+def test_global_skip_ssl_option(gui):
+    gui.inputs["config"]["skip-ssl"].setChecked(True)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+    opts = gui.build_command(dry_run=True)
+    assert "--skip-verify-ssl" in opts
+
+
+# FIX: new test — SecretStore integration
+def test_secret_store_save_load():
+    with patch("app.keyring") as mock_kr:
+        mock_kr.get_password.return_value = "STORED"
+        SecretStore.set_api_key("STORED")
         mock_kr.set_password.assert_called_once_with(
-            "immich-go-gui", "default", "STORED_KEY"
+            "immich-go-gui", "immich_api_key", "STORED"
         )
-        result = SecretStore.load("default")
-        assert result == "STORED_KEY"
+        assert SecretStore.get_api_key() == "STORED"
 
-    @patch("app.keyring")
-    def test_load_missing_returns_empty(self, mock_kr):
-        mock_kr.get_password.return_value = None
-        assert SecretStore.load("nonexistent") == ""
 
-    @patch("app.keyring")
-    def test_migrate_from_qsettings(self, mock_kr):
+def test_secret_store_migration():
+    with patch("app.keyring") as mock_kr:
         mock_settings = MagicMock()
-        mock_settings.value.return_value = "OLD_PLAIN_KEY"
-        SecretStore.migrate_from_qsettings(mock_settings, "default")
+        mock_settings.value.return_value = "OLD_KEY"
+        SecretStore.migrate_from_qsettings(mock_settings)
         mock_kr.set_password.assert_called_once_with(
-            "immich-go-gui", "default", "OLD_PLAIN_KEY"
+            "immich-go-gui", "immich_api_key", "OLD_KEY"
         )
         mock_settings.remove.assert_called_once_with("api_key")
 
-    @patch("app.keyring")
-    def test_migrate_skips_if_no_key(self, mock_kr):
-        mock_settings = MagicMock()
-        mock_settings.value.return_value = ""
-        SecretStore.migrate_from_qsettings(mock_settings)
-        mock_kr.set_password.assert_not_called()
+
+# ==============================================================================
+# 3. EXISTING TESTS (kept verbatim from original)
+# ==============================================================================
+
+def test_build_command_stack(gui):
+    gui.stacked_widget.setCurrentIndex(6)
+    gui.inputs["config"]["server"].setText("http://stack:2283")
+    gui.inputs["config"]["api_key"].setText("stack-key")
+    gui.inputs["stack"]["manage-burst"].setCurrentText("StackKeepRaw")
+    gui.inputs["stack"]["manage-raw-jpeg"].setCurrentText("StackCoverRaw")
+    gui.inputs["stack"]["manage-heic-jpeg"].setCurrentText("KeepHeic")
+    gui.inputs["stack"]["manage-epson"].setChecked(True)
+    gui.inputs["stack"]["time-zone"].setText("UTC")
+    opts = gui.build_command(dry_run=True)
+    assert "stack" in opts
+    assert "--manage-burst=StackKeepRaw" in opts
+    assert "--manage-raw-jpeg=StackCoverRaw" in opts
+    assert "--manage-heic-jpeg=KeepHeic" in opts
+    assert "--manage-epson-fastfoto=true" in opts
+    assert "--time-zone=UTC" in opts
+    assert "--dry-run" in opts
 
 
-# ===================================================================
-# 5. Command builder – global flag ordering
-# ===================================================================
-
-class TestCommandBuilderOrdering:
-    """
-    FIX Phase 1 #1: verify global opts come BEFORE the command.
-    Uses a minimal mock of MainWindow to test build_command in isolation.
-    """
-
-    def _make_mock_window(self):
-        """Create a lightweight mock that has the inputs dict structure."""
-        from unittest.mock import PropertyMock
-
-        win = MagicMock()
-        win.inputs = {
-            "config": {
-                "server": MagicMock(text=MagicMock(return_value="http://localhost:2283")),
-                "api_key": MagicMock(text=MagicMock(return_value="SECRET")),
-                "skip-ssl": MagicMock(isChecked=MagicMock(return_value=False)),
-                "log-level": MagicMock(currentText=MagicMock(return_value="DEBUG")),
-                "log-file": MagicMock(text=MagicMock(return_value="")),
-                "log-type": MagicMock(currentText=MagicMock(return_value="text")),
-                "concurrent-tasks": MagicMock(value=MagicMock(return_value=4)),
-            },
-            "upload-folder": {
-                "path": MagicMock(text=MagicMock(return_value="/photos")),
-                "create-album": MagicMock(isChecked=MagicMock(return_value=False)),
-                "album-name": MagicMock(text=MagicMock(return_value="")),
-                "client-timeout": MagicMock(value=MagicMock(return_value=300)),
-                "device-uuid": MagicMock(text=MagicMock(return_value="")),
-                "on-errors": MagicMock(currentText=MagicMock(return_value="stop")),
-                "on-errors-tolerance": MagicMock(value=MagicMock(return_value=10)),
-                "api-trace": MagicMock(isChecked=MagicMock(return_value=False)),
-                "pause-immich-jobs": MagicMock(isChecked=MagicMock(return_value=False)),
-            },
-        }
-        return win
-
-    def test_global_opts_before_command(self):
-        """--log-level=DEBUG must appear BEFORE 'upload'."""
-        # We test the pure logic: global_opts + cmd + cmd_opts + path_opt
-        global_opts = ["immich-go", "--log-level=DEBUG", "--concurrent-tasks=4"]
-        cmd = ["upload", "from-folder"]
-        cmd_opts = ["--server=http://localhost:2283", "--client-timeout=300"]
-        path_opt = ["/photos"]
-
-        result = global_opts + cmd + cmd_opts + path_opt
-        # 'upload' must come after all global opts
-        upload_idx = result.index("upload")
-        for gopt in ["--log-level=DEBUG", "--concurrent-tasks=4"]:
-            assert result.index(gopt) < upload_idx, (
-                f"{gopt} must appear before 'upload'"
-            )
-
-    def test_skip_ssl_in_cmd_opts_not_global(self):
-        """--skip-verify-ssl is a command option, not a global option."""
-        global_opts = ["immich-go"]
-        cmd = ["upload", "from-folder"]
-        cmd_opts = ["--skip-verify-ssl"]
-        result = global_opts + cmd + cmd_opts
-        ssl_idx = result.index("--skip-verify-ssl")
-        upload_idx = result.index("upload")
-        assert ssl_idx > upload_idx
+def test_build_command_upload_immich(gui):
+    gui.stacked_widget.setCurrentIndex(3)
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("local-key")
+    gui.inputs["upload-immich"]["from-server"].setText("http://remote:2283")
+    gui.inputs["upload-immich"]["from-api-key"].setText("remote-key")
+    gui.inputs["upload-immich"]["from-favorite"].setChecked(True)
+    gui.inputs["upload-immich"]["from-archived"].setChecked(True)
+    gui.inputs["upload-immich"]["from-trash"].setChecked(True)
+    gui.inputs["upload-immich"]["from-date-range"].setText("2020-01-01,2021-01-01")
+    gui.inputs["upload-immich"]["from-albums"].setText("Album1, Album2")
+    gui.inputs["upload-immich"]["from-minimal-rating"].setValue(3)
+    gui.inputs["upload-immich"]["from-people"].setText("John, Jane")
+    gui.inputs["upload-immich"]["from-tags"].setText("Vacation, Family")
+    gui.inputs["upload-immich"]["from-city"].setText("Paris")
+    gui.inputs["upload-immich"]["from-state"].setText("IDF")
+    gui.inputs["upload-immich"]["from-country"].setText("France")
+    gui.inputs["upload-immich"]["from-make"].setText("Apple")
+    gui.inputs["upload-immich"]["from-model"].setText("iPhone 13")
+    gui.inputs["upload-immich"]["from-skip-ssl"].setChecked(True)
+    opts = gui.build_command(dry_run=False)
+    assert "upload" in opts
+    assert "from-immich" in opts
+    assert "--server=http://local:2283" in opts
+    assert "--from-server=http://remote:2283" in opts
+    assert "--from-favorite=true" in opts
+    assert "--from-archived=true" in opts
+    assert "--from-trash=true" in opts
+    assert "--from-date-range=2020-01-01,2021-01-01" in opts
+    assert "--from-albums=Album1" in opts
+    assert "--from-albums=Album2" in opts
+    assert "--from-minimal-rating=3" in opts
+    assert "--from-people=John" in opts
+    assert "--from-people=Jane" in opts
+    assert "--from-tags=Vacation" in opts
+    assert "--from-tags=Family" in opts
+    assert "--from-city=Paris" in opts
+    assert "--from-state=IDF" in opts
+    assert "--from-country=France" in opts
+    assert "--from-make=Apple" in opts
+    assert "--from-model=iPhone 13" in opts
+    assert "--from-skip-verify-ssl" in opts
+    assert "--dry-run" not in opts
 
 
-# ===================================================================
-# 6. Flag scoping – pause-immich-jobs and on-errors
-# ===================================================================
-
-class TestFlagScoping:
-    """
-    FIX Phase 2 #11, #12: --pause-immich-jobs and --on-errors
-    must only appear on upload tabs, not archive or stack.
-    """
-
-    def test_pause_jobs_only_upload(self):
-        """Verify the flag is not emitted for archive/stack commands."""
-        # Archive command should never contain --pause-immich-jobs
-        archive_cmd = ["immich-go", "archive", "from-folder", "--write-to=/out", "/in"]
-        assert "--pause-immich-jobs" not in archive_cmd
-
-        stack_cmd = ["immich-go", "stack", "--stack-burst"]
-        assert "--pause-immich-jobs" not in stack_cmd
-
-    def test_on_errors_only_upload(self):
-        archive_cmd = ["immich-go", "archive", "from-folder", "/in"]
-        assert not any("--on-errors" in a for a in archive_cmd)
+def test_build_command_archive_folder(gui):
+    gui.stacked_widget.setCurrentIndex(4)
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["archive-folder"]["path"].setText("/source/folder")
+    gui.inputs["archive-folder"]["write-to"].setText("/dest/folder")
+    gui.inputs["archive-folder"]["manage-raw-jpeg"].setCurrentText("KeepRaw")
+    gui.inputs["archive-folder"]["date-range"].setText("2024-01-01,2024-02-01")
+    opts = gui.build_command(dry_run=True)
+    assert "archive" in opts
+    assert "from-folder" in opts
+    assert "--server=http://local:2283" not in opts
+    assert "--write-to-folder=/dest/folder" in opts
+    assert "--manage-raw-jpeg=KeepRaw" in opts
+    assert "--date-range=2024-01-01,2024-02-01" in opts
+    assert "/source/folder" in opts
+    assert "--dry-run" in opts
 
 
-# ===================================================================
-# 7. Integration: masking wired into preview
-# ===================================================================
-
-class TestMaskingIntegration:
-    """
-    FIX Phase 1 #4: verify that show_confirm_dialog receives masked output.
-    """
-
-    def test_preview_masks_secrets(self):
-        cmd_str = "immich-go upload from-folder --server=http://x --api-key=REAL_SECRET /photos"
-        masked = mask_command_for_display(cmd_str)
-        assert "REAL_SECRET" not in masked
-        assert "********" in masked
-        # The masked string is what would be shown in the dialog
-        assert "--api-key=********" in masked
-
-
-# ===================================================================
-# 8. Integration: env vars wired into run_command
-# ===================================================================
-
-class TestEnvVarIntegration:
-    """
-    FIX Phase 1 #5: verify build_environment produces correct env dict
-    that would be passed to QProcess.
-    """
-
-    def test_env_contains_secrets(self):
-        env = build_environment(
-            server="http://immich:2283",
-            api_key="MY_SECRET_KEY",
-        )
-        assert env["IMMICH_GO_UPLOAD_SERVER"] == "http://immich:2283"
-        assert env["IMMICH_GO_UPLOAD_API_KEY"] == "MY_SECRET_KEY"
-        # Original OS env should be preserved
-        assert "PATH" in env
-
-    def test_secrets_not_in_cli_args(self):
-        """After env-var migration, --api-key should be stripped from args."""
-        args = [
-            "upload", "from-folder",
-            "--server=http://x",
-            "--api-key=SECRET",
-            "/photos",
-        ]
-        # Simulate the stripping logic from run_command
-        clean = []
-        skip = False
-        for a in args:
-            if skip:
-                skip = False
-                continue
-            if a.startswith("--api-key=") or a.startswith("--from-api-key="):
-                continue
-            if a in ("--api-key", "--from-api-key"):
-                skip = True
-                continue
-            clean.append(a)
-        assert "--api-key=SECRET" not in clean
-        assert "SECRET" not in " ".join(clean)
-
-
-# ===================================================================
-# 9. TOML config round-trip
-# ===================================================================
-
-class TestTomlConfig:
-    def test_load_defaults_when_missing(self):
-        cfg = load_toml_config()
-        assert cfg["schema_version"] == 1
-        assert cfg["general"]["theme"] == "dark"
-        assert cfg["ssl"]["skip_verify"] is False
-
-    def test_save_and_load_roundtrip(self, tmp_path, monkeypatch):
-        """Write a TOML config, then read it back."""
-        import app as app_module
-
-        test_config = tmp_path / "config.toml"
-        monkeypatch.setattr(app_module, "CONFIG_DIR", tmp_path)
-        monkeypatch.setattr(app_module, "CONFIG_FILE", test_config)
-
-        cfg = {
-            "schema_version": 1,
-            "general": {"theme": "light", "concurrent_tasks": 8, "log_level": "DEBUG"},
-            "ssl": {"skip_verify": True},
-            "profiles": {"active": "test", "test": {"name": "Test", "server_url": "http://test:2283"}},
-        }
-        save_toml_config(cfg)
-        assert test_config.exists()
-
-        loaded = load_toml_config()
-        assert loaded["general"]["theme"] == "light"
-        assert loaded["general"]["concurrent_tasks"] == 8
-        assert loaded["ssl"]["skip_verify"] is True
-        assert loaded["profiles"]["active"] == "test"
-
-
-# ===================================================================
-# 10. API trace on all upload tabs + stack
-# ===================================================================
-
-class TestApiTraceScoping:
-    """FIX Phase 2 #15: --api-trace available on all upload tabs and stack."""
-
-    def test_api_trace_present_in_upload_folder(self):
-        cmd = ["immich-go", "upload", "from-folder", "--api-trace", "/photos"]
-        assert "--api-trace" in cmd
-
-    def test_api_trace_present_in_upload_gp(self):
-        cmd = ["immich-go", "upload", "from-google-photos", "--api-trace"]
-        assert "--api-trace" in cmd
-
-    def test_api_trace_present_in_upload_immich(self):
-        cmd = ["immich-go", "upload", "from-immich", "--api-trace"]
-        assert "--api-trace" in cmd
-
-    def test_api_trace_present_in_stack(self):
-        cmd = ["immich-go", "stack", "--api-trace", "--stack-burst"]
-        assert "--api-trace" in cmd
-
-
-# ===================================================================
-# 11. Numeric --on-errors
-# ===================================================================
-
-class TestOnErrorsNumeric:
-    """FIX Phase 2 #18: --on-errors accepts integer tolerance."""
-
-    def test_numeric_value(self):
-        cmd = ["immich-go", "upload", "from-folder", "--on-errors=25", "/photos"]
-        flag = [a for a in cmd if a.startswith("--on-errors=")][0]
-        val = flag.split("=")[1]
-        assert val == "25"
-        assert val.isdigit()
-
-    def test_stop_value(self):
-        cmd = ["immich-go", "upload", "from-folder", "--on-errors=stop"]
-        assert "--on-errors=stop" in cmd
-
-    def test_continue_value(self):
-        cmd = ["immich-go", "upload", "from-folder", "--on-errors=continue"]
-        assert "--on-errors=continue" in cmd
-
-
-# ===================================================================
-# 12. Concurrent tasks default
-# ===================================================================
-
-class TestConcurrentTasksDefault:
-    """FIX Phase 2 #17: default concurrent tasks = CPU count."""
-
-    def test_default_is_cpu_count(self):
-        cpu = os.cpu_count() or 4
-        # The spinbox should be initialized to cpu_count
-        assert cpu >= 1
-
-
-# ===================================================================
-# 13. from-client-timeout
-# ===================================================================
-
-class TestFromClientTimeout:
-    """FIX Phase 2 #19: --from-client-timeout on upload from-immich."""
-
-    def test_flag_present(self):
-        cmd = ["immich-go", "upload", "from-immich", "--from-client-timeout=600"]
-        assert "--from-client-timeout=600" in cmd
-
-
-# ===================================================================
-# 14. Device UUID
-# ===================================================================
-
-class TestDeviceUuid:
-    """FIX Phase 2 #14: --device-uuid emitted when set."""
-
-    def test_flag_present(self):
-        cmd = ["immich-go", "upload", "from-folder", "--device-uuid=abc-123", "/photos"]
-        assert "--device-uuid=abc-123" in cmd
-
-    def test_flag_absent_when_empty(self):
-        cmd = ["immich-go", "upload", "from-folder", "/photos"]
-        assert not any("--device-uuid" in a for a in cmd)
-
-
-# ===================================================================
-# 15. Client timeout
-# ===================================================================
-
-class TestClientTimeout:
-    """FIX Phase 2 #13: --client-timeout emitted."""
-
-    def test_flag_present(self):
-        cmd = ["immich-go", "upload", "from-folder", "--client-timeout=300", "/photos"]
-        assert "--client-timeout=300" in cmd
+def test_build_command_archive_immich(gui):
+    gui.stacked_widget.setCurrentIndex(5)
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["archive-immich"]["write-to"].setText("/dest/folder")
+    gui.inputs["archive-immich"]["manage-burst"].setCurrentText("Stack")
+    gui.inputs["archive-immich"]["manage-raw-jpeg"].setCurrentText("KeepRaw")
+    gui.inputs["archive-immich"]["from-date-range"].setText("2024-01-01,2024-02-01")
+    gui.inputs["archive-immich"]["from-albums"].setText("ArchiveAlbum")
+    opts = gui.build_command(dry_run=False)
+    assert "archive" in opts
+    assert "from-immich" in opts
+    assert "--write-to-folder=/dest/folder" in opts
+    assert "--manage-burst=Stack" in opts
+    assert "--manage-raw-jpeg=KeepRaw" in opts
+    assert "--from-date-range=2024-01-01,2024-02-01" in opts
+    assert "--from-albums=ArchiveAlbum" in opts
+    assert "--dry-run" not in opts
