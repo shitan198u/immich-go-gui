@@ -1517,13 +1517,16 @@ class ImmichGoGUI(QMainWindow):
 
         c = self.inputs[tab_key]
 
-        global_opts = ["--no-ui"]
+        global_opts = []
         cmd = []
         cmd_opts = []
         path_opt = []
 
         if "log-level" in c and c["log-level"].currentText() != "INFO":
             global_opts.append(f"--log-level={c['log-level'].currentText()}")
+
+        if tab_key != "stack":
+            cmd_opts.append("--no-ui")
 
         if tab_key == "upload-folder":
             cmd = ["upload", "from-folder"]
@@ -1797,7 +1800,7 @@ class ImmichGoGUI(QMainWindow):
             if "--dry-run" in cmd_opts:
                 cmd_opts.remove("--dry-run")
 
-        return global_opts + cmd + cmd_opts + path_opt
+        return cmd + global_opts + cmd_opts + path_opt
 
     def show_confirm_dialog(self, is_dry_run):
         if self.stacked_widget.currentIndex() == 0:
