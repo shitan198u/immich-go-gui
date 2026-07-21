@@ -36,8 +36,7 @@ SP = QStyle.StandardPixmap
 from theme import (
     THEME_SYSTEM, THEME_LIGHT, THEME_DARK,
     normalize_theme_mode, set_fusion_style,
-    apply_application_theme, connect_system_theme_changes,
-    load_themed_icon
+    apply_application_theme, connect_system_theme_changes
 )
 
 # ==========================================================
@@ -425,7 +424,7 @@ class ImmichGoGUI(QMainWindow):
             self.theme_mode_combo.setCurrentText(mode)
             self.theme_mode_combo.blockSignals(False)
 
-        resolved = apply_application_theme(mode)
+        apply_application_theme(mode)
 
         for widget in self.findChildren(QWidget):
             try:
@@ -433,27 +432,7 @@ class ImmichGoGUI(QMainWindow):
             except TypeError:
                 pass
 
-        self.refresh_sidebar_icons(resolved)
         self.update()
-
-    def refresh_sidebar_icons(self, theme: str):
-        if not hasattr(self, "btn_config"): return
-        
-        nav_buttons = [
-            self.btn_config, self.btn_upload_folder, self.btn_upload_gp,
-            self.btn_upload_immich, self.btn_archive_folder,
-            self.btn_archive_immich, self.btn_stack
-        ]
-        
-        for btn in nav_buttons:
-            if hasattr(btn, "icon_name") and btn.icon_name:
-                btn.setIcon(load_themed_icon(btn.icon_name, theme))
-                btn.setIconSize(QSize(18, 18))
-
-        # Update input field actions
-        for action in self.findChildren(QAction):
-            if hasattr(action, "icon_name") and action.icon_name:
-                action.setIcon(load_themed_icon(action.icon_name, theme))
 
     def on_system_theme_changed(self):
         if getattr(self, "theme_mode", THEME_SYSTEM) == THEME_SYSTEM:
@@ -486,28 +465,36 @@ class ImmichGoGUI(QMainWindow):
         sidebar_layout = QVBoxLayout(sidebar)
         sidebar_layout.setContentsMargins(12, 16, 12, 16)
 
-        self.btn_config = NavItem("Configuration", None)
-        self.btn_config.icon_name = "settings"
+        self.btn_config = NavItem(
+            "Configuration",
+            self._nav_icon("preferences-system", SP.SP_FileDialogDetailedView)
+        )
         self.btn_config.setChecked(True)
         self.btn_config.clicked.connect(
             lambda: self.switch_tab(0, "configuration", self.btn_config)
         )
         sidebar_layout.addWidget(NavGroup("", [self.btn_config]))
 
-        self.btn_upload_folder = NavItem("Folder Upload", None)
-        self.btn_upload_folder.icon_name = "folder-up"
+        self.btn_upload_folder = NavItem(
+            "Folder Upload",
+            self._nav_icon("folder", SP.SP_DirOpenIcon)
+        )
         self.btn_upload_folder.clicked.connect(
             lambda: self.switch_tab(1, "upload · from-folder", self.btn_upload_folder)
         )
 
-        self.btn_upload_gp = NavItem("Google Takeout", None)
-        self.btn_upload_gp.icon_name = "archive"
+        self.btn_upload_gp = NavItem(
+            "Google Takeout",
+            self._nav_icon("package-x-generic", SP.SP_DialogSaveButton)
+        )
         self.btn_upload_gp.clicked.connect(
             lambda: self.switch_tab(2, "upload · from-google-photos", self.btn_upload_gp)
         )
 
-        self.btn_upload_immich = NavItem("From Immich Server", None)
-        self.btn_upload_immich.icon_name = "download-cloud"
+        self.btn_upload_immich = NavItem(
+            "From Immich Server",
+            self._nav_icon("view-refresh", SP.SP_BrowserReload)
+        )
         self.btn_upload_immich.clicked.connect(
             lambda: self.switch_tab(3, "upload · from-immich", self.btn_upload_immich)
         )
@@ -523,14 +510,18 @@ class ImmichGoGUI(QMainWindow):
             )
         )
 
-        self.btn_archive_folder = NavItem("Archive Folder", None)
-        self.btn_archive_folder.icon_name = "hard-drive"
+        self.btn_archive_folder = NavItem(
+            "Archive Folder",
+            self._nav_icon("drive-harddisk", SP.SP_DriveHDIcon)
+        )
         self.btn_archive_folder.clicked.connect(
             lambda: self.switch_tab(4, "archive · from-folder", self.btn_archive_folder)
         )
 
-        self.btn_archive_immich = NavItem("Archive Server", None)
-        self.btn_archive_immich.icon_name = "database"
+        self.btn_archive_immich = NavItem(
+            "Archive Server",
+            self._nav_icon("network-server", SP.SP_DriveNetIcon)
+        )
         self.btn_archive_immich.clicked.connect(
             lambda: self.switch_tab(5, "archive · from-immich", self.btn_archive_immich)
         )
@@ -545,8 +536,10 @@ class ImmichGoGUI(QMainWindow):
             )
         )
 
-        self.btn_stack = NavItem("Stack Assets", None)
-        self.btn_stack.icon_name = "layers"
+        self.btn_stack = NavItem(
+            "Stack Assets",
+            self._nav_icon("view-list", SP.SP_FileDialogListView)
+        )
         self.btn_stack.clicked.connect(
             lambda: self.switch_tab(6, "stack", self.btn_stack)
         )
@@ -608,13 +601,6 @@ class ImmichGoGUI(QMainWindow):
 
         footer_layout = QHBoxLayout(self.footer)
         footer_layout.setContentsMargins(24, 0, 24, 0)
-        
-        self.lbl_running_warning = QLabel("⚠️ Immich-Go is currently running in a terminal. Close the terminal to run another command.")
-        self.lbl_running_warning.setObjectName("RunningWarning")
-        self.lbl_running_warning.setStyleSheet("color: #EAB308; font-weight: 500;")
-        self.lbl_running_warning.setVisible(False)
-        footer_layout.addWidget(self.lbl_running_warning)
-        
         footer_layout.addStretch()
 
         self.btn_dry_run = QPushButton("Preview (Dry Run)")
@@ -760,12 +746,10 @@ class ImmichGoGUI(QMainWindow):
             "Every file inside this folder will be considered."
         )
 
-        theme = getattr(self, "theme_mode", "dark")
         browse_action = self.source_path_edit.addAction(
-            load_themed_icon("folder", theme),
+            self.style().standardIcon(SP.SP_DirIcon),
             QLineEdit.ActionPosition.TrailingPosition
         )
-        browse_action.icon_name = "folder"
         browse_action.triggered.connect(self.browse_local_folder)
 
         card.layout.addLayout(form)
@@ -918,12 +902,10 @@ class ImmichGoGUI(QMainWindow):
 
         form.add_row("Takeout File/Folder Path", self.gp_path_edit)
 
-        theme = getattr(self, "theme_mode", "dark")
         browse_action = self.gp_path_edit.addAction(
-            load_themed_icon("folder", theme),
+            self.style().standardIcon(SP.SP_DirIcon),
             QLineEdit.ActionPosition.TrailingPosition
         )
-        browse_action.icon_name = "folder"
         browse_action.triggered.connect(self.browse_takeout_source)
 
         card.layout.addLayout(form)
@@ -1197,12 +1179,10 @@ class ImmichGoGUI(QMainWindow):
 
         form.add_row("Source Folder Path", p_edit)
 
-        theme = getattr(self, "theme_mode", "dark")
         browse_action = p_edit.addAction(
-            load_themed_icon("folder", theme),
+            self.style().standardIcon(SP.SP_DirIcon),
             QLineEdit.ActionPosition.TrailingPosition
         )
-        browse_action.icon_name = "folder"
         browse_action.triggered.connect(self.browse_local_folder)
 
         card.layout.addLayout(form)
@@ -1508,25 +1488,14 @@ class ImmichGoGUI(QMainWindow):
         return True
 
     def update_status(self):
-        is_running = getattr(self, "running_process", None) is not None
-
-        if is_running:
-            self.lbl_running_warning.setVisible(True)
-            self.btn_run.setEnabled(False)
-            self.btn_dry_run.setEnabled(False)
-        else:
-            self.lbl_running_warning.setVisible(False)
-
         if self.validate_inputs():
             self.status_card.set_server("ok", "Server: Ready")
-            if not is_running:
-                self.btn_run.setEnabled(True)
-                self.btn_dry_run.setEnabled(True)
+            self.btn_run.setEnabled(True)
+            self.btn_dry_run.setEnabled(True)
         else:
             self.status_card.set_server("err", "Server: Not Set")
-            if not is_running:
-                self.btn_run.setEnabled(False)
-                self.btn_dry_run.setEnabled(False)
+            self.btn_run.setEnabled(False)
+            self.btn_dry_run.setEnabled(False)
 
         srv_edit = self.inputs.get("config", {}).get("server")
         srv = srv_edit.text() if srv_edit else ""
@@ -1548,14 +1517,13 @@ class ImmichGoGUI(QMainWindow):
 
         c = self.inputs[tab_key]
 
-        global_opts = []
+        global_opts = ["--no-ui"]
         cmd = []
         cmd_opts = []
         path_opt = []
 
         if "log-level" in c and c["log-level"].currentText() != "INFO":
             global_opts.append(f"--log-level={c['log-level'].currentText()}")
-
 
         if tab_key == "upload-folder":
             cmd = ["upload", "from-folder"]
@@ -1829,7 +1797,7 @@ class ImmichGoGUI(QMainWindow):
             if "--dry-run" in cmd_opts:
                 cmd_opts.remove("--dry-run")
 
-        return cmd + global_opts + cmd_opts + path_opt
+        return global_opts + cmd + cmd_opts + path_opt
 
     def show_confirm_dialog(self, is_dry_run):
         if self.stacked_widget.currentIndex() == 0:
@@ -1943,8 +1911,7 @@ class ImmichGoGUI(QMainWindow):
         return None
 
     def check_binary_version(self):
-        user_home = os.path.expanduser("~")
-        binary_folder = os.path.abspath(os.path.join(user_home, ".immich-go-gui", "bin"))
+        binary_folder = os.path.abspath(os.path.join(os.getcwd(), "immich-go"))
         binary_filename = "immich-go.exe" if sys.platform.startswith("win") else "immich-go"
         self.binary_path = os.path.join(binary_folder, binary_filename)
 
@@ -2034,8 +2001,7 @@ class ImmichGoGUI(QMainWindow):
             self.update_binary(force_download=True)
 
     def update_binary(self, force_download=False):
-        user_home = os.path.expanduser("~")
-        binary_folder = os.path.abspath(os.path.join(user_home, ".immich-go-gui", "bin"))
+        binary_folder = os.path.abspath(os.path.join(os.getcwd(), "immich-go"))
 
         if not os.path.exists(binary_folder):
             os.makedirs(binary_folder)
@@ -2245,18 +2211,20 @@ class ImmichGoGUI(QMainWindow):
 
             if sys.platform.startswith("win"):
                 cmd_string = subprocess.list2cmdline(command)
-                subprocess.Popen(
+                proc = subprocess.Popen(
                     ["cmd", "/c", "start", "cmd", "/k", cmd_string],
                     shell=True,
                     creationflags=subprocess.CREATE_NEW_CONSOLE
                 )
+                self.running_process = proc.pid
 
             elif sys.platform.startswith("darwin"):
                 apple_script = (
                     'tell application "Terminal" to do script '
                     f'"{shlex.join(command)}; exec bash"'
                 )
-                subprocess.Popen(["osascript", "-e", apple_script])
+                proc = subprocess.Popen(["osascript", "-e", apple_script])
+                self.running_process = proc
 
             else:
                 terminals = [
@@ -2268,7 +2236,8 @@ class ImmichGoGUI(QMainWindow):
 
                 for term in terminals:
                     try:
-                        subprocess.Popen(term)
+                        proc = subprocess.Popen(term)
+                        self.running_process = proc
                         break
                     except FileNotFoundError:
                         continue
@@ -2278,15 +2247,9 @@ class ImmichGoGUI(QMainWindow):
                     self.btn_dry_run.setDisabled(False)
                     return
 
-            self.running_process = True
-            self.immich_go_pid = None
-            self.launch_grace_period = 6
-
             self.check_process_timer = QTimer()
             self.check_process_timer.timeout.connect(self.check_if_process_running)
-            self.check_process_timer.start(500)
-
-            self.update_status()
+            self.check_process_timer.start(1000)
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to run command: {e}")
@@ -2296,30 +2259,20 @@ class ImmichGoGUI(QMainWindow):
     def check_if_process_running(self):
         still_running = False
 
-        if getattr(self, "immich_go_pid", None) is not None:
-            if psutil.pid_exists(self.immich_go_pid):
+        if sys.platform.startswith("win"):
+            if psutil.pid_exists(self.running_process):
                 still_running = True
         else:
-            for proc in psutil.process_iter(['name']):
-                try:
-                    name = proc.info['name'].lower()
-                    if 'immich-go' in name:
-                        still_running = True
-                        self.immich_go_pid = proc.pid
-                        break
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                    continue
+            if hasattr(self.running_process, "poll") and self.running_process.poll() is None:
+                still_running = True
 
         if still_running:
-            self.launch_grace_period = 0
-        elif getattr(self, "launch_grace_period", 0) > 0:
-            self.launch_grace_period -= 1
-            still_running = True
-
-        if not still_running:
+            self.status_card.set_server("warn", "Running... Close terminal to continue.")
+        else:
             self.check_process_timer.stop()
             self.running_process = None
-            self.immich_go_pid = None
+            self.btn_run.setDisabled(False)
+            self.btn_dry_run.setDisabled(False)
             self.update_status()
 
     # ==========================================================
