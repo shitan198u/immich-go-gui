@@ -1,0 +1,14 @@
+name: "immich-go-gui"
+arch: "amd64"
+platform: "linux"
+version: "${VERSION:-1.0.0}"
+description: "GUI for Immich-Go"
+homepage: "https://github.com/shitan198u/immich-go-gui"
+license: "MIT"
+contents:
+  - src: ../../app.dist/
+    dst: /opt/immich-go-gui/
+  - src: ../../immich-go-gui.png
+    dst: /usr/share/pixmaps/immich-go-gui.png
+  - src: ./immich-go-gui.desktop
+    dst: /usr/share/applications/immich-go-gui.desktop
