@@ -1,6 +1,8 @@
 from PySide6.QtWidgets import QApplication, QStyleFactory
-from PySide6.QtGui import QGuiApplication, QPalette, QColor
-from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication, QPalette, QColor, QIcon, QPixmap, QPainter
+from PySide6.QtCore import Qt, QByteArray
+from PySide6.QtSvg import QSvgRenderer
+import os
 
 THEME_SYSTEM = "System"
 THEME_LIGHT = "Light"
@@ -519,3 +521,31 @@ def connect_system_theme_changes(callback):
             return True
     except Exception: pass
     return False
+
+def load_themed_icon(icon_name: str, theme: str) -> QIcon:
+    """Loads an SVG icon from assets/icons and colors it based on the theme."""
+    t = theme_tokens(theme)
+    # Using text_muted for a subtle unselected look in sidebar
+    color = t["text_muted"]
+    
+    svg_path = os.path.join(os.path.dirname(__file__), "assets", "icons", f"{icon_name}.svg")
+    
+    if not os.path.exists(svg_path):
+        return QIcon()
+        
+    with open(svg_path, "r", encoding="utf-8") as f:
+        svg_content = f.read()
+        
+    svg_content = svg_content.replace('currentColor', color)
+    
+    renderer = QSvgRenderer(QByteArray(svg_content.encode("utf-8")))
+    pixmap = QPixmap(20, 20)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    
+    painter = QPainter(pixmap)
+    # Improve rendering quality
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    renderer.render(painter)
+    painter.end()
+    
+    return QIcon(pixmap)

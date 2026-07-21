@@ -36,7 +36,8 @@ SP = QStyle.StandardPixmap
 from theme import (
     THEME_SYSTEM, THEME_LIGHT, THEME_DARK,
     normalize_theme_mode, set_fusion_style,
-    apply_application_theme, connect_system_theme_changes
+    apply_application_theme, connect_system_theme_changes,
+    load_themed_icon
 )
 
 # ==========================================================
@@ -424,7 +425,7 @@ class ImmichGoGUI(QMainWindow):
             self.theme_mode_combo.setCurrentText(mode)
             self.theme_mode_combo.blockSignals(False)
 
-        apply_application_theme(mode)
+        resolved = apply_application_theme(mode)
 
         for widget in self.findChildren(QWidget):
             try:
@@ -432,7 +433,27 @@ class ImmichGoGUI(QMainWindow):
             except TypeError:
                 pass
 
+        self.refresh_sidebar_icons(resolved)
         self.update()
+
+    def refresh_sidebar_icons(self, theme: str):
+        if not hasattr(self, "btn_config"): return
+        
+        nav_buttons = [
+            self.btn_config, self.btn_upload_folder, self.btn_upload_gp,
+            self.btn_upload_immich, self.btn_archive_folder,
+            self.btn_archive_immich, self.btn_stack
+        ]
+        
+        for btn in nav_buttons:
+            if hasattr(btn, "icon_name") and btn.icon_name:
+                btn.setIcon(load_themed_icon(btn.icon_name, theme))
+                btn.setIconSize(QSize(18, 18))
+
+        # Update input field actions
+        for action in self.findChildren(QAction):
+            if hasattr(action, "icon_name") and action.icon_name:
+                action.setIcon(load_themed_icon(action.icon_name, theme))
 
     def on_system_theme_changed(self):
         if getattr(self, "theme_mode", THEME_SYSTEM) == THEME_SYSTEM:
@@ -465,36 +486,28 @@ class ImmichGoGUI(QMainWindow):
         sidebar_layout = QVBoxLayout(sidebar)
         sidebar_layout.setContentsMargins(12, 16, 12, 16)
 
-        self.btn_config = NavItem(
-            "Configuration",
-            self._nav_icon("preferences-system", SP.SP_FileDialogDetailedView)
-        )
+        self.btn_config = NavItem("Configuration", None)
+        self.btn_config.icon_name = "settings"
         self.btn_config.setChecked(True)
         self.btn_config.clicked.connect(
             lambda: self.switch_tab(0, "configuration", self.btn_config)
         )
         sidebar_layout.addWidget(NavGroup("", [self.btn_config]))
 
-        self.btn_upload_folder = NavItem(
-            "Folder Upload",
-            self._nav_icon("folder", SP.SP_DirOpenIcon)
-        )
+        self.btn_upload_folder = NavItem("Folder Upload", None)
+        self.btn_upload_folder.icon_name = "folder-up"
         self.btn_upload_folder.clicked.connect(
             lambda: self.switch_tab(1, "upload · from-folder", self.btn_upload_folder)
         )
 
-        self.btn_upload_gp = NavItem(
-            "Google Takeout",
-            self._nav_icon("package-x-generic", SP.SP_DialogSaveButton)
-        )
+        self.btn_upload_gp = NavItem("Google Takeout", None)
+        self.btn_upload_gp.icon_name = "archive"
         self.btn_upload_gp.clicked.connect(
             lambda: self.switch_tab(2, "upload · from-google-photos", self.btn_upload_gp)
         )
 
-        self.btn_upload_immich = NavItem(
-            "From Immich Server",
-            self._nav_icon("view-refresh", SP.SP_BrowserReload)
-        )
+        self.btn_upload_immich = NavItem("From Immich Server", None)
+        self.btn_upload_immich.icon_name = "download-cloud"
         self.btn_upload_immich.clicked.connect(
             lambda: self.switch_tab(3, "upload · from-immich", self.btn_upload_immich)
         )
@@ -510,18 +523,14 @@ class ImmichGoGUI(QMainWindow):
             )
         )
 
-        self.btn_archive_folder = NavItem(
-            "Archive Folder",
-            self._nav_icon("drive-harddisk", SP.SP_DriveHDIcon)
-        )
+        self.btn_archive_folder = NavItem("Archive Folder", None)
+        self.btn_archive_folder.icon_name = "hard-drive"
         self.btn_archive_folder.clicked.connect(
             lambda: self.switch_tab(4, "archive · from-folder", self.btn_archive_folder)
         )
 
-        self.btn_archive_immich = NavItem(
-            "Archive Server",
-            self._nav_icon("network-server", SP.SP_DriveNetIcon)
-        )
+        self.btn_archive_immich = NavItem("Archive Server", None)
+        self.btn_archive_immich.icon_name = "database"
         self.btn_archive_immich.clicked.connect(
             lambda: self.switch_tab(5, "archive · from-immich", self.btn_archive_immich)
         )
@@ -536,10 +545,8 @@ class ImmichGoGUI(QMainWindow):
             )
         )
 
-        self.btn_stack = NavItem(
-            "Stack Assets",
-            self._nav_icon("view-list", SP.SP_FileDialogListView)
-        )
+        self.btn_stack = NavItem("Stack Assets", None)
+        self.btn_stack.icon_name = "layers"
         self.btn_stack.clicked.connect(
             lambda: self.switch_tab(6, "stack", self.btn_stack)
         )
@@ -753,10 +760,12 @@ class ImmichGoGUI(QMainWindow):
             "Every file inside this folder will be considered."
         )
 
+        theme = getattr(self, "theme_mode", "dark")
         browse_action = self.source_path_edit.addAction(
-            self.style().standardIcon(SP.SP_DirIcon),
+            load_themed_icon("folder", theme),
             QLineEdit.ActionPosition.TrailingPosition
         )
+        browse_action.icon_name = "folder"
         browse_action.triggered.connect(self.browse_local_folder)
 
         card.layout.addLayout(form)
@@ -909,10 +918,12 @@ class ImmichGoGUI(QMainWindow):
 
         form.add_row("Takeout File/Folder Path", self.gp_path_edit)
 
+        theme = getattr(self, "theme_mode", "dark")
         browse_action = self.gp_path_edit.addAction(
-            self.style().standardIcon(SP.SP_DirIcon),
+            load_themed_icon("folder", theme),
             QLineEdit.ActionPosition.TrailingPosition
         )
+        browse_action.icon_name = "folder"
         browse_action.triggered.connect(self.browse_takeout_source)
 
         card.layout.addLayout(form)
@@ -1186,10 +1197,12 @@ class ImmichGoGUI(QMainWindow):
 
         form.add_row("Source Folder Path", p_edit)
 
+        theme = getattr(self, "theme_mode", "dark")
         browse_action = p_edit.addAction(
-            self.style().standardIcon(SP.SP_DirIcon),
+            load_themed_icon("folder", theme),
             QLineEdit.ActionPosition.TrailingPosition
         )
+        browse_action.icon_name = "folder"
         browse_action.triggered.connect(self.browse_local_folder)
 
         card.layout.addLayout(form)
