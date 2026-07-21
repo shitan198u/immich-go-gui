@@ -11,10 +11,28 @@
 * **UI:** migrate app.py to new architecture and expand test suite ([f47355b](https://github.com/shitan198u/immich-go-gui/commit/f47355b))
 
 
+### Refactoring
+
+* **UI:** modularize theme engine and fix syntax errors ([584d9b2](https://github.com/shitan198u/immich-go-gui/commit/584d9b2))
+* **UI:** transition to dynamic semantic token theme engine (Fusion) ([c4eb2e4](https://github.com/shitan198u/immich-go-gui/commit/c4eb2e4))
+* **UI:** Phase 2 - Refinement and Validation ([466b94b](https://github.com/shitan198u/immich-go-gui/commit/466b94b))
+* **UI:** Phase 1 - Core Architecture ([7f2e4d6](https://github.com/shitan198u/immich-go-gui/commit/7f2e4d6))
+* **UI:** Phase 0 - Critical Bug Fixes for layout striping ([66c55c4](https://github.com/shitan198u/immich-go-gui/commit/66c55c4))
+* **UI:** cleanup temporary migration scripts and update UI stylesheet ([eb58b69](https://github.com/shitan198u/immich-go-gui/commit/eb58b69))
+
+
 ### Bug Fixes
 
 * **cli:** correct command argument ordering and --no-ui flag handling ([e472e77](https://github.com/shitan198u/immich-go-gui/commit/e472e775c99cd127ec01491ec13346603ea5e5d2))
 * resolve permission denied error for installer builds by downloading binary to user home directory ([45ee1f1](https://github.com/shitan198u/immich-go-gui/commit/45ee1f1e398c47e3480e11337543d8db6d8ecfa9))
+* **ui:** prevent TypeError on QListView.update() in theme engine ([df917dc](https://github.com/shitan198u/immich-go-gui/commit/df917dc))
+* **ui:** correct folder icon assignment in Archive Server tab ([ed68ac9](https://github.com/shitan198u/immich-go-gui/commit/ed68ac9))
+* **ui:** expand BasePage container for uniform tab widths ([50cd140](https://github.com/shitan198u/immich-go-gui/commit/50cd140))
+* **ui:** correct binary status checks for eliding labels ([50974ff](https://github.com/shitan198u/immich-go-gui/commit/50974ff))
+* **ui:** Track 2 - Icons and Status Indicators (No Emoji) ([f3577b6](https://github.com/shitan198u/immich-go-gui/commit/f3577b6))
+* **ui:** Track 1 - UI sizing & right-edge clipping ([6a3ec41](https://github.com/shitan198u/immich-go-gui/commit/6a3ec41))
+* **ui:** UI changes before qwen plan ([1d98bb7](https://github.com/shitan198u/immich-go-gui/commit/1d98bb7))
+* **ui:** convert _build_config_tab to new native component structure ([9b516d7](https://github.com/shitan198u/immich-go-gui/commit/9b516d7))
 
 ## [0.9.4](https://github.com/shitan198u/immich-go-gui/compare/v0.9.3...v0.9.4) (2026-07-20)
 
