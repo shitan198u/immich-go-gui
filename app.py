@@ -1943,7 +1943,8 @@ class ImmichGoGUI(QMainWindow):
         return None
 
     def check_binary_version(self):
-        binary_folder = os.path.abspath(os.path.join(os.getcwd(), "immich-go"))
+        user_home = os.path.expanduser("~")
+        binary_folder = os.path.abspath(os.path.join(user_home, ".immich-go-gui", "bin"))
         binary_filename = "immich-go.exe" if sys.platform.startswith("win") else "immich-go"
         self.binary_path = os.path.join(binary_folder, binary_filename)
 
@@ -2033,7 +2034,8 @@ class ImmichGoGUI(QMainWindow):
             self.update_binary(force_download=True)
 
     def update_binary(self, force_download=False):
-        binary_folder = os.path.abspath(os.path.join(os.getcwd(), "immich-go"))
+        user_home = os.path.expanduser("~")
+        binary_folder = os.path.abspath(os.path.join(user_home, ".immich-go-gui", "bin"))
 
         if not os.path.exists(binary_folder):
             os.makedirs(binary_folder)

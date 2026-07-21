@@ -2,6 +2,11 @@ name: Build and Release Apps
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version for test build (e.g., 0.9.5-rc1)'
+        required: false
+        default: '1.0.0-test'
   push:
     # branches:
     #   - master
@@ -11,6 +16,10 @@ on:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
+    env:
+      VERSION: '1.0.0'
     strategy:
       fail-fast: false
       matrix:
@@ -26,21 +35,50 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
 
+      - name: Set Version
+        id: set-version
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.version }}" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=${GITHUB_REF_NAME#v}
+            if [[ "$VERSION" == *"/"* ]] || [[ -z "$VERSION" ]]; then VERSION="1.0.0-test"; fi
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Setup uv
         uses: astral-sh/setup-uv@v7
 
       - name: Install dependencies
         run: uv sync
 
-      - name: Add Nuitka
-        run: uv add --dev nuitka
+      - name: Add Build Tools
+        run: uv add --dev nuitka pillow
 
       # --- WINDOWS BUILD ---
       - name: Build Windows
         if: matrix.name == 'windows'
+        shell: bash
         run: |
-          uv run python -m nuitka --assume-yes-for-downloads --onefile --windows-console-mode=disable --enable-plugin=pyside6 --include-data-files=immich-go-gui.png=immich-go-gui.png app.py
-          mv app.exe Immich-Go-GUI-Windows.exe
+          uv run python -c "from PIL import Image; Image.open('immich-go-gui.png').save('immich-go-gui.ico')"
+          NUMERIC_VERSION=$(echo "${{ env.VERSION }}" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' || echo "1.0.0")
+          uv run python -m nuitka --assume-yes-for-downloads --standalone --windows-console-mode=disable --enable-plugin=pyside6 --windows-icon-from-ico=immich-go-gui.ico --company-name="Shitan198u" --product-name="Immich-Go GUI" --file-version="${NUMERIC_VERSION}.0" --product-version="${NUMERIC_VERSION}.0" --file-description="Immich-Go Graphical User Interface" --copyright="MIT License" --include-data-files=immich-go-gui.png=immich-go-gui.png app.py
+
+      - name: Create Windows Portable Archive
+        if: matrix.name == 'windows'
+        run: |
+          Rename-Item -Path "app.dist/app.exe" -NewName "Immich-Go-GUI.exe"
+          Set-Content -Path "app.dist/README.txt" -Value "To launch the application, simply double-click the file named Immich-Go-GUI.exe. You do not need to install anything else."
+          Compress-Archive -Path "app.dist/*" -DestinationPath "Immich-Go-GUI-Windows-Portable.zip"
+
+      - name: Compile Windows Installer
+        if: matrix.name == 'windows'
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+        with:
+          path: packaging/windows/installer.iss
+          options: /O"${{ github.workspace }}" /DMyAppVersion=${{ env.VERSION }}
 
       # --- MACOS BUILD ---
       - name: Build macOS
@@ -51,35 +89,60 @@ jobs:
           create-dmg app.app || true
           mv *.dmg Immich-Go-GUI-macOS.dmg
 
-      # --- LINUX APPIMAGE BUILD ---
-      - name: Build Linux AppImage
+      # --- LINUX BUILD ---
+      - name: Build Linux Standalone
         if: matrix.name == 'linux'
         run: |
           uv run python -m nuitka --assume-yes-for-downloads --standalone --enable-plugin=pyside6 --include-data-files=immich-go-gui.png=immich-go-gui.png app.py
-          
+
+      - name: Create Linux Portable Archive
+        if: matrix.name == 'linux'
+        run: |
+          mv app.dist/app.bin app.dist/Immich-Go-GUI
+          echo "To launch the application, double-click the file named Immich-Go-GUI, or run ./Immich-Go-GUI in the terminal. You do not need to install anything else." > app.dist/README.txt
+          tar -czvf Immich-Go-GUI-Linux-Portable.tar.gz -C app.dist .
+
+      - name: Build Linux AppImage
+        if: matrix.name == 'linux'
+        run: |
           mkdir -p AppDir/usr/bin
           cp -r app.dist/* AppDir/usr/bin/
           cp immich-go-gui.png AppDir/
-          
+
           cat << 'EOF' > AppDir/immich-go-gui.desktop
           [Desktop Entry]
           Name=Immich-Go GUI
-          Exec=app.bin
+          Exec=Immich-Go-GUI
           Icon=immich-go-gui
           Type=Application
           Categories=Utility;
           EOF
-          
+
           cat << 'EOF' > AppDir/AppRun
           #!/bin/sh
           HERE="$(dirname "$(readlink -f "${0}")")"
-          exec "${HERE}/usr/bin/app.bin" "$@"
+          exec "${HERE}/usr/bin/Immich-Go-GUI" "$@"
           EOF
           chmod +x AppDir/AppRun
-          
+
           wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
           chmod +x appimagetool
           ./appimagetool --appimage-extract-and-run AppDir Immich-Go-GUI-Linux.AppImage
+
+      - name: Install nFPM
+        if: matrix.name == 'linux'
+        run: |
+          URL=$(curl -s https://api.github.com/repos/goreleaser/nfpm/releases/latest | jq -r '.assets[] | select(.name | endswith("Linux_x86_64.tar.gz")) | .browser_download_url')
+          curl -sL $URL | tar xz nfpm
+          sudo mv nfpm /usr/local/bin/
+
+      - name: Build DEB and RPM
+        if: matrix.name == 'linux'
+        run: |
+          cd packaging/linux
+          nfpm pkg --packager deb --target ../../Immich-Go-GUI-Linux.deb
+          nfpm pkg --packager rpm --target ../../Immich-Go-GUI-Linux.rpm
+
 
       # --- UPLOAD ARTIFACTS ---
       - name: Upload Artifacts
@@ -87,9 +150,13 @@ jobs:
         with:
           name: Immich-Go-GUI-${{ matrix.name }}
           path: |
-            Immich-Go-GUI-Windows.exe
+            Immich-Go-GUI-Windows-Setup.exe
+            Immich-Go-GUI-Windows-Portable.zip
             Immich-Go-GUI-macOS.dmg
             Immich-Go-GUI-Linux.AppImage
+            Immich-Go-GUI-Linux-Portable.tar.gz
+            Immich-Go-GUI-Linux.deb
+            Immich-Go-GUI-Linux.rpm
 
   release:
     needs: build
@@ -102,24 +169,32 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
-      
+
       - name: Create Official Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
           files: |
-            artifacts/Immich-Go-GUI-Windows.exe
+            artifacts/Immich-Go-GUI-Windows-Setup.exe
+            artifacts/Immich-Go-GUI-Windows-Portable.zip
             artifacts/Immich-Go-GUI-macOS.dmg
             artifacts/Immich-Go-GUI-Linux.AppImage
+            artifacts/Immich-Go-GUI-Linux-Portable.tar.gz
+            artifacts/Immich-Go-GUI-Linux.deb
+            artifacts/Immich-Go-GUI-Linux.rpm
 
       - name: Create Test Pre-Release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: test-build
-          name: "Test Build (Unofficial)"
+          tag_name: "test-${{ needs.build.outputs.version }}"
+          name: "Test Build test-${{ needs.build.outputs.version }}"
           prerelease: true
           files: |
-            artifacts/Immich-Go-GUI-Windows.exe
+            artifacts/Immich-Go-GUI-Windows-Setup.exe
+            artifacts/Immich-Go-GUI-Windows-Portable.zip
             artifacts/Immich-Go-GUI-macOS.dmg
             artifacts/Immich-Go-GUI-Linux.AppImage
+            artifacts/Immich-Go-GUI-Linux-Portable.tar.gz
+            artifacts/Immich-Go-GUI-Linux.deb
+            artifacts/Immich-Go-GUI-Linux.rpm
