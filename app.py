@@ -498,6 +498,26 @@ class ImmichGoGUI(QMainWindow):
         line_edit.dragEnterEvent = self.dragEnterEvent
         line_edit.dropEvent = lambda e, le=line_edit: self.dropEvent(e, le)
 
+    def _add_ssl_skip_row(self, form: FormSection, tab_dict: dict, key: str = "skip-ssl", label_text: str = "Skip SSL Verification"):
+        chk_ssl = QCheckBox(label_text)
+        tab_dict[key] = chk_ssl
+
+        container = QVBoxLayout()
+        container.setContentsMargins(0, 0, 0, 0)
+        container.setSpacing(4)
+        container.addWidget(chk_ssl)
+
+        warn_lbl = QLabel("⚠️ Skipping SSL verification reduces security. Use only for trusted self-hosted servers with self-signed certificates.")
+        warn_lbl.setObjectName("WarningHint")
+        warn_lbl.setWordWrap(True)
+        warn_lbl.setVisible(False)
+
+        container.addWidget(warn_lbl)
+        chk_ssl.toggled.connect(warn_lbl.setVisible)
+
+        form.addRow("", container)
+        return chk_ssl
+
     def _build_sidebar(self):
         sidebar = QFrame()
         sidebar.setObjectName("Sidebar")
@@ -673,6 +693,8 @@ class ImmichGoGUI(QMainWindow):
             self.api_key_edit,
             "You can generate an API key in Immich under Account Settings -> API Keys."
         )
+
+        self._add_ssl_skip_row(form, self.inputs["config"])
 
         card.layout.addLayout(form)
         page.addWidget(card)
@@ -1600,6 +1622,9 @@ class ImmichGoGUI(QMainWindow):
             if api:
                 cmd_opts.append(f"--api-key={api}")
 
+            if self.inputs["config"]["skip-ssl"].isChecked():
+                cmd_opts.append("--skip-verify-ssl")
+
         conc = self.inputs["config"]["concurrent"].value()
         if conc != 2:
             cmd_opts.append(f"--concurrent-tasks={conc}")
@@ -1668,9 +1693,6 @@ class ImmichGoGUI(QMainWindow):
             if c["folder-tags"].isChecked():
                 cmd_opts.append("--folder-as-tags")
 
-            if c["skip-ssl"].isChecked():
-                cmd_opts.append("--skip-verify-ssl")
-
             if c["api-trace"].isChecked():
                 cmd_opts.append("--api-trace")
 
@@ -1724,9 +1746,6 @@ class ImmichGoGUI(QMainWindow):
 
             if c["session-tag"].isChecked():
                 cmd_opts.append("--session-tag")
-
-            if c["skip-ssl"].isChecked():
-                cmd_opts.append("--skip-verify-ssl")
 
             if c["path"].text():
                 path_opt.append(c["path"].text())
@@ -1783,9 +1802,6 @@ class ImmichGoGUI(QMainWindow):
             if c["from-model"].text():
                 cmd_opts.append(f"--from-model={c['from-model'].text()}")
 
-            if c["skip-ssl"].isChecked():
-                cmd_opts.append("--skip-verify-ssl")
-
             if c["from-skip-ssl"].isChecked():
                 cmd_opts.append("--from-skip-verify-ssl")
 
@@ -1820,9 +1836,6 @@ class ImmichGoGUI(QMainWindow):
                     if a.strip():
                         cmd_opts.append(f"--from-albums={a.strip()}")
 
-            if c["skip-ssl"].isChecked():
-                cmd_opts.append("--skip-verify-ssl")
-
         elif tab_key == "stack":
             if c["manage-burst"].currentText() != "NoStack":
                 cmd_opts.append(f"--manage-burst={c['manage-burst'].currentText()}")
@@ -1838,9 +1851,6 @@ class ImmichGoGUI(QMainWindow):
 
             if c["manage-epson"].isChecked():
                 cmd_opts.append("--manage-epson-fastfoto=true")
-
-            if c["skip-ssl"].isChecked():
-                cmd_opts.append("--skip-verify-ssl")
 
         if dry_run:
             if "--dry-run" not in cmd_opts:
@@ -2349,6 +2359,8 @@ class ImmichGoGUI(QMainWindow):
     def save_configuration(self):
         self.settings.setValue("server_url", self.inputs["config"]["server"].text())
         self.settings.setValue("api_key", self.inputs["config"]["api_key"].text())
+        if "skip-ssl" in self.inputs["config"]:
+            self.settings.setValue("skip_ssl", self.inputs["config"]["skip-ssl"].isChecked())
 
         if hasattr(self, "theme_mode_combo"):
             self.settings.setValue("theme_mode", self.theme_mode_combo.currentText())
@@ -2363,6 +2375,11 @@ class ImmichGoGUI(QMainWindow):
         self.inputs["config"]["api_key"].setText(
             self.settings.value("api_key", "")
         )
+
+        if "skip-ssl" in self.inputs["config"]:
+            self.inputs["config"]["skip-ssl"].setChecked(
+                self.settings.value("skip_ssl", False, type=bool)
+            )
 
         theme_mode = normalize_theme_mode(
             self.settings.value("theme_mode", THEME_SYSTEM)

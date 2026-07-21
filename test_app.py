@@ -228,3 +228,10 @@ def test_build_command_archive_immich(gui):
     assert "--from-date-range=2024-01-01,2024-02-01" in opts
     assert "--from-albums=ArchiveAlbum" in opts
     assert "--dry-run" not in opts
+
+
+def test_global_skip_ssl_option(gui):
+    gui.inputs["config"]["skip-ssl"].setChecked(True)
+    gui.stacked_widget.setCurrentIndex(1)
+    opts = gui.build_command(dry_run=True)
+    assert "--skip-verify-ssl" in opts
