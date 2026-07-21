@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.10.0](https://github.com/shitan198u/immich-go-gui/compare/v0.9.4...v0.10.0) (2026-07-21)
+## [1.0.0](https://github.com/shitan198u/immich-go-gui/compare/v0.9.4...v1.0.0) (2026-07-21)
 
 
 ### Features
@@ -8,6 +8,7 @@
 * **cli:** enable native immich-go UI by default ([033574e](https://github.com/shitan198u/immich-go-gui/commit/033574ef67b395f24ecd640e55c51bb6536cbbf2))
 * custom dynamic svg icons for theming ([8337003](https://github.com/shitan198u/immich-go-gui/commit/83370032cedc00e5d941fe0e97fbf4bfb9dec8ec))
 * robust process tracking using psutil ([6995514](https://github.com/shitan198u/immich-go-gui/commit/69955148e24c614e2da806452fa74d78183312ed))
+* **UI:** migrate app.py to new architecture and expand test suite ([f47355b](https://github.com/shitan198u/immich-go-gui/commit/f47355b))
 
 
 ### Bug Fixes
