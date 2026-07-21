@@ -28,6 +28,8 @@ import platform
 import webbrowser
 import zipfile
 import tarfile
+import glob
+import keyring
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -59,6 +61,93 @@ from theme import (
     apply_application_theme, connect_system_theme_changes,
     load_themed_icon
 )
+
+# ==========================================================
+# PURE UTILITY & SECRET HELPERS
+# ==========================================================
+
+def collect_paths(raw_text: str) -> list[str]:
+    """Expands glob patterns and handles multi-line path inputs."""
+    paths = []
+    for line in raw_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        expanded = glob.glob(line, recursive=True)
+        if expanded:
+            paths.extend(expanded)
+        else:
+            paths.append(line)
+    return paths
+
+
+def mask_command_for_display(command_parts: list[str]) -> list[str]:
+    """Obfuscates secrets in command previews."""
+    masked = []
+    secret_flags = {"--api-key", "--from-api-key"}
+    for part in command_parts:
+        hidden = False
+        for flag in secret_flags:
+            if part.startswith(f"{flag}="):
+                masked.append(f"{flag}=********")
+                hidden = True
+                break
+        if not hidden:
+            masked.append(part)
+    return masked
+
+
+def build_environment(tab_key: str, server: str, api_key: str, from_server: str = "", from_api_key: str = "") -> dict:
+    """Builds a secure environment dict to pass secrets without CLI exposure."""
+    env = os.environ.copy()
+    if tab_key in {"upload-folder", "upload-gp", "upload-immich"}:
+        if server:
+            env["IMMICH_GO_UPLOAD_SERVER"] = server
+        if api_key:
+            env["IMMICH_GO_UPLOAD_API_KEY"] = api_key
+    if tab_key == "upload-immich":
+        if from_server:
+            env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER"] = from_server
+        if from_api_key:
+            env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY"] = from_api_key
+    if tab_key == "archive-immich":
+        if server:
+            env["IMMICH_GO_ARCHIVE_SERVER"] = server
+        if api_key:
+            env["IMMICH_GO_ARCHIVE_API_KEY"] = api_key
+    if tab_key == "stack":
+        if server:
+            env["IMMICH_GO_STACK_SERVER"] = server
+        if api_key:
+            env["IMMICH_GO_STACK_API_KEY"] = api_key
+    return env
+
+
+class SecretStore:
+    """Manages API keys via the OS-native keychain."""
+    SERVICE_NAME = "immich-go-gui"
+
+    @staticmethod
+    def set_api_key(api_key: str):
+        try:
+            keyring.set_password(SecretStore.SERVICE_NAME, "immich_api_key", api_key)
+        except Exception:
+            pass
+
+    @staticmethod
+    def get_api_key() -> str:
+        try:
+            return keyring.get_password(SecretStore.SERVICE_NAME, "immich_api_key") or ""
+        except Exception:
+            return ""
+
+    @staticmethod
+    def clear_api_key():
+        try:
+            keyring.delete_password(SecretStore.SERVICE_NAME, "immich_api_key")
+        except Exception:
+            pass
+
 
 # ==========================================================
 # CUSTOM WIDGETS
@@ -2253,6 +2342,18 @@ class ImmichGoGUI(QMainWindow):
                 return False
 
         return True
+
+    def build_environment(self, tab_key: str = None) -> dict:
+        if tab_key is None:
+            idx = self.stacked_widget.currentIndex()
+            tab_key = self.TAB_KEYS[idx] if idx < len(self.TAB_KEYS) else ""
+
+        server = self.inputs.get("config", {}).get("server").text().strip() if self.inputs.get("config", {}).get("server") else ""
+        api_key = self.inputs.get("config", {}).get("api_key").text().strip() if self.inputs.get("config", {}).get("api_key") else ""
+        from_server = self.inputs.get("upload-immich", {}).get("from-server").text().strip() if self.inputs.get("upload-immich", {}).get("from-server") else ""
+        from_api_key = self.inputs.get("upload-immich", {}).get("from-api-key").text().strip() if self.inputs.get("upload-immich", {}).get("from-api-key") else ""
+
+        return build_environment(tab_key, server, api_key, from_server, from_api_key)
 
     def run_command(self, command_parts=None):
         if command_parts is None:
