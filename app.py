@@ -601,6 +601,13 @@ class ImmichGoGUI(QMainWindow):
 
         footer_layout = QHBoxLayout(self.footer)
         footer_layout.setContentsMargins(24, 0, 24, 0)
+        
+        self.lbl_running_warning = QLabel("⚠️ Immich-Go is currently running in a terminal. Close the terminal to run another command.")
+        self.lbl_running_warning.setObjectName("RunningWarning")
+        self.lbl_running_warning.setStyleSheet("color: #EAB308; font-weight: 500;")
+        self.lbl_running_warning.setVisible(False)
+        footer_layout.addWidget(self.lbl_running_warning)
+        
         footer_layout.addStretch()
 
         self.btn_dry_run = QPushButton("Preview (Dry Run)")
@@ -1488,14 +1495,25 @@ class ImmichGoGUI(QMainWindow):
         return True
 
     def update_status(self):
-        if self.validate_inputs():
-            self.status_card.set_server("ok", "Server: Ready")
-            self.btn_run.setEnabled(True)
-            self.btn_dry_run.setEnabled(True)
-        else:
-            self.status_card.set_server("err", "Server: Not Set")
+        is_running = getattr(self, "running_process", None) is not None
+
+        if is_running:
+            self.lbl_running_warning.setVisible(True)
             self.btn_run.setEnabled(False)
             self.btn_dry_run.setEnabled(False)
+        else:
+            self.lbl_running_warning.setVisible(False)
+
+        if self.validate_inputs():
+            self.status_card.set_server("ok", "Server: Ready")
+            if not is_running:
+                self.btn_run.setEnabled(True)
+                self.btn_dry_run.setEnabled(True)
+        else:
+            self.status_card.set_server("err", "Server: Not Set")
+            if not is_running:
+                self.btn_run.setEnabled(False)
+                self.btn_dry_run.setEnabled(False)
 
         srv_edit = self.inputs.get("config", {}).get("server")
         srv = srv_edit.text() if srv_edit else ""
@@ -2212,20 +2230,18 @@ class ImmichGoGUI(QMainWindow):
 
             if sys.platform.startswith("win"):
                 cmd_string = subprocess.list2cmdline(command)
-                proc = subprocess.Popen(
+                subprocess.Popen(
                     ["cmd", "/c", "start", "cmd", "/k", cmd_string],
                     shell=True,
                     creationflags=subprocess.CREATE_NEW_CONSOLE
                 )
-                self.running_process = proc.pid
 
             elif sys.platform.startswith("darwin"):
                 apple_script = (
                     'tell application "Terminal" to do script '
                     f'"{shlex.join(command)}; exec bash"'
                 )
-                proc = subprocess.Popen(["osascript", "-e", apple_script])
-                self.running_process = proc
+                subprocess.Popen(["osascript", "-e", apple_script])
 
             else:
                 terminals = [
@@ -2237,8 +2253,7 @@ class ImmichGoGUI(QMainWindow):
 
                 for term in terminals:
                     try:
-                        proc = subprocess.Popen(term)
-                        self.running_process = proc
+                        subprocess.Popen(term)
                         break
                     except FileNotFoundError:
                         continue
@@ -2248,9 +2263,15 @@ class ImmichGoGUI(QMainWindow):
                     self.btn_dry_run.setDisabled(False)
                     return
 
+            self.running_process = True
+            self.immich_go_pid = None
+            self.launch_grace_period = 6
+
             self.check_process_timer = QTimer()
             self.check_process_timer.timeout.connect(self.check_if_process_running)
-            self.check_process_timer.start(1000)
+            self.check_process_timer.start(500)
+
+            self.update_status()
 
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to run command: {e}")
@@ -2260,20 +2281,30 @@ class ImmichGoGUI(QMainWindow):
     def check_if_process_running(self):
         still_running = False
 
-        if sys.platform.startswith("win"):
-            if psutil.pid_exists(self.running_process):
+        if getattr(self, "immich_go_pid", None) is not None:
+            if psutil.pid_exists(self.immich_go_pid):
                 still_running = True
         else:
-            if hasattr(self.running_process, "poll") and self.running_process.poll() is None:
-                still_running = True
+            for proc in psutil.process_iter(['name']):
+                try:
+                    name = proc.info['name'].lower()
+                    if 'immich-go' in name:
+                        still_running = True
+                        self.immich_go_pid = proc.pid
+                        break
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    continue
 
         if still_running:
-            self.status_card.set_server("warn", "Running... Close terminal to continue.")
-        else:
+            self.launch_grace_period = 0
+        elif getattr(self, "launch_grace_period", 0) > 0:
+            self.launch_grace_period -= 1
+            still_running = True
+
+        if not still_running:
             self.check_process_timer.stop()
             self.running_process = None
-            self.btn_run.setDisabled(False)
-            self.btn_dry_run.setDisabled(False)
+            self.immich_go_pid = None
             self.update_status()
 
     # ==========================================================
