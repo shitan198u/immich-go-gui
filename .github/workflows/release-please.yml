@@ -1,0 +1,30 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          release-type: python
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trigger Release Build
+        if: ${{ steps.release.outputs.release_created == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ steps.release.outputs.tag_name }}"
+          VERSION="${TAG_NAME#v}"
+          gh workflow run release.yml --repo ${{ github.repository }} --ref "$TAG_NAME" -f version="$VERSION"
