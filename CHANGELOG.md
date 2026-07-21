@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.10.0](https://github.com/shitan198u/immich-go-gui/compare/v0.9.4...v0.10.0) (2026-07-21)
+
+
+### Features
+
+* **cli:** enable native immich-go UI by default ([033574e](https://github.com/shitan198u/immich-go-gui/commit/033574ef67b395f24ecd640e55c51bb6536cbbf2))
+* custom dynamic svg icons for theming ([8337003](https://github.com/shitan198u/immich-go-gui/commit/83370032cedc00e5d941fe0e97fbf4bfb9dec8ec))
+* robust process tracking using psutil ([6995514](https://github.com/shitan198u/immich-go-gui/commit/69955148e24c614e2da806452fa74d78183312ed))
+
+
+### Bug Fixes
+
+* **cli:** correct command argument ordering and --no-ui flag handling ([e472e77](https://github.com/shitan198u/immich-go-gui/commit/e472e775c99cd127ec01491ec13346603ea5e5d2))
+* resolve permission denied error for installer builds by downloading binary to user home directory ([45ee1f1](https://github.com/shitan198u/immich-go-gui/commit/45ee1f1e398c47e3480e11337543d8db6d8ecfa9))
+
 ## [0.9.4](https://github.com/shitan198u/immich-go-gui/compare/v0.9.3...v0.9.4) (2026-07-20)
 
 

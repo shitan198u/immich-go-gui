@@ -1,6 +1,6 @@
 [project]
 name = "immich-go-gui"
-version = "0.9.4"
+version = "0.10.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11.8"
