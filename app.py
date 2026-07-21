@@ -1525,8 +1525,6 @@ class ImmichGoGUI(QMainWindow):
         if "log-level" in c and c["log-level"].currentText() != "INFO":
             global_opts.append(f"--log-level={c['log-level'].currentText()}")
 
-        if tab_key != "stack":
-            cmd_opts.append("--no-ui")
 
         if tab_key == "upload-folder":
             cmd = ["upload", "from-folder"]
