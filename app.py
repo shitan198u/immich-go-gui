@@ -567,6 +567,26 @@ class ImmichGoGUI(QMainWindow):
         line_edit.dragEnterEvent = self.dragEnterEvent
         line_edit.dropEvent = lambda e, le=line_edit: self.dropEvent(e, le)
 
+    def _add_ssl_skip_row(self, form: FormSection, tab_dict: dict, key: str = "skip-ssl", label_text: str = "Skip SSL Verification"):
+        chk_ssl = QCheckBox(label_text)
+        tab_dict[key] = chk_ssl
+
+        container = QVBoxLayout()
+        container.setContentsMargins(0, 0, 0, 0)
+        container.setSpacing(4)
+        container.addWidget(chk_ssl)
+
+        warn_lbl = QLabel("⚠️ Skipping SSL verification reduces security. Use only for trusted self-hosted servers with self-signed certificates.")
+        warn_lbl.setObjectName("WarningHint")
+        warn_lbl.setWordWrap(True)
+        warn_lbl.setVisible(False)
+
+        container.addWidget(warn_lbl)
+        chk_ssl.toggled.connect(warn_lbl.setVisible)
+
+        form.addRow("", container)
+        return chk_ssl
+
     def _build_sidebar(self):
         sidebar = QFrame()
         sidebar.setObjectName("Sidebar")
@@ -981,9 +1001,7 @@ class ImmichGoGUI(QMainWindow):
         subhead.setObjectName("Subhead")
         form.addRow(subhead)
 
-        chk_ssl = QCheckBox("Skip SSL Verification")
-        self.inputs["upload-folder"]["skip-ssl"] = chk_ssl
-        form.addRow("", chk_ssl)
+        self._add_ssl_skip_row(form, self.inputs["upload-folder"])
 
         c_log = QComboBox()
         c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
@@ -1149,9 +1167,7 @@ class ImmichGoGUI(QMainWindow):
         subhead.setObjectName("Subhead")
         form.addRow(subhead)
 
-        chk_ssl = QCheckBox("Skip SSL Verification")
-        self.inputs["upload-gp"]["skip-ssl"] = chk_ssl
-        form.addRow("", chk_ssl)
+        self._add_ssl_skip_row(form, self.inputs["upload-gp"])
 
         c_log = QComboBox()
         c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
@@ -1274,13 +1290,8 @@ class ImmichGoGUI(QMainWindow):
         subhead.setObjectName("Subhead")
         form.addRow(subhead)
 
-        chk_ssl = QCheckBox("Skip SSL Verification")
-        self.inputs["upload-immich"]["skip-ssl"] = chk_ssl
-        form.addRow("", chk_ssl)
-
-        chk_ssl_src = QCheckBox("Skip Source SSL Verification")
-        self.inputs["upload-immich"]["from-skip-ssl"] = chk_ssl_src
-        form.addRow("", chk_ssl_src)
+        self._add_ssl_skip_row(form, self.inputs["upload-immich"], key="skip-ssl", label_text="Skip Target SSL Verification")
+        self._add_ssl_skip_row(form, self.inputs["upload-immich"], key="from-skip-ssl", label_text="Skip Source SSL Verification")
 
         c_log = QComboBox()
         c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
@@ -1443,9 +1454,7 @@ class ImmichGoGUI(QMainWindow):
         subhead.setObjectName("Subhead")
         form.addRow(subhead)
 
-        chk_ssl = QCheckBox("Skip SSL Verification")
-        self.inputs["archive-immich"]["skip-ssl"] = chk_ssl
-        form.addRow("", chk_ssl)
+        self._add_ssl_skip_row(form, self.inputs["archive-immich"])
 
         c_log = QComboBox()
         c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
@@ -1518,9 +1527,7 @@ class ImmichGoGUI(QMainWindow):
         subhead.setObjectName("Subhead")
         form.addRow(subhead)
 
-        chk_ssl = QCheckBox("Skip SSL Verification")
-        self.inputs["stack"]["skip-ssl"] = chk_ssl
-        form.addRow("", chk_ssl)
+        self._add_ssl_skip_row(form, self.inputs["stack"])
 
         c_log = QComboBox()
         c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
@@ -2069,6 +2076,11 @@ class ImmichGoGUI(QMainWindow):
         desc.setObjectName("DlgDesc")
         desc.setWordWrap(True)
         layout.addWidget(desc)
+
+        if "--skip-verify-ssl" in cmd_parts or "--from-skip-verify-ssl" in cmd_parts:
+            ssl_warn = QLabel("⚠️ Security Warning: SSL verification is disabled for this execution.")
+            ssl_warn.setObjectName("WarningHint")
+            layout.addWidget(ssl_warn)
 
         layout.addSpacing(16)
 

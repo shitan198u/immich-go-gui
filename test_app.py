@@ -281,3 +281,10 @@ def test_secret_store():
     
     store.set_api_key("")
     assert store.get_api_key() == ""
+
+
+def test_skip_ssl_option(gui):
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.inputs["upload-folder"]["skip-ssl"].setChecked(True)
+    opts = gui.build_command(dry_run=True)
+    assert "--skip-verify-ssl" in opts
