@@ -62,6 +62,62 @@ from theme import (
 )
 
 # ==========================================================
+# SECRET & UTILITY HELPERS
+# ==========================================================
+
+SERVICE_NAME = "immich-go-gui"
+SECRET_FLAGS = ["--api-key", "--from-api-key"]
+
+
+class SecretStore:
+    def __init__(self):
+        try:
+            import keyring
+            self._keyring = keyring
+        except Exception:
+            self._keyring = None
+
+    def set_api_key(self, api_key: str) -> bool:
+        if self._keyring:
+            try:
+                if api_key:
+                    self._keyring.set_password(SERVICE_NAME, "immich_api_key", api_key)
+                else:
+                    try:
+                        self._keyring.delete_password(SERVICE_NAME, "immich_api_key")
+                    except Exception:
+                        pass
+                return True
+            except Exception as e:
+                print(f"Keyring set_password failed: {e}")
+        return False
+
+    def get_api_key(self) -> str:
+        if self._keyring:
+            try:
+                val = self._keyring.get_password(SERVICE_NAME, "immich_api_key")
+                return val if val else ""
+            except Exception as e:
+                print(f"Keyring get_password failed: {e}")
+        return ""
+
+
+def mask_command_for_display(command_parts: list[str]) -> list[str]:
+    masked = []
+    for part in command_parts:
+        hidden = False
+        for flag in SECRET_FLAGS:
+            prefix = f"{flag}="
+            if part.startswith(prefix):
+                masked.append(f"{flag}=********")
+                hidden = True
+                break
+        if not hidden:
+            masked.append(part)
+    return masked
+
+
+# ==========================================================
 # CUSTOM WIDGETS
 # ==========================================================
 
@@ -373,6 +429,7 @@ class ImmichGoGUI(QMainWindow):
         self.setMinimumSize(900, 600)
 
         self.settings = QSettings("YourOrganization", "ImmichGoGUI")
+        self.secret_store = SecretStore()
         self.theme_mode = normalize_theme_mode(
             self.settings.value("theme_mode", THEME_SYSTEM)
         )
@@ -1980,12 +2037,13 @@ class ImmichGoGUI(QMainWindow):
         cmd_parts = self.build_command(is_dry_run)
         binary_path = getattr(self, "binary_path", "./immich-go")
 
-        full_cmd = [binary_path] + cmd_parts
+        masked_parts = mask_command_for_display(cmd_parts)
+        full_cmd = [binary_path] + masked_parts
 
         if sys.platform.startswith("win"):
             cmd_str = subprocess.list2cmdline(full_cmd)
         else:
-            cmd_str = binary_path + " " + " ".join(shlex.quote(p) for p in cmd_parts)
+            cmd_str = binary_path + " " + " ".join(shlex.quote(p) for p in masked_parts)
 
         dlg = QDialog(self)
         dlg.setWindowTitle("Confirm Execution")
@@ -2366,6 +2424,47 @@ class ImmichGoGUI(QMainWindow):
 
         return True
 
+    def build_environment(self, tab_key: str = None) -> dict:
+        if tab_key is None:
+            idx = self.stacked_widget.currentIndex()
+            tab_key = self.TAB_KEYS[idx] if idx < len(self.TAB_KEYS) else ""
+
+        env = os.environ.copy()
+        srv_edit = self.inputs.get("config", {}).get("server")
+        api_edit = self.inputs.get("config", {}).get("api_key")
+        srv = srv_edit.text().strip() if srv_edit else ""
+        api = api_edit.text().strip() if api_edit else ""
+
+        if tab_key in {"upload-folder", "upload-gp", "upload-immich"}:
+            if srv:
+                env["IMMICH_GO_UPLOAD_SERVER"] = srv
+            if api:
+                env["IMMICH_GO_UPLOAD_API_KEY"] = api
+
+        if tab_key == "upload-immich":
+            from_srv_edit = self.inputs.get("upload-immich", {}).get("from-server")
+            from_api_edit = self.inputs.get("upload-immich", {}).get("from-api-key")
+            from_srv = from_srv_edit.text().strip() if from_srv_edit else ""
+            from_api = from_api_edit.text().strip() if from_api_edit else ""
+            if from_srv:
+                env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER"] = from_srv
+            if from_api:
+                env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY"] = from_api
+
+        if tab_key == "archive-immich":
+            if srv:
+                env["IMMICH_GO_ARCHIVE_SERVER"] = srv
+            if api:
+                env["IMMICH_GO_ARCHIVE_API_KEY"] = api
+
+        if tab_key == "stack":
+            if srv:
+                env["IMMICH_GO_STACK_SERVER"] = srv
+            if api:
+                env["IMMICH_GO_STACK_API_KEY"] = api
+
+        return env
+
     def run_command(self, command_parts=None):
         if command_parts is None:
             command_parts = []
@@ -2380,6 +2479,7 @@ class ImmichGoGUI(QMainWindow):
                 return
 
         command = [self.binary_path] + command_parts
+        env = self.build_environment()
 
         try:
             self.btn_run.setDisabled(True)
@@ -2390,7 +2490,8 @@ class ImmichGoGUI(QMainWindow):
                 subprocess.Popen(
                     ["cmd", "/c", "start", "cmd", "/k", cmd_string],
                     shell=True,
-                    creationflags=subprocess.CREATE_NEW_CONSOLE
+                    creationflags=subprocess.CREATE_NEW_CONSOLE,
+                    env=env
                 )
 
             elif sys.platform.startswith("darwin"):
@@ -2398,7 +2499,7 @@ class ImmichGoGUI(QMainWindow):
                     'tell application "Terminal" to do script '
                     f'"{shlex.join(command)}; exec bash"'
                 )
-                subprocess.Popen(["osascript", "-e", apple_script])
+                subprocess.Popen(["osascript", "-e", apple_script], env=env)
 
             else:
                 terminals = [
@@ -2410,7 +2511,7 @@ class ImmichGoGUI(QMainWindow):
 
                 for term in terminals:
                     try:
-                        subprocess.Popen(term)
+                        subprocess.Popen(term, env=env)
                         break
                     except FileNotFoundError:
                         continue
@@ -2469,8 +2570,17 @@ class ImmichGoGUI(QMainWindow):
     # ==========================================================
 
     def save_configuration(self):
-        self.settings.setValue("server_url", self.inputs["config"]["server"].text())
-        self.settings.setValue("api_key", self.inputs["config"]["api_key"].text())
+        srv = self.inputs["config"]["server"].text().strip()
+        api = self.inputs["config"]["api_key"].text().strip()
+
+        self.settings.setValue("server_url", srv)
+
+        # Save API key securely using SecretStore (OS Keychain)
+        self.secret_store.set_api_key(api)
+
+        # Remove legacy plain-text API key if present in QSettings
+        if self.settings.contains("api_key"):
+            self.settings.remove("api_key")
 
         if hasattr(self, "theme_mode_combo"):
             self.settings.setValue("theme_mode", self.theme_mode_combo.currentText())
@@ -2482,9 +2592,17 @@ class ImmichGoGUI(QMainWindow):
             self.settings.value("server_url", "")
         )
 
-        self.inputs["config"]["api_key"].setText(
-            self.settings.value("api_key", "")
-        )
+        # Try retrieving API key from OS Keychain first
+        api_key = self.secret_store.get_api_key()
+        if not api_key:
+            # Migration check: check legacy unencrypted QSettings
+            legacy_api_key = self.settings.value("api_key", "")
+            if legacy_api_key:
+                api_key = legacy_api_key
+                self.secret_store.set_api_key(legacy_api_key)
+                self.settings.remove("api_key")
+
+        self.inputs["config"]["api_key"].setText(api_key)
 
         theme_mode = normalize_theme_mode(
             self.settings.value("theme_mode", THEME_SYSTEM)
