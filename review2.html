@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Immich-Go GUI — Review2</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #1e293b;
+            --bg-card-hover: #334155;
+            --border-color: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+            --accent-color: #38bdf8;
+            --accent-hover: #0284c7;
+            --accent-bg: rgba(56, 189, 248, 0.12);
+            --code-bg: #090d16;
+            --code-border: #1e293b;
+            --badge-h1-bg: #2563eb;
+            --badge-h2-bg: #7c3aed;
+            --badge-h3-bg: #db2777;
+            --badge-h4-bg: #059669;
+            --shadow-color: rgba(0, 0, 0, 0.4);
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --font-code: "JetBrains Mono", "Fira Code", Consolas, Monaco, monospace;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f1f5f9;
+            --border-color: #e2e8f0;
+            --text-primary: #0f172a;
+            --text-secondary: #334155;
+            --text-muted: #64748b;
+            --accent-color: #0284c7;
+            --accent-hover: #0369a1;
+            --accent-bg: rgba(2, 132, 199, 0.1);
+            --code-bg: #0f172a;
+            --code-border: #cbd5e1;
+            --badge-h1-bg: #2563eb;
+            --badge-h2-bg: #7c3aed;
+            --badge-h3-bg: #db2777;
+            --badge-h4-bg: #059669;
+            --shadow-color: rgba(0, 0, 0, 0.06);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            font-size: 15px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .top-nav {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            box-shadow: 0 4px 6px -1px var(--shadow-color);
+            backdrop-filter: blur(8px);
+        }
+
+        .nav-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 700;
+            font-size: 1.15rem;
+            color: var(--text-primary);
+        }
+
+        .nav-title svg { width: 24px; height: 24px; fill: var(--accent-color); }
+        .nav-controls { display: flex; align-items: center; gap: 0.75rem; }
+        .search-box { position: relative; }
+
+        .search-input {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.45rem 0.8rem 0.45rem 2.2rem;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            outline: none;
+            width: 240px;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-color);
+            width: 300px;
+            box-shadow: 0 0 0 3px var(--accent-bg);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.7rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 15px;
+            height: 15px;
+            fill: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .btn {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.45rem 0.85rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.15s ease;
+        }
+
+        .btn:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .layout-container {
+            display: flex;
+            flex: 1;
+            max-width: 1600px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .sidebar {
+            width: 320px;
+            position: sticky;
+            top: 57px;
+            height: calc(100vh - 57px);
+            overflow-y: auto;
+            border-right: 1px solid var(--border-color);
+            padding: 1.25rem 1rem;
+            background: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+
+        .sidebar h3 {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            padding-left: 0.5rem;
+        }
+
+        .toc-list { list-style: none; }
+        .toc-item { margin-bottom: 0.2rem; }
+
+        .toc-link {
+            display: block;
+            padding: 0.35rem 0.6rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 0.88rem;
+            line-height: 1.35;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .toc-link:hover { background: var(--accent-bg); color: var(--accent-color); }
+        .toc-item.level-2 { padding-left: 0.9rem; font-size: 0.84rem; }
+        .toc-item.level-3 { padding-left: 1.7rem; font-size: 0.8rem; opacity: 0.9; }
+
+        .main-content { flex: 1; padding: 2rem 3rem; min-width: 0; }
+        .document-root { display: flex; flex-direction: column; gap: 1.25rem; }
+
+        details.sec-details {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        details.sec-details[open] { box-shadow: 0 4px 12px var(--shadow-color); }
+        details.level-h1 { border-left: 4px solid var(--badge-h1-bg); margin-bottom: 1.25rem; }
+        details.level-h2 { border-left: 4px solid var(--badge-h2-bg); margin: 0.85rem 0; background: rgba(255, 255, 255, 0.015); }
+        details.level-h3 { border-left: 4px solid var(--badge-h3-bg); margin: 0.6rem 0; background: rgba(255, 255, 255, 0.01); }
+        details.level-h4 { border-left: 4px solid var(--badge-h4-bg); margin: 0.4rem 0; }
+
+        summary.sec-summary {
+            padding: 0.85rem 1.25rem;
+            cursor: pointer;
+            user-select: none;
+            background: var(--bg-card);
+            transition: background 0.15s ease;
+            list-style: none;
+        }
+
+        summary.sec-summary::-webkit-details-marker { display: none; }
+        summary.sec-summary:hover { background: var(--bg-card-hover); }
+
+        .summary-content { display: flex; align-items: center; gap: 0.75rem; }
+
+        .chevron {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            transition: transform 0.2s ease;
+            display: inline-block;
+            width: 14px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        details[open] > summary .chevron { transform: rotate(90deg); color: var(--accent-color); }
+
+        .badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.15rem 0.45rem;
+            border-radius: 4px;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            flex-shrink: 0;
+        }
+
+        .badge-h1 { background-color: var(--badge-h1-bg); }
+        .badge-h2 { background-color: var(--badge-h2-bg); }
+        .badge-h3 { background-color: var(--badge-h3-bg); }
+        .badge-h4 { background-color: var(--badge-h4-bg); }
+
+        .heading-text { font-weight: 600; color: var(--text-primary); flex: 1; }
+        .level-h1 .heading-text { font-size: 1.2rem; }
+        .level-h2 .heading-text { font-size: 1.08rem; }
+        .level-h3 .heading-text { font-size: 1.0rem; }
+        .level-h4 .heading-text { font-size: 0.95rem; }
+
+        .sec-body {
+            padding: 1.25rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
+        p { color: var(--text-primary); margin-bottom: 0.4rem; line-height: 1.7; }
+        ul, ol { padding-left: 1.5rem; margin-bottom: 0.75rem; color: var(--text-primary); }
+        li { margin-bottom: 0.35rem; }
+        strong { color: var(--text-primary); font-weight: 600; }
+        a { color: var(--accent-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        blockquote {
+            border-left: 4px solid var(--accent-color);
+            background: var(--accent-bg);
+            padding: 0.75rem 1.25rem;
+            border-radius: 0 6px 6px 0;
+            color: var(--text-secondary);
+            margin: 0.75rem 0;
+        }
+        hr { border: 0; height: 1px; background: var(--border-color); margin: 1.5rem 0; }
+
+        pre {
+            position: relative;
+            background: var(--code-bg);
+            border: 1px solid var(--code-border);
+            border-radius: 8px;
+            padding: 1.1rem;
+            overflow-x: auto;
+            font-family: var(--font-code);
+            font-size: 0.88rem;
+            color: #f1f5f9;
+            line-height: 1.55;
+            margin: 0.75rem 0;
+        }
+
+        code {
+            font-family: var(--font-code);
+            font-size: 0.88rem;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--accent-color);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+        }
+
+        pre code { background: transparent; color: inherit; padding: 0; }
+
+        .copy-code-btn {
+            position: absolute;
+            top: 0.6rem;
+            right: 0.6rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 0.25rem 0.55rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+        }
+
+        pre:hover .copy-code-btn { opacity: 1; }
+        .copy-code-btn:hover { color: var(--accent-color); border-color: var(--accent-color); }
+
+        .search-hidden { display: none !important; }
+
+        @media (max-width: 1024px) {
+            .sidebar { display: none; }
+            .main-content { padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body data-theme="dark">
+
+    <header class="top-nav">
+        <div class="nav-title">
+            <svg viewBox="0 0 24 24">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+            </svg>
+            <span>Immich-Go GUI — Review2</span>
+        </div>
+        <div class="nav-controls">
+            <div class="search-box">
+                <svg class="search-icon" viewBox="0 0 24 24">
+                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+                <input type="text" id="searchInput" class="search-input" placeholder="Search..." onkeyup="filterContent()">
+            </div>
+            <button class="btn" onclick="expandAll()"><span>👇</span> Expand All</button>
+            <button class="btn" onclick="collapseAll()"><span>👆</span> Collapse All</button>
+            <button class="btn" onclick="toggleTheme()" id="themeBtn"><span>🌙</span> Dark Mode</button>
+        </div>
+    </header>
+
+    <div class="layout-container">
+        <aside class="sidebar">
+            <h3>Table of Contents</h3>
+            <ul class="toc-list" id="tocList"></ul>
+        </aside>
+
+        <main class="main-content">
+            <p>Yes — I’ll be blunt.</p><p>The project is <strong>structurally strong</strong>, and the refactor into <code>core/</code> is a real improvement. But if we’re treating review sections <strong>3–8 as “implemented”</strong>, I do <strong>not</strong> agree that they’re truly done. You have a lot of the right machinery now — schema/allowlists, secret env passing, profiles, locks, validation, binary management — but there are still several places where the GUI either:</p><ol>
+<li><strong>shows options that never reach the CLI</strong>,  </li>
+<li><strong>emits flags that do not match the documented <code>immich-go</code> CLI</strong>, or  </li>
+<li><strong>fails silently instead of telling the user something is wrong</strong>.</li>
+</ol><p>That is more dangerous than simply missing features, because it can produce <strong>incorrect imports/archives/stacking behavior without obvious error</strong>.</p><p>I’m ignoring the <code>__init__</code> rendering artifact issue as you asked, and I’m also not treating “no <code>--no-ui</code>” as a defect.</p><hr/><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="overall-verdict">Overall verdict</span></div></summary><div class="sec-body level-h1"><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="what-is-genuinely-good">What is genuinely good</span></div></summary><div class="sec-body level-h2"><p>These parts are already strong:</p><ul>
+<li>clean separation between <code>core</code> and Qt UI</li>
+<li>secret handling is much better than typical GUI wrappers</li>
+<li>command preview with masked secrets is excellent UX</li>
+<li>profile support is a big usability win</li>
+<li>validation helpers are much better than before</li>
+<li>binary management is ambitious and useful</li>
+<li>theme system is polished</li>
+<li>the app already feels like a real product, not a toy</li>
+</ul></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="the-main-problem-now">The main problem now</span></div></summary><div class="sec-body level-h2"><p>The biggest remaining weakness is <strong>operational correctness</strong>:</p><ul>
+<li>CLI flag mapping is still not trustworthy</li>
+<li>some UI controls are decorative rather than functional</li>
+<li>some errors are swallowed or never shown</li>
+<li>process/lock tracking can get stuck</li>
+<li>binary update flow is still not safe enough</li>
+<li>tests enshrine some incorrect CLI assumptions</li>
+</ul><p>So: <strong>good architecture, but not yet reliable enough for power users</strong>.</p><hr/></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="critical-issues">Critical issues</span></div></summary><div class="sec-body level-h1"><p>These are the ones I would fix before calling sections 3–8 “done”.</p><hr/><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="1-archive-destination-flag-appears-to-be-wrong-write-to-vs-write-to-folder">1. Archive destination flag appears to be wrong: <code>--write-to</code> vs <code>--write-to-folder</code></span></div></summary><div class="sec-body level-h2"><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="evidence">Evidence</span></div></summary><div class="sec-body level-h3"><p>From the CLI help:</p><ul>
+<li><code>immich-go archive</code> uses:</li>
+<li><code>-w, --write-to-folder string</code></li>
+</ul><p>But your code uses:</p><ul>
+<li><code>core/cli_schema.py</code>: <code>TAB_ALLOWED_FLAGS</code> includes <code>"write-to"</code></li>
+<li><code>core/command_builder.py</code>: emits <code>--write-to=...</code></li>
+<li><code>app.py</code> tests expect <code>--write-to=...</code></li>
+</ul></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="why-this-matters">Why this matters</span></div></summary><div class="sec-body level-h3"><p>If the CLI help you provided is accurate, then archive commands are likely <strong>invalid</strong>:</p><div class="codehilite"><pre><span></span><code>archive<span class="w"> </span>from-folder<span class="w"> </span>--write-to<span class="o">=</span>/dest
+</code></pre></div><p>instead of:</p><div class="codehilite"><pre><span></span><code>archive<span class="w"> </span>from-folder<span class="w"> </span>--write-to-folder<span class="o">=</span>/dest
+</code></pre></div></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="impact">Impact</span></div></summary><div class="sec-body level-h3"><p>This is not a minor naming issue. It can make the entire archive workflow fail or behave unpredictably.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix">Fix</span></div></summary><div class="sec-body level-h3"><p>Rename the internal flag and emitter to:</p><ul>
+<li><code>write-to-folder</code></li>
+</ul><p>Also update:<br/>
+- schema<br/>
+- command builder<br/>
+- tests<br/>
+- golden fixtures</p><p>This is a showstopper-level mismatch.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="2-archive-from-immich-serverauth-model-looks-fundamentally-mismatched">2. <code>archive from-immich</code> server/auth model looks fundamentally mismatched</span></div></summary><div class="sec-body level-h2"><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="evidence_1">Evidence</span></div></summary><div class="sec-body level-h3"><p>From CLI help, <code>immich-go archive from-immich</code> uses source-style flags:</p><ul>
+<li><code>--from-server</code></li>
+<li><code>--from-api-key</code></li>
+<li><code>--from-admin-api-key</code></li>
+<li><code>--from-skip-verify-ssl</code></li>
+<li><code>--from-client-timeout</code></li>
+<li><code>--from-date-range</code></li>
+<li><code>--from-albums</code></li>
+<li>etc.</li>
+</ul><p>But your implementation does this:</p><ul>
+<li><code>SERVER_REQUIRED_TABS</code> includes <code>archive-immich</code></li>
+<li><code>command_builder.py</code> emits global <code>--server=...</code></li>
+<li><code>ENV_KEY_MAP</code> uses:</li>
+<li><code>IMMICH_GO_ARCHIVE_SERVER</code></li>
+<li><code>IMMICH_GO_ARCHIVE_API_KEY</code></li>
+<li>UI label says <strong>“Target Server”</strong></li>
+<li>there is no explicit source server/source API key entry for this tab</li>
+</ul></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="why-this-matters_1">Why this matters</span></div></summary><div class="sec-body level-h3"><p>For <code>archive from-immich</code>, the Immich server is the <strong>source</strong> being archived from, not a “target” in the upload sense.</p><p>If the CLI really expects <code>--from-server</code> / <code>--from-api-key</code>, then your current command shape is likely wrong:</p><div class="codehilite"><pre><span></span><code>archive<span class="w"> </span>from-immich<span class="w"> </span>--server<span class="o">=</span>...<span class="w"> </span>--write-to<span class="o">=</span>...
+</code></pre></div><p>when it likely needs something more like:</p><div class="codehilite"><pre><span></span><code>archive<span class="w"> </span>from-immich<span class="w"> </span>--from-server<span class="o">=</span>...<span class="w"> </span>--write-to-folder<span class="o">=</span>...
+</code></pre></div><p>with source credentials passed appropriately.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="impact_1">Impact</span></div></summary><div class="sec-body level-h3"><p>This is one of the most serious functional risks in the app.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_1">Fix</span></div></summary><div class="sec-body level-h3"><p>Rework <code>archive-immich</code> around the actual CLI contract:</p><ul>
+<li>use <code>--from-server</code></li>
+<li>use source API key mechanism correctly</li>
+<li>use <code>--from-skip-verify-ssl</code></li>
+<li>use <code>--from-client-timeout</code></li>
+<li>relabel UI from <strong>Target Server</strong> to <strong>Source Server</strong></li>
+<li>decide whether global <code>--dry-run</code> is enough or whether <code>--from-dry-run</code> is also required</li>
+<li>update <code>ENV_KEY_MAP</code> and terminal secret forwarding accordingly</li>
+</ul><p>This tab needs a correctness pass, not just polish.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="3-many-google-photos-options-are-exposed-in-the-ui-but-ignored-by-the-command-builder">3. Many Google Photos options are exposed in the UI but ignored by the command builder</span></div></summary><div class="sec-body level-h2"><p>This is a classic “false affordance” problem.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="evidence_2">Evidence</span></div></summary><div class="sec-body level-h3"><p>In <code>app.py</code>, <code>_build_upload_gp_tab()</code> exposes:</p><ul>
+<li>include type</li>
+<li>include unmatched</li>
+<li>include partner</li>
+<li>sync albums</li>
+<li>include archived</li>
+<li>include trashed</li>
+<li>from album name</li>
+<li>partner shared album</li>
+<li>takeout tag</li>
+<li>people tag</li>
+</ul><p>But in <code>core/command_builder.py</code>, the <code>upload-gp</code> branch only emits a small subset:</p><ul>
+<li>burst</li>
+<li>raw+jpeg</li>
+<li>heic+jpeg</li>
+<li>include-untitled-albums</li>
+<li>date-range</li>
+<li>include/exclude extensions</li>
+<li>ban-file</li>
+<li>tag</li>
+<li>session-tag</li>
+<li>api-trace</li>
+</ul><p>It does <strong>not</strong> emit:</p><ul>
+<li><code>--include-type</code></li>
+<li><code>--include-unmatched</code></li>
+<li><code>--include-partner</code></li>
+<li><code>--include-trashed</code></li>
+<li><code>--include-archived</code></li>
+<li><code>--sync-albums</code></li>
+<li><code>--from-album-name</code></li>
+<li><code>--partner-shared-album</code></li>
+<li><code>--takeout-tag</code></li>
+<li><code>--people-tag</code></li>
+</ul><p>And <code>TAB_ALLOWED_FLAGS["upload-gp"]</code> is missing many of these too.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="why-this-matters_2">Why this matters</span></div></summary><div class="sec-body level-h3"><p>The user can change these checkboxes/combos, but the generated command does not reflect their choices.</p><p>That is worse than not having the controls at all.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="examples">Examples</span></div></summary><div class="sec-body level-h3"><p>If the user:</p><ul>
+<li>unchecks <strong>Include Archived</strong></li>
+<li>unchecks <strong>Include Partner Photos</strong></li>
+<li>unchecks <strong>Sync Google Albums</strong></li>
+<li>checks <strong>Include Trashed</strong></li>
+<li>enters a <strong>From Specific Album</strong></li>
+<li>sets <strong>Media Type = VIDEO</strong></li>
+</ul><p>your app currently gives the impression that this matters, but the CLI command may remain unchanged.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="impact_2">Impact</span></div></summary><div class="sec-body level-h3"><p>This can lead to:<br/>
+- importing more than intended<br/>
+- importing partner/trashed/archived content unexpectedly<br/>
+- failing to restrict to a chosen album<br/>
+- user distrust when behavior doesn’t match the UI</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_2">Fix</span></div></summary><div class="sec-body level-h3"><p>Either:</p><ol>
+<li>wire these controls properly to the CLI flags, or  </li>
+<li>remove/disable them until they are implemented</li>
+</ol><p>For boolean flags with defaults, remember you may need explicit false emission, e.g.:</p><div class="codehilite"><pre><span></span><code>--include-archived<span class="o">=</span><span class="nb">false</span>
+--include-partner<span class="o">=</span><span class="nb">false</span>
+--sync-albums<span class="o">=</span><span class="nb">false</span>
+--takeout-tag<span class="o">=</span><span class="nb">false</span>
+--people-tag<span class="o">=</span><span class="nb">false</span>
+</code></pre></div><p>not just omitting the flag.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="4-stack-tab-has-exposed-options-that-are-ignored-or-blocked-by-the-allowlist">4. Stack tab has exposed options that are ignored or blocked by the allowlist</span></div></summary><div class="sec-body level-h2"><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="evidence_3">Evidence</span></div></summary><div class="sec-body level-h3"><p><code>app.py</code> stack tab exposes:</p><ul>
+<li><code>time-zone</code></li>
+<li><code>manage-epson</code></li>
+<li><code>api-trace</code></li>
+</ul><p>But:</p><ul>
+<li><code>TAB_ALLOWED_FLAGS["stack"]</code> does <strong>not</strong> include:</li>
+<li><code>api-trace</code></li>
+<li><code>time-zone</code></li>
+<li><code>manage-epson-fastfoto</code></li>
+<li><code>command_builder.py</code> stack branch does not emit:</li>
+<li><code>time-zone</code></li>
+<li><code>manage-epson-fastfoto</code></li>
+<li>it tries to emit <code>api-trace</code>, but the allowlist blocks it</li>
+</ul></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="why-this-matters_3">Why this matters</span></div></summary><div class="sec-body level-h3"><p>Because <code>FlagEmitter</code> is non-strict in the GUI, blocked flags are dropped and collected in <code>plan.errors</code>, but those errors are not shown to the user.</p><p>So the user checks <strong>Enable API Trace</strong>, and nothing happens.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="impact_3">Impact</span></div></summary><div class="sec-body level-h3"><p>Silent feature failure.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_3">Fix</span></div></summary><div class="sec-body level-h3"><p>Add the missing flags to the stack allowlist and builder if they are intended:</p><ul>
+<li><code>api-trace</code></li>
+<li><code>time-zone</code></li>
+<li><code>manage-epson-fastfoto</code></li>
+</ul><p>Also consider whether these should be exposed:<br/>
+- <code>date-range</code><br/>
+- <code>pause-immich-jobs</code><br/>
+- <code>device-uuid</code><br/>
+- <code>concurrent-tasks</code></p><p>because the CLI supports them for <code>stack</code>.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="5-planerrors-are-generated-but-never-surfaced">5. <code>plan.errors</code> are generated but never surfaced</span></div></summary><div class="sec-body level-h2"><p>This is a systemic issue.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="evidence_4">Evidence</span></div></summary><div class="sec-body level-h3"><p><code>FlagEmitter</code> collects errors when a flag is not allowed:</p><div class="codehilite"><pre><span></span><code><span class="bp">self</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">err</span><span class="p">)</span>
+</code></pre></div><p>and <code>build_plan_from_state()</code> extends:</p><div class="codehilite"><pre><span></span><code><span class="n">plan</span><span class="o">.</span><span class="n">errors</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">emitter</span><span class="o">.</span><span class="n">errors</span><span class="p">)</span>
+</code></pre></div><p>But:</p><ul>
+<li><code>show_confirm_dialog()</code> only checks <code>validation.errors</code></li>
+<li><code>run_command()</code> does not check <code>plan.errors</code></li>
+<li><code>update_status()</code> does not consider <code>plan.errors</code></li>
+</ul></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="why-this-matters_4">Why this matters</span></div></summary><div class="sec-body level-h3"><p>You can build a plan with invalid/dropped flags and still show a “valid” command preview.</p><p>That means the GUI can silently omit options the user thought were enabled.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="impact_4">Impact</span></div></summary><div class="sec-body level-h3"><p>This is one of the biggest correctness gaps in the whole app.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_4">Fix</span></div></summary><div class="sec-body level-h3"><p>Before showing the confirm dialog or running:</p><ul>
+<li>check <code>plan.errors</code></li>
+<li>display them clearly</li>
+<li>block execution if any exist</li>
+</ul><p>Better yet:<br/>
+- make the GUI builder strict enough that schema violations are treated as hard errors during development/testing</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="6-processlock-tracking-can-get-stuck-because-stale-lock-detection-is-effectively-not-working">6. Process/lock tracking can get stuck because stale-lock detection is effectively not working</span></div></summary><div class="sec-body level-h2"><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="evidence_5">Evidence</span></div></summary><div class="sec-body level-h3"><p><code>core/process_tracker.py</code>:</p><ul>
+<li><code>create_lock()</code> writes <code>gui_pid</code></li>
+<li><code>RunLock</code> has <code>shell_pid</code></li>
+<li>but no code ever writes <code>shell_pid</code> into the lock file</li>
+</ul><p>Then <code>is_lock_active()</code> does:</p><div class="codehilite"><pre><span></span><code><span class="k">if</span> <span class="n">lock</span><span class="o">.</span><span class="n">shell_pid</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">"posix"</span><span class="p">:</span>
+    <span class="o">...</span>
+<span class="k">return</span> <span class="kc">True</span>
+</code></pre></div><p>So if <code>shell_pid</code> is absent, a lock file is treated as active merely because it exists.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="why-this-matters_5">Why this matters</span></div></summary><div class="sec-body level-h3"><p>If the terminal/script cleanup fails, or the machine reboots, or the terminal emulator misbehaves, the lock can become stale — but your app will still think a process is running.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="additional-ui-bug">Additional UI bug</span></div></summary><div class="sec-body level-h3"><p>In <code>app.py</code>:</p><div class="codehilite"><pre><span></span><code><span class="n">is_running</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"running_process"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+</code></pre></div><p>But you later set:</p><div class="codehilite"><pre><span></span><code><span class="bp">self</span><span class="o">.</span><span class="n">running_process</span> <span class="o">=</span> <span class="kc">False</span>
+</code></pre></div><p>Since <code>False is not None</code> evaluates to <code>True</code>, once <code>running_process</code> has been set to <code>False</code>, <code>update_status()</code> can continue behaving as if a process is still running.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="impact_5">Impact</span></div></summary><div class="sec-body level-h3"><p>This can cause:</p><ul>
+<li>Run/Preview buttons staying disabled</li>
+<li>“command still running” warning persisting</li>
+<li>reset run state not visually fixing the state</li>
+<li>a generally broken run lifecycle</li>
+</ul></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_5">Fix</span></div></summary><div class="sec-body level-h3"><p>You need both:</p><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="a-fix-the-boolean-logic">A. Fix the boolean logic</span></div></summary><div class="sec-body level-h4"><p>Use something like:</p><div class="codehilite"><pre><span></span><code><span class="n">is_running</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"running_process"</span><span class="p">,</span> <span class="kc">False</span><span class="p">))</span>
+</code></pre></div><p>or initialize and manage a proper state enum.</p></div></details><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="b-make-lock-tracking-real">B. Make lock tracking real</span></div></summary><div class="sec-body level-h4"><p>Either:</p><ul>
+<li>record a meaningful process identifier and check liveness, or</li>
+<li>implement a more robust heartbeat/cleanup strategy</li>
+</ul><p>As it stands, <code>shell_pid</code> is dead code and stale-lock recovery is mostly theoretical.</p><hr/></div></details></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="7-posix-terminal-launcher-does-not-forward-all-required-secret-environment-variables">7. POSIX terminal launcher does not forward all required secret environment variables</span></div></summary><div class="sec-body level-h2"><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="evidence_6">Evidence</span></div></summary><div class="sec-body level-h3"><p><code>core/terminal_launcher.py</code> writes only a hardcoded list of secret keys into <code>env.sh</code>.</p><p>It includes upload/stack keys, but appears to miss:</p><ul>
+<li><code>IMMICH_GO_ARCHIVE_SERVER</code></li>
+<li><code>IMMICH_GO_ARCHIVE_API_KEY</code></li>
+<li><code>IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY</code></li>
+</ul></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="why-this-matters_6">Why this matters</span></div></summary><div class="sec-body level-h3"><p>On Linux/macOS, if a secret is not in that hardcoded list, it will not be sourced into the launched terminal environment.</p><p>So even if <code>plan.env</code> contains the value, the actual executed command may never receive it.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="impact_6">Impact</span></div></summary><div class="sec-body level-h3"><p>This can cause authentication failures on POSIX systems that do not occur on Windows, because Windows passes the full <code>env</code> directly to <code>Popen</code>.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_6">Fix</span></div></summary><div class="sec-body level-h3"><p>Do not maintain a fragile hardcoded list if you can avoid it.</p><p>Safer approaches:</p><ul>
+<li>forward all keys beginning with <code>IMMICH_GO_</code> from <code>plan.env</code>, or</li>
+<li>explicitly generate a complete secret env list from <code>ENV_KEY_MAP</code></li>
+</ul><p>The current mismatch between <code>ENV_KEY_MAP</code> and <code>terminal_launcher.secret_keys</code> is a bug factory.</p><hr/></div></details></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="high-priority-issues">High-priority issues</span></div></summary><div class="sec-body level-h1"><p>These are not always immediate showstoppers, but they still materially weaken the app.</p><hr/><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="8-the-cli-allowlistschema-is-still-drifting-from-the-real-cli">8. The CLI allowlist/schema is still drifting from the real CLI</span></div></summary><div class="sec-body level-h2"><p>The idea behind <code>TAB_ALLOWED_FLAGS</code> is excellent. The execution is not there yet.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="examples-of-schema-problems">Examples of schema problems</span></div></summary><div class="sec-body level-h3"><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="a-upload-folder-allows-album-picasa">A. <code>upload-folder</code> allows <code>album-picasa</code></span></div></summary><div class="sec-body level-h4"><p>But the CLI help for <code>upload from-folder</code> does <strong>not</strong> show <code>--album-picasa</code>.</p><p>That flag belongs to Picasa workflows, not generic folder upload.</p></div></details><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="b-archive-folder-is-missing-real-archive-flags">B. <code>archive-folder</code> is missing real archive flags</span></div></summary><div class="sec-body level-h4"><p>The CLI supports things like:</p><ul>
+<li><code>--folder-as-album</code></li>
+<li><code>--folder-as-tags</code></li>
+<li><code>--album-path-joiner</code></li>
+<li><code>--into-album</code></li>
+</ul><p>but your <code>archive-folder</code> allowlist and UI are much narrower.</p><p>That’s fine if intentional, but then the schema should reflect the actual supported subset deliberately, not accidentally.</p></div></details><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="c-concurrent-tasks-is-not-allowed-for-some-tabs-where-the-cli-appears-to-support-it">C. <code>concurrent-tasks</code> is not allowed for some tabs where the CLI appears to support it</span></div></summary><div class="sec-body level-h4"><p>For example:</p><ul>
+<li><code>archive-folder</code></li>
+<li><code>archive-immich</code></li>
+<li><code>stack</code></li>
+</ul><p>If the user changes concurrent tasks in config, the emitter may silently drop it for those tabs.</p></div></details><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="d-client-timeout-scoping-is-questionable">D. <code>client-timeout</code> scoping is questionable</span></div></summary><div class="sec-body level-h4"><p>You emit <code>client-timeout</code> broadly, but for local archive operations it may not be meaningful.</p></div></details></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_7">Fix</span></div></summary><div class="sec-body level-h3"><p>You need a deliberate matrix of:</p><ul>
+<li>global flags</li>
+<li>command flags</li>
+<li>subcommand flags</li>
+<li>tab-exposed flags</li>
+<li>CLI-supported flags</li>
+</ul><p>Right now the schema is partially correct, partially aspirational, and partially outdated.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="9-some-command-paths-use-raw-pathsglobs-inconsistently">9. Some command paths use raw paths/globs inconsistently</span></div></summary><div class="sec-body level-h2"><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="evidence_7">Evidence</span></div></summary><div class="sec-body level-h3"><ul>
+<li><code>validation.expand_source_paths()</code> expands globs recursively for warnings</li>
+<li><code>command_builder.collect_paths()</code> expands globs non-recursively</li>
+<li><code>upload-folder</code> and <code>archive-folder</code> often append the raw path instead of expanded paths</li>
+</ul></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="why-this-matters_7">Why this matters</span></div></summary><div class="sec-body level-h3"><p>If a user enters a glob pattern, validation may behave differently from the actual command construction.</p><p>Also, since you launch via subprocess without a shell, glob expansion is not guaranteed unless <code>immich-go</code> itself handles it.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="impact_7">Impact</span></div></summary><div class="sec-body level-h3"><p>Possible mismatches between:<br/>
+- what validation says<br/>
+- what the user expects<br/>
+- what the CLI receives</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_8">Fix</span></div></summary><div class="sec-body level-h3"><p>Decide one path-handling contract:</p><ul>
+<li>if the CLI supports globs natively, document and preserve patterns</li>
+<li>if it does not, expand consistently before execution</li>
+<li>make recursive glob behavior consistent</li>
+</ul><p>Right now it’s too ambiguous.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="10-relative-paths-external-terminal-working-directory-is-a-latent-bug">10. Relative paths + external terminal working directory is a latent bug</span></div></summary><div class="sec-body level-h2"><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="evidence_8">Evidence</span></div></summary><div class="sec-body level-h3"><p><code>terminal_launcher.py</code> changes the working directory:</p><ul>
+<li>Windows bat: <code>cd /d "%~dp0"</code></li>
+<li>POSIX run script: <code>cd &lt;temp dir&gt;</code></li>
+</ul><p>But command building does not force all paths to absolute.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="why-this-matters_8">Why this matters</span></div></summary><div class="sec-body level-h3"><p>If the user types a relative source or destination path, the command may be executed from a different working directory than expected.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="impact_8">Impact</span></div></summary><div class="sec-body level-h3"><p>Commands that work when tested from the project directory may fail from the GUI.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_9">Fix</span></div></summary><div class="sec-body level-h3"><p>Normalize user-provided paths to absolute paths before building the command, especially for:</p><ul>
+<li>source paths</li>
+<li>archive destination paths</li>
+<li>takeout paths</li>
+</ul><p>This is especially important because you are intentionally isolating the launched terminal environment.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="11-binary-update-flow-is-still-not-safe-enough">11. Binary update flow is still not safe enough</span></div></summary><div class="sec-body level-h2"><p>This was already called out in the review, and it’s still not where it should be.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="main-problems">Main problems</span></div></summary><div class="sec-body level-h3"><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="a-possible-downgrade-prompting">A. Possible downgrade prompting</span></div></summary><div class="sec-body level-h4"><p><code>BinaryManager.evaluate_update()</code> does not robustly handle:</p><ul>
+<li>current version newer than latest tested</li>
+<li>already up to date</li>
+<li>latest older than current</li>
+</ul><p>So you can still prompt users to “update” to an older tested version.</p></div></details><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="b-download-url-guessing">B. Download URL guessing</span></div></summary><div class="sec-body level-h4"><p><code>get_download_url()</code> constructs release asset names by convention:</p><div class="codehilite"><pre><span></span><code><span class="n">immich</span><span class="o">-</span><span class="n">go_</span><span class="p">{</span><span class="n">version</span><span class="p">}</span><span class="n">_</span><span class="p">{</span><span class="n">os</span><span class="p">}</span><span class="n">_</span><span class="p">{</span><span class="n">arch</span><span class="p">}{</span><span class="n">ext</span><span class="p">}</span>
+</code></pre></div><p>That is fragile if upstream naming changes.</p></div></details><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="c-no-checksum-verification">C. No checksum verification</span></div></summary><div class="sec-body level-h4"><p>You compute SHA256 after extraction, but you do not verify against a known good checksum.</p></div></details><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="d-qthreadterminate-is-used-for-cancel">D. <code>QThread.terminate()</code> is used for cancel</span></div></summary><div class="sec-body level-h4"><p>That is explicitly discouraged in Qt and can leave state inconsistent.</p></div></details><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="e-in-memory-download">E. In-memory download</span></div></summary><div class="sec-body level-h4"><p>Fine for small binaries, less ideal for robustness.</p></div></details><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="f-duplicated-updateextraction-logic">F. Duplicated update/extraction logic</span></div></summary><div class="sec-body level-h4"><p><code>BinaryManager</code> already contains download/extract/select helpers, but <code>app.py</code> still has its own parallel flow.</p></div></details><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="g-update_binary-return-value-is-misleading">G. <code>update_binary()</code> return value is misleading</span></div></summary><div class="sec-body level-h4"><p>It can return <code>True</code> even when the user cancels or extraction fails, depending on how the flow unwinds.</p></div></details></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_10">Fix</span></div></summary><div class="sec-body level-h3"><p>Centralize update logic in <code>BinaryManager</code> or a controller, and make it:</p><ul>
+<li>version-comparison aware</li>
+<li>asset-discovery based</li>
+<li>checksum-verifying</li>
+<li>cancellation-safe</li>
+<li>temp-file based</li>
+<li>explicit about success/failure</li>
+</ul><p>Right now this subsystem is ambitious but still too fragile.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="12-some-model-settings-exist-but-are-not-exposed-in-the-ui">12. Some model settings exist but are not exposed in the UI</span></div></summary><div class="sec-body level-h2"><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="examples_1">Examples</span></div></summary><div class="sec-body level-h3"><p><code>AppConfig</code> includes:</p><ul>
+<li><code>advanced_mode</code></li>
+<li><code>allow_untested_updates</code></li>
+<li><code>preferred_terminal</code></li>
+</ul><p>But the UI does not seem to expose or persist all of them properly.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="specific-issues">Specific issues</span></div></summary><div class="sec-body level-h3"><ul>
+<li>advanced mode is not restored/persisted</li>
+<li><code>allow_untested_updates</code> is checked in update logic but not user-configurable</li>
+<li><code>preferred_terminal</code> exists but has no settings UI</li>
+</ul></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="why-this-matters_9">Why this matters</span></div></summary><div class="sec-body level-h3"><p>This creates hidden behavior:</p><ul>
+<li>users cannot enable untested updates even when appropriate</li>
+<li>users cannot choose a terminal emulator</li>
+<li>UI state is lost across restarts</li>
+</ul></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_11">Fix</span></div></summary><div class="sec-body level-h3"><p>Either:<br/>
+- expose these settings, or<br/>
+- remove them from the config model until they are real features</p><p>Dead config fields create confusion.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="13-secretprofile-operations-can-still-lose-data-in-edge-cases">13. Secret/profile operations can still lose data in edge cases</span></div></summary><div class="sec-body level-h2"><p>You improved this area a lot, but not completely.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="problem-areas">Problem areas</span></div></summary><div class="sec-body level-h3"><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="a-secretstorecopy_secrets-silently-ignores-failures">A. <code>SecretStore.copy_secrets()</code> silently ignores failures</span></div></summary><div class="sec-body level-h4"><p>It returns bool, but callers often ignore it.</p></div></details><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="b-rename_profile-copies-secrets-then-clears-old-ones">B. <code>rename_profile()</code> copies secrets, then clears old ones</span></div></summary><div class="sec-body level-h4"><p>If the copy step fails silently, clearing the old secret can cause loss.</p></div></details><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="c-app-level-qsettings-migration-ignores-save-result">C. App-level QSettings migration ignores save result</span></div></summary><div class="sec-body level-h4"><p>In <code>app.py</code>:</p><div class="codehilite"><pre><span></span><code><span class="n">set_api_key</span><span class="p">(</span><span class="n">old_key</span><span class="p">,</span> <span class="n">cfg</span><span class="p">)</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s2">"api_key"</span><span class="p">)</span>
+</code></pre></div><p>If the save fails, the old key may still be removed.</p></div></details></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_12">Fix</span></div></summary><div class="sec-body level-h3"><p>For secret migration/copy/rename:</p><ul>
+<li>verify success before deleting old secrets</li>
+<li>propagate errors</li>
+<li>log failures</li>
+<li>avoid silent <code>except: pass</code> in critical secret paths</li>
+</ul><p>You are close, but not fully safe yet.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="14-compatibility-checking-can-give-false-confidence">14. Compatibility checking can give false confidence</span></div></summary><div class="sec-body level-h2"><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="evidence_9">Evidence</span></div></summary><div class="sec-body level-h3"><p><code>core/cli_contract.check_fixtures()</code> skips tabs when fixture flags are empty:</p><div class="codehilite"><pre><span></span><code><span class="k">if</span> <span class="ow">not</span> <span class="n">fixture_flags</span><span class="p">:</span>
+    <span class="k">continue</span>
+</code></pre></div><p>So if fixtures are missing, the report can appear fully compatible by default.</p><p>Also, <code>app.show_cli_compatibility_dialog()</code> computes a live report, but then mostly displays the fixture report and does not properly merge live missing/unknown flags.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="why-this-matters_10">Why this matters</span></div></summary><div class="sec-body level-h3"><p>The compatibility dialog can say “compatible” when:<br/>
+- fixtures are absent<br/>
+- live binary mismatch exists but fixture report is clean</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_13">Fix</span></div></summary><div class="sec-body level-h3"><p>The compatibility dialog should:</p><ul>
+<li>clearly distinguish fixture compatibility vs live binary compatibility</li>
+<li>warn when fixtures are missing</li>
+<li>merge and display live report details</li>
+<li>not treat missing data as success</li>
+</ul><p>This feature is very useful, but currently not trustworthy enough.</p><hr/></div></details></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="medium-priority-issues">Medium-priority issues</span></div></summary><div class="sec-body level-h1"><p>These are important, but less urgent than the critical/high items.</p><hr/><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="15-some-ui-labels-are-still-misleading">15. Some UI labels are still misleading</span></div></summary><div class="sec-body level-h2"><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="biggest-offender">Biggest offender</span></div></summary><div class="sec-body level-h3"><p><code>archive-immich</code> still says <strong>Target Server</strong> in the UI.</p><p>For an archive-from-Immich operation, that server is conceptually the <strong>source</strong>.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_14">Fix</span></div></summary><div class="sec-body level-h3"><p>Use labels like:</p><ul>
+<li><strong>Source Server</strong></li>
+<li><strong>Destination Folder</strong></li>
+<li><strong>Immich Server</strong> for stack/upload destination where appropriate</li>
+</ul><p>This matters more than it seems because migration/backup workflows are easy to misunderstand.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="16-warnings-are-not-visible-early-enough">16. Warnings are not visible early enough</span></div></summary><div class="sec-body level-h2"><p>You do generate useful warnings:</p><ul>
+<li>SSL skip</li>
+<li>overwrite</li>
+<li>destructive RAW/JPEG/HEIC modes</li>
+<li>destination inside source</li>
+</ul><p>But many warnings only appear in the confirm dialog.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="better-ux">Better UX</span></div></summary><div class="sec-body level-h3"><p>Show important warnings closer to the input field, or in a persistent inline area, especially for:</p><ul>
+<li>skip SSL</li>
+<li>overwrite</li>
+<li>destructive pair handling</li>
+<li>destination inside source</li>
+</ul><p>This would reduce accidental misconfiguration.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="17-update_status-is-doing-too-much-work-on-every-keystroke">17. <code>update_status()</code> is doing too much work on every keystroke</span></div></summary><div class="sec-body level-h2"><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="evidence_10">Evidence</span></div></summary><div class="sec-body level-h3"><p>You connect many widgets directly to <code>update_status()</code>, which calls <code>validate_inputs()</code>, which can expand globs and inspect paths.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="why-this-matters_11">Why this matters</span></div></summary><div class="sec-body level-h3"><p>For path fields, this can become expensive if the user types:<br/>
+- large globs<br/>
+- slow network paths<br/>
+- recursive patterns</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_15">Fix</span></div></summary><div class="sec-body level-h3"><p>Debounce validation for text inputs, especially:<br/>
+- source paths<br/>
+- manual binary path<br/>
+- destination paths</p><p>Also, manual binary path checking on every keystroke can spawn subprocesses too often. Use <code>editingFinished</code> or a timer.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="18-the-running-warning-is-hidden-on-the-configuration-page">18. The running warning is hidden on the Configuration page</span></div></summary><div class="sec-body level-h2"><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="evidence_11">Evidence</span></div></summary><div class="sec-body level-h3"><p>The running warning lives in the footer, and the footer is hidden on the config tab.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="why-this-matters_12">Why this matters</span></div></summary><div class="sec-body level-h3"><p>If a job is running and the user switches to Configuration, the warning disappears.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_16">Fix</span></div></summary><div class="sec-body level-h3"><p>Use a more global indicator:<br/>
+- status card<br/>
+- header badge<br/>
+- always-visible banner when a lock is active</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="19-themeicon-state-handling-is-not-complete">19. Theme/icon state handling is not complete</span></div></summary><div class="sec-body level-h2"><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="issue">Issue</span></div></summary><div class="sec-body level-h3"><p>Sidebar icons are recolored by theme, but not by checked state.</p><p>So a selected nav item may have highlighted text but still use the muted icon color.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_17">Fix</span></div></summary><div class="sec-body level-h3"><p>Generate or cache icon variants for:<br/>
+- normal<br/>
+- hovered<br/>
+- checked</p><p>or use proper <code>QIcon</code> state/mode pixmaps.</p><p>This is polish, but it makes the app feel much more finished.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="20-some-combo-state-persistence-is-text-based-and-fragile">20. Some combo state persistence is text-based and fragile</span></div></summary><div class="sec-body level-h2"><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="evidence_12">Evidence</span></div></summary><div class="sec-body level-h3"><p><code>collect_form_state()</code> stores <code>QComboBox.currentText()</code>.</p><p>That is okay for simple cases, but fragile for:<br/>
+- secret provider<br/>
+- on-errors custom mode<br/>
+- future localized labels</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_18">Fix</span></div></summary><div class="sec-body level-h3"><p>Use item data instead of display text wherever the value is semantic.</p><p>This avoids encoding/label mismatch problems and makes state persistence more robust.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="21-cardlayout-shadows-qts-layout-method">21. <code>Card.layout</code> shadows Qt’s <code>layout()</code> method</span></div></summary><div class="sec-body level-h2"><p>You assign:</p><div class="codehilite"><pre><span></span><code><span class="bp">self</span><span class="o">.</span><span class="n">layout</span> <span class="o">=</span> <span class="n">QVBoxLayout</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+</code></pre></div><p>This shadows the QWidget <code>layout()</code> method.</p><p>It may work, but it is risky and can cause confusing behavior later.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_19">Fix</span></div></summary><div class="sec-body level-h3"><p>Use:<br/>
+- <code>self._layout</code><br/>
+- or <code>setLayout(...)</code> and access via <code>layout()</code></p><p>This is a code-quality issue, but worth fixing before the codebase grows further.</p><hr/></div></details></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="testing-critique">Testing critique</span></div></summary><div class="sec-body level-h1"><p>You have made real progress on tests, but there are important weaknesses.</p><hr/><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="22-some-golden-tests-enshrine-incorrect-cli-assumptions">22. Some golden tests enshrine incorrect CLI assumptions</span></div></summary><div class="sec-body level-h2"><p>For example, tests currently expect:</p><ul>
+<li><code>--write-to=...</code></li>
+<li><code>archive from-immich --server=...</code></li>
+</ul><p>If the CLI help is correct, those tests are protecting the wrong behavior.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_20">Fix</span></div></summary><div class="sec-body level-h3"><p>Audit golden tests against the actual CLI contract, not against the current builder.</p><p>Tests should prevent regressions, not cement bugs.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="23-duplicate-test-names-silently-disable-tests">23. Duplicate test names silently disable tests</span></div></summary><div class="sec-body level-h2"><p>In <code>test_app.py</code>, there are duplicated function names, e.g.:</p><ul>
+<li><code>test_api_trace_on_stack</code></li>
+<li><code>test_golden_archive_folder</code></li>
+</ul><p>In Python, the later definition silently overrides the earlier one.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="impact_9">Impact</span></div></summary><div class="sec-body level-h3"><p>You may think you have coverage that is not actually running.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_21">Fix</span></div></summary><div class="sec-body level-h3"><p>Rename tests uniquely and add a lint rule for duplicate test names.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="24-missing-tests-for-ui-option-actually-affects-command">24. Missing tests for “UI option actually affects command”</span></div></summary><div class="sec-body level-h2"><p>You have tests for many happy paths, but not enough tests that say:</p><ul>
+<li>if I toggle this GP checkbox, the emitted command changes</li>
+<li>if I choose VIDEO include type, <code>--include-type=VIDEO</code> appears</li>
+<li>if I disable archived/partner/sync, the correct false flags appear</li>
+<li>if I set stack time zone, it appears in argv</li>
+</ul><p>Right now, many UI controls are untested against actual command emission.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_22">Fix</span></div></summary><div class="sec-body level-h3"><p>Add widget-to-plan tests for every exposed control.</p><p>If a control exists, a test should prove it matters.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="25-compatibility-fixtures-need-to-be-first-class-artifacts">25. Compatibility fixtures need to be first-class artifacts</span></div></summary><div class="sec-body level-h2"><p>The fixture approach is good, but the fixtures need to be:</p><ul>
+<li>committed</li>
+<li>versioned</li>
+<li>exercised in CI</li>
+<li>checked for absence (fail loudly if missing)</li>
+</ul><p>Otherwise the compatibility system can silently become decorative.</p><hr/></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="security-critique">Security critique</span></div></summary><div class="sec-body level-h1"><p>You are already above average here, but a few things remain.</p><hr/><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="26-environment-variable-secret-passing-is-still-an-unverified-contract">26. Environment-variable secret passing is still an unverified contract</span></div></summary><div class="sec-body level-h2"><p>The whole secret strategy depends on <code>immich-go</code> honoring variables like:</p><ul>
+<li><code>IMMICH_GO_UPLOAD_SERVER</code></li>
+<li><code>IMMICH_GO_UPLOAD_API_KEY</code></li>
+<li><code>IMMICH_GO_ARCHIVE_API_KEY</code></li>
+<li>etc.</li>
+</ul><p>But the CLI help you provided does not document those env vars.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="why-this-matters_13">Why this matters</span></div></summary><div class="sec-body level-h3"><p>If upstream does not actually support these variables, your app may fail authentication while showing a “secure” command preview.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_23">Fix</span></div></summary><div class="sec-body level-h3"><p>Verify the env-var contract explicitly.</p><p>If it is not stable, consider:<br/>
+- temporary config file generation with restrictive permissions<br/>
+- or another non-argv secret mechanism</p><p>Do not build the whole security model on an undocumented interface unless you control it or have verified it.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="27-posix-temp-secret-files-can-remain-after-abnormal-termination">27. POSIX temp secret files can remain after abnormal termination</span></div></summary><div class="sec-body level-h2"><p>You do set <code>0600</code> and clean up on exit, which is good.</p><p>But if the process is killed abruptly, <code>env.sh</code> may remain in a temp directory.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_24">Fix</span></div></summary><div class="sec-body level-h3"><p>Consider:<br/>
+- shorter-lived temp paths<br/>
+- best-effort startup cleanup of old immich-go-run temp dirs<br/>
+- or avoiding secret files entirely where possible</p><p>Not catastrophic, but worth noting.</p><hr/></div></details></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="architecture-code-quality-critique">Architecture / code-quality critique</span></div></summary><div class="sec-body level-h1"><hr/><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="28-apppy-is-still-doing-too-much">28. <code>app.py</code> is still doing too much</span></div></summary><div class="sec-body level-h2"><p>This was already true before, and it still is.</p><p><code>app.py</code> contains:<br/>
+- main window<br/>
+- custom widgets<br/>
+- page construction<br/>
+- process launching glue<br/>
+- update flow<br/>
+- profile menu logic<br/>
+- theme handling<br/>
+- persistence glue</p><p>It is manageable for now, but if you add the missing CLI options and workflows, this file will become a liability.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_25">Fix</span></div></summary><div class="sec-body level-h3"><p>When you do the next pass, split into:</p><ul>
+<li><code>widgets/</code></li>
+<li><code>pages/</code></li>
+<li><code>controllers/</code></li>
+<li><code>dialogs/</code></li>
+</ul><p>Especially separate:<br/>
+- update controller<br/>
+- run controller<br/>
+- profile controller<br/>
+- compatibility controller</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="29-too-many-magic-strings-remain">29. Too many magic strings remain</span></div></summary><div class="sec-body level-h2"><p>You still have many repeated string keys:</p><ul>
+<li>tab keys</li>
+<li>field names</li>
+<li>flag names</li>
+<li>provider names</li>
+<li>status states</li>
+</ul><p>This increases the chance of subtle bugs.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_26">Fix</span></div></summary><div class="sec-body level-h3"><p>Introduce constants/enums for:<br/>
+- tab identifiers<br/>
+- form field keys<br/>
+- secret provider values<br/>
+- support states</p><p>This will make refactoring much safer.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="30-silent-exception-handling-is-still-too-common-in-backend-helpers">30. Silent exception handling is still too common in backend helpers</span></div></summary><div class="sec-body level-h2"><p>There are still many places where exceptions are swallowed or reduced to empty results.</p><p>That may be acceptable for optional UI conveniences, but not for:<br/>
+- secret migration<br/>
+- metadata corruption<br/>
+- config save/load<br/>
+- binary extraction<br/>
+- compatibility fixtures</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="fix_27">Fix</span></div></summary><div class="sec-body level-h3"><p>Add structured logging and differentiate:<br/>
+- expected recoverable cases<br/>
+- unexpected failures that should be surfaced</p><p>Right now the app is sometimes too quiet when something goes wrong.</p><hr/></div></details></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="what-i-would-prioritize-next">What I would prioritize next</span></div></summary><div class="sec-body level-h1"><p>If this were my project, I would do this in order:</p><hr/><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="phase-1-correctness-first">Phase 1 — Correctness first</span></div></summary><div class="sec-body level-h2"><ol>
+<li>Fix archive flag:<br/>
+   - <code>write-to</code> → <code>write-to-folder</code></li>
+<li>Fix <code>archive-immich</code> source-server/auth model</li>
+<li>Surface <code>plan.errors</code> everywhere</li>
+<li>Wire or remove all non-functional GP controls</li>
+<li>Fix stack flag allowlist/builder mismatches</li>
+<li>Fix <code>running_process</code> boolean bug</li>
+<li>Make stale-lock detection real</li>
+</ol><hr/></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="phase-2-cli-contract-hardening">Phase 2 — CLI contract hardening</span></div></summary><div class="sec-body level-h2"><ol start="8">
+<li>Rebuild <code>TAB_ALLOWED_FLAGS</code> directly from captured CLI help</li>
+<li>Add missing flags where appropriate:<br/>
+   - concurrent tasks<br/>
+   - stack time zone / epson / api-trace<br/>
+   - GP album/partner/trash/archived/sync controls</li>
+<li>Verify env-var secret contract or replace it with temporary config generation</li>
+<li>Normalize all paths to absolute before execution</li>
+</ol><hr/></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="phase-3-safety-and-reliability">Phase 3 — Safety and reliability</span></div></summary><div class="sec-body level-h2"><ol start="12">
+<li>Make binary updates:<br/>
+   - comparison-aware<br/>
+   - asset-discovery based<br/>
+   - checksum-verifying<br/>
+   - cancel-safe</li>
+<li>Make secret copy/rename/migration verify success before deleting old data</li>
+<li>Add debouncing for path/manual-binary validation</li>
+<li>Add real run-state recovery/reset behavior</li>
+</ol><hr/></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="phase-4-test-repair">Phase 4 — Test repair</span></div></summary><div class="sec-body level-h2"><ol start="16">
+<li>Fix duplicate test names</li>
+<li>Replace incorrect golden expectations</li>
+<li>Add tests proving every visible widget changes the generated command</li>
+<li>Make missing compatibility fixtures a hard failure</li>
+<li>Add stale-lock and terminal-env tests</li>
+</ol><hr/></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="bottom-line">Bottom line</span></div></summary><div class="sec-body level-h1"><p>The app is already <strong>well above average</strong> for a GUI wrapper.</p><p>But if I’m being a critic, the honest assessment is:</p><ul>
+<li><strong>architecture: strong</strong></li>
+<li><strong>UX: strong</strong></li>
+<li><strong>security direction: strong</strong></li>
+<li><strong>CLI correctness: not yet trustworthy</strong></li>
+<li><strong>process lifecycle: still fragile</strong></li>
+<li><strong>tests: useful, but partly protecting the wrong behavior</strong></li>
+</ul><p>The most important thing to understand is this:</p><blockquote>
+<p>The biggest remaining risk is not missing features.<br/>
+It is that the GUI can look correct while generating an incorrect command.</p>
+</blockquote><p>Once you eliminate silent flag mismatches and non-functional controls, this will be in much better shape.</p><p>If you want, I can next turn this critique into a <strong>prioritized GitHub issue list</strong> or a <strong>concrete patch plan for the critical fixes only</strong>.</p></div></details>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tocList = document.getElementById('tocList');
+            const headings = document.querySelectorAll('.sec-summary');
+
+            headings.forEach((sum, idx) => {
+                const headingText = sum.querySelector('.heading-text');
+                const badge = sum.querySelector('.badge');
+                if (!headingText || !badge) return;
+
+                const text = headingText.innerText.trim();
+                const level = badge.innerText.toLowerCase();
+                
+                const anchorId = 'sec-heading-' + idx;
+                headingText.id = anchorId;
+
+                const li = document.createElement('li');
+                li.className = `toc-item level-${level.replace('h', '')}`;
+
+                const a = document.createElement('a');
+                a.className = 'toc-link';
+                a.href = '#' + anchorId;
+                a.innerText = text;
+                a.onclick = (e) => {
+                    e.preventDefault();
+                    let details = sum.closest('details');
+                    while (details) {
+                        details.open = true;
+                        details = details.parentElement.closest('details');
+                    }
+                    headingText.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                };
+
+                li.appendChild(a);
+                tocList.appendChild(li);
+            });
+
+            document.querySelectorAll('pre').forEach(pre => {
+                const btn = document.createElement('button');
+                btn.className = 'copy-code-btn';
+                btn.innerText = 'Copy';
+                btn.onclick = () => {
+                    const code = pre.querySelector('code');
+                    const text = code ? code.innerText : pre.innerText;
+                    navigator.clipboard.writeText(text).then(() => {
+                        btn.innerText = 'Copied!';
+                        setTimeout(() => btn.innerText = 'Copy', 2000);
+                    });
+                };
+                pre.appendChild(btn);
+            });
+        });
+
+        function expandAll() { document.querySelectorAll('details').forEach(d => d.open = true); }
+        function collapseAll() { document.querySelectorAll('details').forEach(d => d.open = false); }
+
+        function toggleTheme() {
+            const body = document.body;
+            const themeBtn = document.getElementById('themeBtn');
+            if (body.getAttribute('data-theme') === 'dark') {
+                body.setAttribute('data-theme', 'light');
+                themeBtn.innerHTML = '<span>☀️</span> Light Mode';
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                themeBtn.innerHTML = '<span>🌙</span> Dark Mode';
+            }
+        }
+
+        function filterContent() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            const detailsList = document.querySelectorAll('details');
+
+            if (!query) {
+                detailsList.forEach(d => d.classList.remove('search-hidden'));
+                return;
+            }
+
+            detailsList.forEach(d => {
+                const text = d.innerText.toLowerCase();
+                if (text.includes(query)) {
+                    d.classList.remove('search-hidden');
+                    d.open = true;
+                } else {
+                    d.classList.add('search-hidden');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
