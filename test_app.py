@@ -720,7 +720,7 @@ def test_golden_archive_immich(gui):
         "--from-date-range=2024",
         "--from-albums=Family",
     ]
-    assert plan.env.get("IMMICH_GO_ARCHIVE_API_KEY") == "test-key"
+    assert plan.env.get("IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_KEY") == "test-key"
     assert not any("--api-key" in p for p in plan.argv)
 
 
@@ -1382,3 +1382,61 @@ def test_show_cli_compatibility_dialog(gui):
         assert mock_info.called
         title = mock_info.call_args[0][1]
         assert "CLI Compatibility" in title
+
+
+# ==============================================================================
+# SECTION 3: CRITICAL FIX 2 & CRITICAL FIX 3 TESTS
+# ==============================================================================
+
+from core.command_builder import CommandPlan, build_environment, build_plan_from_state
+
+
+def test_archive_immich_source_model_env():
+    env = build_environment(
+        tab_key="archive-immich",
+        server="http://source-server:2283",
+        api_key="source-key",
+        admin_api_key="source-admin-key",
+    )
+    assert env.get("IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER") == "http://source-server:2283"
+    assert env.get("IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_KEY") == "source-key"
+    assert env.get("IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_ADMIN_API_KEY") == "source-admin-key"
+    assert "IMMICH_GO_ARCHIVE_SERVER" not in env
+
+
+def test_archive_immich_source_model_cmd():
+    plan = build_plan_from_state(
+        tab_key="archive-immich",
+        config_state={"server": "http://source-server:2283", "api_key": "source-key"},
+        tab_state={"write-to": "/dest/folder"},
+        binary_path="./immich-go",
+        dry_run=True,
+    )
+    assert "--from-server=http://source-server:2283" in plan.argv
+    assert "--write-to-folder=/dest/folder" in plan.argv
+    assert "--dry-run" in plan.argv
+    assert not any(arg.startswith("--server=") for arg in plan.argv)
+
+
+def test_plan_errors_surfaced_in_gui(gui):
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(0)
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+
+    mock_plan = CommandPlan(
+        argv=["upload", "from-folder"],
+        env={},
+        tab_key="upload-folder",
+        binary_path="./immich-go",
+        errors=["Invalid flag '--unsupported' specified."],
+    )
+
+    with patch.object(gui, "build_plan", return_value=mock_plan):
+        with patch("PySide6.QtWidgets.QMessageBox.critical") as mock_crit:
+            gui.show_confirm_dialog(is_dry_run=True)
+            assert mock_crit.called
+            title = mock_crit.call_args[0][1]
+            msg = mock_crit.call_args[0][2]
+            assert "Command Build Errors" in title
+            assert "Invalid flag '--unsupported'" in msg

@@ -179,9 +179,19 @@ def build_environment(
     if srv_key and server:
         env[srv_key] = server
 
+    from_srv_key = mapping.get("from_server")
+    target_srv = from_server or server
+    if from_srv_key and target_srv:
+        env[from_srv_key] = target_srv
+
     api_key_name = mapping.get("api_key")
     if api_key_name and api_key:
         env[api_key_name] = api_key
+
+    from_api_key_name = mapping.get("from_api_key")
+    target_api_key = from_api_key or api_key
+    if from_api_key_name and target_api_key:
+        env[from_api_key_name] = target_api_key
 
     if tab_key == "upload-immich":
         if from_server:
@@ -194,6 +204,8 @@ def build_environment(
             env["IMMICH_GO_UPLOAD_ADMIN_API_KEY"] = admin_api_key
         elif tab_key == "stack":
             env["IMMICH_GO_STACK_ADMIN_API_KEY"] = admin_api_key
+        elif tab_key == "archive-immich":
+            env["IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_ADMIN_API_KEY"] = admin_api_key
 
     return env
 

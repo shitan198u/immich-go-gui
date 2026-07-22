@@ -82,8 +82,9 @@ ENV_KEY_MAP = {
         "from_admin_api_key": "IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY",
     },
     "archive-immich": {
-        "server": "IMMICH_GO_ARCHIVE_SERVER",
-        "api_key": "IMMICH_GO_ARCHIVE_API_KEY",
+        "from_server": "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER",
+        "from_api_key": "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_KEY",
+        "from_admin_api_key": "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_ADMIN_API_KEY",
     },
     "stack": {
         "server": "IMMICH_GO_STACK_SERVER",

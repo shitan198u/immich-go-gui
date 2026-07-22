@@ -1538,14 +1538,14 @@ class ImmichGoGUI(QMainWindow):
         lay.setSpacing(24)
         self.inputs["archive-immich"] = {}
 
-        card = Card("Target Server")
+        card = Card("Source Server")
         form = FormSection()
 
         t_server = QLineEdit()
         t_server.setEnabled(False)
         t_server.setText("Not Configured")
         self.inputs["archive-immich"]["target-server"] = t_server
-        form.add_row("Immich Server URL", t_server, "Update in Configuration tab.")
+        form.add_row("Source Immich Server URL", t_server, "Archive source server is configured in the Configuration tab.")
 
         card.layout.addLayout(form)
         lay.addWidget(card)
@@ -2312,6 +2312,13 @@ class ImmichGoGUI(QMainWindow):
             return
 
         plan = self.build_plan(dry_run=is_dry_run)
+        if plan.errors:
+            QMessageBox.critical(
+                self, "Command Build Errors",
+                "\n".join(f"• {e}" for e in plan.errors)
+            )
+            return
+
         if validation.warnings:
             for w in validation.warnings:
                 if w not in plan.warnings:
@@ -2732,6 +2739,13 @@ class ImmichGoGUI(QMainWindow):
             tab_state = self._collect_tab_state(tab_key)
             binary_path = getattr(self, "binary_path", "./immich-go")
             plan = build_plan_from_state(tab_key, config_state, tab_state, binary_path, False)
+
+        if plan.errors:
+            QMessageBox.critical(
+                self, "Command Build Errors",
+                "\n".join(f"• {e}" for e in plan.errors)
+            )
+            return
 
         binary_path = plan.binary_path or getattr(self, "binary_path", "./immich-go")
         if not os.path.exists(binary_path):
