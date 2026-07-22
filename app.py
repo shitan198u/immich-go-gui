@@ -26,7 +26,10 @@ import webbrowser
 import zipfile
 import tarfile
 import glob
+import json
 import keyring
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -60,6 +63,30 @@ from theme import (
 # PURE UTILITY & SECRET HELPERS
 # ==========================================================
 
+@dataclass
+class CommandPlan:
+    """Represents a fully resolved immich-go execution plan."""
+    argv: list[str] = field(default_factory=list)
+    env: dict[str, str] = field(default_factory=dict)
+    display_argv: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    tab_key: str = ""
+    dry_run: bool = False
+    binary_path: str = ""
+
+
+@dataclass
+class ValidationResult:
+    """Structured validation output."""
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+    @property
+    def is_valid(self) -> bool:
+        return len(self.errors) == 0
+
+
 def collect_paths(raw_text: str) -> list[str]:
     """Expands glob patterns and handles multi-line path inputs."""
     paths = []
@@ -75,22 +102,151 @@ def collect_paths(raw_text: str) -> list[str]:
     return paths
 
 
+def normalize_server_url(url: str) -> str:
+    """Normalize a server URL for CLI consumption.
+
+    - Strips leading/trailing whitespace
+    - Adds http:// if no scheme is present
+    - Strips trailing slashes
+    - Returns empty string for empty input
+    """
+    url = url.strip()
+    if not url:
+        return ""
+
+    if not url.startswith("http://") and not url.startswith("https://"):
+        url = "http://" + url
+
+    return url.rstrip("/")
+
+
 def mask_command_for_display(command_parts: list[str]) -> list[str]:
-    """Obfuscates secrets in command previews."""
+    """Obfuscates secrets in command previews.
+
+    Handles both forms:
+      --api-key=secret   (single element)
+      --api-key secret   (two elements)
+    """
     masked = []
-    # FIX #2: removed trailing spaces from flag names
     secret_flags = {"--api-key", "--from-api-key", "--admin-api-key"}
+
+    skip_next = False
     for part in command_parts:
+        if skip_next:
+            masked.append("********")
+            skip_next = False
+            continue
+
+        if part in secret_flags:
+            masked.append(part)
+            skip_next = True
+            continue
+
         hidden = False
         for flag in secret_flags:
-            # FIX #2: match "--api-key=VALUE" (no space before '=')
             if part.startswith(f"{flag}="):
                 masked.append(f"{flag}=********")
                 hidden = True
                 break
+
         if not hidden:
             masked.append(part)
+
     return masked
+
+
+_DATE_RANGE_RE = re.compile(
+    r"^\d{4}(-\d{2}(-\d{2})?)?"
+    r"(,\d{4}(-\d{2}(-\d{2})?)?)?$"
+)
+
+
+def validate_date_range(text: str) -> bool:
+    """Validate immich-go date range format.
+
+    Accepts: 2023, 2023-07, 2023-07-15, 2023-01-01,2023-12-31
+    """
+    text = text.strip()
+    if not text:
+        return True
+    return bool(_DATE_RANGE_RE.match(text))
+
+
+BINARY_BASE_DIR = os.path.join(os.path.expanduser("~"), ".immich-go-gui", "bin")
+METADATA_PATH = os.path.join(BINARY_BASE_DIR, "metadata.json")
+TESTED_IMMICH_GO_VERSION = "0.31.0"
+
+
+def load_binary_metadata() -> dict:
+    if os.path.exists(METADATA_PATH):
+        try:
+            with open(METADATA_PATH, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            pass
+    return {
+        "schema_version": 1,
+        "selected_version": "",
+        "manual_path": "",
+        "versions": {},
+    }
+
+
+def save_binary_metadata(meta: dict):
+    os.makedirs(BINARY_BASE_DIR, exist_ok=True)
+    with open(METADATA_PATH, "w") as f:
+        json.dump(meta, f, indent=2)
+
+
+def get_binary_path(meta: dict) -> str:
+    """Resolve the effective binary path from metadata."""
+    manual = meta.get("manual_path", "").strip()
+    if manual and os.path.exists(manual):
+        return manual
+
+    selected = meta.get("selected_version", "")
+    if selected and selected in meta.get("versions", {}):
+        path = meta["versions"][selected]["path"]
+        if os.path.exists(path):
+            return path
+
+    binary_filename = "immich-go.exe" if sys.platform.startswith("win") else "immich-go"
+    legacy = os.path.join(BINARY_BASE_DIR, binary_filename)
+    if os.path.exists(legacy):
+        return legacy
+
+    return ""
+
+
+BREAKING_INDICATORS = [
+    r"\bbreaking\s+change",
+    r"\bbreaking\b",
+    r"\bBREAKING\b",
+    r"\bremoved\b.*\bflag\b",
+    r"\brenamed\b.*\bflag\b",
+    r"\bincompatible\b",
+    r"\bdeprecat(ed|ion)\b",
+]
+
+_BREAKING_RE = re.compile(
+    "|".join(BREAKING_INDICATORS),
+    re.IGNORECASE
+)
+
+
+def check_release_for_breaking_changes(version: str) -> tuple[bool, str]:
+    """Fetch release notes from GitHub and check for breaking change indicators."""
+    try:
+        api_url = f"https://api.github.com/repos/simulot/immich-go/releases/tags/{version}"
+        response = requests.get(api_url, timeout=20)
+        response.raise_for_status()
+        data = response.json()
+        body = data.get("body", "") or ""
+
+        has_breaking = bool(_BREAKING_RE.search(body))
+        return has_breaking, body
+    except Exception as e:
+        return True, f"Could not fetch release notes: {e}"
 
 
 def build_environment(tab_key: str, server: str, api_key: str,

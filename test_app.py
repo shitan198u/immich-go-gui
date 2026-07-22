@@ -10,6 +10,13 @@ from app import (
     build_environment,
     SecretStore,
     DroppablePlainTextEdit,
+    CommandPlan,
+    ValidationResult,
+    normalize_server_url,
+    validate_date_range,
+    load_binary_metadata,
+    save_binary_metadata,
+    get_binary_path,
 )
 from PySide6.QtWidgets import QApplication, QLineEdit, QPlainTextEdit
 from PySide6.QtCore import QUrl, Qt, QMimeData, QPointF
@@ -38,6 +45,23 @@ def test_collect_paths_glob_expansion(tmp_path):
     assert all("takeout-" in p for p in result)
 
 
+def test_normalize_server_url_adds_scheme():
+    assert normalize_server_url("localhost:2283") == "http://localhost:2283"
+
+
+def test_normalize_server_url_strips_trailing_slash():
+    assert normalize_server_url("http://localhost:2283/") == "http://localhost:2283"
+
+
+def test_normalize_server_url_preserves_https():
+    assert normalize_server_url("https://photos.example.com/") == "https://photos.example.com"
+
+
+def test_normalize_server_url_empty():
+    assert normalize_server_url("") == ""
+    assert normalize_server_url("   ") == ""
+
+
 def test_mask_command_for_display():
     cmd = ["immich-go", "upload", "from-folder",
            "--server=http://local", "--api-key=super_secret_123", "/photos"]
@@ -45,6 +69,14 @@ def test_mask_command_for_display():
     assert "--api-key=super_secret_123" not in masked
     assert "--api-key=********" in masked
     assert "--server=http://local" in masked
+
+
+def test_mask_command_space_separated():
+    cmd = ["immich-go", "upload", "from-folder", "--api-key", "super_secret", "/photos"]
+    masked = mask_command_for_display(cmd)
+    assert "super_secret" not in masked
+    assert "********" in masked
+    assert "--api-key" in masked
 
 
 def test_mask_command_from_api_key():
@@ -58,6 +90,15 @@ def test_mask_command_admin_api_key():
     masked = mask_command_for_display(cmd)
     assert "ADMIN_SECRET" not in masked
     assert "--admin-api-key=********" in masked
+
+
+def test_validate_date_range():
+    assert validate_date_range("") is True
+    assert validate_date_range("2023") is True
+    assert validate_date_range("2023-07") is True
+    assert validate_date_range("2023-07-15") is True
+    assert validate_date_range("2023-01-01,2023-12-31") is True
+    assert validate_date_range("invalid-date") is False
 
 
 def test_build_environment_no_trailing_spaces():
