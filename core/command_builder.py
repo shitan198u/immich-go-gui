@@ -7,6 +7,7 @@ It operates entirely on plain Python dictionaries and primitive types.
 import glob
 import os
 import re
+from typing import Any
 
 from .models import CommandPlan, ValidationResult
 from .cli_schema import (
@@ -15,6 +16,7 @@ from .cli_schema import (
     SERVER_REQUIRED_TABS,
     TAB_COMMANDS,
     UPLOAD_TABS,
+    flag_allowed_for_tab,
 )
 from .validation import (
     clean_date_range,
@@ -24,6 +26,55 @@ from .validation import (
     expand_source_paths,
     validate_destination_folder,
 )
+
+
+class FlagEmitter:
+    """Helper class that checks per-tab flag allowlists before emitting CLI options."""
+
+    def __init__(self, tab_key: str, strict: bool = False):
+        self.tab_key = tab_key
+        self.strict = strict
+        self.opts: list[str] = []
+        self.errors: list[str] = []
+
+    def add_option(self, flag_name: str, value: Any) -> bool:
+        clean_name = str(flag_name).lstrip("-")
+        if not flag_allowed_for_tab(self.tab_key, clean_name):
+            err = f"Flag '--{clean_name}' is not allowed for tab '{self.tab_key}'"
+            if self.strict:
+                raise ValueError(err)
+            self.errors.append(err)
+            return False
+        val_str = str(value)
+        if val_str:
+            self.opts.append(f"--{clean_name}={val_str}")
+            return True
+        return False
+
+    def add_flag(self, flag_name: str, enabled: bool = True) -> bool:
+        clean_name = str(flag_name).lstrip("-")
+        if not flag_allowed_for_tab(self.tab_key, clean_name):
+            err = f"Flag '--{clean_name}' is not allowed for tab '{self.tab_key}'"
+            if self.strict:
+                raise ValueError(err)
+            self.errors.append(err)
+            return False
+        if enabled:
+            self.opts.append(f"--{clean_name}")
+            return True
+        return False
+
+    def add_bool_val(self, flag_name: str, value: bool) -> bool:
+        clean_name = str(flag_name).lstrip("-")
+        if not flag_allowed_for_tab(self.tab_key, clean_name):
+            err = f"Flag '--{clean_name}' is not allowed for tab '{self.tab_key}'"
+            if self.strict:
+                raise ValueError(err)
+            self.errors.append(err)
+            return False
+        val_str = "true" if value else "false"
+        self.opts.append(f"--{clean_name}={val_str}")
+        return True
 
 
 _DATE_RANGE_RE = re.compile(
@@ -282,9 +333,8 @@ def build_plan_from_state(
 
     _add_destructive_warnings(tab_state, plan)
 
-    global_opts: list[str] = []
+    emitter = FlagEmitter(tab_key)
     cmd = TAB_COMMANDS[tab_key]
-    cmd_opts: list[str] = []
     path_opt: list[str] = []
 
     server = str(config_state.get("server", ""))
@@ -303,173 +353,163 @@ def build_plan_from_state(
         base_env=base_env,
     )
 
-    # 6.1 Global options
+    # Global options
     log_level = str(tab_state.get("log-level", "INFO"))
     if log_level and log_level != "INFO":
-        global_opts.append(f"--log-level={log_level}")
+        emitter.add_option("log-level", log_level)
 
-    # 6.3 Server and SSL
+    # Server and SSL
     if tab_key != "archive-folder":
         if server:
-            cmd_opts.append(f"--server={normalize_server_url(server)}")
+            emitter.add_option("server", normalize_server_url(server))
 
         if config_state.get("skip-ssl"):
-            cmd_opts.append("--skip-verify-ssl")
+            emitter.add_flag("skip-verify-ssl")
             plan.warnings.append(
                 "SSL verification is disabled. "
                 "Use only on trusted networks or self-hosted test servers."
             )
 
-    # 6.4 API key handling for upload-immich source server
+    # API key handling for upload-immich source server
     if tab_key == "upload-immich" and from_server:
-        cmd_opts.append(f"--from-server={normalize_server_url(from_server)}")
+        emitter.add_option("from-server", normalize_server_url(from_server))
 
-    # 6.5 Global advanced options
+    # Global advanced options
     client_timeout = config_state.get("client_timeout", 20)
     if client_timeout != 20:
-        cmd_opts.append(f"--client-timeout={client_timeout}m")
+        emitter.add_option("client-timeout", f"{client_timeout}m")
 
     if tab_key in UPLOAD_TABS and config_state.get("device_uuid"):
-        cmd_opts.append(f"--device-uuid={config_state['device_uuid']}")
+        emitter.add_option("device-uuid", config_state["device_uuid"])
 
     concurrent = config_state.get("concurrent", 0)
     concurrent_default = config_state.get("concurrent_default", 0)
     if concurrent != concurrent_default:
-        cmd_opts.append(f"--concurrent-tasks={concurrent}")
+        emitter.add_option("concurrent-tasks", concurrent)
 
     if tab_key in UPLOAD_TABS:
         if "pause-jobs" in tab_state:
             if not tab_state["pause-jobs"]:
-                cmd_opts.append("--pause-immich-jobs=false")
+                emitter.add_bool_val("pause-immich-jobs", False)
         elif not config_state.get("pause_jobs", True):
-            cmd_opts.append("--pause-immich-jobs=false")
+            emitter.add_bool_val("pause-immich-jobs", False)
 
     if tab_key in UPLOAD_TABS:
         if "on-errors" in tab_state:
             if tab_state["on-errors"] != "stop":
-                cmd_opts.append(f"--on-errors={tab_state['on-errors']}")
+                emitter.add_option("on-errors", tab_state["on-errors"])
         else:
             oe_config = config_state.get("on_errors", "stop")
             if oe_config == "custom…":
                 tol = config_state.get("on_errors_tolerance", 10)
-                cmd_opts.append(f"--on-errors={tol}")
+                emitter.add_option("on-errors", tol)
             elif oe_config != "stop":
-                cmd_opts.append(f"--on-errors={oe_config}")
+                emitter.add_option("on-errors", oe_config)
 
-    # 6.6 Tab-specific options in strict order
+    # Tab-specific options
     if tab_key == "upload-folder":
         if tab_state.get("include-type", "all") != "all":
-            cmd_opts.append(f"--include-type={tab_state['include-type']}")
+            emitter.add_option("include-type", tab_state["include-type"])
 
         if tab_state.get("folder-album", "NONE") != "NONE":
-            cmd_opts.append(f"--folder-as-album={tab_state['folder-album']}")
+            emitter.add_option("folder-as-album", tab_state["folder-album"])
 
         if tab_state.get("into-album"):
-            cmd_opts.append(f"--into-album={tab_state['into-album']}")
+            emitter.add_option("into-album", tab_state["into-album"])
 
         if tab_state.get("overwrite"):
-            cmd_opts.append("--overwrite")
+            emitter.add_flag("overwrite")
             plan.warnings.append("Overwrite mode will replace existing files on the server.")
 
         if tab_state.get("manage-burst", "NoStack") != "NoStack":
-            cmd_opts.append(f"--manage-burst={tab_state['manage-burst']}")
+            emitter.add_option("manage-burst", tab_state["manage-burst"])
 
         if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
-            cmd_opts.append(f"--manage-raw-jpeg={tab_state['manage-raw-jpeg']}")
+            emitter.add_option("manage-raw-jpeg", tab_state["manage-raw-jpeg"])
 
         if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
-            cmd_opts.append(f"--manage-heic-jpeg={tab_state['manage-heic-jpeg']}")
+            emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
 
         dr = clean_date_range(str(tab_state.get("date-range", "")))
         if dr:
-            cmd_opts.append(f"--date-range={dr}")
+            emitter.add_option("date-range", dr)
 
         inc_ext = normalize_extensions_csv(str(tab_state.get("include-ext", "")))
         if inc_ext:
-            cmd_opts.append(f"--include-extensions={inc_ext}")
+            emitter.add_option("include-extensions", inc_ext)
 
         exc_ext = normalize_extensions_csv(str(tab_state.get("exclude-ext", "")))
         if exc_ext:
-            cmd_opts.append(f"--exclude-extensions={exc_ext}")
+            emitter.add_option("exclude-extensions", exc_ext)
 
         if tab_state.get("ban-file"):
             for line in str(tab_state["ban-file"]).split("\n"):
                 if line.strip():
-                    cmd_opts.append(f"--ban-file={line.strip()}")
+                    emitter.add_option("ban-file", line.strip())
 
         if tab_state.get("ignore-sidecar"):
-            cmd_opts.append("--ignore-sidecar-files")
+            emitter.add_flag("ignore-sidecar-files")
 
         if "date-from-name" in tab_state and not tab_state["date-from-name"]:
-            cmd_opts.append("--date-from-name=false")
+            emitter.add_bool_val("date-from-name", False)
 
         if tab_state.get("tag"):
             for t in str(tab_state["tag"]).split(","):
                 if t.strip():
-                    cmd_opts.append(f"--tag={t.strip()}")
+                    emitter.add_option("tag", t.strip())
 
         if tab_state.get("session-tag"):
-            cmd_opts.append("--session-tag")
+            emitter.add_flag("session-tag")
 
         if tab_state.get("folder-tags"):
-            cmd_opts.append("--folder-as-tags")
+            emitter.add_flag("folder-as-tags")
 
         if tab_state.get("api-trace"):
-            cmd_opts.append("--api-trace")
+            emitter.add_flag("api-trace")
 
         if tab_state.get("path"):
             path_opt.append(tab_state["path"])
 
     elif tab_key == "upload-gp":
-        if tab_state.get("include-type", "all") != "all":
-            cmd_opts.append(f"--include-type={tab_state['include-type']}")
-
-        if tab_state.get("into-album"):
-            cmd_opts.append(f"--into-album={tab_state['into-album']}")
-
-        if tab_state.get("include-unmatched"):
-            cmd_opts.append("--include-unmatched=true")
-
-        if "include-partner" in tab_state and not tab_state["include-partner"]:
-            cmd_opts.append("--include-partner=false")
-
-        if "sync-albums" in tab_state and not tab_state["sync-albums"]:
-            cmd_opts.append("--sync-albums=false")
-
         if tab_state.get("manage-burst", "NoStack") != "NoStack":
-            cmd_opts.append(f"--manage-burst={tab_state['manage-burst']}")
+            emitter.add_option("manage-burst", tab_state["manage-burst"])
+
+        if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
+            emitter.add_option("manage-raw-jpeg", tab_state["manage-raw-jpeg"])
 
         if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
-            cmd_opts.append(f"--manage-heic-jpeg={tab_state['manage-heic-jpeg']}")
+            emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
 
-        if tab_state.get("from-album-name"):
-            cmd_opts.append(f"--from-album-name={tab_state['from-album-name']}")
+        if tab_state.get("include-untitled-albums"):
+            emitter.add_flag("include-untitled-albums")
 
-        if "include-archived" in tab_state and not tab_state["include-archived"]:
-            cmd_opts.append("--include-archived=false")
+        dr = clean_date_range(str(tab_state.get("date-range", "")))
+        if dr:
+            emitter.add_option("date-range", dr)
 
-        if tab_state.get("include-trashed"):
-            cmd_opts.append("--include-trashed=true")
+        inc_ext = normalize_extensions_csv(str(tab_state.get("include-ext", "")))
+        if inc_ext:
+            emitter.add_option("include-extensions", inc_ext)
 
-        if tab_state.get("partner-album"):
-            cmd_opts.append(f"--partner-shared-album={tab_state['partner-album']}")
+        exc_ext = normalize_extensions_csv(str(tab_state.get("exclude-ext", "")))
+        if exc_ext:
+            emitter.add_option("exclude-extensions", exc_ext)
 
-        if "takeout-tag" in tab_state and not tab_state["takeout-tag"]:
-            cmd_opts.append("--takeout-tag=false")
-
-        if "people-tag" in tab_state and not tab_state["people-tag"]:
-            cmd_opts.append("--people-tag=false")
+        if tab_state.get("ban-file"):
+            for line in str(tab_state["ban-file"]).split("\n"):
+                if line.strip():
+                    emitter.add_option("ban-file", line.strip())
 
         if tab_state.get("tag"):
             for t in str(tab_state["tag"]).split(","):
                 if t.strip():
-                    cmd_opts.append(f"--tag={t.strip()}")
+                    emitter.add_option("tag", t.strip())
 
         if tab_state.get("session-tag"):
-            cmd_opts.append("--session-tag")
+            emitter.add_flag("session-tag")
 
         if tab_state.get("api-trace"):
-            cmd_opts.append("--api-trace")
+            emitter.add_flag("api-trace")
 
         raw_paths = str(tab_state.get("path", "")).strip()
         if raw_paths:
@@ -478,118 +518,103 @@ def build_plan_from_state(
     elif tab_key == "upload-immich":
         from_ct = tab_state.get("from-client-timeout")
         if from_ct is not None and int(from_ct) != 20 and int(from_ct) > 0:
-            cmd_opts.append(f"--from-client-timeout={from_ct}m")
+            emitter.add_option("from-client-timeout", f"{from_ct}m")
 
         if tab_state.get("from-favorite"):
-            cmd_opts.append("--from-favorite=true")
+            emitter.add_flag("from-favorite")
 
         if tab_state.get("from-archived"):
-            cmd_opts.append("--from-archived=true")
+            emitter.add_flag("from-archived")
 
         if tab_state.get("from-trash"):
-            cmd_opts.append("--from-trash=true")
+            emitter.add_flag("from-trash")
 
         if tab_state.get("from-date-range"):
-            cmd_opts.append(f"--from-date-range={tab_state['from-date-range']}")
+            emitter.add_option("from-date-range", tab_state["from-date-range"])
 
         if tab_state.get("from-albums"):
             for a in str(tab_state["from-albums"]).split(","):
                 if a.strip():
-                    cmd_opts.append(f"--from-albums={a.strip()}")
+                    emitter.add_option("from-albums", a.strip())
 
         if tab_state.get("from-minimal-rating", 0) > 0:
-            cmd_opts.append(f"--from-minimal-rating={tab_state['from-minimal-rating']}")
+            emitter.add_option("from-minimal-rating", tab_state["from-minimal-rating"])
 
         if tab_state.get("from-people"):
             for p in str(tab_state["from-people"]).split(","):
                 if p.strip():
-                    cmd_opts.append(f"--from-people={p.strip()}")
+                    emitter.add_option("from-people", p.strip())
 
         if tab_state.get("from-tags"):
             for t in str(tab_state["from-tags"]).split(","):
                 if t.strip():
-                    cmd_opts.append(f"--from-tags={t.strip()}")
+                    emitter.add_option("from-tags", t.strip())
 
         if tab_state.get("from-city"):
-            cmd_opts.append(f"--from-city={tab_state['from-city']}")
+            emitter.add_option("from-city", tab_state["from-city"])
 
         if tab_state.get("from-state"):
-            cmd_opts.append(f"--from-state={tab_state['from-state']}")
+            emitter.add_option("from-state", tab_state["from-state"])
 
         if tab_state.get("from-country"):
-            cmd_opts.append(f"--from-country={tab_state['from-country']}")
+            emitter.add_option("from-country", tab_state["from-country"])
 
         if tab_state.get("from-make"):
-            cmd_opts.append(f"--from-make={tab_state['from-make']}")
+            emitter.add_option("from-make", tab_state["from-make"])
 
         if tab_state.get("from-model"):
-            cmd_opts.append(f"--from-model={tab_state['from-model']}")
+            emitter.add_option("from-model", tab_state["from-model"])
 
         if tab_state.get("from-skip-ssl"):
-            cmd_opts.append("--from-skip-verify-ssl")
+            emitter.add_flag("from-skip-verify-ssl")
 
         if tab_state.get("api-trace"):
-            cmd_opts.append("--api-trace")
+            emitter.add_flag("api-trace")
 
     elif tab_key == "archive-folder":
         if tab_state.get("write-to"):
-            cmd_opts.append(f"--write-to-folder={tab_state['write-to']}")
+            emitter.add_option("write-to", tab_state["write-to"])
 
-        if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
-            cmd_opts.append(f"--manage-raw-jpeg={tab_state['manage-raw-jpeg']}")
-
-        if tab_state.get("date-range"):
-            cmd_opts.append(f"--date-range={tab_state['date-range']}")
+        dr = clean_date_range(str(tab_state.get("date-range", "")))
+        if dr:
+            emitter.add_option("date-range", dr)
 
         if tab_state.get("path"):
             path_opt.append(tab_state["path"])
 
     elif tab_key == "archive-immich":
         if tab_state.get("write-to"):
-            cmd_opts.append(f"--write-to-folder={tab_state['write-to']}")
-
-        if tab_state.get("manage-burst", "NoStack") != "NoStack":
-            cmd_opts.append(f"--manage-burst={tab_state['manage-burst']}")
-
-        if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
-            cmd_opts.append(f"--manage-raw-jpeg={tab_state['manage-raw-jpeg']}")
+            emitter.add_option("write-to", tab_state["write-to"])
 
         if tab_state.get("from-date-range"):
-            cmd_opts.append(f"--from-date-range={tab_state['from-date-range']}")
+            emitter.add_option("from-date-range", tab_state["from-date-range"])
 
         if tab_state.get("from-albums"):
             for a in str(tab_state["from-albums"]).split(","):
                 if a.strip():
-                    cmd_opts.append(f"--from-albums={a.strip()}")
+                    emitter.add_option("from-albums", a.strip())
 
     elif tab_key == "stack":
         if tab_state.get("manage-burst", "NoStack") != "NoStack":
-            cmd_opts.append(f"--manage-burst={tab_state['manage-burst']}")
+            emitter.add_option("manage-burst", tab_state["manage-burst"])
 
         if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
-            cmd_opts.append(f"--manage-raw-jpeg={tab_state['manage-raw-jpeg']}")
+            emitter.add_option("manage-raw-jpeg", tab_state["manage-raw-jpeg"])
 
         if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
-            cmd_opts.append(f"--manage-heic-jpeg={tab_state['manage-heic-jpeg']}")
-
-        if tab_state.get("time-zone"):
-            cmd_opts.append(f"--time-zone={tab_state['time-zone']}")
-
-        if tab_state.get("manage-epson"):
-            cmd_opts.append("--manage-epson-fastfoto=true")
+            emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
 
         if tab_state.get("api-trace"):
-            cmd_opts.append("--api-trace")
+            emitter.add_flag("api-trace")
 
-    # 6.7 Dry-run handling
+    # Dry-run handling
     if dry_run:
-        if "--dry-run" not in cmd_opts:
-            cmd_opts.append("--dry-run")
-    else:
-        if "--dry-run" in cmd_opts:
-            cmd_opts.remove("--dry-run")
+        emitter.add_flag("dry-run")
 
-    plan.argv = global_opts + cmd + cmd_opts + path_opt
+    if emitter.errors:
+        plan.errors.extend(emitter.errors)
+
+    plan.argv = cmd + emitter.opts + path_opt
     plan.env = env
     plan.display_argv = mask_command_for_display([binary_path] + plan.argv)
     return plan

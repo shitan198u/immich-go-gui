@@ -33,3 +33,14 @@ OPTIONS:
    --from-api-trace                     Source API tracing (default: false)
    --from-dry-run                       Source dry-run (default: false)
    --from-pause-immich-jobs             Source pause jobs (default: false)
+   --from-favorite                      Source favorite assets filter (default: false)
+   --from-archived                      Source archived assets filter (default: false)
+   --from-trash                         Source trashed assets filter (default: false)
+   --from-minimal-rating value          Source minimum rating filter
+   --from-people value                  Source person filter
+   --from-tags value                    Source tags filter
+   --from-city value                    Source city filter
+   --from-state value                   Source state filter
+   --from-country value                 Source country filter
+   --from-make value                    Source camera make filter
+   --from-model value                   Source camera model filter

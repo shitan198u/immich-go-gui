@@ -142,18 +142,20 @@ TAB_ALLOWED_FLAGS: dict[str, frozenset[str]] = {
         "from-server", "from-skip-verify-ssl", "from-client-timeout", "from-include-type",
         "from-include-extensions", "from-exclude-extensions", "from-partners", "from-time-zone",
         "from-no-album", "from-albums", "from-date-range", "from-device-uuid", "from-api-trace",
-        "from-dry-run", "from-pause-immich-jobs"
+        "from-dry-run", "from-pause-immich-jobs", "from-favorite", "from-archived", "from-trash",
+        "from-minimal-rating", "from-people", "from-tags", "from-city", "from-state", "from-country",
+        "from-make", "from-model"
     }),
     "archive-folder": frozenset({
         "write-to", "dry-run", "log-level", "include-extensions", "exclude-extensions",
-        "include-type", "ban-file", "ignore-sidecar-files", "date-from-name", "recursive"
+        "include-type", "ban-file", "ignore-sidecar-files", "date-from-name", "recursive", "date-range"
     }),
     "archive-immich": frozenset({
         "server", "skip-verify-ssl", "client-timeout", "dry-run", "log-level", "write-to",
         "from-favorite", "from-archived", "from-trash", "from-minimal-rating", "from-people",
         "from-tags", "from-city", "from-state", "from-country", "from-make", "from-model",
         "from-include-type", "from-include-extensions", "from-exclude-extensions", "from-partners",
-        "from-time-zone", "from-no-album"
+        "from-time-zone", "from-no-album", "from-date-range", "from-albums"
     }),
     "stack": frozenset({
         "server", "skip-verify-ssl", "client-timeout", "dry-run", "log-level",

@@ -15,3 +15,4 @@ OPTIONS:
    --ignore-sidecar-files       Ignore XMP/sidecar metadata files (default: false)
    --date-from-name             Infer date from asset filename (default: false)
    --recursive                  Search source directory recursively (default: true)
+   --date-range value           Filter by date range

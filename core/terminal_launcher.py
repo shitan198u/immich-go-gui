@@ -44,6 +44,7 @@ def launch_external_terminal(
             bat_path = l_path.with_suffix(".bat")
             bat_content = (
                 f"@echo off\n"
+                f'cd /d "%~dp0"\n'
                 f"{cmd_str}\n"
                 f"set ERR=%ERRORLEVEL%\n"
                 f'del /f "{l_path}" 2>nul\n'
@@ -106,6 +107,7 @@ def launch_external_terminal(
             f"set -a\n"
             f"source {shlex.quote(str(env_sh_path))}\n"
             f"set +a\n\n"
+            f"cd {shlex.quote(str(temp_dir))}\n\n"
             f"cleanup() {{\n"
             f"  rm -f {shlex.quote(str(l_path))}\n"
             f"  rm -rf {shlex.quote(str(temp_dir))}\n"

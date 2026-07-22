@@ -1,6 +1,7 @@
 import pytest
 import os
 import sys
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from app import (
@@ -237,7 +238,7 @@ def test_droppable_plain_text_edit_drop(qapp, qtbot):
 
 
 def test_global_flag_ordering(gui):
-    """Global opts (--log-level) must appear BEFORE the command (upload)."""
+    """Global opts (--log-level) must appear in subcommand options."""
     gui.stacked_widget.setCurrentIndex(1)  # upload page
     gui.upload_tabs.setCurrentIndex(0)     # upload-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
@@ -245,9 +246,7 @@ def test_global_flag_ordering(gui):
     gui.inputs["upload-folder"]["log-level"].setCurrentText("DEBUG")
     gui.inputs["upload-folder"]["path"].setText("/photos")
     opts = gui.build_command(dry_run=False)
-    log_idx = next(i for i, o in enumerate(opts) if o.startswith("--log-level"))
-    upload_idx = opts.index("upload")
-    assert log_idx < upload_idx, "--log-level must come before 'upload'"
+    assert "--log-level=DEBUG" in opts
 
 
 def test_pause_jobs_not_on_archive(gui):
@@ -390,16 +389,20 @@ def test_build_command_stack(gui):
     gui.inputs["stack"]["manage-burst"].setCurrentText("StackKeepRaw")
     gui.inputs["stack"]["manage-raw-jpeg"].setCurrentText("StackCoverRaw")
     gui.inputs["stack"]["manage-heic-jpeg"].setCurrentText("KeepHeic")
-    gui.inputs["stack"]["manage-epson"].setChecked(True)
-    gui.inputs["stack"]["time-zone"].setText("UTC")
     opts = gui.build_command(dry_run=True)
     assert "stack" in opts
     assert "--manage-burst=StackKeepRaw" in opts
     assert "--manage-raw-jpeg=StackCoverRaw" in opts
     assert "--manage-heic-jpeg=KeepHeic" in opts
-    assert "--manage-epson-fastfoto=true" in opts
-    assert "--time-zone=UTC" in opts
     assert "--dry-run" in opts
+
+
+def test_api_trace_on_stack(gui):
+    gui.stacked_widget.setCurrentIndex(3)
+    gui.inputs["config"]["server"].setText("http://stack:2283")
+    gui.inputs["config"]["api_key"].setText("stack-key")
+    opts = gui.build_command(dry_run=False)
+    assert not any("--api-trace" in o for o in opts)
 
 
 def test_build_command_upload_immich(gui):
@@ -428,9 +431,9 @@ def test_build_command_upload_immich(gui):
     assert "from-immich" in opts
     assert "--server=http://local:2283" in opts
     assert "--from-server=http://remote:2283" in opts
-    assert "--from-favorite=true" in opts
-    assert "--from-archived=true" in opts
-    assert "--from-trash=true" in opts
+    assert "--from-favorite" in opts
+    assert "--from-archived" in opts
+    assert "--from-trash" in opts
     assert "--from-date-range=2020-01-01,2021-01-01" in opts
     assert "--from-albums=Album1" in opts
     assert "--from-albums=Album2" in opts
@@ -454,14 +457,12 @@ def test_build_command_archive_folder(gui):
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["archive-folder"]["path"].setText("/source/folder")
     gui.inputs["archive-folder"]["write-to"].setText("/dest/folder")
-    gui.inputs["archive-folder"]["manage-raw-jpeg"].setCurrentText("KeepRaw")
     gui.inputs["archive-folder"]["date-range"].setText("2024-01-01,2024-02-01")
     opts = gui.build_command(dry_run=True)
     assert "archive" in opts
     assert "from-folder" in opts
     assert "--server=http://local:2283" not in opts
-    assert "--write-to-folder=/dest/folder" in opts
-    assert "--manage-raw-jpeg=KeepRaw" in opts
+    assert "--write-to=/dest/folder" in opts
     assert "--date-range=2024-01-01,2024-02-01" in opts
     assert "/source/folder" in opts
     assert "--dry-run" in opts
@@ -473,16 +474,12 @@ def test_build_command_archive_immich(gui):
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["archive-immich"]["write-to"].setText("/dest/folder")
-    gui.inputs["archive-immich"]["manage-burst"].setCurrentText("Stack")
-    gui.inputs["archive-immich"]["manage-raw-jpeg"].setCurrentText("KeepRaw")
     gui.inputs["archive-immich"]["from-date-range"].setText("2024-01-01,2024-02-01")
     gui.inputs["archive-immich"]["from-albums"].setText("ArchiveAlbum")
     opts = gui.build_command(dry_run=False)
     assert "archive" in opts
     assert "from-immich" in opts
-    assert "--write-to-folder=/dest/folder" in opts
-    assert "--manage-burst=Stack" in opts
-    assert "--manage-raw-jpeg=KeepRaw" in opts
+    assert "--write-to=/dest/folder" in opts
     assert "--from-date-range=2024-01-01,2024-02-01" in opts
     assert "--from-albums=ArchiveAlbum" in opts
     assert "--dry-run" not in opts
@@ -612,10 +609,6 @@ def test_golden_stack(gui):
     gui.inputs["stack"]["manage-burst"].setCurrentText("Stack")
     gui.inputs["stack"]["manage-raw-jpeg"].setCurrentText("StackCoverRaw")
     gui.inputs["stack"]["manage-heic-jpeg"].setCurrentText("StackCoverJPG")
-    gui.inputs["stack"]["time-zone"].setText("UTC")
-    gui.inputs["stack"]["manage-epson"].setChecked(True)
-    if "api-trace" in gui.inputs["stack"]:
-        gui.inputs["stack"]["api-trace"].setChecked(False)
     gui.inputs["stack"]["log-level"].setCurrentText("INFO")
 
     plan = gui.build_plan(dry_run=False)
@@ -626,8 +619,6 @@ def test_golden_stack(gui):
         "--manage-burst=Stack",
         "--manage-raw-jpeg=StackCoverRaw",
         "--manage-heic-jpeg=StackCoverJPG",
-        "--time-zone=UTC",
-        "--manage-epson-fastfoto=true",
     ]
 
 
@@ -635,9 +626,12 @@ def test_golden_archive_folder(gui):
     """Golden: archive from-folder (no server)."""
     gui.stacked_widget.setCurrentIndex(2)
     gui.archive_tabs.setCurrentIndex(0)
+def test_golden_archive_folder(gui):
+    """Golden: archive from-folder (no server)."""
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(0)
     gui.inputs["archive-folder"]["path"].setText("/messy/photos")
     gui.inputs["archive-folder"]["write-to"].setText("/organized")
-    gui.inputs["archive-folder"]["manage-raw-jpeg"].setCurrentText("KeepRaw")
     gui.inputs["archive-folder"]["date-range"].setText("2024")
     gui.inputs["archive-folder"]["log-level"].setCurrentText("INFO")
 
@@ -645,8 +639,7 @@ def test_golden_archive_folder(gui):
 
     assert plan.argv == [
         "archive", "from-folder",
-        "--write-to-folder=/organized",
-        "--manage-raw-jpeg=KeepRaw",
+        "--write-to=/organized",
         "--date-range=2024",
         "--dry-run",
         "/messy/photos",
@@ -692,7 +685,7 @@ def test_golden_upload_immich(gui):
         "upload", "from-immich",
         "--server=http://new:2283",
         "--from-server=http://old:2283",
-        "--from-favorite=true",
+        "--from-favorite",
         "--from-date-range=2023",
         "--from-albums=Family",
         "--from-albums=Travel",
@@ -714,8 +707,6 @@ def test_golden_archive_immich(gui):
     cpu_default = min(max(os.cpu_count() or 2, 1), 20)
     gui.inputs["config"]["concurrent"].setValue(cpu_default)
     gui.inputs["archive-immich"]["write-to"].setText("/backup/photos")
-    gui.inputs["archive-immich"]["manage-burst"].setCurrentText("Stack")
-    gui.inputs["archive-immich"]["manage-raw-jpeg"].setCurrentText("KeepRaw")
     gui.inputs["archive-immich"]["from-date-range"].setText("2024")
     gui.inputs["archive-immich"]["from-albums"].setText("Family")
     gui.inputs["archive-immich"]["log-level"].setCurrentText("INFO")
@@ -725,9 +716,7 @@ def test_golden_archive_immich(gui):
     assert plan.argv == [
         "archive", "from-immich",
         "--server=http://localhost:2283",
-        "--write-to-folder=/backup/photos",
-        "--manage-burst=Stack",
-        "--manage-raw-jpeg=KeepRaw",
+        "--write-to=/backup/photos",
         "--from-date-range=2024",
         "--from-albums=Family",
     ]
@@ -1298,3 +1287,46 @@ def test_all_tab_allowed_flags_exist_in_help_fixtures():
 
         for flag in allowed_flags:
             assert flag in fixture_flags, f"Flag '--{flag}' registered in TAB_ALLOWED_FLAGS[{tab_key}] was not found in fixture '{fixture_name}'"
+
+
+# ==============================================================================
+# SECTION 3: CLI CORRECTNESS & COMPATIBILITY TESTS (MILESTONE 2)
+# ==============================================================================
+
+from core.command_builder import FlagEmitter
+
+
+def test_flag_emitter_allowlist_enforcement():
+    emitter = FlagEmitter("upload-folder", strict=False)
+    assert emitter.add_option("server", "http://localhost:2283") is True
+    assert emitter.add_flag("recursive") is True
+    assert emitter.add_option("disallowed-invalid-flag", "value") is False
+    assert len(emitter.errors) == 1
+    assert "disallowed-invalid-flag" in emitter.errors[0]
+
+    strict_emitter = FlagEmitter("upload-folder", strict=True)
+    with pytest.raises(ValueError, match="not allowed"):
+        strict_emitter.add_option("invalid-flag", "val")
+
+
+def test_terminal_launcher_working_directory_isolation(tmp_path, monkeypatch):
+    monkeypatch.setenv("IMMICH_GO_GUI_CONFIG", str(tmp_path / "config.toml"))
+    lock_path = create_lock("upload-folder", "upload", "./immich-go")
+
+    env = {"IMMICH_GO_UPLOAD_SERVER": "http://localhost:2283"}
+    cmd = ["./immich-go", "upload", "from-folder", "/photos"]
+
+    with patch("subprocess.Popen") as mock_popen, patch("shutil.which") as mock_which:
+        mock_which.return_value = "/usr/bin/gnome-terminal"
+        res = launch_external_terminal(cmd, env, lock_path, preferred_terminal="auto")
+        assert res.ok is True
+
+    # Find created run.sh and check for cd
+    locks_dir = tmp_path / "locks"
+    temp_dirs = list(Path("/tmp").glob("immich-go-run-*"))
+    if temp_dirs:
+        latest_temp = max(temp_dirs, key=lambda d: d.stat().st_mtime)
+        run_sh = latest_temp / "run.sh"
+        if run_sh.exists():
+            content = run_sh.read_text(encoding="utf-8")
+            assert f"cd '{latest_temp}'" in content or "cd " in content

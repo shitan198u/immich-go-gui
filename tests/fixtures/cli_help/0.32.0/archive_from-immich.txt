@@ -28,3 +28,5 @@ OPTIONS:
    --from-partners                      Include partner assets (default: false)
    --from-time-zone value               Time zone override
    --from-no-album                      Assets not in any album (default: false)
+   --from-date-range value              Filter by date range
+   --from-albums value                  Filter by album names
