@@ -510,3 +510,193 @@ def test_native_dialog_options_passed(gui):
         from PySide6.QtWidgets import QFileDialog
         args, kwargs = mock_get_dir.call_args
         assert args[3] == QFileDialog.Option.ShowDirsOnly or kwargs.get("options") == QFileDialog.Option.ShowDirsOnly
+
+
+# ==============================================================================
+# GOLDEN COMMAND TESTS (§4.2)
+# ==============================================================================
+
+def test_golden_upload_folder(gui):
+    """Golden: upload-folder with typical options."""
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(0)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("test-key")
+    gui.inputs["config"]["skip-ssl"].setChecked(False)
+    gui.inputs["config"]["client_timeout"].setValue(20)
+    cpu_default = min(max(os.cpu_count() or 2, 1), 20)
+    gui.inputs["config"]["concurrent"].setValue(cpu_default)
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+    gui.inputs["upload-folder"]["include-type"].setCurrentText("all")
+    gui.inputs["upload-folder"]["folder-album"].setCurrentText("NONE")
+    gui.inputs["upload-folder"]["into-album"].setText("")
+    gui.inputs["upload-folder"]["overwrite"].setChecked(False)
+    gui.inputs["upload-folder"]["manage-burst"].setCurrentText("Stack")
+    gui.inputs["upload-folder"]["manage-raw-jpeg"].setCurrentText("NoStack")
+    gui.inputs["upload-folder"]["manage-heic-jpeg"].setCurrentText("NoStack")
+    gui.inputs["upload-folder"]["date-range"].setText("")
+    gui.inputs["upload-folder"]["include-ext"].setText("")
+    gui.inputs["upload-folder"]["exclude-ext"].setText("")
+    gui.inputs["upload-folder"]["ban-file"].setPlainText("")
+    gui.inputs["upload-folder"]["ignore-sidecar"].setChecked(False)
+    gui.inputs["upload-folder"]["date-from-name"].setChecked(True)
+    gui.inputs["upload-folder"]["tag"].setText("")
+    gui.inputs["upload-folder"]["session-tag"].setChecked(False)
+    gui.inputs["upload-folder"]["folder-tags"].setChecked(False)
+    gui.inputs["upload-folder"]["api-trace"].setChecked(False)
+    gui.inputs["upload-folder"]["log-level"].setCurrentText("INFO")
+
+    plan = gui.build_plan(dry_run=False)
+
+    assert plan.argv == [
+        "upload", "from-folder",
+        "--server=http://localhost:2283",
+        "--manage-burst=Stack",
+        "/photos",
+    ]
+    assert plan.env.get("IMMICH_GO_UPLOAD_API_KEY") == "test-key"
+    assert not any("--api-key" in p for p in plan.argv)
+
+
+def test_golden_upload_gp(gui):
+    """Golden: upload from-google-photos with partner + sync."""
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(1)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("test-key")
+    gui.inputs["config"]["skip-ssl"].setChecked(False)
+    gui.inputs["config"]["client_timeout"].setValue(20)
+    cpu_default = min(max(os.cpu_count() or 2, 1), 20)
+    gui.inputs["config"]["concurrent"].setValue(cpu_default)
+    gui.inputs["upload-gp"]["path"].setPlainText("/takeout-001.zip\n/takeout-002.zip")
+    gui.inputs["upload-gp"]["include-type"].setCurrentText("all")
+    gui.inputs["upload-gp"]["into-album"].setText("")
+    gui.inputs["upload-gp"]["include-unmatched"].setChecked(False)
+    gui.inputs["upload-gp"]["include-partner"].setChecked(True)
+    gui.inputs["upload-gp"]["sync-albums"].setChecked(True)
+    gui.inputs["upload-gp"]["manage-burst"].setCurrentText("Stack")
+    gui.inputs["upload-gp"]["manage-heic-jpeg"].setCurrentText("NoStack")
+    gui.inputs["upload-gp"]["from-album-name"].setText("")
+    gui.inputs["upload-gp"]["include-archived"].setChecked(True)
+    gui.inputs["upload-gp"]["include-trashed"].setChecked(False)
+    gui.inputs["upload-gp"]["partner-album"].setText("")
+    gui.inputs["upload-gp"]["takeout-tag"].setChecked(True)
+    gui.inputs["upload-gp"]["people-tag"].setChecked(True)
+    gui.inputs["upload-gp"]["tag"].setText("")
+    gui.inputs["upload-gp"]["session-tag"].setChecked(False)
+    if "api-trace" in gui.inputs["upload-gp"]:
+        gui.inputs["upload-gp"]["api-trace"].setChecked(False)
+    gui.inputs["upload-gp"]["log-level"].setCurrentText("INFO")
+
+    plan = gui.build_plan(dry_run=False)
+
+    assert plan.argv == [
+        "upload", "from-google-photos",
+        "--server=http://localhost:2283",
+        "--manage-burst=Stack",
+        "/takeout-001.zip",
+        "/takeout-002.zip",
+    ]
+
+
+def test_golden_stack(gui):
+    """Golden: stack with options."""
+    gui.stacked_widget.setCurrentIndex(3)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("test-key")
+    gui.inputs["config"]["skip-ssl"].setChecked(False)
+    gui.inputs["config"]["client_timeout"].setValue(20)
+    cpu_default = min(max(os.cpu_count() or 2, 1), 20)
+    gui.inputs["config"]["concurrent"].setValue(cpu_default)
+    gui.inputs["stack"]["manage-burst"].setCurrentText("Stack")
+    gui.inputs["stack"]["manage-raw-jpeg"].setCurrentText("StackCoverRaw")
+    gui.inputs["stack"]["manage-heic-jpeg"].setCurrentText("StackCoverJPG")
+    gui.inputs["stack"]["time-zone"].setText("UTC")
+    gui.inputs["stack"]["manage-epson"].setChecked(True)
+    if "api-trace" in gui.inputs["stack"]:
+        gui.inputs["stack"]["api-trace"].setChecked(False)
+    gui.inputs["stack"]["log-level"].setCurrentText("INFO")
+
+    plan = gui.build_plan(dry_run=False)
+
+    assert plan.argv == [
+        "stack",
+        "--server=http://localhost:2283",
+        "--manage-burst=Stack",
+        "--manage-raw-jpeg=StackCoverRaw",
+        "--manage-heic-jpeg=StackCoverJPG",
+        "--time-zone=UTC",
+        "--manage-epson-fastfoto=true",
+    ]
+
+
+def test_golden_archive_folder(gui):
+    """Golden: archive from-folder (no server)."""
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(0)
+    gui.inputs["archive-folder"]["path"].setText("/messy/photos")
+    gui.inputs["archive-folder"]["write-to"].setText("/organized")
+    gui.inputs["archive-folder"]["manage-raw-jpeg"].setCurrentText("KeepRaw")
+    gui.inputs["archive-folder"]["date-range"].setText("2024")
+    gui.inputs["archive-folder"]["log-level"].setCurrentText("INFO")
+
+    plan = gui.build_plan(dry_run=True)
+
+    assert plan.argv == [
+        "archive", "from-folder",
+        "--write-to-folder=/organized",
+        "--manage-raw-jpeg=KeepRaw",
+        "--date-range=2024",
+        "--dry-run",
+        "/messy/photos",
+    ]
+    assert not any("--server" in p for p in plan.argv)
+
+
+def test_golden_upload_immich(gui):
+    """Golden: upload from-immich with filters."""
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(2)
+    gui.inputs["config"]["server"].setText("http://new:2283")
+    gui.inputs["config"]["api_key"].setText("new-key")
+    gui.inputs["config"]["skip-ssl"].setChecked(False)
+    gui.inputs["config"]["client_timeout"].setValue(20)
+    cpu_default = min(max(os.cpu_count() or 2, 1), 20)
+    gui.inputs["config"]["concurrent"].setValue(cpu_default)
+    gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
+    gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
+    if "from-client-timeout" in gui.inputs["upload-immich"]:
+        gui.inputs["upload-immich"]["from-client-timeout"].setValue(20)
+    gui.inputs["upload-immich"]["from-favorite"].setChecked(True)
+    gui.inputs["upload-immich"]["from-archived"].setChecked(False)
+    gui.inputs["upload-immich"]["from-trash"].setChecked(False)
+    gui.inputs["upload-immich"]["from-date-range"].setText("2023")
+    gui.inputs["upload-immich"]["from-albums"].setText("Family, Travel")
+    gui.inputs["upload-immich"]["from-minimal-rating"].setValue(0)
+    gui.inputs["upload-immich"]["from-people"].setText("")
+    gui.inputs["upload-immich"]["from-tags"].setText("")
+    gui.inputs["upload-immich"]["from-city"].setText("")
+    gui.inputs["upload-immich"]["from-state"].setText("")
+    gui.inputs["upload-immich"]["from-country"].setText("")
+    gui.inputs["upload-immich"]["from-make"].setText("")
+    gui.inputs["upload-immich"]["from-model"].setText("")
+    gui.inputs["upload-immich"]["from-skip-ssl"].setChecked(False)
+    if "api-trace" in gui.inputs["upload-immich"]:
+        gui.inputs["upload-immich"]["api-trace"].setChecked(False)
+    gui.inputs["upload-immich"]["log-level"].setCurrentText("INFO")
+
+    plan = gui.build_plan(dry_run=False)
+
+    assert plan.argv == [
+        "upload", "from-immich",
+        "--server=http://new:2283",
+        "--from-server=http://old:2283",
+        "--from-favorite=true",
+        "--from-date-range=2023",
+        "--from-albums=Family",
+        "--from-albums=Travel",
+    ]
+    assert plan.env.get("IMMICH_GO_UPLOAD_API_KEY") == "new-key"
+    assert plan.env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY") == "old-key"
+    assert not any("--api-key" in p for p in plan.argv)
+    assert not any("--from-api-key" in p for p in plan.argv)
