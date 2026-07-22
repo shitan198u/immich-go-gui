@@ -930,6 +930,16 @@ class ImmichGoGUI(QMainWindow):
         self.inputs["config"]["pause_jobs"] = self.pause_immich_jobs_check
         adv_form.addRow("", self.pause_immich_jobs_check)
 
+        self.allow_untested_check = QCheckBox("Allow untested immich-go versions")
+        self.allow_untested_check.setChecked(False)
+        self.inputs["config"]["allow_untested_updates"] = self.allow_untested_check
+        adv_form.addRow("", self.allow_untested_check)
+
+        self.preferred_terminal_combo = QComboBox()
+        self.preferred_terminal_combo.addItems(["auto", "gnome-terminal", "konsole", "xfce4-terminal", "xterm"])
+        self.inputs["config"]["preferred_terminal"] = self.preferred_terminal_combo
+        adv_form.add_row("Preferred Terminal", self.preferred_terminal_combo)
+
         adv_card.layout.addLayout(adv_form)
         adv_card.setVisible(False)
         page.addWidget(adv_card)
@@ -996,11 +1006,6 @@ class ImmichGoGUI(QMainWindow):
         card = Card("Options")
         form = FormSection()
 
-        c_type = QComboBox()
-        c_type.addItems(["all", "IMAGE", "VIDEO"])
-        self.inputs["upload-folder"]["include-type"] = c_type
-        form.add_row("Media Type", c_type)
-
         c_album = QComboBox()
         c_album.addItems(["NONE", "FOLDER", "PATH"])
         self.inputs["upload-folder"]["folder-album"] = c_album
@@ -1032,9 +1037,14 @@ class ImmichGoGUI(QMainWindow):
         adv_card = Card("Advanced Options")
         form = FormSection()
 
-        subhead = QLabel("Filtering")
+        subhead = QLabel("Filtering & Source Behavior")
         subhead.setObjectName("Subhead")
         form.addRow(subhead)
+
+        c_type = QComboBox()
+        c_type.addItems(["all", "IMAGE", "VIDEO"])
+        self.inputs["upload-folder"]["include-type"] = c_type
+        form.add_row("Media Type", c_type)
 
         d_range = QLineEdit()
         d_range.setPlaceholderText("YYYY-MM-DD,YYYY-MM-DD")
@@ -1056,6 +1066,11 @@ class ImmichGoGUI(QMainWindow):
         self.inputs["upload-folder"]["ban-file"] = ban_file
         form.add_row("Skip files matching patterns", ban_file)
 
+        chk_rec = QCheckBox("Scan subdirectories recursively")
+        chk_rec.setChecked(True)
+        self.inputs["upload-folder"]["recursive"] = chk_rec
+        form.addRow("", chk_rec)
+
         chk_ignore = QCheckBox("Ignore sidecar files")
         self.inputs["upload-folder"]["ignore-sidecar"] = chk_ignore
         form.addRow("", chk_ignore)
@@ -1064,6 +1079,11 @@ class ImmichGoGUI(QMainWindow):
         chk_date_name.setChecked(True)
         self.inputs["upload-folder"]["date-from-name"] = chk_date_name
         form.addRow("", chk_date_name)
+
+        t_joiner = QLineEdit()
+        t_joiner.setPlaceholderText(" / ")
+        self.inputs["upload-folder"]["album-path-joiner"] = t_joiner
+        form.add_row("Album path joiner", t_joiner)
 
         subhead = QLabel("Tagging")
         subhead.setObjectName("Subhead")
@@ -1100,11 +1120,18 @@ class ImmichGoGUI(QMainWindow):
         self.inputs["upload-folder"]["pause-jobs"] = chk_pause
         form.addRow("", chk_pause)
 
+        t_tz = QLineEdit()
+        t_tz.setPlaceholderText("UTC or America/New_York")
+        self.inputs["upload-folder"]["time-zone"] = t_tz
+        form.add_row("Time Zone Override", t_tz)
+
+        chk_epson = QCheckBox("Scan Epson FastFoto dual-side photos")
+        self.inputs["upload-folder"]["manage-epson"] = chk_epson
+        form.addRow("", chk_epson)
+
         subhead = QLabel("Connection & Debug")
         subhead.setObjectName("Subhead")
         form.addRow(subhead)
-
-        # FIX Phase 1 #7: removed per-tab skip-ssl (now global in config only)
 
         c_log = QComboBox()
         c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
@@ -1178,20 +1205,6 @@ class ImmichGoGUI(QMainWindow):
         card = Card("Options")
         form = FormSection()
 
-        c_type = QComboBox()
-        c_type.addItems(["all", "IMAGE", "VIDEO"])
-        self.inputs["upload-gp"]["include-type"] = c_type
-        form.add_row("Media Type", c_type)
-
-        t_album = QLineEdit()
-        t_album.setPlaceholderText("e.g. Family Archive")
-        self.inputs["upload-gp"]["into-album"] = t_album
-        form.add_row("Put all into Album", t_album)
-
-        chk_unmatched = QCheckBox("Include Unmatched Files")
-        self.inputs["upload-gp"]["include-unmatched"] = chk_unmatched
-        form.addRow("", chk_unmatched)
-
         chk_partner = QCheckBox("Include Partner Photos")
         chk_partner.setChecked(True)
         self.inputs["upload-gp"]["include-partner"] = chk_partner
@@ -1201,6 +1214,11 @@ class ImmichGoGUI(QMainWindow):
         chk_sync.setChecked(True)
         self.inputs["upload-gp"]["sync-albums"] = chk_sync
         form.addRow("", chk_sync)
+
+        chk_archived = QCheckBox("Include Archived Photos")
+        chk_archived.setChecked(True)
+        self.inputs["upload-gp"]["include-archived"] = chk_archived
+        form.addRow("", chk_archived)
 
         c_burst = QComboBox()
         c_burst.addItems(["NoStack", "Stack", "StackKeepRaw", "StackKeepJPEG"])
@@ -1218,23 +1236,36 @@ class ImmichGoGUI(QMainWindow):
         adv_card = Card("Advanced Options")
         form = FormSection()
 
-        subhead = QLabel("Takeout Specifics")
+        subhead = QLabel("Media & Album Controls")
         subhead.setObjectName("Subhead")
         form.addRow(subhead)
+
+        c_type = QComboBox()
+        c_type.addItems(["all", "IMAGE", "VIDEO"])
+        self.inputs["upload-gp"]["include-type"] = c_type
+        form.add_row("Media Type", c_type)
+
+        t_album = QLineEdit()
+        t_album.setPlaceholderText("e.g. Family Archive")
+        self.inputs["upload-gp"]["into-album"] = t_album
+        form.add_row("Put all into Album", t_album)
+
+        chk_unmatched = QCheckBox("Include Unmatched Files")
+        self.inputs["upload-gp"]["include-unmatched"] = chk_unmatched
+        form.addRow("", chk_unmatched)
+
+        chk_trashed = QCheckBox("Include Trashed Photos")
+        self.inputs["upload-gp"]["include-trashed"] = chk_trashed
+        form.addRow("", chk_trashed)
+
+        chk_untitled = QCheckBox("Include Untitled Albums")
+        self.inputs["upload-gp"]["include-untitled-albums"] = chk_untitled
+        form.addRow("", chk_untitled)
 
         t_album_name = QLineEdit()
         t_album_name.setPlaceholderText("Album Name")
         self.inputs["upload-gp"]["from-album-name"] = t_album_name
         form.add_row("From Specific Album", t_album_name)
-
-        chk_archived = QCheckBox("Include Archived")
-        chk_archived.setChecked(True)
-        self.inputs["upload-gp"]["include-archived"] = chk_archived
-        form.addRow("", chk_archived)
-
-        chk_trashed = QCheckBox("Include Trashed")
-        self.inputs["upload-gp"]["include-trashed"] = chk_trashed
-        form.addRow("", chk_trashed)
 
         t_partner_album = QLineEdit()
         t_partner_album.setPlaceholderText("Album name for partner photos")
@@ -1250,6 +1281,43 @@ class ImmichGoGUI(QMainWindow):
         chk_people_tag.setChecked(True)
         self.inputs["upload-gp"]["people-tag"] = chk_people_tag
         form.addRow("", chk_people_tag)
+
+        subhead = QLabel("Additional Pair Handling")
+        subhead.setObjectName("Subhead")
+        form.addRow(subhead)
+
+        c_raw = QComboBox()
+        c_raw.addItems(["NoStack", "KeepRaw", "KeepJPG", "StackCoverRaw", "StackCoverJPG"])
+        self.inputs["upload-gp"]["manage-raw-jpeg"] = c_raw
+        form.add_row("RAW + JPEG Pairs", c_raw)
+
+        chk_epson = QCheckBox("Scan Epson FastFoto dual-side photos")
+        self.inputs["upload-gp"]["manage-epson"] = chk_epson
+        form.addRow("", chk_epson)
+
+        subhead = QLabel("Filtering")
+        subhead.setObjectName("Subhead")
+        form.addRow(subhead)
+
+        d_range = QLineEdit()
+        d_range.setPlaceholderText("YYYY-MM-DD,YYYY-MM-DD")
+        self.inputs["upload-gp"]["date-range"] = d_range
+        form.add_row("Date range", d_range)
+
+        inc_ext = QLineEdit()
+        inc_ext.setPlaceholderText(".jpg,.heic,.mp4")
+        self.inputs["upload-gp"]["include-ext"] = inc_ext
+        form.add_row("Include extensions", inc_ext)
+
+        exc_ext = QLineEdit()
+        exc_ext.setPlaceholderText(".thm,.xmp")
+        self.inputs["upload-gp"]["exclude-ext"] = exc_ext
+        form.add_row("Exclude extensions", exc_ext)
+
+        ban_file = QPlainTextEdit()
+        ban_file.setPlaceholderText("@eaDir/\n.DS_Store")
+        self.inputs["upload-gp"]["ban-file"] = ban_file
+        form.add_row("Skip files matching patterns", ban_file)
 
         subhead = QLabel("Tagging")
         subhead.setObjectName("Subhead")
@@ -1268,6 +1336,10 @@ class ImmichGoGUI(QMainWindow):
         subhead.setObjectName("Subhead")
         form.addRow(subhead)
 
+        chk_overwrite = QCheckBox("Overwrite Existing")
+        self.inputs["upload-gp"]["overwrite"] = chk_overwrite
+        form.addRow("", chk_overwrite)
+
         c_err = QComboBox()
         c_err.addItems(["stop", "continue"])
         self.inputs["upload-gp"]["on-errors"] = c_err
@@ -1278,18 +1350,20 @@ class ImmichGoGUI(QMainWindow):
         self.inputs["upload-gp"]["pause-jobs"] = chk_pause
         form.addRow("", chk_pause)
 
+        t_tz = QLineEdit()
+        t_tz.setPlaceholderText("UTC or America/New_York")
+        self.inputs["upload-gp"]["time-zone"] = t_tz
+        form.add_row("Time Zone Override", t_tz)
+
         subhead = QLabel("Connection & Debug")
         subhead.setObjectName("Subhead")
         form.addRow(subhead)
-
-        # FIX Phase 1 #7: removed per-tab skip-ssl
 
         c_log = QComboBox()
         c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
         self.inputs["upload-gp"]["log-level"] = c_log
         form.add_row("Log Level", c_log)
 
-        # FIX Phase 2 #15: add --api-trace to upload-gp
         chk_trace = QCheckBox("Enable API Trace")
         self.inputs["upload-gp"]["api-trace"] = chk_trace
         form.addRow("", chk_trace)
@@ -1309,6 +1383,14 @@ class ImmichGoGUI(QMainWindow):
         lay.setSpacing(24)
         self.inputs["upload-immich"] = {}
 
+        banner = QLabel("ℹ️ Destination Immich Server is configured in the Configuration tab. Source Immich Server is configured below.")
+        banner.setWordWrap(True)
+        banner.setStyleSheet(
+            "background-color: rgba(97, 175, 239, 0.12); padding: 10px 14px; "
+            "border-radius: 6px; border: 1px solid #61AFEF; font-size: 13px;"
+        )
+        lay.addWidget(banner)
+
         card = Card("Source Configuration", required=True)
         form = FormSection()
 
@@ -1323,36 +1405,6 @@ class ImmichGoGUI(QMainWindow):
         self.inputs["upload-immich"]["from-api-key"] = t_api
         form.add_row("Source API Key", t_api)
 
-        # FIX Phase 2 #19: add --from-client-timeout
-        from_timeout_spin = QSpinBox()
-        from_timeout_spin.setRange(1, 1440)
-        from_timeout_spin.setValue(20)
-        from_timeout_spin.setSuffix(" minutes")
-        self.inputs["upload-immich"]["from-client-timeout"] = from_timeout_spin
-        form.add_row("Source Client Timeout", from_timeout_spin)
-
-        chk_fav = QCheckBox("Only Favorites")
-        self.inputs["upload-immich"]["from-favorite"] = chk_fav
-        form.addRow("", chk_fav)
-
-        chk_arch = QCheckBox("Include Archived")
-        self.inputs["upload-immich"]["from-archived"] = chk_arch
-        form.addRow("", chk_arch)
-
-        chk_trash = QCheckBox("Include Trashed")
-        self.inputs["upload-immich"]["from-trash"] = chk_trash
-        form.addRow("", chk_trash)
-
-        card.layout.addLayout(form)
-        lay.addWidget(card)
-
-        adv_card = Card("Advanced Options")
-        form = FormSection()
-
-        subhead = QLabel("Source Filtering")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
         d_range = QLineEdit()
         d_range.setPlaceholderText("2023-01-01,2023-12-31")
         self.inputs["upload-immich"]["from-date-range"] = d_range
@@ -1362,6 +1414,36 @@ class ImmichGoGUI(QMainWindow):
         t_albums.setPlaceholderText("Family, Travel")
         self.inputs["upload-immich"]["from-albums"] = t_albums
         form.add_row("Filter by Albums", t_albums)
+
+        chk_fav = QCheckBox("Only Favorites")
+        self.inputs["upload-immich"]["from-favorite"] = chk_fav
+        form.addRow("", chk_fav)
+
+        card.layout.addLayout(form)
+        lay.addWidget(card)
+
+        adv_card = Card("Advanced Options")
+        form = FormSection()
+
+        subhead = QLabel("Source Filtering & Credentials")
+        subhead.setObjectName("Subhead")
+        form.addRow(subhead)
+
+        chk_arch = QCheckBox("Include Source Archived")
+        self.inputs["upload-immich"]["from-archived"] = chk_arch
+        form.addRow("", chk_arch)
+
+        chk_trash = QCheckBox("Include Source Trashed")
+        self.inputs["upload-immich"]["from-trash"] = chk_trash
+        form.addRow("", chk_trash)
+
+        chk_partners = QCheckBox("Include Source Partner Photos")
+        self.inputs["upload-immich"]["from-partners"] = chk_partners
+        form.addRow("", chk_partners)
+
+        chk_no_album = QCheckBox("Include Source Assets Not in Albums")
+        self.inputs["upload-immich"]["from-no-album"] = chk_no_album
+        form.addRow("", chk_no_album)
 
         s_rating = QSpinBox()
         s_rating.setRange(0, 5)
@@ -1377,10 +1459,6 @@ class ImmichGoGUI(QMainWindow):
         t_tags.setPlaceholderText("vacation, work")
         self.inputs["upload-immich"]["from-tags"] = t_tags
         form.add_row("Filter by Tags", t_tags)
-
-        subhead = QLabel("Metadata Filtering")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
 
         t_city = QLineEdit()
         t_city.setPlaceholderText("New York")
@@ -1407,7 +1485,92 @@ class ImmichGoGUI(QMainWindow):
         self.inputs["upload-immich"]["from-model"] = t_model
         form.add_row("Camera Model", t_model)
 
-        subhead = QLabel("Run Behavior")
+        c_from_type = QComboBox()
+        c_from_type.addItems(["all", "IMAGE", "VIDEO"])
+        self.inputs["upload-immich"]["from-include-type"] = c_from_type
+        form.add_row("Source Media Type", c_from_type)
+
+        t_from_inc_ext = QLineEdit()
+        t_from_inc_ext.setPlaceholderText(".jpg,.heic")
+        self.inputs["upload-immich"]["from-include-ext"] = t_from_inc_ext
+        form.add_row("Source Include Extensions", t_from_inc_ext)
+
+        t_from_exc_ext = QLineEdit()
+        t_from_exc_ext.setPlaceholderText(".mp4")
+        self.inputs["upload-immich"]["from-exclude-ext"] = t_from_exc_ext
+        form.add_row("Source Exclude Extensions", t_from_exc_ext)
+
+        t_from_tz = QLineEdit()
+        t_from_tz.setPlaceholderText("UTC")
+        self.inputs["upload-immich"]["from-time-zone"] = t_from_tz
+        form.add_row("Source Time Zone", t_from_tz)
+
+        t_from_dev = QLineEdit()
+        self.inputs["upload-immich"]["from-device-uuid"] = t_from_dev
+        form.add_row("Source Device UUID", t_from_dev)
+
+        from_timeout_spin = QSpinBox()
+        from_timeout_spin.setRange(1, 1440)
+        from_timeout_spin.setValue(20)
+        from_timeout_spin.setSuffix(" minutes")
+        self.inputs["upload-immich"]["from-client-timeout"] = from_timeout_spin
+        form.add_row("Source Client Timeout", from_timeout_spin)
+
+        chk_ssl_src = QCheckBox("Skip Source SSL Verification")
+        self.inputs["upload-immich"]["from-skip-ssl"] = chk_ssl_src
+        form.addRow("", chk_ssl_src)
+
+        chk_from_trace = QCheckBox("Enable Source API Trace")
+        self.inputs["upload-immich"]["from-api-trace"] = chk_from_trace
+        form.addRow("", chk_from_trace)
+
+        chk_from_pause = QCheckBox("Pause Source Immich Jobs")
+        chk_from_pause.setChecked(True)
+        self.inputs["upload-immich"]["from-pause-jobs"] = chk_from_pause
+        form.addRow("", chk_from_pause)
+
+        subhead = QLabel("Destination Settings & Pair Handling")
+        subhead.setObjectName("Subhead")
+        form.addRow(subhead)
+
+        t_dst_tags = QLineEdit()
+        t_dst_tags.setPlaceholderText("migration")
+        self.inputs["upload-immich"]["tag"] = t_dst_tags
+        form.add_row("Destination Custom Tags", t_dst_tags)
+
+        chk_dst_sess = QCheckBox("Destination Session Tag")
+        self.inputs["upload-immich"]["session-tag"] = chk_dst_sess
+        form.addRow("", chk_dst_sess)
+
+        chk_dst_ovw = QCheckBox("Overwrite Existing on Destination")
+        self.inputs["upload-immich"]["overwrite"] = chk_dst_ovw
+        form.addRow("", chk_dst_ovw)
+
+        t_dst_tz = QLineEdit()
+        t_dst_tz.setPlaceholderText("UTC")
+        self.inputs["upload-immich"]["time-zone"] = t_dst_tz
+        form.add_row("Destination Time Zone", t_dst_tz)
+
+        c_burst = QComboBox()
+        c_burst.addItems(["NoStack", "Stack", "StackKeepRaw", "StackKeepJPEG"])
+        self.inputs["upload-immich"]["manage-burst"] = c_burst
+        form.add_row("Destination Burst Photos", c_burst)
+
+        c_raw = QComboBox()
+        c_raw.addItems(["NoStack", "KeepRaw", "KeepJPG", "StackCoverRaw", "StackCoverJPG"])
+        self.inputs["upload-immich"]["manage-raw-jpeg"] = c_raw
+        form.add_row("Destination RAW+JPEG Pairs", c_raw)
+
+        c_heic = QComboBox()
+        c_heic.addItems(["NoStack", "KeepHeic", "KeepJPG", "StackCoverHeic", "StackCoverJPG"])
+        self.inputs["upload-immich"]["manage-heic-jpeg"] = c_heic
+        form.add_row("Destination HEIC+JPEG Pairs", c_heic)
+
+        chk_epson = QCheckBox("Scan Epson FastFoto dual-side photos")
+        self.inputs["upload-immich"]["manage-epson"] = chk_epson
+        form.addRow("", chk_epson)
+
+        subhead = QLabel("Run Behavior & Debug")
         subhead.setObjectName("Subhead")
         form.addRow(subhead)
 
@@ -1416,23 +1579,12 @@ class ImmichGoGUI(QMainWindow):
         self.inputs["upload-immich"]["on-errors"] = c_err
         form.add_row("If a file fails", c_err)
 
-        subhead = QLabel("Connection & Debug")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        # FIX Phase 1 #7: removed per-tab skip-ssl (config-level only)
-
-        chk_ssl_src = QCheckBox("Skip Source SSL Verification")
-        self.inputs["upload-immich"]["from-skip-ssl"] = chk_ssl_src
-        form.addRow("", chk_ssl_src)
-
         c_log = QComboBox()
         c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
         self.inputs["upload-immich"]["log-level"] = c_log
         form.add_row("Log Level", c_log)
 
-        # FIX Phase 2 #15: add --api-trace to upload-immich
-        chk_trace = QCheckBox("Enable API Trace")
+        chk_trace = QCheckBox("Enable Destination API Trace")
         self.inputs["upload-immich"]["api-trace"] = chk_trace
         form.addRow("", chk_trace)
 
@@ -1491,7 +1643,6 @@ class ImmichGoGUI(QMainWindow):
         t_write = DroppableLineEdit()
         t_write.setPlaceholderText("/organized-photos")
         self.inputs["archive-folder"]["write-to"] = t_write
-        # FIX Phase 3 #32: browse button on archive destination
         self._add_browse_action(t_write, "Select Archive Destination")
         form.add_row("Destination Folder", t_write)
 
@@ -1501,7 +1652,7 @@ class ImmichGoGUI(QMainWindow):
         adv_card = Card("Advanced Options")
         form = FormSection()
 
-        subhead = QLabel("Filtering")
+        subhead = QLabel("Filtering & Source Behavior")
         subhead.setObjectName("Subhead")
         form.addRow(subhead)
 
@@ -1510,9 +1661,71 @@ class ImmichGoGUI(QMainWindow):
         self.inputs["archive-folder"]["date-range"] = d_range
         form.add_row("Date Range", d_range)
 
-        subhead = QLabel("Connection & Debug")
+        c_type = QComboBox()
+        c_type.addItems(["all", "IMAGE", "VIDEO"])
+        self.inputs["archive-folder"]["include-type"] = c_type
+        form.add_row("Media Type", c_type)
+
+        inc_ext = QLineEdit()
+        inc_ext.setPlaceholderText(".jpg,.heic,.mp4")
+        self.inputs["archive-folder"]["include-ext"] = inc_ext
+        form.add_row("Include extensions", inc_ext)
+
+        exc_ext = QLineEdit()
+        exc_ext.setPlaceholderText(".thm,.xmp")
+        self.inputs["archive-folder"]["exclude-ext"] = exc_ext
+        form.add_row("Exclude extensions", exc_ext)
+
+        ban_file = QPlainTextEdit()
+        ban_file.setPlaceholderText("@eaDir/\n.DS_Store")
+        self.inputs["archive-folder"]["ban-file"] = ban_file
+        form.add_row("Skip files matching patterns", ban_file)
+
+        chk_rec = QCheckBox("Scan subdirectories recursively")
+        chk_rec.setChecked(True)
+        self.inputs["archive-folder"]["recursive"] = chk_rec
+        form.addRow("", chk_rec)
+
+        chk_ignore = QCheckBox("Ignore sidecar files")
+        self.inputs["archive-folder"]["ignore-sidecar"] = chk_ignore
+        form.addRow("", chk_ignore)
+
+        chk_date_name = QCheckBox("Guess dates from filenames")
+        chk_date_name.setChecked(True)
+        self.inputs["archive-folder"]["date-from-name"] = chk_date_name
+        form.addRow("", chk_date_name)
+
+        subhead = QLabel("Folder & Album Organization")
         subhead.setObjectName("Subhead")
         form.addRow(subhead)
+
+        c_album = QComboBox()
+        c_album.addItems(["NONE", "FOLDER", "PATH"])
+        self.inputs["archive-folder"]["folder-album"] = c_album
+        form.add_row("Folder as Album", c_album)
+
+        chk_ftags = QCheckBox("Folder as Tags")
+        self.inputs["archive-folder"]["folder-tags"] = chk_ftags
+        form.addRow("", chk_ftags)
+
+        t_album = QLineEdit()
+        t_album.setPlaceholderText("e.g. Backup Album")
+        self.inputs["archive-folder"]["into-album"] = t_album
+        form.add_row("Put all into Album", t_album)
+
+        t_joiner = QLineEdit()
+        t_joiner.setPlaceholderText(" / ")
+        self.inputs["archive-folder"]["album-path-joiner"] = t_joiner
+        form.add_row("Album Path Joiner", t_joiner)
+
+        subhead = QLabel("Run Behavior & Debug")
+        subhead.setObjectName("Subhead")
+        form.addRow(subhead)
+
+        c_err = QComboBox()
+        c_err.addItems(["stop", "continue"])
+        self.inputs["archive-folder"]["on-errors"] = c_err
+        form.add_row("If a file fails", c_err)
 
         c_log = QComboBox()
         c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
@@ -1552,19 +1765,8 @@ class ImmichGoGUI(QMainWindow):
         t_write = DroppableLineEdit()
         t_write.setPlaceholderText("/backup/photos")
         self.inputs["archive-immich"]["write-to"] = t_write
-        # FIX Phase 3 #32: browse button on archive destination
         self._add_browse_action(t_write, "Select Archive Destination")
         form.add_row("Destination Folder", t_write)
-
-        card.layout.addLayout(form)
-        lay.addWidget(card)
-
-        adv_card = Card("Advanced Options")
-        form = FormSection()
-
-        subhead = QLabel("Source Filtering")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
 
         d_range = QLineEdit()
         d_range.setPlaceholderText("2023-01-01,2023-12-31")
@@ -1576,11 +1778,135 @@ class ImmichGoGUI(QMainWindow):
         self.inputs["archive-immich"]["from-albums"] = t_albums
         form.add_row("Specific Albums", t_albums)
 
-        subhead = QLabel("Connection & Debug")
+        card.layout.addLayout(form)
+        lay.addWidget(card)
+
+        adv_card = Card("Advanced Options")
+        form = FormSection()
+
+        subhead = QLabel("Source Asset Filters")
         subhead.setObjectName("Subhead")
         form.addRow(subhead)
 
-        # FIX Phase 1 #7: removed per-tab skip-ssl
+        chk_fav = QCheckBox("Only Favorites")
+        self.inputs["archive-immich"]["from-favorite"] = chk_fav
+        form.addRow("", chk_fav)
+
+        chk_arch = QCheckBox("Include Source Archived")
+        self.inputs["archive-immich"]["from-archived"] = chk_arch
+        form.addRow("", chk_arch)
+
+        chk_trash = QCheckBox("Include Source Trashed")
+        self.inputs["archive-immich"]["from-trash"] = chk_trash
+        form.addRow("", chk_trash)
+
+        chk_no_album = QCheckBox("Include Assets Not in Albums")
+        self.inputs["archive-immich"]["from-no-album"] = chk_no_album
+        form.addRow("", chk_no_album)
+
+        chk_partners = QCheckBox("Include Partner Photos")
+        self.inputs["archive-immich"]["from-partners"] = chk_partners
+        form.addRow("", chk_partners)
+
+        s_rating = QSpinBox()
+        s_rating.setRange(0, 5)
+        self.inputs["archive-immich"]["from-minimal-rating"] = s_rating
+        form.add_row("Minimum Rating", s_rating)
+
+        subhead = QLabel("People & Tags")
+        subhead.setObjectName("Subhead")
+        form.addRow(subhead)
+
+        t_people = QLineEdit()
+        t_people.setPlaceholderText("John, Jane")
+        self.inputs["archive-immich"]["from-people"] = t_people
+        form.add_row("Filter by People", t_people)
+
+        t_tags = QLineEdit()
+        t_tags.setPlaceholderText("vacation, work")
+        self.inputs["archive-immich"]["from-tags"] = t_tags
+        form.add_row("Filter by Tags", t_tags)
+
+        subhead = QLabel("Location & Camera Metadata")
+        subhead.setObjectName("Subhead")
+        form.addRow(subhead)
+
+        t_city = QLineEdit()
+        t_city.setPlaceholderText("New York")
+        self.inputs["archive-immich"]["from-city"] = t_city
+        form.add_row("City", t_city)
+
+        t_state = QLineEdit()
+        t_state.setPlaceholderText("NY")
+        self.inputs["archive-immich"]["from-state"] = t_state
+        form.add_row("State", t_state)
+
+        t_country = QLineEdit()
+        t_country.setPlaceholderText("USA")
+        self.inputs["archive-immich"]["from-country"] = t_country
+        form.add_row("Country", t_country)
+
+        t_make = QLineEdit()
+        t_make.setPlaceholderText("Canon")
+        self.inputs["archive-immich"]["from-make"] = t_make
+        form.add_row("Camera Make", t_make)
+
+        t_model = QLineEdit()
+        t_model.setPlaceholderText("EOS R5")
+        self.inputs["archive-immich"]["from-model"] = t_model
+        form.add_row("Camera Model", t_model)
+
+        subhead = QLabel("Media & Extensions")
+        subhead.setObjectName("Subhead")
+        form.addRow(subhead)
+
+        c_from_type = QComboBox()
+        c_from_type.addItems(["all", "IMAGE", "VIDEO"])
+        self.inputs["archive-immich"]["from-include-type"] = c_from_type
+        form.add_row("Source Media Type", c_from_type)
+
+        t_from_inc_ext = QLineEdit()
+        t_from_inc_ext.setPlaceholderText(".jpg,.heic")
+        self.inputs["archive-immich"]["from-include-ext"] = t_from_inc_ext
+        form.add_row("Include Extensions", t_from_inc_ext)
+
+        t_from_exc_ext = QLineEdit()
+        t_from_exc_ext.setPlaceholderText(".mp4")
+        self.inputs["archive-immich"]["from-exclude-ext"] = t_from_exc_ext
+        form.add_row("Exclude Extensions", t_from_exc_ext)
+
+        subhead = QLabel("Source Connection & Debug")
+        subhead.setObjectName("Subhead")
+        form.addRow(subhead)
+
+        t_from_tz = QLineEdit()
+        t_from_tz.setPlaceholderText("UTC")
+        self.inputs["archive-immich"]["from-time-zone"] = t_from_tz
+        form.add_row("Source Time Zone", t_from_tz)
+
+        t_from_dev = QLineEdit()
+        self.inputs["archive-immich"]["from-device-uuid"] = t_from_dev
+        form.add_row("Source Device UUID", t_from_dev)
+
+        from_timeout_spin = QSpinBox()
+        from_timeout_spin.setRange(1, 1440)
+        from_timeout_spin.setValue(20)
+        from_timeout_spin.setSuffix(" minutes")
+        self.inputs["archive-immich"]["from-client-timeout"] = from_timeout_spin
+        form.add_row("Source Client Timeout", from_timeout_spin)
+
+        chk_ssl_src = QCheckBox("Skip Source SSL Verification")
+        self.inputs["archive-immich"]["from-skip-ssl"] = chk_ssl_src
+        form.addRow("", chk_ssl_src)
+
+        chk_from_trace = QCheckBox("Enable Source API Trace")
+        self.inputs["archive-immich"]["from-api-trace"] = chk_from_trace
+        form.addRow("", chk_from_trace)
+
+        chk_from_pause = QCheckBox("Pause Source Immich Jobs")
+        chk_from_pause.setChecked(True)
+        self.inputs["archive-immich"]["from-pause-jobs"] = chk_from_pause
+        form.addRow("", chk_from_pause)
 
         c_log = QComboBox()
         c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
@@ -1639,6 +1965,11 @@ class ImmichGoGUI(QMainWindow):
         subhead.setObjectName("Subhead")
         form.addRow(subhead)
 
+        d_range = QLineEdit()
+        d_range.setPlaceholderText("YYYY-MM-DD,YYYY-MM-DD")
+        self.inputs["stack"]["date-range"] = d_range
+        form.add_row("Date Range", d_range)
+
         t_tz = QLineEdit()
         t_tz.setPlaceholderText("America/New_York")
         self.inputs["stack"]["time-zone"] = t_tz
@@ -1648,18 +1979,20 @@ class ImmichGoGUI(QMainWindow):
         self.inputs["stack"]["manage-epson"] = chk_epson
         form.addRow("", chk_epson)
 
+        chk_pause = QCheckBox("Pause background jobs")
+        chk_pause.setChecked(True)
+        self.inputs["stack"]["pause-jobs"] = chk_pause
+        form.addRow("", chk_pause)
+
         subhead = QLabel("Connection & Debug")
         subhead.setObjectName("Subhead")
         form.addRow(subhead)
-
-        # FIX Phase 1 #7: removed per-tab skip-ssl
 
         c_log = QComboBox()
         c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
         self.inputs["stack"]["log-level"] = c_log
         form.add_row("Log Level", c_log)
 
-        # FIX Phase 2 #15: add --api-trace to stack
         chk_trace = QCheckBox("Enable API Trace")
         self.inputs["stack"]["api-trace"] = chk_trace
         form.addRow("", chk_trace)
@@ -1678,8 +2011,15 @@ class ImmichGoGUI(QMainWindow):
 
     def toggle_advanced(self, checked):
         self.is_advanced = checked
-        self.lbl_mode.setText("Advanced" if checked else "Simple")
-        for w in self.adv_frames:
+        if hasattr(self, "app_config"):
+            self.app_config.advanced_mode = checked
+        if hasattr(self, "btn_mode"):
+            self.btn_mode.blockSignals(True)
+            self.btn_mode.setChecked(checked)
+            self.btn_mode.blockSignals(False)
+        if hasattr(self, "lbl_mode"):
+            self.lbl_mode.setText("Advanced" if checked else "Simple")
+        for w in getattr(self, "adv_frames", []):
             w.setVisible(checked)
 
     def switch_tab(self, index, crumb, btn):
@@ -2068,104 +2408,204 @@ class ImmichGoGUI(QMainWindow):
             return {}
         c = self.inputs[tab_key]
 
+        def get_text(k: str, default: str = "") -> str:
+            w = c.get(k)
+            if not w:
+                return default
+            if hasattr(w, "text"):
+                return w.text()
+            if hasattr(w, "toPlainText"):
+                return w.toPlainText()
+            return default
+
+        def get_bool(k: str, default: bool = False) -> bool:
+            w = c.get(k)
+            if not w:
+                return default
+            if hasattr(w, "isChecked"):
+                return w.isChecked()
+            return default
+
+        def get_combo(k: str, default: str = "") -> str:
+            w = c.get(k)
+            if not w:
+                return default
+            if hasattr(w, "currentText"):
+                return w.currentText()
+            return default
+
+        def get_int(k: str, default: int = 0) -> int:
+            w = c.get(k)
+            if not w:
+                return default
+            if hasattr(w, "value"):
+                return w.value()
+            return default
+
         if tab_key == "upload-folder":
             return {
-                "path": c["path"].text(),
-                "include-type": c["include-type"].currentText(),
-                "folder-album": c["folder-album"].currentText(),
-                "into-album": c["into-album"].text(),
-                "manage-burst": c["manage-burst"].currentText(),
-                "manage-raw-jpeg": c["manage-raw-jpeg"].currentText(),
-                "manage-heic-jpeg": c["manage-heic-jpeg"].currentText(),
-                "date-range": c["date-range"].text(),
-                "include-ext": c["include-ext"].text(),
-                "exclude-ext": c["exclude-ext"].text(),
-                "ban-file": c["ban-file"].toPlainText(),
-                "ignore-sidecar": c["ignore-sidecar"].isChecked(),
-                "date-from-name": c["date-from-name"].isChecked(),
-                "tag": c["tag"].text(),
-                "session-tag": c["session-tag"].isChecked(),
-                "folder-tags": c["folder-tags"].isChecked(),
-                "on-errors": c["on-errors"].currentText() if "on-errors" in c else "stop",
-                "overwrite": c["overwrite"].isChecked(),
-                "pause-jobs": c["pause-jobs"].isChecked() if "pause-jobs" in c else True,
-                "log-level": c["log-level"].currentText() if "log-level" in c else "INFO",
-                "api-trace": c["api-trace"].isChecked() if "api-trace" in c else False,
+                "path": get_text("path"),
+                "include-type": get_combo("include-type", "all"),
+                "folder-album": get_combo("folder-album", "NONE"),
+                "into-album": get_text("into-album"),
+                "manage-burst": get_combo("manage-burst", "NoStack"),
+                "manage-raw-jpeg": get_combo("manage-raw-jpeg", "NoStack"),
+                "manage-heic-jpeg": get_combo("manage-heic-jpeg", "NoStack"),
+                "date-range": get_text("date-range"),
+                "include-ext": get_text("include-ext"),
+                "exclude-ext": get_text("exclude-ext"),
+                "ban-file": get_text("ban-file"),
+                "recursive": get_bool("recursive", True),
+                "ignore-sidecar": get_bool("ignore-sidecar", False),
+                "date-from-name": get_bool("date-from-name", True),
+                "album-path-joiner": get_text("album-path-joiner"),
+                "tag": get_text("tag"),
+                "session-tag": get_bool("session-tag", False),
+                "folder-tags": get_bool("folder-tags", False),
+                "on-errors": get_combo("on-errors", "stop"),
+                "overwrite": get_bool("overwrite", False),
+                "pause-jobs": get_bool("pause-jobs", True),
+                "time-zone": get_text("time-zone"),
+                "manage-epson": get_bool("manage-epson", False),
+                "log-level": get_combo("log-level", "INFO"),
+                "api-trace": get_bool("api-trace", False),
             }
 
         elif tab_key == "upload-gp":
             return {
-                "path": c["path"].toPlainText(),
-                "include-type": c["include-type"].currentText(),
-                "into-album": c["into-album"].text(),
-                "include-unmatched": c["include-unmatched"].isChecked(),
-                "include-partner": c["include-partner"].isChecked(),
-                "sync-albums": c["sync-albums"].isChecked(),
-                "manage-burst": c["manage-burst"].currentText(),
-                "manage-heic-jpeg": c["manage-heic-jpeg"].currentText(),
-                "from-album-name": c["from-album-name"].text(),
-                "include-archived": c["include-archived"].isChecked(),
-                "include-trashed": c["include-trashed"].isChecked(),
-                "partner-album": c["partner-album"].text(),
-                "takeout-tag": c["takeout-tag"].isChecked(),
-                "people-tag": c["people-tag"].isChecked(),
-                "tag": c["tag"].text(),
-                "session-tag": c["session-tag"].isChecked(),
-                "on-errors": c["on-errors"].currentText() if "on-errors" in c else "stop",
-                "pause-jobs": c["pause-jobs"].isChecked() if "pause-jobs" in c else True,
-                "log-level": c["log-level"].currentText() if "log-level" in c else "INFO",
-                "api-trace": c["api-trace"].isChecked() if "api-trace" in c else False,
+                "path": get_text("path"),
+                "include-type": get_combo("include-type", "all"),
+                "into-album": get_text("into-album"),
+                "include-unmatched": get_bool("include-unmatched", False),
+                "include-partner": get_bool("include-partner", True),
+                "sync-albums": get_bool("sync-albums", True),
+                "manage-burst": get_combo("manage-burst", "NoStack"),
+                "manage-heic-jpeg": get_combo("manage-heic-jpeg", "NoStack"),
+                "manage-raw-jpeg": get_combo("manage-raw-jpeg", "NoStack"),
+                "manage-epson": get_bool("manage-epson", False),
+                "from-album-name": get_text("from-album-name"),
+                "include-archived": get_bool("include-archived", True),
+                "include-trashed": get_bool("include-trashed", False),
+                "include-untitled-albums": get_bool("include-untitled-albums", False),
+                "partner-album": get_text("partner-album"),
+                "takeout-tag": get_bool("takeout-tag", True),
+                "people-tag": get_bool("people-tag", True),
+                "date-range": get_text("date-range"),
+                "include-ext": get_text("include-ext"),
+                "exclude-ext": get_text("exclude-ext"),
+                "ban-file": get_text("ban-file"),
+                "tag": get_text("tag"),
+                "session-tag": get_bool("session-tag", False),
+                "overwrite": get_bool("overwrite", False),
+                "on-errors": get_combo("on-errors", "stop"),
+                "pause-jobs": get_bool("pause-jobs", True),
+                "time-zone": get_text("time-zone"),
+                "log-level": get_combo("log-level", "INFO"),
+                "api-trace": get_bool("api-trace", False),
             }
 
         elif tab_key == "upload-immich":
             return {
-                "from-server": c["from-server"].text(),
-                "from-api-key": c["from-api-key"].text(),
-                "from-client-timeout": c["from-client-timeout"].value() if "from-client-timeout" in c else 20,
-                "from-favorite": c["from-favorite"].isChecked(),
-                "from-archived": c["from-archived"].isChecked(),
-                "from-trash": c["from-trash"].isChecked(),
-                "from-date-range": c["from-date-range"].text(),
-                "from-albums": c["from-albums"].text(),
-                "from-minimal-rating": c["from-minimal-rating"].value(),
-                "from-people": c["from-people"].text(),
-                "from-tags": c["from-tags"].text(),
-                "from-city": c["from-city"].text(),
-                "from-state": c["from-state"].text(),
-                "from-country": c["from-country"].text(),
-                "from-make": c["from-make"].text(),
-                "from-model": c["from-model"].text(),
-                "from-skip-ssl": c["from-skip-ssl"].isChecked(),
-                "on-errors": c["on-errors"].currentText() if "on-errors" in c else "stop",
-                "log-level": c["log-level"].currentText() if "log-level" in c else "INFO",
-                "api-trace": c["api-trace"].isChecked() if "api-trace" in c else False,
+                "from-server": get_text("from-server"),
+                "from-api-key": get_text("from-api-key"),
+                "from-client-timeout": get_int("from-client-timeout", 20),
+                "from-favorite": get_bool("from-favorite", False),
+                "from-archived": get_bool("from-archived", False),
+                "from-trash": get_bool("from-trash", False),
+                "from-partners": get_bool("from-partners", False),
+                "from-no-album": get_bool("from-no-album", False),
+                "from-date-range": get_text("from-date-range"),
+                "from-albums": get_text("from-albums"),
+                "from-minimal-rating": get_int("from-minimal-rating", 0),
+                "from-people": get_text("from-people"),
+                "from-tags": get_text("from-tags"),
+                "from-city": get_text("from-city"),
+                "from-state": get_text("from-state"),
+                "from-country": get_text("from-country"),
+                "from-make": get_text("from-make"),
+                "from-model": get_text("from-model"),
+                "from-include-type": get_combo("from-include-type", "all"),
+                "from-include-ext": get_text("from-include-ext"),
+                "from-exclude-ext": get_text("from-exclude-ext"),
+                "from-time-zone": get_text("from-time-zone"),
+                "from-device-uuid": get_text("from-device-uuid"),
+                "from-skip-ssl": get_bool("from-skip-ssl", False),
+                "from-api-trace": get_bool("from-api-trace", False),
+                "from-pause-jobs": get_bool("from-pause-jobs", True),
+                "tag": get_text("tag"),
+                "session-tag": get_bool("session-tag", False),
+                "overwrite": get_bool("overwrite", False),
+                "time-zone": get_text("time-zone"),
+                "manage-burst": get_combo("manage-burst", "NoStack"),
+                "manage-raw-jpeg": get_combo("manage-raw-jpeg", "NoStack"),
+                "manage-heic-jpeg": get_combo("manage-heic-jpeg", "NoStack"),
+                "manage-epson": get_bool("manage-epson", False),
+                "on-errors": get_combo("on-errors", "stop"),
+                "log-level": get_combo("log-level", "INFO"),
+                "api-trace": get_bool("api-trace", False),
             }
 
         elif tab_key == "archive-folder":
             return {
-                "path": c["path"].text(),
-                "write-to": c["write-to"].text(),
-                "date-range": c["date-range"].text(),
-                "log-level": c["log-level"].currentText() if "log-level" in c else "INFO",
+                "path": get_text("path"),
+                "write-to": get_text("write-to"),
+                "date-range": get_text("date-range"),
+                "include-type": get_combo("include-type", "all"),
+                "include-ext": get_text("include-ext"),
+                "exclude-ext": get_text("exclude-ext"),
+                "ban-file": get_text("ban-file"),
+                "recursive": get_bool("recursive", True),
+                "ignore-sidecar": get_bool("ignore-sidecar", False),
+                "date-from-name": get_bool("date-from-name", True),
+                "folder-album": get_combo("folder-album", "NONE"),
+                "folder-tags": get_bool("folder-tags", False),
+                "into-album": get_text("into-album"),
+                "album-path-joiner": get_text("album-path-joiner"),
+                "on-errors": get_combo("on-errors", "stop"),
+                "log-level": get_combo("log-level", "INFO"),
             }
 
         elif tab_key == "archive-immich":
             return {
-                "write-to": c["write-to"].text(),
-                "from-date-range": c["from-date-range"].text(),
-                "from-albums": c["from-albums"].text(),
-                "log-level": c["log-level"].currentText() if "log-level" in c else "INFO",
+                "write-to": get_text("write-to"),
+                "from-date-range": get_text("from-date-range"),
+                "from-albums": get_text("from-albums"),
+                "from-favorite": get_bool("from-favorite", False),
+                "from-archived": get_bool("from-archived", False),
+                "from-trash": get_bool("from-trash", False),
+                "from-minimal-rating": get_int("from-minimal-rating", 0),
+                "from-no-album": get_bool("from-no-album", False),
+                "from-partners": get_bool("from-partners", False),
+                "from-people": get_text("from-people"),
+                "from-tags": get_text("from-tags"),
+                "from-city": get_text("from-city"),
+                "from-state": get_text("from-state"),
+                "from-country": get_text("from-country"),
+                "from-make": get_text("from-make"),
+                "from-model": get_text("from-model"),
+                "from-include-type": get_combo("from-include-type", "all"),
+                "from-include-ext": get_text("from-include-ext"),
+                "from-exclude-ext": get_text("from-exclude-ext"),
+                "from-time-zone": get_text("from-time-zone"),
+                "from-device-uuid": get_text("from-device-uuid"),
+                "from-client-timeout": get_int("from-client-timeout", 20),
+                "from-skip-ssl": get_bool("from-skip-ssl", False),
+                "from-api-trace": get_bool("from-api-trace", False),
+                "from-pause-jobs": get_bool("from-pause-jobs", True),
+                "log-level": get_combo("log-level", "INFO"),
             }
 
         elif tab_key == "stack":
             return {
-                "manage-burst": c["manage-burst"].currentText(),
-                "manage-raw-jpeg": c["manage-raw-jpeg"].currentText(),
-                "manage-heic-jpeg": c["manage-heic-jpeg"].currentText(),
-                "time-zone": c["time-zone"].text(),
-                "manage-epson": c["manage-epson"].isChecked(),
-                "log-level": c["log-level"].currentText() if "log-level" in c else "INFO",
-                "api-trace": c["api-trace"].isChecked() if "api-trace" in c else False,
+                "manage-burst": get_combo("manage-burst", "NoStack"),
+                "manage-raw-jpeg": get_combo("manage-raw-jpeg", "NoStack"),
+                "manage-heic-jpeg": get_combo("manage-heic-jpeg", "NoStack"),
+                "date-range": get_text("date-range"),
+                "time-zone": get_text("time-zone"),
+                "manage-epson": get_bool("manage-epson", False),
+                "pause-jobs": get_bool("pause-jobs", True),
+                "log-level": get_combo("log-level", "INFO"),
+                "api-trace": get_bool("api-trace", False),
             }
 
         return {}
@@ -2884,6 +3324,7 @@ class ImmichGoGUI(QMainWindow):
             self.theme_mode_combo.blockSignals(False)
 
         self.apply_theme(self.theme_mode)
+        self.toggle_advanced(self.app_config.advanced_mode)
         self.update_window_title()
 
     def save_configuration(self):

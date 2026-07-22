@@ -77,6 +77,25 @@ class FlagEmitter:
         return True
 
 
+def emit_bool_flag(emitter: FlagEmitter, flag_name: str, value: bool, default: bool = False) -> None:
+    """Emits boolean CLI options respecting CLI default value.
+    - Default True: emits --<flag>=false if value is False.
+    - Default False: emits --<flag> if value is True.
+    """
+    if default:
+        if not value:
+            emitter.add_bool_val(flag_name, False)
+    else:
+        if value:
+            emitter.add_flag(flag_name)
+
+
+def emit_if_not_default(emitter: FlagEmitter, flag_name: str, value: Any, default: Any = "") -> None:
+    """Emits CLI option if value is not equal to default and is non-empty."""
+    if value != default and value not in ("", None):
+        emitter.add_option(flag_name, value)
+
+
 _DATE_RANGE_RE = re.compile(
     r"^\d{4}(-\d{2}(-\d{2})?)?"
     r"(,\d{4}(-\d{2}(-\d{2})?)?)?$"
@@ -84,13 +103,7 @@ _DATE_RANGE_RE = re.compile(
 
 
 def normalize_server_url(url: str) -> str:
-    """Normalize a server URL for CLI consumption.
-
-    - Strips leading/trailing whitespace
-    - Adds http:// if no scheme is present
-    - Strips trailing slashes
-    - Returns empty string for empty input
-    """
+    """Normalize a server URL for CLI consumption."""
     url = url.strip()
     if not url:
         return ""
@@ -117,21 +130,13 @@ def collect_paths(raw_text: str) -> list[str]:
 
 
 def validate_date_range(text: str) -> bool:
-    """Validate immich-go date range format.
-
-    Accepts: 2023, 2023-07, 2023-07-15, 2023-01-01,2023-12-31
-    """
+    """Validate immich-go date range format."""
     valid, _ = validate_date_range_func(text)
     return valid
 
 
 def mask_command_for_display(command_parts: list[str]) -> list[str]:
-    """Obfuscates secrets in command previews.
-
-    Handles both forms:
-      --api-key=secret   (single element)
-      --api-key secret   (two elements)
-    """
+    """Obfuscates secrets in command previews."""
     masked = []
     skip_next = False
     for part in command_parts:
@@ -145,15 +150,13 @@ def mask_command_for_display(command_parts: list[str]) -> list[str]:
             skip_next = True
             continue
 
-        hidden = False
-        for flag in SECRET_FLAGS:
-            if part.startswith(f"{flag}="):
+        if "=" in part:
+            flag, val = part.split("=", 1)
+            if flag in SECRET_FLAGS:
                 masked.append(f"{flag}=********")
-                hidden = True
-                break
+                continue
 
-        if not hidden:
-            masked.append(part)
+        masked.append(part)
 
     return masked
 
@@ -215,147 +218,89 @@ def validate_state(
     config_state: dict,
     tab_state: dict,
 ) -> ValidationResult:
-    """Validates global and tab-specific input states returning a ValidationResult."""
-    result = ValidationResult()
+    """Validates full input state for a tab."""
+    res = ValidationResult()
 
-    if tab_key != "config":
-        server = config_state.get("server", "").strip()
-        api_key = config_state.get("api_key", "").strip()
-        normalized_server = normalize_server_url(server)
+    if tab_key in SERVER_REQUIRED_TABS:
+        srv = config_state.get("server", "").strip()
+        key = config_state.get("api_key", "").strip()
+        if not srv:
+            res.errors.append("Server URL is required. Configure it in the Configuration tab.")
+        if not key:
+            res.errors.append("API Key is required. Configure it in the Configuration tab.")
 
-        if tab_key in SERVER_REQUIRED_TABS:
-            if not server:
-                result.errors.append("Server URL is required.")
-            elif not re.match(r"^https?://.+", normalized_server):
-                result.errors.append("Server URL must start with http:// or https://.")
-
-            if not api_key:
-                result.errors.append("API key is required.")
-
-        if config_state.get("skip-ssl"):
-            result.warnings.append(
-                "SSL verification is disabled. Use only on trusted networks."
-            )
-
-    src_paths: list[str] = []
     if tab_key == "upload-folder":
-        raw_path = str(tab_state.get("path", "")).strip()
-        if not raw_path:
-            result.errors.append("Source folder or ZIP path is required.")
-        else:
-            expanded, path_warns = expand_source_paths(raw_path)
-            src_paths = expanded
-            result.warnings.extend(path_warns)
+        p = tab_state.get("path", "").strip()
+        if not p:
+            res.errors.append("Source folder path is required.")
+        elif not os.path.exists(p):
+            res.warnings.append(f"Source path '{p}' does not exist locally.")
 
     elif tab_key == "upload-gp":
-        raw_path = str(tab_state.get("path", "")).strip()
-        if not raw_path:
-            result.errors.append("Google Takeout source is required.")
-        else:
-            expanded, path_warns = expand_source_paths(raw_path)
-            src_paths = expanded
-            result.warnings.extend(path_warns)
+        p = tab_state.get("path", "").strip()
+        if not p:
+            res.errors.append("Google Photos takeout source path is required.")
 
     elif tab_key == "upload-immich":
-        if not str(tab_state.get("from-server", "")).strip():
-            result.errors.append("Source server URL is required.")
-        if not str(tab_state.get("from-api-key", "")).strip():
-            result.errors.append("Source API key is required.")
+        fs = tab_state.get("from-server", "").strip()
+        fk = tab_state.get("from-api-key", "").strip()
+        if not fs:
+            res.errors.append("Source Immich Server URL is required.")
+        if not fk:
+            res.errors.append("Source Immich API Key is required.")
 
     elif tab_key == "archive-folder":
-        raw_path = str(tab_state.get("path", "")).strip()
-        if not raw_path:
-            result.errors.append("Source path is required.")
-        else:
-            expanded, path_warns = expand_source_paths(raw_path)
-            src_paths = expanded
-            result.warnings.extend(path_warns)
-        
-        write_to = str(tab_state.get("write-to", "")).strip()
-        if not write_to:
-            result.errors.append("Destination folder is required.")
-        else:
-            dest_warns = validate_destination_folder(write_to, src_paths)
-            result.warnings.extend(dest_warns)
+        p = tab_state.get("path", "").strip()
+        w = tab_state.get("write-to", "").strip()
+        if not p:
+            res.errors.append("Source folder path is required.")
+        if not w:
+            res.errors.append("Destination folder is required.")
 
     elif tab_key == "archive-immich":
-        write_to = str(tab_state.get("write-to", "")).strip()
-        if not write_to:
-            result.errors.append("Destination folder is required.")
-        else:
-            dest_warns = validate_destination_folder(write_to, [])
-            result.warnings.extend(dest_warns)
+        w = tab_state.get("write-to", "").strip()
+        if not w:
+            res.errors.append("Destination folder is required.")
 
-    # Validate date range format if provided
-    dr = str(tab_state.get("date-range", "")).strip()
-    if dr:
-        valid, err = validate_date_range_func(dr)
-        if not valid:
-            result.errors.append(err or "Date range must be YYYY, YYYY-MM, YYYY-MM-DD, or start,end.")
+    # Date range validation across tabs
+    for key in ("date-range", "from-date-range"):
+        if key in tab_state and tab_state[key].strip():
+            valid, err = validate_date_range_func(tab_state[key])
+            if not valid:
+                res.errors.append(f"Invalid date range format: {err}")
 
-    fdr = str(tab_state.get("from-date-range", "")).strip()
-    if fdr:
-        valid, err = validate_date_range_func(fdr)
-        if not valid:
-            result.errors.append(err or "Date range must be YYYY, YYYY-MM, YYYY-MM-DD, or start,end.")
-
-    return result
-
-
-def _add_destructive_warnings(tab_state: dict, plan: CommandPlan) -> None:
-    raw_jpeg = tab_state.get("manage-raw-jpeg", "NoStack")
-    if raw_jpeg == "KeepRaw":
-        plan.warnings.append("RAW+JPEG mode KeepRaw may delete the JPEG file from paired assets.")
-    elif raw_jpeg == "KeepJPG":
-        plan.warnings.append("RAW+JPEG mode KeepJPG may delete the RAW file from paired assets.")
-
-    heic_jpeg = tab_state.get("manage-heic-jpeg", "NoStack")
-    if heic_jpeg == "KeepHeic":
-        plan.warnings.append("HEIC+JPEG mode KeepHeic may delete the JPEG file from paired assets.")
-    elif heic_jpeg == "KeepJPG":
-        plan.warnings.append("HEIC+JPEG mode KeepJPG may delete the HEIC file from paired assets.")
-
-    burst = tab_state.get("manage-burst", "NoStack")
-    if burst == "StackKeepJPEG":
-        plan.warnings.append("Burst mode StackKeepJPEG may discard non-cover burst frames.")
-    elif burst == "StackKeepRaw":
-        plan.warnings.append("Burst mode StackKeepRaw may discard non-cover burst frames.")
+    return res
 
 
 def build_plan_from_state(
     tab_key: str,
     config_state: dict,
     tab_state: dict,
-    binary_path: str,
-    dry_run: bool,
+    binary_path: str = "./immich-go",
+    dry_run: bool = False,
     base_env: dict[str, str] | None = None,
+    strict_schema: bool = False,
 ) -> CommandPlan:
-    """Builds a CommandPlan from pure state dictionaries without UI dependencies."""
-    if tab_key == "config" or tab_key not in TAB_COMMANDS:
-        return CommandPlan(
-            errors=["No executable tab selected."],
-            tab_key=tab_key,
-        )
+    """Converts configuration state and tab input state into a CommandPlan."""
+    plan = CommandPlan()
+    plan.tab_key = tab_key
+    plan.dry_run = dry_run
+    plan.binary_path = binary_path
 
-    plan = CommandPlan(
-        tab_key=tab_key,
-        dry_run=dry_run,
-        binary_path=binary_path,
-    )
+    cmd_parts = TAB_COMMANDS.get(tab_key, [])
+    if not cmd_parts:
+        plan.errors.append(f"Unknown tab key: '{tab_key}'")
+        return plan
 
-    _add_destructive_warnings(tab_state, plan)
+    emitter = FlagEmitter(tab_key, strict=strict_schema)
 
-    emitter = FlagEmitter(tab_key)
-    cmd = TAB_COMMANDS[tab_key]
-    path_opt: list[str] = []
+    server = config_state.get("server", "")
+    api_key = config_state.get("api_key", "")
+    admin_api_key = config_state.get("admin_api_key", "")
+    from_server = tab_state.get("from-server", "")
+    from_api_key = tab_state.get("from-api-key", "")
 
-    server = str(config_state.get("server", ""))
-    api_key = str(config_state.get("api_key", ""))
-    admin_api_key = str(config_state.get("admin_api_key", ""))
-    from_server = str(tab_state.get("from-server", ""))
-    from_api_key = str(tab_state.get("from-api-key", ""))
-
-    env = build_environment(
+    plan.env = build_environment(
         tab_key=tab_key,
         server=normalize_server_url(server) if server else "",
         api_key=api_key,
@@ -370,8 +315,8 @@ def build_plan_from_state(
     if log_level and log_level != "INFO":
         emitter.add_option("log-level", log_level)
 
-    # Server and SSL
-    if tab_key != "archive-folder":
+    # Server and SSL (exclude serverless archive-folder & source-only archive-immich)
+    if tab_key not in ("archive-folder", "archive-immich"):
         if server:
             emitter.add_option("server", normalize_server_url(server))
 
@@ -382,14 +327,11 @@ def build_plan_from_state(
                 "Use only on trusted networks or self-hosted test servers."
             )
 
-    # API key handling for upload-immich source server
-    if tab_key == "upload-immich" and from_server:
-        emitter.add_option("from-server", normalize_server_url(from_server))
-
     # Global advanced options
-    client_timeout = config_state.get("client_timeout", 20)
-    if client_timeout != 20:
-        emitter.add_option("client-timeout", f"{client_timeout}m")
+    if tab_key not in ("archive-folder", "archive-immich"):
+        client_timeout = config_state.get("client_timeout", 20)
+        if client_timeout != 20:
+            emitter.add_option("client-timeout", f"{client_timeout}m")
 
     if tab_key in UPLOAD_TABS and config_state.get("device_uuid"):
         emitter.add_option("device-uuid", config_state["device_uuid"])
@@ -418,6 +360,8 @@ def build_plan_from_state(
             elif oe_config != "stop":
                 emitter.add_option("on-errors", oe_config)
 
+    path_opt: list[str] = []
+
     # Tab-specific options
     if tab_key == "upload-folder":
         if tab_state.get("include-type", "all") != "all":
@@ -435,9 +379,15 @@ def build_plan_from_state(
 
         if tab_state.get("manage-burst", "NoStack") != "NoStack":
             emitter.add_option("manage-burst", tab_state["manage-burst"])
+            mb = tab_state["manage-burst"]
+            plan.warnings.append(f"{mb} may discard non-cover burst frames when stacking.")
 
         if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
             emitter.add_option("manage-raw-jpeg", tab_state["manage-raw-jpeg"])
+            if tab_state["manage-raw-jpeg"] == "KeepJPG":
+                plan.warnings.append("KeepJPG may delete the RAW file when stacking pairs.")
+            elif tab_state["manage-raw-jpeg"] == "KeepRaw":
+                plan.warnings.append("KeepRaw may delete the JPEG file when stacking pairs.")
 
         if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
             emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
@@ -462,8 +412,8 @@ def build_plan_from_state(
         if tab_state.get("ignore-sidecar"):
             emitter.add_flag("ignore-sidecar-files")
 
-        if "date-from-name" in tab_state and not tab_state["date-from-name"]:
-            emitter.add_bool_val("date-from-name", False)
+        emit_bool_flag(emitter, "recursive", tab_state.get("recursive", True), default=True)
+        emit_bool_flag(emitter, "date-from-name", tab_state.get("date-from-name", True), default=True)
 
         if tab_state.get("tag"):
             for t in str(tab_state["tag"]).split(","):
@@ -482,7 +432,10 @@ def build_plan_from_state(
         if tab_state.get("album-path-joiner"):
             emitter.add_option("album-path-joiner", tab_state["album-path-joiner"])
 
-        if tab_state.get("manage-epson-fastfoto"):
+        if tab_state.get("time-zone"):
+            emitter.add_option("time-zone", tab_state["time-zone"])
+
+        if tab_state.get("manage-epson"):
             emitter.add_flag("manage-epson-fastfoto")
 
         if tab_state.get("path"):
@@ -494,12 +447,38 @@ def build_plan_from_state(
 
         if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
             emitter.add_option("manage-raw-jpeg", tab_state["manage-raw-jpeg"])
+            if tab_state["manage-raw-jpeg"] == "KeepJPG":
+                plan.warnings.append("KeepJPG may delete the RAW file when stacking pairs.")
+            elif tab_state["manage-raw-jpeg"] == "KeepRaw":
+                plan.warnings.append("KeepRaw may delete the JPEG file when stacking pairs.")
 
         if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
             emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
 
-        if tab_state.get("include-untitled-albums"):
-            emitter.add_flag("include-untitled-albums")
+        if tab_state.get("manage-epson"):
+            emitter.add_flag("manage-epson-fastfoto")
+
+        if tab_state.get("include-type", "all") != "all":
+            emitter.add_option("include-type", tab_state["include-type"])
+
+        if tab_state.get("into-album"):
+            emitter.add_option("into-album", tab_state["into-album"])
+
+        if tab_state.get("from-album-name"):
+            emitter.add_option("from-album-name", tab_state["from-album-name"])
+
+        if tab_state.get("partner-album"):
+            emitter.add_option("partner-shared-album", tab_state["partner-album"])
+
+        emit_bool_flag(emitter, "include-archived", tab_state.get("include-archived", True), default=True)
+        emit_bool_flag(emitter, "include-partner", tab_state.get("include-partner", True), default=True)
+        emit_bool_flag(emitter, "sync-albums", tab_state.get("sync-albums", True), default=True)
+        emit_bool_flag(emitter, "takeout-tag", tab_state.get("takeout-tag", True), default=True)
+        emit_bool_flag(emitter, "people-tag", tab_state.get("people-tag", True), default=True)
+
+        emit_bool_flag(emitter, "include-trashed", tab_state.get("include-trashed", False), default=False)
+        emit_bool_flag(emitter, "include-unmatched", tab_state.get("include-unmatched", False), default=False)
+        emit_bool_flag(emitter, "include-untitled-albums", tab_state.get("include-untitled-albums", False), default=False)
 
         dr = clean_date_range(str(tab_state.get("date-range", "")))
         if dr:
@@ -526,6 +505,12 @@ def build_plan_from_state(
         if tab_state.get("session-tag"):
             emitter.add_flag("session-tag")
 
+        if tab_state.get("overwrite"):
+            emitter.add_flag("overwrite")
+
+        if tab_state.get("time-zone"):
+            emitter.add_option("time-zone", tab_state["time-zone"])
+
         if tab_state.get("api-trace"):
             emitter.add_flag("api-trace")
 
@@ -534,6 +519,9 @@ def build_plan_from_state(
             path_opt.extend(collect_paths(raw_paths))
 
     elif tab_key == "upload-immich":
+        if from_server:
+            emitter.add_option("from-server", normalize_server_url(from_server))
+
         from_ct = tab_state.get("from-client-timeout")
         if from_ct is not None and int(from_ct) != 20 and int(from_ct) > 0:
             emitter.add_option("from-client-timeout", f"{from_ct}m")
@@ -609,6 +597,43 @@ def build_plan_from_state(
         if tab_state.get("from-device-uuid"):
             emitter.add_option("from-device-uuid", tab_state["from-device-uuid"])
 
+        if tab_state.get("from-api-trace"):
+            emitter.add_flag("from-api-trace")
+
+        if "from-pause-jobs" in tab_state and not tab_state["from-pause-jobs"]:
+            emitter.add_bool_val("from-pause-immich-jobs", False)
+
+        # Destination flags
+        if tab_state.get("tag"):
+            for t in str(tab_state["tag"]).split(","):
+                if t.strip():
+                    emitter.add_option("tag", t.strip())
+
+        if tab_state.get("session-tag"):
+            emitter.add_flag("session-tag")
+
+        if tab_state.get("overwrite"):
+            emitter.add_flag("overwrite")
+
+        if tab_state.get("time-zone"):
+            emitter.add_option("time-zone", tab_state["time-zone"])
+
+        if tab_state.get("manage-burst", "NoStack") != "NoStack":
+            emitter.add_option("manage-burst", tab_state["manage-burst"])
+
+        if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
+            emitter.add_option("manage-raw-jpeg", tab_state["manage-raw-jpeg"])
+            if tab_state["manage-raw-jpeg"] == "KeepJPG":
+                plan.warnings.append("KeepJPG may delete the RAW file when stacking pairs.")
+            elif tab_state["manage-raw-jpeg"] == "KeepRaw":
+                plan.warnings.append("KeepRaw may delete the JPEG file when stacking pairs.")
+
+        if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
+            emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
+
+        if tab_state.get("manage-epson"):
+            emitter.add_flag("manage-epson-fastfoto")
+
         if tab_state.get("api-trace"):
             emitter.add_flag("api-trace")
 
@@ -639,8 +664,20 @@ def build_plan_from_state(
         if tab_state.get("ignore-sidecar"):
             emitter.add_flag("ignore-sidecar-files")
 
-        if tab_state.get("date-from-name"):
-            emitter.add_flag("date-from-name")
+        emit_bool_flag(emitter, "recursive", tab_state.get("recursive", True), default=True)
+        emit_bool_flag(emitter, "date-from-name", tab_state.get("date-from-name", True), default=True)
+
+        if tab_state.get("folder-album", "NONE") != "NONE":
+            emitter.add_option("folder-as-album", tab_state["folder-album"])
+
+        if tab_state.get("folder-tags"):
+            emitter.add_flag("folder-as-tags")
+
+        if tab_state.get("into-album"):
+            emitter.add_option("into-album", tab_state["into-album"])
+
+        if tab_state.get("album-path-joiner"):
+            emitter.add_option("album-path-joiner", tab_state["album-path-joiner"])
 
         if tab_state.get("path"):
             path_opt.append(tab_state["path"])
@@ -718,15 +755,45 @@ def build_plan_from_state(
         if tab_state.get("from-no-album"):
             emitter.add_flag("from-no-album")
 
+        if tab_state.get("from-device-uuid"):
+            emitter.add_option("from-device-uuid", tab_state["from-device-uuid"])
+
+        if tab_state.get("from-skip-ssl"):
+            emitter.add_flag("from-skip-verify-ssl")
+
+        if tab_state.get("from-api-trace"):
+            emitter.add_flag("from-api-trace")
+
+        if "from-pause-jobs" in tab_state and not tab_state["from-pause-jobs"]:
+            emitter.add_bool_val("from-pause-immich-jobs", False)
+
+        from_ct = tab_state.get("from-client-timeout")
+        if from_ct is not None and int(from_ct) != 20 and int(from_ct) > 0:
+            emitter.add_option("from-client-timeout", f"{from_ct}m")
+
     elif tab_key == "stack":
         if tab_state.get("manage-burst", "NoStack") != "NoStack":
             emitter.add_option("manage-burst", tab_state["manage-burst"])
 
         if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
             emitter.add_option("manage-raw-jpeg", tab_state["manage-raw-jpeg"])
+            if tab_state["manage-raw-jpeg"] == "KeepJPG":
+                plan.warnings.append("KeepJPG may delete the RAW file when stacking pairs.")
+            elif tab_state["manage-raw-jpeg"] == "KeepRaw":
+                plan.warnings.append("KeepRaw may delete the JPEG file when stacking pairs.")
 
         if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
             emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
+
+        dr = clean_date_range(str(tab_state.get("date-range", "")))
+        if dr:
+            emitter.add_option("date-range", dr)
+
+        if tab_state.get("time-zone"):
+            emitter.add_option("time-zone", tab_state["time-zone"])
+
+        if tab_state.get("manage-epson"):
+            emitter.add_flag("manage-epson-fastfoto")
 
         if tab_state.get("api-trace"):
             emitter.add_flag("api-trace")
@@ -738,7 +805,6 @@ def build_plan_from_state(
     if emitter.errors:
         plan.errors.extend(emitter.errors)
 
-    plan.argv = cmd + emitter.opts + path_opt
-    plan.env = env
-    plan.display_argv = mask_command_for_display([binary_path] + plan.argv)
+    plan.argv = cmd_parts + emitter.opts + path_opt
+    plan.display_argv = mask_command_for_display(plan.argv)
     return plan

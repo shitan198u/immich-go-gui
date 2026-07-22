@@ -1503,3 +1503,60 @@ def test_archive_ui_options_removed(gui):
     assert "manage-raw-jpeg" not in gui.inputs["archive-folder"]
     assert "manage-burst" not in gui.inputs["archive-immich"]
     assert "manage-raw-jpeg" not in gui.inputs["archive-immich"]
+
+
+def test_config_tab_completeness(gui):
+    assert "allow_untested_updates" in gui.inputs["config"]
+    assert "preferred_terminal" in gui.inputs["config"]
+    gui.inputs["config"]["allow_untested_updates"].setChecked(True)
+    gui.inputs["config"]["preferred_terminal"].setCurrentText("konsole")
+    gui.save_configuration()
+    assert gui.app_config.allow_untested_updates is True
+    assert gui.app_config.preferred_terminal == "konsole"
+
+
+def test_default_true_boolean_emission():
+    from core.command_builder import build_plan_from_state
+    config_state = {"server": "http://localhost:2283", "api_key": "test_key"}
+
+    # upload-folder default true flags set to False
+    tab_state_folder = {
+        "path": "/photos",
+        "recursive": False,
+        "date-from-name": False,
+        "pause-jobs": False,
+    }
+    plan_folder = build_plan_from_state("upload-folder", config_state, tab_state_folder)
+    assert "--recursive=false" in plan_folder.argv
+    assert "--date-from-name=false" in plan_folder.argv
+    assert "--pause-immich-jobs=false" in plan_folder.argv
+
+    # upload-gp default true flags set to False
+    tab_state_gp = {
+        "path": "/takeout",
+        "include-archived": False,
+        "include-partner": False,
+        "sync-albums": False,
+        "takeout-tag": False,
+        "people-tag": False,
+    }
+    plan_gp = build_plan_from_state("upload-gp", config_state, tab_state_gp)
+    assert "--include-archived=false" in plan_gp.argv
+    assert "--include-partner=false" in plan_gp.argv
+    assert "--sync-albums=false" in plan_gp.argv
+    assert "--takeout-tag=false" in plan_gp.argv
+    assert "--people-tag=false" in plan_gp.argv
+
+
+def test_simple_vs_advanced_mode_toggle(gui):
+    gui.toggle_advanced(True)
+    assert gui.is_advanced is True
+    assert gui.lbl_mode.text() == "Advanced"
+    for frame in gui.adv_frames:
+        assert not frame.isHidden()
+
+    gui.toggle_advanced(False)
+    assert gui.is_advanced is False
+    assert gui.lbl_mode.text() == "Simple"
+    for frame in gui.adv_frames:
+        assert frame.isHidden()

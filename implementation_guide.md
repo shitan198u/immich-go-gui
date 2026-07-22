@@ -1,1529 +1,1887 @@
-Yes — I understand the current state.
+Below is a **detailed, handoff-ready guide** for an AI agent to fix the **critical issues** and, at the same time, make the GUI **functionally complete for the existing tabs**.
 
-I’m assuming by **“Section 3”** you mean **Section 3 from my original critique**:  
-**CLI correctness and compatibility**.
+I’m assuming:
 
-That is the right section to focus on next, because it is the area most likely to cause real runtime failures:
-
-- emitting flags that a given `immich-go` subcommand does not support
-- missing required flags
-- using global flags in the wrong place
-- wrong environment-variable names
-- accidental interference from an `immich-go.toml` file in the working directory
-- UI options that generate invalid CLI arguments
-
-Below is:
-
-1. a **verification review** of the milestones you just completed  
-2. a **detailed AI-agent implementation guide for Section 3**
+- `review.md` sections **10, 15, 17 remain out of scope**
+- we **do not add `--no-ui`**
+- external terminal execution remains the primary run model
+- “complete” means:
+  - all currently exposed controls actually work
+  - all important CLI flags for the existing tabs are exposed
+  - simple/advanced mode is respected
+  - invalid flags are removed
+  - command generation is trustworthy
 
 ---
 
-# Part A — Verification Review of Milestones 1–4
+# 1. Objective for the AI agent
 
-Based on your summary, the work **appears directionally correct** and aligned with the guidelines.
+You are fixing two things at once:
 
-However, since I cannot see the final changed code directly, I can only verify this at the **architectural / reported implementation** level, not line-by-line.
+## A. Critical correctness issues
+These are blockers:
 
-## A.1 Overall verdict
+1. wrong archive flag: `--write-to` must become `--write-to-folder`
+2. wrong `archive from-immich` server/auth model
+3. silent command-builder/schema errors
+4. UI controls that do not affect the generated command
+5. invalid flags / invalid tab options still present in schema or UI
+6. broken running-state / stale-lock handling
+7. incomplete secret forwarding to external terminal
+8. incomplete CLI coverage for existing tabs
 
-### Likely done correctly
-- Section 8: validation and network helpers introduced
-- Section 6: secret storage made profile-aware and failure-aware
-- Section 5: profiles and form-state persistence added
-- Section 4: process tracker and terminal launcher modularized
+## B. Functional completeness
+For the **existing tabs only**, make the app expose the important CLI options correctly:
 
-The commit sequence also looks clean and sensible:
+- `upload from-folder`
+- `upload from-google-photos`
+- `upload from-immich`
+- `archive from-folder`
+- `archive from-immich`
+- `stack`
 
-```text
-dfe1123 Add validation and network helpers
-7dac6d2 Integrate stronger validation into command builder and UI
-2c1ef68 Make secret storage profile-aware and failure-aware
-f0ea601 Add profile manager and profile-scoped config storage
-417c567 Add profile UI and form-state persistence
-ce24127 Add process tracker and terminal launcher modules
-6d0a7af Integrate process tracking and terminal launcher into app UI
-```
+Do **not** merely add widgets. Every widget must map to:
 
-And the test result is a very good sign:
-
-```text
-73 passed in 0.65s
-```
-
----
-
-## A.2 Important discrepancy
-
-You wrote:
-
-> All five implementation milestones ... have been successfully completed
-
-But the walkthrough only lists **four** implemented milestones:
-
-1. Section 8
-2. Section 6
-3. Section 5
-4. Section 4
-
-### Missing from the list
-- **Section 7: Binary management improvements**
-
-So unless Section 7 was completed elsewhere and not listed, the statement should be:
-
-> All four currently targeted milestones have been completed.
-
-This matters because Section 3 will interact with binary resolution and CLI help capture, so we need to be clear whether Section 7 is already in place.
+- state collection
+- command emission
+- validation
+- persistence
+- tests
 
 ---
 
-## A.3 Milestone-by-milestone verification checklist
+# 2. Non-negotiable constraints
 
-Use this as a quick audit to confirm the implementation truly matches the guidelines.
+The agent must respect all of the following:
 
----
+## 2.1 No secrets in `argv`
+Never emit:
 
-# Milestone 1 — Section 8: Validation and Input Quality
+- `--api-key`
+- `--from-api-key`
+- `--admin-api-key`
+- `--from-admin-api-key`
 
-## What should now be true
-The following should exist:
+Secrets must be passed only through:
 
-- `core/validation.py`
-- `core/network.py`
+- environment variables, or
+- a future secure config-file mechanism if environment support is proven unreliable
 
-And `core/command_builder.py` should use:
+For now, keep the environment-variable approach, but make it complete and consistent.
 
-- `clean_date_range()`
-- `normalize_extensions_csv()`
-- `normalize_list_csv()`
+## 2.2 No `--no-ui`
+Do not introduce `--no-ui` anywhere.
 
-Also:
-- destructive mode warnings should be present
-- Configuration page should have a **Test Connection** button
+## 2.3 Preserve external terminal model
+Do not replace external terminal execution with an embedded runner in this pass.
 
-## What to verify manually
+## 2.4 Simple mode must remain simple
+Advanced mode is for:
 
-### 1. Date validation is semantic, not just regex
-Check that invalid dates are rejected:
+- less-common flags
+- filtering
+- debug/trace
+- dangerous or power-user options
+- compatibility/version/terminal preferences
 
-- `2023-13`
-- `2023-02-30`
-- `2024-00-10`
+Simple mode must show only:
 
-And that this is accepted:
+- required fields
+- common workflow choices
+- high-impact safe options
 
-- `2023-01-01, 2023-12-31`
+## 2.5 Do not keep false affordances
+If a flag is not valid for a tab, remove it from:
 
-### 2. Extension normalization is actually used
-If user enters:
+- UI
+- state collection
+- schema
+- command builder
+- tests
 
-```text
-JPG, .png, heic
-```
-
-the generated command should use:
-
-```text
-.jpg,.png,.heic
-```
-
-### 3. Warnings appear in confirm dialog
-For:
-- `KeepRaw`
-- `KeepJPG`
-- `KeepHeic`
-- `StackKeepJPEG`
-
-and ideally:
-- `StackKeepRaw`
-
-### 4. Test Connection does not leak API key
-The result message must never include the API key.
-
-## Red flags
-- date validation still regex-only
-- extension normalization defined but not used in command builder
-- warnings only in validation result but not shown in confirm dialog
-- Test Connection prints secrets in error text
+Do not leave controls that “look useful” but do nothing.
 
 ---
 
-# Milestone 2 — Section 6: Security and Secret Management
+# 3. Definition of done
 
-## What should now be true
-- secrets are profile-scoped
-- keyring entries use a profile prefix
-- migration does not delete old secrets unless new storage succeeded
-- fallback to local secrets file works
-- admin API key support exists via environment only
+The work is complete only when:
 
-## What to verify manually
+## 3.1 CLI correctness
+- Every emitted flag is valid for that exact subcommand
+- Every visible control affects the generated command or is intentionally disabled/hidden
+- No invalid flags remain in `TAB_ALLOWED_FLAGS`
+- No invalid controls remain in the UI
+- `plan.errors` are surfaced and block execution
 
-### 1. Keyring names are profile-scoped
-For default profile, expected style:
+## 3.2 Functional completeness
+For the existing tabs:
 
-```text
-default:api_key
-default:admin_api_key
-```
+- all important missing flags are exposed
+- defaults are handled correctly
+- boolean flags with default `true` emit `--flag=false` when disabled
+- repeatable flags are emitted correctly
+- CSV flags are normalized correctly
+- paths are made absolute before execution
 
-For another profile:
+## 3.3 Process safety
+- running state cannot get permanently stuck because of a boolean bug
+- stale locks can be detected and cleaned where reasonably possible
+- reset run state actually clears UI state
 
-```text
-work:api_key
-work:admin_api_key
-```
+## 3.4 Secret handling
+- terminal launcher forwards all required `IMMICH_GO_*` variables
+- archive secrets are included
+- no secret is shown in command preview
+- secret migration/copy operations do not silently lose data
 
-### 2. No secrets in argv
-Search generated plans and command previews for:
-
-- `--api-key=`
-- `--from-api-key=`
-- `--admin-api-key=`
-- `--from-admin-api-key=`
-
-They should **not** appear in `argv`.
-
-### 3. No secrets in saved form state
-Inspect saved profile `config.toml` and confirm `form_state` does **not** contain:
-
-- `api_key`
-- `from-api-key`
-- `admin_api_key`
-- any other secret field
-
-### 4. Migration is non-destructive
-If keyring write fails, old secret must not be removed.
-
-## Red flags
-- old QSettings key removed even if new storage failed
-- admin API key visible in command preview
-- secrets saved into `form_state`
-- fallback to file happens silently with no user-visible indication
+## 3.5 Tests
+- wrong golden tests are fixed
+- duplicate test names are removed
+- new tests prove each newly added control changes the command
+- compatibility fixtures are present and exercised
 
 ---
 
-# Milestone 3 — Section 5: Profiles and Form-State Persistence
-
-## What should now be true
-- profile storage uses:
-  ```text
-  profiles.toml
-  profiles/<name>/config.toml
-  profiles/<name>/secrets.toml
-  ```
-- default profile always exists
-- active profile persists across restarts
-- profile switching prompts before discarding changes
-- window title shows active profile
-- form state is saved/restored per profile
-
-## What to verify manually
-
-### 1. First-run migration
-If an old single-profile config existed, it should now be under:
-
-```text
-profiles/default/config.toml
-```
-
-### 2. Profile operations
-Confirm:
-- create works
-- rename works
-- duplicate works
-- delete works
-- default cannot be deleted
-- active profile switches correctly
-
-### 3. Secrets remain isolated per profile
-If profile A has an API key and profile B does not, switching to B should not show A’s key.
-
-### 4. Form state restoration
-After restart:
-- text fields restore
-- checkboxes restore
-- combo boxes restore
-- spin boxes restore
-
-But secrets should restore only through secret storage, not `form_state`.
-
-## Red flags
-- profile rename does not rename keyring entries
-- delete profile leaves keyring secrets behind
-- switching profiles silently overwrites current profile
-- form state includes secrets
-- active profile not persisted
+# 4. Critical fixes: exact implementation guide
 
 ---
 
-# Milestone 4 — Section 4: Process Execution and Run Tracking
+## Critical Fix 1 — Establish a single source of CLI truth
 
-## What should now be true
-- old inline `ProcessTracker` removed from `app.py`
-- new modules exist:
-  - `core/process_tracker.py`
-  - `core/terminal_launcher.py`
-- external terminal launch remains the default
-- lock tracking is more robust
-- stale lock cleanup exists
-- `File → Reset Run State` exists
-- `closeEvent` warns if a command is still running
+### Problem
+The current schema is partly hand-maintained and has drifted from the CLI help.
 
-## What to verify manually
+### Required changes
 
-### 1. External terminal still opens
-This is a hard requirement.
+#### 4.1.1 Add real CLI help fixtures
+Create fixtures for `0.32.0` from the provided CLI documentation:
 
-The app must **not** have switched to embedded `--no-ui` execution.
+- `tests/fixtures/cli_help/0.32.0/root.txt`
+- `tests/fixtures/cli_help/0.32.0/upload.txt`
+- `tests/fixtures/cli_help/0.32.0/upload_from-folder.txt`
+- `tests/fixtures/cli_help/0.32.0/upload_from-google-photos.txt`
+- `tests/fixtures/cli_help/0.32.0/upload_from-immich.txt`
+- `tests/fixtures/cli_help/0.32.0/archive.txt`
+- `tests/fixtures/cli_help/0.32.0/archive_from-folder.txt`
+- `tests/fixtures/cli_help/0.32.0/archive_from-immich.txt`
+- `tests/fixtures/cli_help/0.32.0/stack.txt`
 
-### 2. Lock lifecycle works
-- lock created on run
-- lock removed when terminal command finishes
-- GUI re-enables buttons after lock disappears
+If needed, add a script that splits the master CLI help markdown into these fixtures.
 
-### 3. Stale lock handling
-If a stale lock exists:
-- startup cleanup should remove it if safe
-- or manual reset should clear it
+#### 4.1.2 Make missing fixtures fail loudly
+Update `core/cli_help.py` / `core/cli_contract.py` so that:
 
-### 4. Temporary scripts are secure
-On Unix-like systems:
-- temp run directory should be `0700`
-- env file should be `0600`
-- secrets should not be embedded into visible command strings
+- tests fail if expected fixtures are missing
+- compatibility dialog clearly says when fixtures are missing
+- missing fixtures are not treated as “compatible”
 
-### 5. Windows batch file does not contain secrets
-The `.bat` file should contain the command, but not API keys.
+#### 4.1.3 Rebuild `TAB_ALLOWED_FLAGS` from the fixtures
+Do not keep the current list as-is.
 
-## Red flags
-- any use of `--no-ui` as primary execution path
-- secrets written into `.bat`, AppleScript, or inline shell strings
-- use of `QThread.terminate()`
-- no close warning when lock active
-- no manual reset action
-- Linux terminal launching still uses fragile inline command strings only
+Replace it with a corrected set based on actual CLI help.
 
----
-
-## A.4 My verification conclusion
-
-### Based on your summary:
-**The implementation appears broadly correct and aligned with the guidelines.**
-
-### But before starting Section 3, I strongly recommend confirming these five high-risk items:
-1. no secrets in `form_state`
-2. no secrets in terminal launch scripts
-3. no `--no-ui` execution path introduced
-4. profile-scoped secret migration is non-destructive
-5. validation helpers are actually wired into command building
-
-If those five are clean, you are in a good position to begin Section 3.
-
----
-
-# Part B — AI Agent Implementation Guide  
-# Section 3: CLI Correctness and Compatibility
-
-This is the detailed handoff guide for an AI agent.
-
----
-
-# 1. Purpose of This Section
-
-The goal of Section 3 is to make the GUI **CLI-correct by construction**.
-
-The GUI must not be able to silently generate invalid `immich-go` commands.
-
-This section is about preventing bugs like:
-
-- sending `--client-timeout` to a subcommand that does not support it
-- sending `--include-type` to a subcommand where it may be invalid
-- missing required source/destination flags
-- using wrong environment-variable names
-- accidental ingestion of a user’s local `immich-go.toml`
-- flag drift between GUI code and actual `immich-go` releases
-
----
-
-# 2. Scope
-
-## In scope
-- audit and correct all existing tabs:
-  - `upload-folder`
-  - `upload-gp`
-  - `upload-immich`
-  - `archive-folder`
-  - `archive-immich`
-  - `stack`
-- introduce a CLI compatibility / contract-testing system
-- introduce a schema-driven or allowlist-driven flag emission system
-- add missing high-priority flags for existing tabs
-- add golden command tests
-- isolate execution from stray `immich-go.toml` files
-- add optional runtime CLI compatibility checking
-
-## Out of scope for now
-Do **not** implement these yet unless explicitly instructed:
-
-- new source tabs:
-  - `from-icloud`
-  - `from-picasa`
-  - `archive from-google-photos`
-- full embedded log viewer
-- binary management improvements from Section 7
-- internationalization
-- major visual redesign
-
----
-
-# 3. Non-Negotiable Rules
-
-The agent must obey all of the following:
-
-## 3.1 Preserve external terminal execution
-- Do **not** introduce `--no-ui` as the default run path.
-- Do **not** replace external terminal execution with an embedded runner.
-
-## 3.2 Preserve secret handling
-- API keys must remain out of `argv`.
-- Admin API keys must remain out of `argv`.
-- Secrets must only be passed through environment variables or secure temporary files with strict permissions.
-
-## 3.3 Preserve `core/` architecture
-- No new backend logic in `app.py` if it can live in `core/`.
-- `core/` modules must remain Qt-free unless absolutely unavoidable.
-
-## 3.4 Do not guess CLI compatibility
-- If a flag’s validity is uncertain, verify against:
-  - captured `--help`
-  - the official CLI documentation
-  - a real binary dry-run/help output
-
-## 3.5 Prefer failing safely over emitting invalid commands
-- If the GUI cannot determine that a flag is valid for a tab, it must not emit it.
-- In tests, invalid emission should fail loudly.
-
----
-
-# 4. Current High-Risk Areas to Fix First
-
-Before adding many new features, the agent must audit these known risk areas.
-
-## 4.1 Possibly invalid flag emission
-These must be verified immediately:
-
-### `archive-folder`
-- `--client-timeout` may be invalid for local archive operations
-
-### `upload-gp`
-- `--include-type` may be invalid for Google Photos import
-- `--into-album` may be invalid for Google Photos import
-
-### `upload-folder`
-- missing `--recursive`
-- missing `--album-path-joiner`
-- missing `--album-picasa`
-- missing `--manage-epson-fastfoto`
-
-### `upload-gp`
-- missing `--manage-raw-jpeg`
-- missing `--include-untitled-albums`
-- possibly missing `--date-range`
-
-### `upload-immich`
-- missing many `--from-*` filters
-
-### `archive-immich`
-- missing many `--from-*` filters
-
-### `stack`
-- verify `--client-timeout`
-- verify `--admin-api-key` environment naming
-- verify whether pause-job behavior is applicable
-
----
-
-# 5. Target Architecture for Section 3
-
-Create or extend these modules:
-
-## New modules
-- `core/cli_help.py`
-- `core/cli_contract.py`
-
-## Extended modules
-- `core/cli_schema.py`
-- `core/command_builder.py`
-- `core/models.py`
-- `app.py`
-
-## New scripts
-- `scripts/capture_cli_help.py`
-
-## New test assets
-- `tests/fixtures/cli_help/<version>/...`
-- `tests/fixtures/command_states/...`
-- `tests/golden/...`
-
----
-
-# 6. Phase 1 — Capture CLI Help and Build a Contract System
-
-## 6.1 Goal
-Create a reliable source of truth for which flags exist on each `immich-go` command/subcommand.
-
----
-
-## 6.2 Create `scripts/capture_cli_help.py`
-
-This script must:
-
-1. resolve the active `immich-go` binary path
-2. run `--help` for relevant commands
-3. write output into versioned fixture files
-
-### Required help targets
-At minimum:
-
-```text
---help
-upload --help
-upload from-folder --help
-upload from-google-photos --help
-upload from-immich --help
-archive --help
-archive from-folder --help
-archive from-immich --help
-stack --help
-```
-
-### Recommended output layout
-```text
-tests/fixtures/cli_help/0.32.0/root.txt
-tests/fixtures/cli_help/0.32.0/upload.txt
-tests/fixtures/cli_help/0.32.0/upload_from-folder.txt
-tests/fixtures/cli_help/0.32.0/upload_from-google-photos.txt
-tests/fixtures/cli_help/0.32.0/upload_from-immich.txt
-tests/fixtures/cli_help/0.32.0/archive.txt
-tests/fixtures/cli_help/0.32.0/archive_from-folder.txt
-tests/fixtures/cli_help/0.32.0/archive_from-immich.txt
-tests/fixtures/cli_help/0.32.0/stack.txt
-tests/fixtures/cli_help/0.32.0/manifest.json
-```
-
-### `manifest.json` should contain
-```json
-{
-  "version": "0.32.0",
-  "captured_at": "2026-07-23T00:00:00Z",
-  "binary_path": "/home/user/.immich-go-gui/bin/0.32.0/immich-go",
-  "commands": {
-    "upload-folder": ["upload", "from-folder"]
-  }
-}
-```
-
-### Important
-- The script must not require Qt.
-- It may import `core.binary_manager` if useful.
-- It must support an explicit binary path argument.
-
----
-
-## 6.3 Create `core/cli_help.py`
-
-This module parses help text and extracts flag names.
-
-### Required functions
+Use the following as the corrected baseline for **emittable non-secret flags**:
 
 ```python
-def parse_help_flags(help_text: str) -> set[str]:
-    """
-    Extract flag names from --help output.
-    Returns names without leading dashes.
-    Example: 'recursive', 'include-type', 'from-date-range'
-    """
-
-def load_help_fixture(version: str, help_name: str) -> set[str]:
-    """
-    Load captured help fixture for a given version and help target.
-    """
-
-def help_name_for_tab(tab_key: str) -> str:
-    """
-    Map GUI tab key to fixture name.
-    Example:
-      'upload-folder' -> 'upload_from-folder'
-    """
-```
-
-### Parser requirements
-Must recognize:
-- `--recursive`
-- `--include-type`
-- `--from-date-range`
-- `-s, --server`
-- boolean flags
-- flags with defaults
-
-Must ignore:
-- `--help`
-
----
-
-# 7. Phase 2 — Create a Flag Registry / Allowlist System
-
-## 7.1 Goal
-Move away from “emit flags manually and hope they are valid”.
-
-Instead, define an explicit allowlist of valid flags per tab.
-
----
-
-## 7.2 Extend `core/cli_schema.py`
-
-Add a schema-like registry.
-
-### Recommended data structures
-
-```python
-from dataclasses import dataclass
-from typing import Any, Literal
-
-FlagKind = Literal[
-    "bool",
-    "str",
-    "int",
-    "duration",
-    "enum",
-    "csv",
-    "repeat",
-    "date_range",
-    "path",
-    "paths",
-]
-
-@dataclass(frozen=True)
-class FlagDef:
-    name: str                 # flag name without --
-    kind: FlagKind
-    scope: Literal["global", "command", "subcommand"]
-    default: Any = None
-    secret: bool = False
-    emit_in_argv: bool = True
-    env_name: str | None = None
-    notes: str = ""
-```
-
-Then define:
-
-```python
-FLAG_DEFS: dict[str, FlagDef] = {
-    "server": FlagDef(name="server", kind="str", scope="command"),
-    "api-key": FlagDef(name="api-key", kind="str", scope="command", secret=True, emit_in_argv=False),
-    ...
-}
-```
-
-And:
-
-```python
-TAB_ALLOWED_FLAGS: dict[str, frozenset[str]] = {
+TAB_ALLOWED_FLAGS = {
     "upload-folder": frozenset({
-        "server",
-        "skip-verify-ssl",
-        "client-timeout",
-        "dry-run",
-        "concurrent-tasks",
-        "overwrite",
-        "pause-immich-jobs",
-        "on-errors",
-        "session-tag",
-        "tag",
-        "device-uuid",
-        "api-trace",
-        "log-level",
-        "recursive",
-        "date-from-name",
-        "ignore-sidecar-files",
-        "include-extensions",
-        "exclude-extensions",
-        "include-type",
-        "ban-file",
-        "date-range",
-        "folder-as-album",
-        "folder-as-tags",
-        "album-path-joiner",
-        "album-picasa",
-        "into-album",
-        "manage-burst",
-        "manage-raw-jpeg",
-        "manage-heic-jpeg",
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks",
+        "overwrite", "pause-immich-jobs", "on-errors", "session-tag", "tag",
+        "device-uuid", "api-trace", "log-level", "time-zone",
+
+        "recursive", "date-from-name", "ignore-sidecar-files",
+        "include-extensions", "exclude-extensions", "include-type",
+        "ban-file", "date-range", "folder-as-album", "folder-as-tags",
+        "album-path-joiner", "into-album",
+
+        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg",
         "manage-epson-fastfoto",
     }),
-    ...
+
+    "upload-gp": frozenset({
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks",
+        "overwrite", "pause-immich-jobs", "on-errors", "session-tag", "tag",
+        "device-uuid", "api-trace", "log-level", "time-zone",
+
+        "ban-file", "date-range", "exclude-extensions", "include-extensions",
+        "from-album-name", "include-archived", "include-partner",
+        "include-trashed", "include-type", "include-unmatched",
+        "include-untitled-albums", "partner-shared-album", "people-tag",
+        "sync-albums", "takeout-tag",
+
+        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg",
+        "manage-epson-fastfoto",
+    }),
+
+    "upload-immich": frozenset({
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks",
+        "overwrite", "pause-immich-jobs", "on-errors", "session-tag", "tag",
+        "device-uuid", "api-trace", "log-level", "time-zone",
+
+        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg",
+        "manage-epson-fastfoto",
+
+        "from-server", "from-skip-verify-ssl", "from-client-timeout",
+        "from-include-type", "from-include-extensions", "from-exclude-extensions",
+        "from-partners", "from-time-zone", "from-no-album", "from-albums",
+        "from-date-range", "from-device-uuid", "from-api-trace",
+        "from-dry-run", "from-pause-immich-jobs",
+
+        "from-favorite", "from-archived", "from-trash",
+        "from-minimal-rating", "from-people", "from-tags",
+        "from-city", "from-state", "from-country",
+        "from-make", "from-model",
+    }),
+
+    "archive-folder": frozenset({
+        "write-to-folder", "dry-run", "log-level", "concurrent-tasks", "on-errors",
+
+        "album-path-joiner", "ban-file", "date-from-name", "date-range",
+        "exclude-extensions", "folder-as-album", "folder-as-tags",
+        "ignore-sidecar-files", "include-extensions", "include-type",
+        "into-album", "recursive",
+    }),
+
+    "archive-immich": frozenset({
+        "write-to-folder", "dry-run", "log-level", "concurrent-tasks", "on-errors",
+
+        "from-server", "from-skip-verify-ssl", "from-client-timeout",
+        "from-api-trace", "from-dry-run", "from-pause-immich-jobs",
+
+        "from-albums", "from-archived", "from-city", "from-country",
+        "from-date-range", "from-device-uuid", "from-exclude-extensions",
+        "from-favorite", "from-include-extensions", "from-include-type",
+        "from-make", "from-minimal-rating", "from-model", "from-no-album",
+        "from-partners", "from-people", "from-state", "from-tags",
+        "from-time-zone", "from-trash",
+    }),
+
+    "stack": frozenset({
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "log-level",
+        "concurrent-tasks", "on-errors",
+
+        "api-trace", "date-range", "device-uuid",
+        "manage-burst", "manage-epson-fastfoto", "manage-heic-jpeg",
+        "manage-raw-jpeg", "pause-immich-jobs", "time-zone",
+    }),
 }
 ```
 
+#### 4.1.4 Remove invalid flags from current code
+Specifically remove:
+
+- `album-picasa` from `upload-folder`
+- any idea of `write-to` for archive tabs
+- any UI/schema/builder support for pair-handling flags in archive tabs unless the CLI help explicitly supports them
+
+Based on the CLI help you provided:
+
+- `archive from-folder` does **not** support `manage-raw-jpeg`
+- `archive from-immich` does **not** support `manage-burst` or `manage-raw-jpeg`
+
+So those controls must be removed from archive UI.
+
 ---
 
-## 7.3 Add helper functions
+## Critical Fix 2 — Fix archive command generation
+
+### Problem
+Archive commands are currently wrong in two ways:
+
+1. destination flag is wrong
+2. `archive from-immich` uses the wrong server/auth model
+
+---
+
+### 4.2.1 Replace `write-to` with `write-to-folder`
+
+#### In `core/command_builder.py`
+For both:
+
+- `archive-folder`
+- `archive-immich`
+
+change:
 
 ```python
-def flag_allowed_for_tab(tab_key: str, flag_name: str) -> bool:
-    ...
-
-def assert_flag_allowed(tab_key: str, flag_name: str) -> None:
-    ...
+emitter.add_option("write-to", tab_state["write-to"])
 ```
 
-### Behavior
-- In tests, `assert_flag_allowed()` should raise on violation.
-- In production command building, violation should become a clear internal error, not silent emission.
-
----
-
-# 8. Phase 3 — Add Contract Tests
-
-## 8.1 Goal
-Ensure every flag the GUI can emit is actually valid for that tab.
-
----
-
-## 8.2 Required tests
-
-### Test 1: Registry flags exist in help fixtures
-For each tab:
-- for each flag in `TAB_ALLOWED_FLAGS[tab]`
-- assert flag exists in parsed help fixture for that tab
-
-### Test 2: Builder-emitted flags are allowed
-For representative states:
-- build command plan
-- extract emitted flags
-- assert each emitted flag is allowed for that tab
-
-### Test 3: No secret flags in argv
-For all tabs:
-- assert `argv` does not contain:
-  - `--api-key`
-  - `--from-api-key`
-  - `--admin-api-key`
-  - `--from-admin-api-key`
-
-### Test 4: Environment names match expected pattern
-For each secret-bearing environment variable:
-- assert it matches the documented pattern:
-  ```text
-  IMMICH_GO_<COMMAND>[_<SUBCOMMAND>]_<OPTION_NAME>
-  ```
-
-### Test 5: Golden command tests
-For saved state fixtures:
-- build plan
-- compare against expected `argv`
-- compare against expected secret env keys
-
----
-
-## 8.3 Recommended test file layout
-If keeping everything in `test_app.py`, add clearly separated sections.
-
-Otherwise create:
-
-```text
-tests/test_cli_help.py
-tests/test_cli_contract.py
-tests/test_command_golden.py
-```
-
----
-
-# 9. Phase 4 — Refactor Command Builder to Use Allowlists
-
-## 9.1 Goal
-Make `core/command_builder.py` enforce correctness internally.
-
----
-
-## 9.2 Introduce an emitter helper
-
-Recommended internal helper:
+to:
 
 ```python
-class FlagEmitter:
-    def __init__(self, tab_key: str, strict: bool = True):
-        self.tab_key = tab_key
-        self.strict = strict
-        self.opts: list[str] = []
-        self.errors: list[str] = []
-
-    def add_value(self, flag: str, value: str) -> None:
-        ...
-
-    def add_bool(self, flag: str, value: bool, default: bool = False) -> None:
-        ...
-
-    def add_bool_true_only(self, flag: str, value: bool) -> None:
-        ...
-
-    def add_bool_false_if_disabled(self, flag: str, value: bool, default: bool = True) -> None:
-        ...
-
-    def add_repeat_from_csv(self, flag: str, csv_value: str, normalize=None) -> None:
-        ...
-
-    def add_repeat_from_lines(self, flag: str, text_value: str) -> None:
-        ...
+emitter.add_option("write-to-folder", tab_state["write-to"])
 ```
 
-### Rules
-- every method checks `flag_allowed_for_tab()`
-- if not allowed:
-  - in strict mode raise or record error
-  - never silently append
-
----
-
-## 9.3 Preserve public API
-Do **not** break:
-
-```python
-build_plan_from_state(...)
-```
-
-It must continue returning `CommandPlan`.
-
-Only refactor internals.
-
----
-
-# 10. Phase 5 — Fix Known Flag Correctness Issues
-
-This is the most important implementation phase.
-
----
-
-## 10.1 Global rules for flag emission
-
-### A. Server flags
-- `--server` should be emitted only for server-required tabs
-- `archive-folder` must not receive `--server`
-
-### B. Client timeout
-- emit `--client-timeout` only if help fixture confirms support for that tab
-- likely remove from `archive-folder`
-
-### C. API trace
-- emit `--api-trace` only where supported
-
-### D. Boolean defaults
-Only emit boolean flags when they differ from CLI defaults, unless explicit clarity is needed.
-
-Examples:
-- if default is true and user disables it → emit `--flag=false`
-- if default is false and user enables it → emit `--flag=true`
-
----
-
-## 10.2 Tab-specific corrections
-
-### `upload-folder`
-Must support:
-- `--recursive`
-- `--album-path-joiner`
-- `--album-picasa`
-- `--manage-epson-fastfoto`
-
-Recommended emission rules:
-- `recursive` default true  
-  - if unchecked → `--recursive=false`
-- `album-path-joiner`
-  - emit only if non-empty
-- `album-picasa`
-  - emit only if checked
-- `manage-epson-fastfoto`
-  - emit only if checked
-
----
-
-### `upload-gp`
-Must verify and then either keep or remove:
-- `--include-type`
-- `--into-album`
-
-Must add if supported:
-- `--manage-raw-jpeg`
-- `--include-untitled-albums`
-- `--date-range`
-
-Recommended emission rules:
-- `manage-raw-jpeg`
-  - emit if not `NoStack`
-- `include-untitled-albums`
-  - emit if checked
-- `date-range`
-  - emit if non-empty after `clean_date_range()`
-
----
-
-### `upload-immich`
-Add missing source filters if supported:
-
-- `--from-include-type`
-- `--from-include-extensions`
-- `--from-exclude-extensions`
-- `--from-partners`
-- `--from-time-zone`
-- `--from-no-album`
-- `--from-device-uuid`
-- `--from-api-trace`
-- `--from-dry-run`
-- `--from-pause-immich-jobs`
-
-Also support source admin key via environment only:
-- `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY`
-
-Do **not** add `--from-admin-api-key` to argv.
-
----
-
-### `archive-folder`
-Verify and add filtering options if supported:
-
-- `--include-type`
-- `--include-extensions`
-- `--exclude-extensions`
-- `--ban-file`
-- `--ignore-sidecar-files`
-- `--date-from-name`
-- possibly `--recursive`
-
-Important:
-- remove `--client-timeout` unless confirmed valid
-
----
-
-### `archive-immich`
-Add missing `from-immich` filters if supported:
-
-- `--from-favorite`
-- `--from-archived`
-- `--from-trash`
-- `--from-minimal-rating`
-- `--from-people`
-- `--from-tags`
-- `--from-city`
-- `--from-state`
-- `--from-country`
-- `--from-make`
-- `--from-model`
-- `--from-include-type`
-- `--from-include-extensions`
-- `--from-exclude-extensions`
-- `--from-partners`
-- `--from-time-zone`
-- `--from-no-album`
-
----
-
-### `stack`
-Verify:
-- `--client-timeout`
-- `--admin-api-key` environment support
-- whether any pause-job flag is valid
-
-Do not add unsupported flags.
-
----
-
-# 11. Phase 6 — Isolate Execution from User `immich-go` Config Files
-
-This is a subtle but major bug source.
-
-## 11.1 Problem
-`immich-go` may read a local config file from the current working directory.
-
-If the external terminal starts in a directory containing:
-
-```text
-immich-go.toml
-immich-go.yaml
-immich-go.json
-```
-
-then the executed command may inherit unexpected settings.
-
----
-
-## 11.2 Required behavior
-The GUI must ensure that launched commands run in an isolated working directory.
-
-### Preferred implementation
-In `core/terminal_launcher.py`:
-
-#### Unix runner script
-Add:
+You may keep the internal state key as `"write-to"` to reduce migration pain, but the emitted CLI flag must be:
 
 ```bash
-cd "$RUN_DIR"
+--write-to-folder=...
 ```
 
-before executing `immich-go`.
-
-#### Windows batch file
-Add:
-
-```bat
-cd /d "%~dp0"
-```
-
-before executing the binary.
-
----
-
-## 11.3 Optional stronger isolation
-If contract/live testing confirms it is safe, also add:
-
-```text
---config=<empty-generated-config>
-```
-
-But do **not** do this blindly.
-
-### Recommended order
-1. first implement working-directory isolation
-2. only add explicit `--config` after verifying with real binary help/dry-run
-
----
-
-# 12. Phase 7 — Add Runtime CLI Compatibility Checker
-
-This is optional but highly recommended.
-
----
-
-## 12.1 Create `core/cli_contract.py`
-
-### Required dataclass
+#### In tests
+Update all expectations from:
 
 ```python
-from dataclasses import dataclass, field
-
-@dataclass
-class CompatibilityReport:
-    ok: bool
-    version: str = ""
-    missing_flags: dict[str, list[str]] = field(default_factory=dict)
-    unknown_emitted_flags: dict[str, list[str]] = field(default_factory=dict)
-    messages: list[str] = field(default_factory=list)
+"--write-to=/dest"
 ```
 
-### Required functions
+to:
 
 ```python
-def check_binary_help(
-    binary_path: str,
-    version: str | None = None,
-) -> CompatibilityReport:
-    """
-    Run --help against the binary and compare with GUI flag registry.
-    """
-
-def check_fixtures(version: str) -> CompatibilityReport:
-    """
-    Compare GUI registry against captured fixtures for a version.
-    """
+"--write-to-folder=/dest"
 ```
 
 ---
 
-## 12.2 Add UI entry point
-Add a menu item:
+### 4.2.2 Fix `archive from-immich` source model
 
-```text
-Help → Check CLI Compatibility
+`archive from-immich` is a **source-server** operation.
+
+It must not emit:
+
+```bash
+--server=...
 ```
 
-Behavior:
-- run check against current binary if available
-- otherwise use fixtures for tested version
-- show report dialog
+It should use:
 
-Report should include:
-- checked version
-- any missing flags
-- any GUI-emitted flags not present in help
-- overall pass/fail
+```bash
+--from-server=...
+```
+
+and source credentials should be supplied via the corresponding secret mechanism.
+
+#### Required behavior
+For `archive-immich`:
+
+- use the configured global server as the **source server**
+- relabel UI accordingly
+- emit `--from-server=...`
+- emit `--from-skip-verify-ssl` if SSL skip is enabled
+- emit `--from-client-timeout=...` if timeout differs from default
+- emit `--from-dry-run` in dry-run mode
+- do **not** emit global `--server`
+- do **not** emit global `--skip-verify-ssl`
+- do **not** emit global `--client-timeout`
+
+#### Command builder change
+For `archive-immich`:
+
+```python
+if server:
+    emitter.add_option("from-server", normalize_server_url(server))
+
+if config_state.get("skip-ssl"):
+    emitter.add_flag("from-skip-verify-ssl")
+
+client_timeout = config_state.get("client_timeout", 20)
+if client_timeout != 20:
+    emitter.add_option("from-client-timeout", f"{client_timeout}m")
+```
+
+#### Environment map change
+Update `ENV_KEY_MAP["archive-immich"]` to source-style names, for example:
+
+```python
+"archive-immich": {
+    "from_server": "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER",
+    "from_api_key": "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_KEY",
+    "from_admin_api_key": "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_ADMIN_API_KEY",
+},
+```
+
+Then update `build_environment()` so that for `archive-immich`:
+
+- config `server` maps to `from_server`
+- config `api_key` maps to `from_api_key`
+- config `admin_api_key` maps to `from_admin_api_key`
+
+#### UI label change
+In `archive-immich` tab:
+
+- change “Target Server” to **“Source Server”**
+- explain that it comes from Configuration
+
+Example hint:
+
+> “Archive source server is configured in the Configuration tab.”
 
 ---
 
-# 13. Phase 8 — Golden Command Test Fixtures
+## Critical Fix 3 — Surface `plan.errors` everywhere
 
-## 13.1 Create state fixtures
-Create JSON state fixtures for each tab.
+### Problem
+`FlagEmitter` can collect errors, but the GUI ignores them.
+
+### Required changes
+
+#### 4.3.1 Block confirm dialog on `plan.errors`
+In `show_confirm_dialog()` after building the plan:
+
+```python
+plan = self.build_plan(dry_run=is_dry_run)
+
+if plan.errors:
+    QMessageBox.critical(
+        self,
+        "Command Build Errors",
+        "\n".join(f"• {e}" for e in plan.errors)
+    )
+    return
+```
+
+#### 4.3.2 Block `run_command()` on `plan.errors`
+If `run_command()` builds a plan itself, also check:
+
+```python
+if plan.errors:
+    QMessageBox.critical(...)
+    return
+```
+
+#### 4.3.3 Make tests use strict schema enforcement
+For pure command-builder tests, prefer:
+
+```python
+FlagEmitter(tab_key, strict=True)
+```
+
+or assert:
+
+```python
+assert plan.errors == []
+```
+
+for every valid UI state.
+
+---
+
+## Critical Fix 4 — Fix broken running-state logic
+
+### Problem
+`app.py` currently does:
+
+```python
+is_running = getattr(self, "running_process", None) is not None
+```
+
+but later sets:
+
+```python
+self.running_process = False
+```
+
+Since `False is not None` is `True`, the GUI can think a process is still running after it has finished.
+
+### Required fix
+
+Prefer using the lock path as the source of truth.
+
+#### In `ImmichGoGUI.__init__`
+Initialize:
+
+```python
+self.active_lock_path = None
+```
+
+#### In `update_status()`
+Replace the running check with:
+
+```python
+is_running = bool(getattr(self, "active_lock_path", None))
+```
+
+or, if you keep `running_process`, use:
+
+```python
+is_running = getattr(self, "running_process", False) is True
+```
+
+But the lock-path approach is cleaner.
+
+#### In `_check_lock_file()`
+When inactive:
+
+```python
+self.active_lock_path = None
+self.running_process = False
+```
+
+When active:
+
+```python
+self.running_process = True
+```
+
+#### In `on_reset_run_state_clicked()`
+After resetting locks:
+
+```python
+self.active_lock_path = None
+self.running_process = False
+```
+
+Then call:
+
+```python
+self.update_status()
+```
+
+---
+
+## Critical Fix 5 — Make stale-lock detection real
+
+### Problem
+`shell_pid` is stored in the model but never written by the launcher.  
+As a result, stale-lock detection is mostly ineffective.
+
+### Required improvements
+
+This should be implemented in a pragmatic, best-effort way.
+
+---
+
+### 4.5.1 Extend lock metadata
+In `core/process_tracker.py`, add support for:
+
+- `shell_pid`
+- `terminal_pid`
+- `last_seen`
+- optional heartbeat file
+
+Example lock JSON:
+
+```json
+{
+  "run_id": "abc123",
+  "gui_pid": 1234,
+  "started_at": "...",
+  "tab_key": "upload-folder",
+  "command_summary": "...",
+  "binary_path": "...",
+  "shell_pid": null,
+  "terminal_pid": null,
+  "last_seen": null
+}
+```
+
+Add helpers:
+
+```python
+def update_lock(lock_path: Path, **fields) -> None: ...
+def touch_heartbeat(lock_path: Path) -> None: ...
+```
+
+---
+
+### 4.5.2 Make terminal launcher record process info
+In `core/terminal_launcher.py`:
+
+#### POSIX
+When launching via terminal:
+
+- write a sidecar PID file if possible
+- have `run.sh` write its own PID
+- add a heartbeat loop while the command runs
+
+Example idea:
+
+```bash
+echo $$ > lock_pid_file
+(
+  while true; do
+    touch heartbeat_file
+    sleep 30
+  done
+) &
+HEARTBEAT_PID=$!
+```
+
+Then cleanup both on exit.
+
+#### Windows
+Best-effort:
+
+- capture the launched process PID from `Popen`
+- store it in the lock as `terminal_pid`
+- if feasible, use a PowerShell wrapper that can maintain a heartbeat or at least record PID
+
+If Windows heartbeat is too fragile, then at minimum:
+
+- store PID
+- allow manual reset
+- clean locks when PID is provably dead where possible
+
+---
+
+### 4.5.3 Improve `is_lock_active()`
+Use this logic:
+
+1. if lock file missing → inactive
+2. if `shell_pid` exists and process alive → active
+3. if `terminal_pid` exists and process alive → active
+4. if heartbeat file exists and is fresh → active
+5. if lock is very recent (e.g. < 60 seconds) and no heartbeat yet → active
+6. otherwise → stale
+
+This prevents permanent lock stickiness.
+
+---
+
+## Critical Fix 6 — Forward all required secrets to external terminal
+
+### Problem
+POSIX terminal launcher uses a hardcoded secret list and misses archive-related variables.
+
+### Required fix
+
+In `core/terminal_launcher.py`, stop maintaining a brittle hardcoded list.
+
+Instead, export all environment variables beginning with:
+
+```python
+IMMICH_GO_
+```
 
 Example:
 
-```text
-tests/fixtures/command_states/upload_folder_simple.json
-tests/fixtures/command_states/upload_folder_advanced.json
-tests/fixtures/command_states/upload_gp_simple.json
-tests/fixtures/command_states/upload_gp_advanced.json
-tests/fixtures/command_states/upload_immich_advanced.json
-tests/fixtures/command_states/archive_folder_simple.json
-tests/fixtures/command_states/archive_immich_advanced.json
-tests/fixtures/command_states_stack_simple.json
-```
-
-Each fixture should contain:
-
-```json
-{
-  "tab_key": "upload-folder",
-  "dry_run": false,
-  "config_state": {
-    "server": "http://localhost:2283",
-    "api_key": "dummy",
-    "skip-ssl": false,
-    "client_timeout": 20,
-    "concurrent": 8,
-    "concurrent_default": 8,
-    "device_uuid": "",
-    "on_errors": "stop",
-    "on_errors_tolerance": 10,
-    "pause_jobs": true
-  },
-  "tab_state": {
-    "path": "/photos",
-    "include-type": "all",
-    "folder-album": "NONE",
-    "into-album": "",
-    "manage-burst": "NoStack",
-    "manage-raw-jpeg": "NoStack",
-    "manage-heic-jpeg": "NoStack"
-  }
-}
-```
-
----
-
-## 13.2 Create expected outputs
-For each fixture, store expected:
-
-- `argv`
-- secret env key names
-- warnings
-
-Do not store actual secret values.
-
----
-
-## 13.3 Golden test behavior
-For each fixture:
-1. load state
-2. call `build_plan_from_state()`
-3. compare:
-   - `plan.argv`
-   - sorted secret env keys
-   - warnings
-
----
-
-# 14. UI Changes Required for Section 3
-
-The agent must update the UI only where needed to support corrected/added CLI flags.
-
----
-
-## 14.1 `upload-folder`
-Add to Advanced Options:
-
-- `Recursive` checkbox
-- `Album Path Joiner` text field
-- `Use Picasa Album Names` checkbox
-- `Manage Epson FastFoto` checkbox
-
----
-
-## 14.2 `upload-gp`
-Add:
-
-- `RAW + JPEG Pairs` combo
-- `Include Untitled Albums` checkbox
-- `Date Range` text field
-
-Then verify:
-- whether `Media Type` should remain
-- whether `Put all into Album` should remain
-
-If contract testing shows those flags are invalid for `from-google-photos`, remove or hide them.
-
----
-
-## 14.3 `upload-immich`
-Add advanced source-filter fields:
-
-- Source Include Type
-- Source Include Extensions
-- Source Exclude Extensions
-- Include Partners
-- Time Zone Override
-- No Album Only
-- Source Device UUID
-- Source API Trace
-- Source Dry Run
-- Source Pause Jobs
-
-If source admin key support is desired:
-- add an optional secret field
-- store via secret manager
-- pass via environment only
-
----
-
-## 14.4 `archive-folder`
-Add advanced filtering fields:
-
-- Media Type
-- Include Extensions
-- Exclude Extensions
-- Ban File Patterns
-- Ignore Sidecar Files
-- Guess Dates From Filenames
-- Recursive (if confirmed valid)
-
----
-
-## 14.5 `archive-immich`
-Add advanced source-filter fields:
-
-- Only Favorites
-- Include Archived
-- Include Trashed
-- Minimum Rating
-- Filter by People
-- Filter by Tags
-- City / State / Country
-- Camera Make / Model
-- Include Type
-- Include Extensions
-- Exclude Extensions
-- Include Partners
-- Time Zone Override
-- No Album Only
-
----
-
-## 14.6 `stack`
-No major new fields required immediately, except:
-- verify admin key handling
-- verify timeout handling
-
----
-
-# 15. Required Updates to `core/command_builder.py`
-
-The agent must ensure:
-
-## 15.1 All date fields are cleaned
-Use:
-
 ```python
-clean_date_range()
+for k, v in env.items():
+    if k.startswith("IMMICH_GO_"):
+        env_lines.append(f"export {k}={_quote_sh_env_val(v)}")
 ```
 
-for:
+This automatically fixes missing:
+
+- archive variables
+- future source/admin variables
+- other tab-specific secret variables
+
+### Additional requirement
+Make sure the confirm dialog continues to mask any variable whose name contains:
+
+- `API_KEY`
+- `ADMIN_API_KEY`
+
+---
+
+## Critical Fix 7 — Remove invalid archive UI options
+
+### Problem
+Current archive tabs expose pair-handling controls that are not valid for those CLI subcommands.
+
+### Required removals
+
+#### `archive-folder`
+Remove:
+
+- `manage-raw-jpeg`
+
+#### `archive-immich`
+Remove:
+
+- `manage-burst`
+- `manage-raw-jpeg`
+
+These do not belong there according to the CLI help.
+
+### Replacement
+Replace those cards with valid archive options:
+
+- destination
+- date range
+- source filters
+- output/organization options where supported
+
+---
+
+# 5. Completeness guide: make existing tabs fully useful
+
+Now that the critical correctness issues are defined, the agent should complete the existing tabs.
+
+The rule is:
+
+> If a flag is important for real-world use and valid for the subcommand, expose it in the correct mode.
+
+---
+
+# 6. Simple vs Advanced mode policy
+
+Use the following product judgment.
+
+---
+
+## 6.1 Simple mode should show
+- required fields
+- source / destination
+- common content choices
+- high-impact safe options
+- destructive options only if they are commonly needed and already warned
+
+## 6.2 Advanced mode should show
+- filtering
+- tagging
+- debug/trace
+- timeouts
+- CLI behavior overrides
+- rare but valid flags
+- compatibility/power-user settings
+- dangerous options that are not needed in basic workflows
+
+---
+
+# 7. Tab-by-tab completeness specification
+
+---
+
+## 7.1 Configuration tab
+
+### Simple mode
+Keep visible:
+
+- Server URL
+- API Key
+- Test Connection
+- Binary status / update button
+- Theme
+
+### Advanced mode
+Move or keep in advanced:
+
+- Skip SSL
+- Secret provider
+- Admin API key
+- Client timeout
+- Concurrent tasks
+- Device UUID
+- On errors
+- Error tolerance
+- Pause Immich jobs
+- **Allow untested updates** *(add this)*
+- **Preferred terminal** *(add this)*
+
+### Required additions
+Add these missing advanced config widgets:
+
+#### `allow_untested_updates`
+Checkbox:
+
+- label: “Allow untested immich-go versions”
+- state key: `allow_untested_updates`
+
+#### `preferred_terminal`
+Combo:
+
+- `auto`
+- `gnome-terminal`
+- `konsole`
+- `xfce4-terminal`
+- `xterm`
+
+State key:
+
+- `preferred_terminal`
+
+### Persistence requirements
+- persist `advanced_mode`
+- persist `allow_untested_updates`
+- persist `preferred_terminal`
+
+---
+
+## 7.2 `upload from-folder`
+
+### Simple mode
+Show:
+
+- source path
+- album organization (`folder-as-album`)
+- put all into album (`into-album`)
+- burst handling
+- RAW+JPEG handling
+- HEIC+JPEG handling
+
+These are common enough to remain simple.
+
+### Advanced mode
+Add / expose:
+
+#### Source behavior
+- `recursive` checkbox, default **true**
+- `date-from-name` checkbox, default **true**
+- `ignore-sidecar-files` checkbox
+- `album-path-joiner` text field
+
+#### Filtering
+- `include-type` combo
 - `date-range`
-- `from-date-range`
+- `include-extensions`
+- `exclude-extensions`
+- `ban-file`
+
+#### Tagging
+- `tag`
+- `session-tag`
+- `folder-as-tags`
+
+#### Run behavior
+- `overwrite`
+- `pause-immich-jobs`
+- `on-errors`
+- `time-zone`
+
+#### Debug
+- `log-level`
+- `api-trace`
+- `manage-epson-fastfoto`
+
+### Command emission rules
+- emit `--recursive=false` only when unchecked
+- emit `--date-from-name=false` only when unchecked
+- emit `--folder-as-album=...` only when not `NONE`
+- emit `--include-type=...` only when not `all`
+- emit `--album-path-joiner=...` only if non-empty
+- emit `--manage-epson-fastfoto` only if checked
+- emit `--time-zone=...` only if non-empty
+
+### Removals
+- remove `album-picasa` support from this tab entirely
 
 ---
 
-## 15.2 All extension fields are normalized
-Use:
+## 7.3 `upload from-google-photos`
 
-```python
-normalize_extensions_csv()
+This tab currently has many false affordances. Fix all of them.
+
+### Simple mode
+Show:
+
+- takeout source
+- include partner
+- sync albums
+- include archived
+- burst handling
+- HEIC+JPEG handling
+
+### Advanced mode
+Add / expose:
+
+#### Media / album controls
+- `include-type`
+- `into-album`
+- `include-unmatched`
+- `include-trashed`
+- `include-untitled-albums`
+- `from-album-name`
+- `partner-shared-album`
+- `takeout-tag`
+- `people-tag`
+
+#### Pair handling
+- `manage-raw-jpeg` **add this**
+- `manage-epson-fastfoto` **add this**
+
+#### Filtering
+- `date-range`
+- `include-extensions`
+- `exclude-extensions`
+- `ban-file`
+
+#### Tagging
+- `tag`
+- `session-tag`
+
+#### Run behavior
+- `overwrite`
+- `pause-immich-jobs`
+- `on-errors`
+- `time-zone`
+
+#### Debug
+- `log-level`
+- `api-trace`
+
+### Critical emission rules for default-true booleans
+This is essential.
+
+For these flags:
+
+- `include-archived`
+- `include-partner`
+- `sync-albums`
+- `takeout-tag`
+- `people-tag`
+
+If the user **disables** them, emit:
+
+```bash
+--include-archived=false
+--include-partner=false
+--sync-albums=false
+--takeout-tag=false
+--people-tag=false
 ```
 
-for:
+For default-false flags:
+
+- `include-trashed`
+- `include-unmatched`
+- `include-untitled-albums`
+
+emit only when enabled:
+
+```bash
+--include-trashed
+--include-unmatched
+--include-untitled-albums
+```
+
+### Other emission rules
+- `--from-album-name=...` if non-empty
+- `--partner-shared-album=...` if non-empty
+- `--include-type=...` if not `all`
+- `--manage-raw-jpeg=...` if not `NoStack`
+- `--manage-epson-fastfoto` if checked
+- `--overwrite` if checked
+- `--time-zone=...` if non-empty
+
+---
+
+## 7.4 `upload from-immich`
+
+This tab should become a proper migration tab.
+
+### Simple mode
+Show:
+
+- source server
+- source API key
+- date range
+- albums
+- only favorites
+
+### Advanced mode
+Add / expose:
+
+#### Source filters
+- `from-archived`
+- `from-trash`
+- `from-minimal-rating`
+- `from-people`
+- `from-tags`
+- `from-city`
+- `from-state`
+- `from-country`
+- `from-make`
+- `from-model`
+
+#### Missing source options to add
+- `from-include-type`
+- `from-include-extensions`
+- `from-exclude-extensions`
+- `from-partners`
+- `from-no-album`
+- `from-time-zone`
+- `from-device-uuid`
+- `from-api-trace`
+- `from-pause-immich-jobs`
+
+#### Destination behavior
+Currently missing; add:
+
+- `tag`
+- `session-tag`
+- `overwrite`
+- `pause-immich-jobs`
+- `time-zone`
+
+#### Destination pair handling
+Currently missing; add:
+
+- `manage-burst`
+- `manage-raw-jpeg`
+- `manage-heic-jpeg`
+- `manage-epson-fastfoto`
+
+#### Debug
+- `log-level`
+- `api-trace`
+
+### Emission rules
+- global destination server remains `--server=...`
+- source server is `--from-server=...`
+- source API key remains secret via env
+- destination API key remains secret via env
+- emit `--from-dry-run` in addition to global `--dry-run` for dry runs
+- emit `--from-client-timeout=...` if source timeout changed
+- emit global `--client-timeout=...` only if destination timeout changed
+- emit `--from-include-type=...` if not `all`
+- emit `--from-include-extensions=...` / `--from-exclude-extensions=...` if non-empty
+- emit repeatable flags for:
+  - `--from-albums`
+  - `--from-people`
+  - `--from-tags`
+
+### UX requirement
+Add a small read-only summary banner:
+
+- **Destination:** from Configuration
+- **Source:** from tab fields
+
+This reduces confusion.
+
+---
+
+## 7.5 `archive from-folder`
+
+This tab should become a proper local archiving tab.
+
+### Simple mode
+Show only:
+
+- source path
+- destination folder
+
+### Advanced mode
+Add / expose:
+
+#### Filtering
+- `date-range`
+- `include-type`
+- `include-extensions`
+- `exclude-extensions`
+- `ban-file`
+
+#### Folder behavior
+- `recursive` checkbox, default **true**
+- `date-from-name` checkbox, default **true**
+- `ignore-sidecar-files`
+- `folder-as-album`
+- `folder-as-tags`
+- `into-album`
+- `album-path-joiner`
+
+#### Run behavior
+- `on-errors`
+- `log-level`
+
+### Removals
+Remove:
+
+- `manage-raw-jpeg`
+
+It is not valid for `archive from-folder`.
+
+### Emission rules
+- emit `--write-to-folder=...`
+- emit `--recursive=false` if unchecked
+- emit `--date-from-name=false` if unchecked
+- emit `--folder-as-album=...` if not `NONE`
+- emit `--folder-as-tags` if checked
+- emit `--into-album=...` if non-empty
+- emit `--album-path-joiner=...` if non-empty
+- emit `--include-type=...` if not `all`
+- emit extension flags as normalized CSV
+- emit repeatable `--ban-file=...`
+
+### Important scoping rule
+Do **not** emit:
+
+- `--server`
+- `--skip-verify-ssl`
+- `--client-timeout`
+
+for `archive-folder`.
+
+---
+
+## 7.6 `archive from-immich`
+
+This should become a powerful source-filtered backup tab.
+
+### Simple mode
+Show:
+
+- destination folder
+- date range
+- albums
+
+### Advanced mode
+Add / expose all important source filters:
+
+#### Asset filters
+- `from-favorite`
+- `from-archived`
+- `from-trash`
+- `from-minimal-rating`
+- `from-no-album`
+- `from-partners`
+
+#### People / tags
+- `from-people`
+- `from-tags`
+
+#### Location / device
+- `from-city`
+- `from-state`
+- `from-country`
+- `from-make`
+- `from-model`
+
+#### Media filters
+- `from-include-type`
+- `from-include-extensions`
+- `from-exclude-extensions`
+
+#### Source behavior / debug
+- `from-time-zone`
+- `from-device-uuid`
+- `from-client-timeout`
+- `from-skip-verify-ssl`
+- `from-api-trace`
+- `from-pause-immich-jobs`
+- `log-level`
+
+### Removals
+Remove:
+
+- `manage-burst`
+- `manage-raw-jpeg`
+
+They are not valid for `archive from-immich`.
+
+### Emission rules
+- emit `--write-to-folder=...`
+- emit `--from-server=...`
+- emit `--from-dry-run` on dry run
+- emit `--from-skip-verify-ssl` if enabled
+- emit `--from-client-timeout=...` if not default
+- emit repeatable flags for:
+  - `--from-albums`
+  - `--from-people`
+  - `--from-tags`
+- emit `--from-minimal-rating=...` only if > 0
+- emit `--from-include-type=...` only if not `all`
+
+### UX requirement
+Rename the server section to:
+
+- **Source Server**
+
+and explain that it comes from Configuration.
+
+---
+
+## 7.7 `stack`
+
+### Simple mode
+Show:
+
+- manage burst
+- manage RAW+JPEG
+- manage HEIC+JPEG
+
+### Advanced mode
+Add / expose:
+
+- `date-range`
+- `time-zone`
+- `manage-epson-fastfoto`
+- `pause-immich-jobs`
+- `api-trace`
+- `log-level`
+
+### Emission rules
+- emit `--date-range=...` if non-empty
+- emit `--time-zone=...` if non-empty
+- emit `--manage-epson-fastfoto` if checked
+- emit `--api-trace` if checked
+- emit `--pause-immich-jobs=false` if disabled
+- emit global `--client-timeout=...`, `--concurrent-tasks=...`, `--on-errors=...`, `--log-level=...` under the same rules as other tabs
+
+---
+
+# 8. Command-builder implementation rules
+
+The agent should refactor `core/command_builder.py` so it is no longer a pile of ad hoc branches.
+
+---
+
+## 8.1 Add helper emission functions
+
+Add helpers like:
+
+```python
+def emit_bool_flag(emitter, flag_name, value, default=False):
+    if value != default:
+        emitter.add_bool_val(flag_name, value)
+```
+
+and:
+
+```python
+def emit_if_not_default(emitter, flag_name, value, default):
+    if value != default and value not in ("", None):
+        emitter.add_option(flag_name, value)
+```
+
+Use these consistently.
+
+---
+
+## 8.2 Boolean default handling
+
+### Default true
+For flags whose CLI default is `true`:
+
+- `recursive`
+- `date-from-name`
+- `include-archived`
+- `include-partner`
+- `sync-albums`
+- `takeout-tag`
+- `people-tag`
+- `pause-immich-jobs`
+
+emit only when the GUI value is **false**:
+
+```bash
+--flag=false
+```
+
+### Default false
+For flags whose CLI default is `false`:
+
+- `include-trashed`
+- `include-unmatched`
+- `include-untitled-albums`
+- `overwrite`
+- `session-tag`
+- `folder-as-tags`
+- `api-trace`
+- `from-favorite`
+- `from-archived`
+- `from-trash`
+- `from-partners`
+- `from-no-album`
+
+emit only when enabled:
+
+```bash
+--flag
+```
+
+---
+
+## 8.3 Repeatable flags
+
+Use repeatable emission for:
+
+- `tag`
+- `ban-file`
+- `from-albums`
+- `from-people`
+- `from-tags`
+
+Example:
+
+```python
+for item in split_csv(value):
+    emitter.add_option("from-albums", item)
+```
+
+---
+
+## 8.4 CSV flags
+
+Use normalized CSV for:
+
 - `include-extensions`
 - `exclude-extensions`
 - `from-include-extensions`
 - `from-exclude-extensions`
 
----
-
-## 15.3 All comma-separated repeat fields are normalized
-Use:
+Example:
 
 ```python
-normalize_list_csv()
+value = normalize_extensions_csv(raw)
+if value:
+    emitter.add_option("include-extensions", value)
 ```
 
-for:
-- tags
-- albums
-- people
-- other repeatable text filters
-
 ---
 
-## 15.4 Repeatable flags remain repeatable
-Use multiple flag instances:
+## 8.5 Absolute path normalization
 
-```text
---tag=A --tag=B
---from-albums=X --from-albums=Y
+All path inputs must be converted to absolute paths before command construction.
+
+Add a helper in `core/validation.py` or `core/command_builder.py`:
+
+```python
+def normalize_command_paths(raw_text: str) -> list[str]:
+    ...
 ```
 
-Do not collapse repeatable flags into one comma-joined flag unless CLI explicitly supports that form.
+Requirements:
+
+- split lines
+- strip whitespace
+- expand user (`~`)
+- convert relative paths to absolute using GUI working directory
+- expand globs where appropriate
+- return absolute paths
+- preserve non-existent paths as absolute patterns if needed
+
+Then use this for:
+
+- `upload-folder`
+- `upload-gp`
+- `archive-folder`
+
+This fixes the external-terminal working-directory mismatch.
 
 ---
 
-# 16. Required Updates to `core/cli_schema.py`
+## 8.6 Dry-run handling for `from-immich`
 
-The agent must:
+For both:
 
-1. define `FLAG_DEFS`
-2. define `TAB_ALLOWED_FLAGS`
-3. update `ENV_KEY_MAP` for admin keys if not already complete
-4. add secret flag definitions for:
-   - `--admin-api-key`
-   - `--from-admin-api-key`
+- `upload-immich`
+- `archive-immich`
 
----
+when `dry_run=True`, emit:
 
-# 17. Required Updates to Tests
+```bash
+--dry-run
+--from-dry-run
+```
 
-The agent must add tests for:
+unless real-world testing proves one is redundant.
 
-## 17.1 Help parsing
-- parse flags from sample help text
-- ignore `--help`
-- handle shorthand + longhand lines
-
-## 17.2 Contract tests
-- allowed flags exist in fixtures
-- emitted flags are allowed
-- no unsupported flags emitted
-
-## 17.3 Golden tests
-- simple and advanced state per tab
-- dry-run on/off
-- warnings present for destructive modes
-
-## 17.4 Config isolation tests
-- terminal launcher script changes into isolated directory
-- Windows batch includes `cd /d "%~dp0"`
-
-## 17.5 Secret hygiene tests
-- no secret flags in argv
-- no secret values in golden outputs
-- admin key only in env
+This is the safer interpretation because source and destination actions may both need simulation.
 
 ---
 
-# 18. Suggested Implementation Order
+# 9. State collection and persistence rules
 
-The agent should follow this exact order:
-
-## Step 1
-Create:
-- `scripts/capture_cli_help.py`
-- `core/cli_help.py`
-
-Capture fixtures for tested version.
-
-## Step 2
-Extend:
-- `core/cli_schema.py`
-
-Add:
-- `FLAG_DEFS`
-- `TAB_ALLOWED_FLAGS`
-
-## Step 3
-Add contract tests using fixtures.
-
-## Step 4
-Refactor `core/command_builder.py` to use allowlist/emitter internally.
-
-## Step 5
-Fix known invalid/missing flags for existing tabs.
-
-## Step 6
-Add golden command tests.
-
-## Step 7
-Implement working-directory isolation in terminal launcher.
-
-## Step 8
-Add optional runtime compatibility checker and Help menu action.
+The agent must update `app.py` state collection whenever adding widgets.
 
 ---
 
-# 19. Definition of Done for Section 3
+## 9.1 Add new state keys for every new widget
 
-Section 3 is complete when all of the following are true:
+Examples:
 
-## Correctness
-- Every flag emitted by the GUI is allowed for that tab.
-- Every allowed flag is confirmed by help fixture or live help.
-- Known questionable flags have been verified or removed.
-- Missing high-priority flags for existing tabs have been added.
-- Date/extension/list normalization is consistently used.
-- Execution is isolated from stray `immich-go` config files.
+- `recursive`
+- `album-path-joiner`
+- `manage-epson-fastfoto`
+- `time-zone`
+- `include-untitled-albums`
+- `from-include-type`
+- `from-include-ext`
+- `from-exclude-ext`
+- `from-partners`
+- `from-no-album`
+- `from-time-zone`
+- `from-device-uuid`
+- `from-api-trace`
+- `from-pause-jobs`
+
+Do not add a widget without also updating:
+
+- `_collect_tab_state()`
+- `collect_form_state()`
+- `apply_form_state()`
+- command builder
+- tests
+
+---
+
+## 9.2 Use combo data where appropriate
+For combos like:
+
+- secret provider
+- on-errors
+- folder-as-album
+- include-type
+
+prefer storing semantic values in item data rather than relying on display text.
+
+This avoids fragile text comparisons.
+
+---
+
+## 9.3 Persist advanced mode
+In `load_configuration()`:
+
+```python
+self.switch_advanced.setChecked(self.app_config.advanced_mode)
+```
+
+In `save_configuration()`:
+
+```python
+self.app_config.advanced_mode = self.switch_advanced.isChecked()
+```
+
+---
+
+# 10. Validation updates
+
+Update `validate_state()` to reflect the corrected model.
+
+---
+
+## 10.1 Server/API requirements
+
+### Require server + API key for:
+- `upload-folder`
+- `upload-gp`
+- `upload-immich`
+- `stack`
+- `archive-immich`
+
+But use wording that matches the tab meaning:
+
+- for `archive-immich`: “Source server URL is required.”
+- for `upload-immich`: also require source server/source API key
+- for `stack`: “Immich server URL is required.”
+
+### Do not require server for:
+- `archive-folder`
+
+---
+
+## 10.2 Add URL validation for source fields
+For:
+
+- `upload-immich.from-server`
+
+validate URL format similarly to global server.
+
+---
+
+## 10.3 Keep date-range validation
+Continue validating:
+
+- `date-range`
+- `from-date-range`
+
+---
+
+## 10.4 Keep destination warnings
+Continue warning when:
+
+- destination is inside source
+- destination exists but is not writable
+- destination exists but is not a directory
+
+---
+
+# 11. Compatibility checking fixes
+
+The compatibility dialog must become trustworthy.
+
+---
+
+## 11.1 Merge live report and fixture report
+Currently the live binary report is computed but not properly used.
+
+Fix it so the dialog shows:
+
+- fixture compatibility
+- live binary compatibility
+- missing flags from live binary
+- unknown flags from live binary
+
+Do not let a clean fixture report hide live binary incompatibility.
+
+---
+
+## 11.2 Warn when fixtures are missing
+If fixtures are missing, show:
+
+- “CLI help fixtures missing for version X”
+- not “Fully Compatible”
+
+---
+
+# 12. Binary manager safety improvements
+
+These are not strictly CLI-flag issues, but they are still critical for a reliable app.
+
+---
+
+## 12.1 Prevent downgrade prompts
+In `BinaryManager.evaluate_update()`:
+
+- if `current_version` is newer than `latest_version`, return:
+  - `allowed=False`
+  - message: already newer than latest tested/available
+
+Do not prompt downgrades.
+
+---
+
+## 12.2 Use GitHub release assets instead of guessed URLs
+Replace guessed asset URLs with release-asset discovery:
+
+- query release metadata
+- select asset by OS/arch
+- only fall back to guessed URL if absolutely necessary
+
+---
+
+## 12.3 Centralize download/extract logic
+Stop duplicating download/extraction logic in `app.py`.
+
+Use `BinaryManager` methods instead.
+
+---
+
+## 12.4 Make cancellation safe
+Do not use `QThread.terminate()`.
+
+Use a cooperative cancellation flag:
+
+```python
+self.cancelled = False
+```
+
+and stop the download loop when cancelled.
+
+---
+
+## 12.5 Return correct success/failure
+`update_binary()` must return:
+
+- `False` on cancel
+- `False` on download error
+- `False` on extraction error
+- `True` only on real success
+
+---
+
+# 13. Secret-management safety fixes
+
+---
+
+## 13.1 Do not delete old secrets unless copy/save succeeded
+In profile rename / duplicate / migration flows:
+
+- copy secrets
+- verify success
+- only then clear old secrets
+
+If copy fails, raise or return an error.
+
+---
+
+## 13.2 Fix QSettings migration
+In `_migrate_legacy_qsettings_to_config()`:
+
+- only remove old QSettings API key if `set_api_key()` succeeded
+
+Do not delete the old secret unconditionally.
+
+---
+
+# 14. UI polish required for completeness
+
+These are not optional if the goal is a complete app.
+
+---
+
+## 14.1 Fix misleading labels
+
+### `archive-immich`
+Change:
+
+- “Target Server” → **“Source Server”**
+
+### `upload-immich`
+Add a small banner:
+
+- Destination server comes from Configuration
+- Source server is entered in this tab
+
+---
+
+## 14.2 Debounce manual binary path checking
+Do not check binary version on every keystroke.
+
+Use:
+
+- `editingFinished`, or
+- a debounce timer
+
+---
+
+## 14.3 Replace placeholder QSettings identity
+Replace:
+
+```python
+QSettings("YourOrganization", "ImmichGoGUI")
+```
+
+with a real identity, for example:
+
+```python
+QSettings("Shitan198u", "ImmichGoGUI")
+```
+
+---
+
+## 14.4 Add missing advanced settings UI
+Add UI for:
+
+- `allow_untested_updates`
+- `preferred_terminal`
+
+These already exist in the model but are not user-controllable.
+
+---
+
+# 15. Test plan
+
+The agent must update and add tests.
+
+---
+
+## 15.1 Remove duplicate test names
+Search for duplicated function names in `test_app.py` and rename them.
+
+Duplicate Python test functions silently override earlier ones.
+
+---
+
+## 15.2 Fix wrong golden tests
+Update all golden tests that currently expect:
+
+- `--write-to=...`
+- `--server=...` for `archive-immich`
+- missing GP flags
+- missing stack flags
+
+---
+
+## 15.3 Add command emission tests for every new control
+
+At minimum, add tests for:
+
+### upload-folder
+- `--recursive=false`
+- `--date-from-name=false`
+- `--album-path-joiner=...`
+- `--manage-epson-fastfoto`
+- `--time-zone=...`
+
+### upload-gp
+- `--include-archived=false`
+- `--include-partner=false`
+- `--sync-albums=false`
+- `--takeout-tag=false`
+- `--people-tag=false`
+- `--include-trashed`
+- `--include-unmatched`
+- `--include-untitled-albums`
+- `--from-album-name=...`
+- `--partner-shared-album=...`
+- `--include-type=VIDEO`
+- `--manage-raw-jpeg=...`
+- `--overwrite`
+
+### upload-immich
+- `--from-include-type=...`
+- `--from-include-extensions=...`
+- `--from-exclude-extensions=...`
+- `--from-partners`
+- `--from-no-album`
+- `--from-time-zone=...`
+- `--from-device-uuid=...`
+- `--from-api-trace`
+- `--from-dry-run`
+- destination `--tag=...`
+- destination `--session-tag`
+- destination `--overwrite`
+
+### archive-folder
+- `--write-to-folder=...`
+- `--recursive=false`
+- `--folder-as-album=FOLDER`
+- `--folder-as-tags`
+- `--into-album=...`
+- `--album-path-joiner=...`
+- `--include-type=IMAGE`
+- `--include-extensions=...`
+- `--exclude-extensions=...`
+- `--ban-file=...`
+
+### archive-immich
+- no `--server`
+- `--from-server=...`
+- `--write-to-folder=...`
+- `--from-favorite`
+- `--from-archived`
+- `--from-trash`
+- `--from-minimal-rating=...`
+- `--from-people=...`
+- `--from-tags=...`
+- `--from-city=...`
+- `--from-state=...`
+- `--from-country=...`
+- `--from-make=...`
+- `--from-model=...`
+- `--from-include-type=...`
+- `--from-include-extensions=...`
+- `--from-exclude-extensions=...`
+- `--from-partners`
+- `--from-no-album`
+- `--from-time-zone=...`
+- `--from-dry-run`
+
+### stack
+- `--date-range=...`
+- `--time-zone=...`
+- `--manage-epson-fastfoto`
+- `--api-trace`
+- `--pause-immich-jobs=false`
+
+---
+
+## 15.4 Add error-surfacing tests
+Add tests that verify:
+
+- `plan.errors` blocks confirm dialog
+- invalid flag emission is caught in tests
+- schema violations do not pass silently
+
+---
+
+## 15.5 Add process/lock tests
+Add tests for:
+
+- active lock with live PID
+- stale lock with dead PID
+- stale lock with old heartbeat
+- reset clears UI running state
+- terminal launcher exports archive-related `IMMICH_GO_*` variables
+
+---
+
+## 15.6 Add compatibility fixture tests
+Add tests that verify:
+
+- fixtures exist
+- allowed flags are present in fixtures
+- missing fixtures are treated as failure/warning, not silent success
+
+---
+
+# 16. Suggested implementation order for the agent
+
+To reduce regressions, do the work in this order:
+
+---
+
+## Phase 1 — Correctness blockers
+1. fix `write-to-folder`
+2. fix `archive-immich` source model
+3. fix `plan.errors` surfacing
+4. fix running-state boolean bug
+5. remove invalid archive controls
+6. remove invalid `upload-folder` `album-picasa`
+7. fix terminal secret forwarding
+
+---
+
+## Phase 2 — Schema and builder completeness
+1. replace `TAB_ALLOWED_FLAGS`
+2. add missing flags to builder
+3. add default-aware boolean emission
+4. normalize paths to absolute
+5. add `from-dry-run` handling
+6. update validation messages
+
+---
+
+## Phase 3 — UI completeness
+1. add missing widgets per tab
+2. wire state collection
+3. wire persistence
+4. respect simple/advanced mode
+5. fix labels and banners
+6. add missing config advanced settings
+
+---
+
+## Phase 4 — Safety hardening
+1. improve stale-lock detection
+2. improve binary update logic
+3. fix secret copy/migration safety
+4. debounce manual binary checks
+5. centralize update flow
+
+---
+
+## Phase 5 — Tests
+1. fix golden tests
+2. remove duplicate tests
+3. add new command tests
+4. add lock/terminal tests
+5. add fixture/contract tests
+
+---
+
+# 17. Practical acceptance checklist
+
+Before declaring success, the agent must verify:
+
+## Command correctness
+- [ ] `archive from-folder` uses `--write-to-folder`
+- [ ] `archive from-immich` does not emit `--server`
+- [ ] `archive from-immich` emits `--from-server`
+- [ ] no invalid flags remain
+- [ ] all visible controls affect command output
+
+## UI completeness
+- [ ] GP tab includes missing flags
+- [ ] stack tab includes missing flags
+- [ ] archive tabs include valid filters
+- [ ] invalid archive pair-handling controls removed
+- [ ] advanced mode exposes power-user flags
+- [ ] simple mode remains clean
 
 ## Safety
-- No secrets in argv.
-- No secrets in golden test outputs.
-- Admin keys only passed via environment.
-- External terminal execution preserved.
+- [ ] running state cannot get stuck due to boolean bug
+- [ ] stale locks can be cleaned
+- [ ] terminal launcher exports all `IMMICH_GO_*` variables
+- [ ] secrets are not in argv
+- [ ] secret migration cannot lose data silently
 
 ## Tests
-- Contract tests pass.
-- Golden tests pass.
-- Help parser tests pass.
-- Existing test suite still passes.
-
-## UI
-- New fields exist for newly supported flags.
-- Invalid/unsupported fields are removed or hidden.
-- Compatibility checker is available in Help menu.
+- [ ] all tests pass
+- [ ] no duplicate test names
+- [ ] golden tests reflect real CLI
+- [ ] new controls have explicit tests
 
 ---
 
-# 20. Common Mistakes the Agent Must Avoid
+# 18. Final guidance to the agent
 
-## 20.1 Do not add flags because they “probably exist”
-Verify first.
+When in doubt, follow this priority order:
 
-## 20.2 Do not remove UI fields blindly
-If a flag appears unsupported:
-- verify against fixtures/live help
-- then disable emission or remove UI field
+1. **Correct CLI behavior**
+2. **No silent failures**
+3. **No false controls**
+4. **Complete existing tabs**
+5. **Better UX polish**
 
-## 20.3 Do not break secret handling
-Never move API keys into argv.
+Do not add new source tabs like iCloud/Picasa yet unless all existing tabs are already correct and complete.
 
-## 20.4 Do not reintroduce `--no-ui`
-This is explicitly unwanted.
+The goal is not “more widgets”.  
+The goal is:
 
-## 20.5 Do not put backend logic in `app.py`
-Keep it in `core/`.
-
-## 20.6 Do not assume one flag set works for all subcommands
-`upload`, `archive`, and `stack` are not identical in flag support.
-
-## 20.7 Do not forget working-directory isolation
-This is a subtle but serious bug source.
-
----
-
-# 21. Paste-Ready Agent Prompt
-
-You can hand the following prompt to the implementation agent:
-
----
-
-## Agent Prompt
-
-You are working on the Immich-Go GUI project after the `core/` refactor.
-
-Your task is to implement **Section 3: CLI Correctness and Compatibility**.
-
-### Hard constraints
-- Do not introduce `--no-ui` execution.
-- Do not replace external terminal launching.
-- Do not put API keys or admin keys in `argv`.
-- Keep backend logic in `core/`.
-- Keep `core/` modules Qt-free where possible.
-- Do not guess CLI flag compatibility. Verify against captured `--help` fixtures or live binary help.
-- Preserve existing public APIs unless explicitly refactoring internally.
-
-### Tasks
-1. Create `scripts/capture_cli_help.py` to capture `immich-go --help` output for all relevant commands into versioned fixtures.
-2. Create `core/cli_help.py` to parse help output and extract flag names.
-3. Extend `core/cli_schema.py` with:
-   - `FLAG_DEFS`
-   - `TAB_ALLOWED_FLAGS`
-   - helper functions for flag allowance checks
-4. Add contract tests that verify:
-   - every allowed flag exists in help fixtures
-   - every emitted flag is allowed for its tab
-   - no secret flags appear in argv
-5. Refactor `core/command_builder.py` to use an internal allowlist-driven emitter.
-6. Fix known flag correctness issues:
-   - verify/remove unsupported flags
-   - add missing high-priority flags for existing tabs
-   - normalize dates, extensions, and list fields consistently
-7. Add golden command tests for simple and advanced states for each existing tab.
-8. Ensure launched commands run in an isolated working directory so stray `immich-go.toml` files are not picked up.
-9. Add `core/cli_contract.py` and a Help menu action to check CLI compatibility at runtime.
-
-### Existing tabs to support
-- upload-folder
-- upload-gp
-- upload-immich
-- archive-folder
-- archive-immich
-- stack
-
-### Out of scope
-- new source tabs (`from-icloud`, `from-picasa`, etc.)
-- binary management improvements
-- embedded log viewer
-- internationalization
-
-### Acceptance criteria
-- all current tests pass
-- new contract tests pass
-- golden tests pass
-- no secrets in argv
-- external terminal execution still works
-- no invalid flags are emitted
-- working directory isolation is implemented
-
----
-
-# 22. My Recommendation for How to Execute This
-
-If you want the safest path, do **not** ask the agent to do all of Section 3 in one giant pass.
-
-Instead, split it like this:
-
-## Pass 1 — Safety and contract foundation
-- help capture script
-- help parser
-- flag registry
-- contract tests
-- golden tests
-
-## Pass 2 — Correct existing builder
-- remove/verify questionable flags
-- enforce allowlist
-- fix normalization gaps
-- isolate working directory
-
-## Pass 3 — Add missing flags/UI
-- upload-folder missing flags
-- upload-gp missing flags
-- upload-immich missing filters
-- archive-immich missing filters
-
-## Pass 4 — Runtime checker
-- compatibility report
-- Help menu action
-
-This is much less likely to introduce regressions.
-
----
-
-If you want, next I can do one of these for you:
-
-1. **Write the exact `core/cli_help.py` and `core/cli_contract.py` skeleton code**
-2. **Write the exact `TAB_ALLOWED_FLAGS` table for all current tabs**
-3. **Write the exact golden test fixture format and sample JSONs**
-4. **Turn this into a stricter, ticket-by-ticket agent task list**
+> a trustworthy GUI where every visible option is real, every generated command is valid, and the app feels complete for the workflows it already supports.
