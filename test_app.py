@@ -108,6 +108,55 @@ def test_build_environment_no_trailing_spaces():
             assert k == k.strip(), f"Trailing space in env key: {k!r}"
 
 
+def test_api_key_never_in_argv(gui):
+    """Secrets must not appear in plan.argv for any tab."""
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(0)
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("super_secret_key")
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+
+    plan = gui.build_plan(dry_run=False)
+
+    for part in plan.argv:
+        assert "super_secret_key" not in part
+        assert "--api-key" not in part
+
+    assert plan.env.get("IMMICH_GO_UPLOAD_API_KEY") == "super_secret_key"
+
+
+def test_from_api_key_never_in_argv(gui):
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(2)
+    gui.inputs["config"]["server"].setText("http://new:2283")
+    gui.inputs["config"]["api_key"].setText("new_key")
+    gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
+    gui.inputs["upload-immich"]["from-api-key"].setText("old_secret")
+
+    plan = gui.build_plan(dry_run=False)
+
+    for part in plan.argv:
+        assert "old_secret" not in part
+        assert "--from-api-key" not in part
+
+    assert plan.env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY") == "old_secret"
+
+
+def test_archive_folder_no_server_in_argv(gui):
+    """archive-folder should not have --server or --api-key."""
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(0)
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["archive-folder"]["path"].setText("/src")
+    gui.inputs["archive-folder"]["write-to"].setText("/dst")
+
+    plan = gui.build_plan(dry_run=False)
+
+    assert not any("--server" in p for p in plan.argv)
+    assert not any("--api-key" in p for p in plan.argv)
+
+
 def test_build_environment_upload(gui):
     gui.inputs["config"]["server"].setText("http://test:2283")
     gui.inputs["config"]["api_key"].setText("my_key")

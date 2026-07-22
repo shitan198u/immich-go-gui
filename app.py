@@ -1962,17 +1962,39 @@ class ImmichGoGUI(QMainWindow):
     # COMMAND BUILDER LOGIC
     # ==========================================================
 
-    def build_command(self, dry_run):
+    _ENV_KEY_MAP = {
+        "upload-folder":   {"server": "IMMICH_GO_UPLOAD_SERVER",
+                            "api_key": "IMMICH_GO_UPLOAD_API_KEY"},
+        "upload-gp":       {"server": "IMMICH_GO_UPLOAD_SERVER",
+                            "api_key": "IMMICH_GO_UPLOAD_API_KEY"},
+        "upload-immich":   {"server": "IMMICH_GO_UPLOAD_SERVER",
+                            "api_key": "IMMICH_GO_UPLOAD_API_KEY"},
+        "archive-immich":  {"server": "IMMICH_GO_ARCHIVE_SERVER",
+                            "api_key": "IMMICH_GO_ARCHIVE_API_KEY"},
+        "stack":           {"server": "IMMICH_GO_STACK_SERVER",
+                            "api_key": "IMMICH_GO_STACK_API_KEY"},
+    }
+
+    def _env_key_for_tab(self, tab_key: str, kind: str) -> str | None:
+        return self._ENV_KEY_MAP.get(tab_key, {}).get(kind)
+
+    def build_plan(self, dry_run: bool) -> CommandPlan:
         tab_key = self._get_active_tab_key()
         if tab_key == "config":
-            return []
+            return CommandPlan(errors=["No executable tab selected."], tab_key=tab_key)
 
         c = self.inputs[tab_key]
+        binary_path = getattr(self, "binary_path", "")
+        if not binary_path:
+            binary_path = get_binary_path(load_binary_metadata()) or "./immich-go"
+
+        plan = CommandPlan(tab_key=tab_key, dry_run=dry_run, binary_path=binary_path)
 
         global_opts = []
         cmd = []
         cmd_opts = []
         path_opt = []
+        env = os.environ.copy()
 
         if "log-level" in c and c["log-level"].currentText() != "INFO":
             global_opts.append(f"--log-level={c['log-level'].currentText()}")
@@ -1991,33 +2013,46 @@ class ImmichGoGUI(QMainWindow):
             cmd = ["stack"]
 
         if tab_key != "archive-folder":
-            srv = self.inputs["config"]["server"].text()
-            api = self.inputs["config"]["api_key"].text()
+            srv = normalize_server_url(self.inputs["config"]["server"].text())
+            api = self.inputs["config"]["api_key"].text().strip()
+
             if srv:
                 cmd_opts.append(f"--server={srv}")
+
             if api:
-                cmd_opts.append(f"--api-key={api}")
-            # FIX Phase 1 #7: skip-ssl read from config ONLY
+                env_key = self._env_key_for_tab(tab_key, "api_key")
+                if env_key:
+                    env[env_key] = api
+
             if self.inputs["config"]["skip-ssl"].isChecked():
                 cmd_opts.append("--skip-verify-ssl")
+                plan.warnings.append(
+                    "SSL verification is disabled. "
+                    "Use only on trusted networks or self-hosted test servers."
+                )
 
-        # FIX Phase 2 #13: emit --client-timeout
+        if tab_key == "upload-immich":
+            from_srv = normalize_server_url(c["from-server"].text())
+            from_api = c["from-api-key"].text().strip()
+            if from_srv:
+                cmd_opts.append(f"--from-server={from_srv}")
+                env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER"] = from_srv
+            if from_api:
+                env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY"] = from_api
+
         client_timeout = self.inputs["config"]["client_timeout"].value()
         if client_timeout != 20:
             cmd_opts.append(f"--client-timeout={client_timeout}m")
 
-        # FIX Phase 2 #14: emit --device-uuid
         device_uuid = self.inputs["config"]["device_uuid"].text().strip()
         if tab_key in self.UPLOAD_TABS and device_uuid:
             cmd_opts.append(f"--device-uuid={device_uuid}")
 
         conc = self.inputs["config"]["concurrent"].value()
-        # FIX Phase 2 #17: only emit when different from CPU-count default
         cpu_default = min(max(os.cpu_count() or 2, 1), 20)
         if conc != cpu_default:
             cmd_opts.append(f"--concurrent-tasks={conc}")
 
-        # FIX Phase 2 #11: restrict --pause-immich-jobs to upload tabs
         if tab_key in self.UPLOAD_TABS:
             if "pause-jobs" in c:
                 if not c["pause-jobs"].isChecked():
@@ -2025,13 +2060,11 @@ class ImmichGoGUI(QMainWindow):
             elif not self.inputs["config"]["pause_jobs"].isChecked():
                 cmd_opts.append("--pause-immich-jobs=false")
 
-        # FIX Phase 2 #12: restrict --on-errors to upload tabs
         if tab_key in self.UPLOAD_TABS:
             if "on-errors" in c:
                 if c["on-errors"].currentText() != "stop":
                     cmd_opts.append(f"--on-errors={c['on-errors'].currentText()}")
             else:
-                # FIX Phase 2 #18: support numeric tolerance from config
                 oe_text = self.inputs["config"]["on_errors"].currentText()
                 if oe_text == "custom…":
                     tol = self.inputs["config"]["on_errors_tolerance"].value()
@@ -2048,6 +2081,7 @@ class ImmichGoGUI(QMainWindow):
                 cmd_opts.append(f"--into-album={c['into-album'].text()}")
             if c["overwrite"].isChecked():
                 cmd_opts.append("--overwrite")
+                plan.warnings.append("Overwrite mode will replace existing files on the server.")
             if c["manage-burst"].currentText() != "NoStack":
                 cmd_opts.append(f"--manage-burst={c['manage-burst'].currentText()}")
             if c["manage-raw-jpeg"].currentText() != "NoStack":
@@ -2113,20 +2147,13 @@ class ImmichGoGUI(QMainWindow):
                         cmd_opts.append(f"--tag={t.strip()}")
             if c["session-tag"].isChecked():
                 cmd_opts.append("--session-tag")
-            # FIX Phase 2 #15: --api-trace on upload-gp
             if c.get("api-trace") and c["api-trace"].isChecked():
                 cmd_opts.append("--api-trace")
-            # FIX Phase 3 #29: use collect_paths for multi-ZIP / glob
             raw_text = c["path"].toPlainText().strip()
             if raw_text:
                 path_opt.extend(collect_paths(raw_text))
 
         elif tab_key == "upload-immich":
-            if c["from-server"].text():
-                cmd_opts.append(f"--from-server={c['from-server'].text()}")
-            if c["from-api-key"].text():
-                cmd_opts.append(f"--from-api-key={c['from-api-key'].text()}")
-            # FIX Phase 2 #19: emit --from-client-timeout
             from_ct = c.get("from-client-timeout")
             if from_ct and from_ct.value() != 20:
                 cmd_opts.append(f"--from-client-timeout={from_ct.value()}m")
@@ -2164,7 +2191,6 @@ class ImmichGoGUI(QMainWindow):
                 cmd_opts.append(f"--from-model={c['from-model'].text()}")
             if c["from-skip-ssl"].isChecked():
                 cmd_opts.append("--from-skip-verify-ssl")
-            # FIX Phase 2 #15: --api-trace on upload-immich
             if c.get("api-trace") and c["api-trace"].isChecked():
                 cmd_opts.append("--api-trace")
 
@@ -2203,7 +2229,6 @@ class ImmichGoGUI(QMainWindow):
                 cmd_opts.append(f"--time-zone={c['time-zone'].text()}")
             if c["manage-epson"].isChecked():
                 cmd_opts.append("--manage-epson-fastfoto=true")
-            # FIX Phase 2 #15: --api-trace on stack
             if c.get("api-trace") and c["api-trace"].isChecked():
                 cmd_opts.append("--api-trace")
 
@@ -2214,8 +2239,14 @@ class ImmichGoGUI(QMainWindow):
             if "--dry-run" in cmd_opts:
                 cmd_opts.remove("--dry-run")
 
-        # FIX Phase 1 #1: correct global-flag ordering
-        return global_opts + cmd + cmd_opts + path_opt
+        plan.argv = global_opts + cmd + cmd_opts + path_opt
+        plan.env = env
+        plan.display_argv = mask_command_for_display([plan.binary_path] + plan.argv)
+        return plan
+
+    def build_command(self, dry_run: bool) -> list[str]:
+        """Backwards-compatible wrapper returning plan.argv."""
+        return self.build_plan(dry_run).argv
 
     def show_confirm_dialog(self, is_dry_run):
         if self.stacked_widget.currentIndex() == 0:
@@ -2566,11 +2597,19 @@ class ImmichGoGUI(QMainWindow):
         from_api_key = self.inputs.get("upload-immich", {}).get("from-api-key").text().strip() if self.inputs.get("upload-immich", {}).get("from-api-key") else ""
         return build_environment(tab_key, server, api_key, from_server, from_api_key)
 
-    def run_command(self, command_parts=None):
-        if command_parts is None:
-            command_parts = []
+    def run_command(self, plan_or_parts=None):
+        if isinstance(plan_or_parts, CommandPlan):
+            plan = plan_or_parts
+            command_parts = plan.argv
+            env = plan.env
+            binary_path = plan.binary_path or getattr(self, "binary_path", "./immich-go")
+        else:
+            command_parts = plan_or_parts or []
+            tab_key = self._get_active_tab_key()
+            env = self.build_environment(tab_key)
+            binary_path = getattr(self, "binary_path", "./immich-go")
 
-        if not hasattr(self, "binary_path") or not os.path.exists(self.binary_path):
+        if not os.path.exists(binary_path):
             if not self.update_binary():
                 QMessageBox.critical(
                     self, "Error",
@@ -2578,25 +2617,20 @@ class ImmichGoGUI(QMainWindow):
                 )
                 return
 
-        # FIX Phase 1 #5: build env with secrets, strip secret flags from CLI args
-        tab_key = self._get_active_tab_key()
-        env = self.build_environment(tab_key)
-
-        # Strip --api-key / --from-api-key from CLI args (they go via env)
         clean_parts = []
         skip_next = False
         for part in command_parts:
             if skip_next:
                 skip_next = False
                 continue
-            if part.startswith("--api-key=") or part.startswith("--from-api-key="):
+            if part.startswith("--api-key=") or part.startswith("--from-api-key=") or part.startswith("--admin-api-key="):
                 continue
-            if part in ("--api-key", "--from-api-key"):
+            if part in ("--api-key", "--from-api-key", "--admin-api-key"):
                 skip_next = True
                 continue
             clean_parts.append(part)
 
-        command = [self.binary_path] + clean_parts
+        command = [binary_path] + clean_parts
 
         try:
             self.btn_run.setDisabled(True)
