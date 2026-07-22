@@ -138,81 +138,16 @@ from immichgo_commands import (
 )
 
 
-BINARY_BASE_DIR = os.path.join(os.path.expanduser("~"), ".immich-go-gui", "bin")
-METADATA_PATH = os.path.join(BINARY_BASE_DIR, "metadata.json")
-TESTED_IMMICH_GO_VERSION = "0.31.0"
-
-
-def load_binary_metadata() -> dict:
-    if os.path.exists(METADATA_PATH):
-        try:
-            with open(METADATA_PATH, "r") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, OSError):
-            pass
-    return {
-        "schema_version": 1,
-        "selected_version": "",
-        "manual_path": "",
-        "versions": {},
-    }
-
-
-def save_binary_metadata(meta: dict):
-    os.makedirs(BINARY_BASE_DIR, exist_ok=True)
-    with open(METADATA_PATH, "w") as f:
-        json.dump(meta, f, indent=2)
-
-
-def get_binary_path(meta: dict) -> str:
-    """Resolve the effective binary path from metadata."""
-    manual = meta.get("manual_path", "").strip()
-    if manual and os.path.exists(manual):
-        return manual
-
-    selected = meta.get("selected_version", "")
-    if selected and selected in meta.get("versions", {}):
-        path = meta["versions"][selected]["path"]
-        if os.path.exists(path):
-            return path
-
-    binary_filename = "immich-go.exe" if sys.platform.startswith("win") else "immich-go"
-    legacy = os.path.join(BINARY_BASE_DIR, binary_filename)
-    if os.path.exists(legacy):
-        return legacy
-
-    return ""
-
-
-BREAKING_INDICATORS = [
-    r"\bbreaking\s+change",
-    r"\bbreaking\b",
-    r"\bBREAKING\b",
-    r"\bremoved\b.*\bflag\b",
-    r"\brenamed\b.*\bflag\b",
-    r"\bincompatible\b",
-    r"\bdeprecat(ed|ion)\b",
-]
-
-_BREAKING_RE = re.compile(
-    "|".join(BREAKING_INDICATORS),
-    re.IGNORECASE
+from immichgo_binary import (
+    BINARY_BASE_DIR,
+    METADATA_PATH,
+    TESTED_IMMICH_GO_VERSION,
+    BinaryManager,
+    clean_version,
+    get_binary_path,
+    load_binary_metadata,
+    save_binary_metadata,
 )
-
-
-def check_release_for_breaking_changes(version: str) -> tuple[bool, str]:
-    """Fetch release notes from GitHub and check for breaking change indicators."""
-    try:
-        api_url = f"https://api.github.com/repos/simulot/immich-go/releases/tags/{version}"
-        response = requests.get(api_url, timeout=20)
-        response.raise_for_status()
-        data = response.json()
-        body = data.get("body", "") or ""
-
-        has_breaking = bool(_BREAKING_RE.search(body))
-        return has_breaking, body
-    except Exception as e:
-        return True, f"Could not fetch release notes: {e}"
 
 
 
@@ -560,6 +495,7 @@ class ImmichGoGUI(QMainWindow):
         self.resize(1250, 750)
         self.setMinimumSize(900, 600)
 
+        self.binary_manager = BinaryManager()
         self.settings = QSettings("YourOrganization", "ImmichGoGUI")
 
         # FIX Phase 1 #6: migrate old plain-text API key to keychain
@@ -2231,124 +2167,34 @@ class ImmichGoGUI(QMainWindow):
     # BACKEND LOGIC
     # ==========================================================
 
-    @staticmethod
-    def get_latest_release_info():
-        try:
-            api_url = "https://api.github.com/repos/simulot/immich-go/releases/latest"
-            response = requests.get(api_url, timeout=20)
-            response.raise_for_status()
-            return response.json()["tag_name"]
-        except Exception as e:
-            print(f"Failed to fetch release information: {e}")
-            return None
+    def get_latest_release_info(self) -> str | None:
+        return self.binary_manager.get_latest_version()
 
-    def get_download_url(self, version=None):
-        os_name = sys.platform
-        arch = platform.machine().lower()
-        download_mapping = {
-            ("win32", "amd64"): "immich-go_Windows_x86_64.zip",
-            ("win32", "x86_64"): "immich-go_Windows_x86_64.zip",
-            ("win32", "arm64"): "immich-go_Windows_arm64.zip",
-            ("darwin", "x86_64"): "immich-go_Darwin_x86_64.tar.gz",
-            ("darwin", "arm64"): "immich-go_Darwin_arm64.tar.gz",
-            ("linux", "x86_64"): "immich-go_Linux_x86_64.tar.gz",
-            ("linux", "arm64"): "immich-go_Linux_arm64.tar.gz",
-            ("freebsd", "x86_64"): "immich-go_Freebsd_x86_64.tar.gz",
-        }
-        if arch in ["x64", "x86_64"]:
-            arch = "x86_64"
-        key = (os_name, arch)
-        if key in download_mapping:
-            if version is None:
-                version = self.get_latest_release_info() or "0.22.1"
-            filename = download_mapping[key]
-            return f"https://github.com/simulot/immich-go/releases/download/{version}/{filename}"
-        return None
+    def get_download_url(self, version: str | None = None) -> str | None:
+        return self.binary_manager.get_download_url(version)
 
     def check_binary_ready(self) -> tuple[bool, str]:
         """Check that the binary exists and is executable."""
-        if not hasattr(self, "binary_path") or not self.binary_path:
-            return False, "Binary path is not configured."
-
-        if not os.path.exists(self.binary_path):
-            return False, f"Binary not found at: {self.binary_path}"
-
-        if not os.path.isfile(self.binary_path):
-            return False, f"Binary path is not a file: {self.binary_path}"
-
-        if not sys.platform.startswith("win"):
-            if not os.access(self.binary_path, os.X_OK):
-                return False, (
-                    f"Binary is not executable: {self.binary_path}\n"
-                    "Run: chmod +x " + shlex.quote(self.binary_path)
-                )
-
+        status = self.binary_manager.check_binary()
+        if status.state == "err":
+            return False, status.message
         return True, "Binary ready."
 
     def check_binary_version(self):
-        meta = load_binary_metadata()
-        self.binary_path = get_binary_path(meta)
-        if not self.binary_path:
-            binary_filename = "immich-go.exe" if sys.platform.startswith("win") else "immich-go"
-            self.binary_path = os.path.join(BINARY_BASE_DIR, binary_filename)
+        status = self.binary_manager.check_binary()
+        self.binary_path = self.binary_manager.resolve_binary_path()
+        self.current_version = status.version_text
 
-        if not os.path.exists(self.binary_path):
-            self._set_binary_status("err", "Binary: Missing", "Not found")
-            if hasattr(self, "btn_check_updates"):
+        self._set_binary_status(
+            status.state,
+            status.card_text,
+            status.version_text,
+        )
+        if hasattr(self, "btn_check_updates"):
+            if status.state == "err":
                 self.btn_check_updates.setText("Download Immich-Go")
-            return
-
-        if not sys.platform.startswith("win") and not os.access(self.binary_path, os.X_OK):
-            self._set_binary_status("err", "Binary: Not Executable", "Permission denied")
-            return
-
-        try:
-            result = subprocess.run(
-                [self.binary_path, "version"],
-                capture_output=True, text=True, timeout=2
-            )
-            if result.returncode != 0:
-                stderr_snippet = (result.stderr or "").strip()[:120]
-                self._set_binary_status(
-                    "warn", "Binary: Error",
-                    f"Exit code {result.returncode}: {stderr_snippet}"
-                )
-                return
-
-            version_text = (result.stdout or "").strip()
-            if not version_text:
-                self._set_binary_status("warn", "Binary: Unknown Version", "No output")
-                return
-
-            if "," in version_text:
-                version_text = version_text.split(",")[0]
-            for prefix in ("immich-go version ", "version "):
-                if version_text.lower().startswith(prefix):
-                    version_text = version_text[len(prefix):]
-
-            self.current_version = version_text.strip()
-
-            status_state = "ok"
-            card_title = f"Binary: {self.current_version}"
-            if self.current_version != TESTED_IMMICH_GO_VERSION:
-                status_state = "warn"
-                card_title = f"Binary: {self.current_version} (untested)"
-
-            self._set_binary_status(status_state, card_title, self.current_version)
-            if hasattr(self, "btn_check_updates"):
+            else:
                 self.btn_check_updates.setText("Check for Updates")
-
-        except subprocess.TimeoutExpired:
-            self._set_binary_status(
-                "warn", "Binary: Timeout",
-                "Version check timed out (>2s). Binary may be corrupted."
-            )
-        except PermissionError:
-            self._set_binary_status("err", "Binary: Permission Denied", "Permission denied")
-        except OSError as e:
-            self._set_binary_status("err", "Binary: OS Error", str(e)[:120])
-        except Exception as e:
-            self._set_binary_status("err", "Binary: Check Failed", str(e)[:120])
 
     def _set_binary_status(self, state: str, card_text: str, version_text: str):
         if hasattr(self, "status_card"):
@@ -2360,61 +2206,62 @@ class ImmichGoGUI(QMainWindow):
 
     def check_for_updates(self):
         self.check_binary_version()
-        latest_version = self.get_latest_release_info()
+
+        latest_version = self.binary_manager.get_latest_version()
         if not latest_version:
             QMessageBox.warning(
-                self, "Update Check",
-                "Failed to fetch the latest version information from GitHub."
+                self,
+                "Update Check",
+                "Failed to fetch the latest version information from GitHub.",
             )
             return
 
         current_version = getattr(self, "current_version", "Unknown")
 
-        if current_version == latest_version:
+        if clean_version(current_version) == clean_version(latest_version):
             QMessageBox.information(
-                self, "Update Check",
-                f"You are already on the latest version ({current_version})."
-            )
-            return
-
-        has_breaking, release_body = check_release_for_breaking_changes(latest_version)
-
-        if has_breaking:
-            QMessageBox.warning(
                 self,
-                "Update Blocked — Breaking Changes Detected",
-                f"Latest version: {latest_version}\n"
-                f"Current version: {current_version}\n\n"
-                f"⚠️ The release notes for {latest_version} contain breaking change "
-                f"indicators. Automatic upgrade is blocked.\n\n"
-                f"Please review the release notes manually:\n"
-                f"https://github.com/simulot/immich-go/releases/tag/{latest_version}\n\n"
-                f"If you have verified compatibility, you can download the binary "
-                f"manually and set the path in Configuration → Manual Binary Path."
+                "Update Check",
+                f"You are already on the latest version ({current_version}).",
             )
             return
 
-        reply = QMessageBox.question(
-            self, "Update Available",
-            f"Latest version: {latest_version}\n"
-            f"Current version: {current_version}\n\n"
-            f"No breaking changes detected in release notes.\n"
-            f"Do you want to download and install {latest_version}?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        release_notes = self.binary_manager.get_release_notes(latest_version)
+        allow_untested = getattr(self.app_config, "allow_untested_updates", False) if hasattr(self, "app_config") else False
+
+        decision = self.binary_manager.evaluate_update(
+            current_version=current_version,
+            latest_version=latest_version,
+            allow_untested=allow_untested,
+            release_notes=release_notes,
         )
 
-        if reply == QMessageBox.StandardButton.Yes:
-            self.update_binary(version=latest_version, force_download=True)
+        if not decision.allowed:
+            QMessageBox.warning(
+                self,
+                "Update Not Allowed",
+                decision.message,
+            )
+            return
+
+        if decision.requires_confirmation:
+            reply = QMessageBox.question(
+                self,
+                "Update Available",
+                f"Latest version: {latest_version}\n"
+                f"Current version: {current_version}\n\n"
+                f"{decision.message}\n\n"
+                f"Do you want to download and install {latest_version}?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+
+        self.update_binary(version=latest_version, force_download=True)
 
     def _select_version(self, version: str, binary_path: str):
-        meta = load_binary_metadata()
-        meta["versions"][version] = {
-            "path": binary_path,
-            "downloaded_at": datetime.now(timezone.utc).isoformat(),
-            "gui_tested": version == TESTED_IMMICH_GO_VERSION,
-        }
-        meta["selected_version"] = version
-        save_binary_metadata(meta)
+        self.binary_manager.select_version(version, binary_path)
         self.binary_path = binary_path
         self.check_binary_version()
 
