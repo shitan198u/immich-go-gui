@@ -163,6 +163,7 @@ version = "1.0.1"
 source = { virtual = "." }
 dependencies = [
     { name = "keyring" },
+    { name = "packaging" },
     { name = "psutil" },
     { name = "pyside6" },
     { name = "requests" },
@@ -180,6 +181,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "keyring", specifier = ">=25.0.0" },
+    { name = "packaging", specifier = ">=24.0.0" },
     { name = "psutil", specifier = ">=6.1.1" },
     { name = "pyside6", specifier = ">=6.8.2" },
     { name = "requests", specifier = ">=2.32.3" },
