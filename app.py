@@ -1887,63 +1887,145 @@ class ImmichGoGUI(QMainWindow):
     def browse_local_folder(self):
         self.browse_folder_upload()
 
-    def validate_inputs(self) -> ValidationResult:
-        result = ValidationResult()
-        tab_key = self._get_active_tab_key()
+    def _collect_config_state(self) -> dict:
+        cpu_default = min(max(os.cpu_count() or 2, 1), 20)
+        c = self.inputs.get("config", {})
+        return {
+            "server": c.get("server").text() if c.get("server") else "",
+            "api_key": c.get("api_key").text().strip() if c.get("api_key") else "",
+            "skip-ssl": c.get("skip-ssl").isChecked() if c.get("skip-ssl") else False,
+            "client_timeout": c.get("client_timeout").value() if c.get("client_timeout") else 20,
+            "concurrent": c.get("concurrent").value() if c.get("concurrent") else cpu_default,
+            "concurrent_default": cpu_default,
+            "device_uuid": c.get("device_uuid").text().strip() if c.get("device_uuid") else "",
+            "on_errors": c.get("on_errors").currentText() if c.get("on_errors") else "stop",
+            "on_errors_tolerance": c.get("on_errors_tolerance").value() if c.get("on_errors_tolerance") else 10,
+            "pause_jobs": c.get("pause_jobs").isChecked() if c.get("pause_jobs") else True,
+        }
 
-        if tab_key != "config":
-            srv = self.inputs.get("config", {}).get("server")
-            api = self.inputs.get("config", {}).get("api_key")
-            srv_text = normalize_server_url(srv.text()) if srv else ""
-            api_text = api.text().strip() if api else ""
-
-            if tab_key != "archive-folder":
-                if not srv_text:
-                    result.errors.append("Server URL is required.")
-                elif not re.match(r"^https?://.+", srv_text):
-                    result.errors.append("Server URL must start with http:// or https://.")
-
-                if not api_text:
-                    result.errors.append("API key is required.")
-
-            skip_ssl = self.inputs.get("config", {}).get("skip-ssl")
-            if skip_ssl and skip_ssl.isChecked():
-                result.warnings.append(
-                    "SSL verification is disabled. Use only on trusted networks."
-                )
+    def _collect_tab_state(self, tab_key: str) -> dict:
+        if tab_key not in self.inputs:
+            return {}
+        c = self.inputs[tab_key]
 
         if tab_key == "upload-folder":
-            path_w = self.inputs.get("upload-folder", {}).get("path")
-            if path_w and not path_w.text().strip():
-                result.errors.append("Source folder or ZIP path is required.")
+            return {
+                "path": c["path"].text(),
+                "include-type": c["include-type"].currentText(),
+                "folder-album": c["folder-album"].currentText(),
+                "into-album": c["into-album"].text(),
+                "manage-burst": c["manage-burst"].currentText(),
+                "manage-raw-jpeg": c["manage-raw-jpeg"].currentText(),
+                "manage-heic-jpeg": c["manage-heic-jpeg"].currentText(),
+                "date-range": c["date-range"].text(),
+                "include-ext": c["include-ext"].text(),
+                "exclude-ext": c["exclude-ext"].text(),
+                "ban-file": c["ban-file"].toPlainText(),
+                "ignore-sidecar": c["ignore-sidecar"].isChecked(),
+                "date-from-name": c["date-from-name"].isChecked(),
+                "tag": c["tag"].text(),
+                "session-tag": c["session-tag"].isChecked(),
+                "folder-tags": c["folder-tags"].isChecked(),
+                "on-errors": c["on-errors"].currentText() if "on-errors" in c else "stop",
+                "overwrite": c["overwrite"].isChecked(),
+                "pause-jobs": c["pause-jobs"].isChecked() if "pause-jobs" in c else True,
+                "log-level": c["log-level"].currentText() if "log-level" in c else "INFO",
+                "api-trace": c["api-trace"].isChecked() if "api-trace" in c else False,
+            }
 
         elif tab_key == "upload-gp":
-            path_w = self.inputs.get("upload-gp", {}).get("path")
-            if path_w and not path_w.toPlainText().strip():
-                result.errors.append("Google Takeout source is required.")
+            return {
+                "path": c["path"].toPlainText(),
+                "include-type": c["include-type"].currentText(),
+                "into-album": c["into-album"].text(),
+                "include-unmatched": c["include-unmatched"].isChecked(),
+                "include-partner": c["include-partner"].isChecked(),
+                "sync-albums": c["sync-albums"].isChecked(),
+                "manage-burst": c["manage-burst"].currentText(),
+                "manage-heic-jpeg": c["manage-heic-jpeg"].currentText(),
+                "from-album-name": c["from-album-name"].text(),
+                "include-archived": c["include-archived"].isChecked(),
+                "include-trashed": c["include-trashed"].isChecked(),
+                "partner-album": c["partner-album"].text(),
+                "takeout-tag": c["takeout-tag"].isChecked(),
+                "people-tag": c["people-tag"].isChecked(),
+                "tag": c["tag"].text(),
+                "session-tag": c["session-tag"].isChecked(),
+                "on-errors": c["on-errors"].currentText() if "on-errors" in c else "stop",
+                "pause-jobs": c["pause-jobs"].isChecked() if "pause-jobs" in c else True,
+                "log-level": c["log-level"].currentText() if "log-level" in c else "INFO",
+                "api-trace": c["api-trace"].isChecked() if "api-trace" in c else False,
+            }
 
         elif tab_key == "upload-immich":
-            fs_w = self.inputs.get("upload-immich", {}).get("from-server")
-            fa_w = self.inputs.get("upload-immich", {}).get("from-api-key")
-            if fs_w and not fs_w.text().strip():
-                result.errors.append("Source server URL is required.")
-            if fa_w and not fa_w.text().strip():
-                result.errors.append("Source API key is required.")
+            return {
+                "from-server": c["from-server"].text(),
+                "from-api-key": c["from-api-key"].text(),
+                "from-client-timeout": c["from-client-timeout"].value() if "from-client-timeout" in c else 20,
+                "from-favorite": c["from-favorite"].isChecked(),
+                "from-archived": c["from-archived"].isChecked(),
+                "from-trash": c["from-trash"].isChecked(),
+                "from-date-range": c["from-date-range"].text(),
+                "from-albums": c["from-albums"].text(),
+                "from-minimal-rating": c["from-minimal-rating"].value(),
+                "from-people": c["from-people"].text(),
+                "from-tags": c["from-tags"].text(),
+                "from-city": c["from-city"].text(),
+                "from-state": c["from-state"].text(),
+                "from-country": c["from-country"].text(),
+                "from-make": c["from-make"].text(),
+                "from-model": c["from-model"].text(),
+                "from-skip-ssl": c["from-skip-ssl"].isChecked(),
+                "on-errors": c["on-errors"].currentText() if "on-errors" in c else "stop",
+                "log-level": c["log-level"].currentText() if "log-level" in c else "INFO",
+                "api-trace": c["api-trace"].isChecked() if "api-trace" in c else False,
+            }
 
         elif tab_key == "archive-folder":
-            p_w = self.inputs.get("archive-folder", {}).get("path")
-            w_w = self.inputs.get("archive-folder", {}).get("write-to")
-            if p_w and not p_w.text().strip():
-                result.errors.append("Source path is required.")
-            if w_w and not w_w.text().strip():
-                result.errors.append("Destination folder is required.")
+            return {
+                "path": c["path"].text(),
+                "write-to": c["write-to"].text(),
+                "manage-raw-jpeg": c["manage-raw-jpeg"].currentText(),
+                "date-range": c["date-range"].text(),
+                "log-level": c["log-level"].currentText() if "log-level" in c else "INFO",
+            }
 
         elif tab_key == "archive-immich":
-            w_w = self.inputs.get("archive-immich", {}).get("write-to")
-            if w_w and not w_w.text().strip():
-                result.errors.append("Destination folder is required.")
+            return {
+                "write-to": c["write-to"].text(),
+                "manage-burst": c["manage-burst"].currentText(),
+                "manage-raw-jpeg": c["manage-raw-jpeg"].currentText(),
+                "from-date-range": c["from-date-range"].text(),
+                "from-albums": c["from-albums"].text(),
+                "log-level": c["log-level"].currentText() if "log-level" in c else "INFO",
+            }
 
-        return result
+        elif tab_key == "stack":
+            return {
+                "manage-burst": c["manage-burst"].currentText(),
+                "manage-raw-jpeg": c["manage-raw-jpeg"].currentText(),
+                "manage-heic-jpeg": c["manage-heic-jpeg"].currentText(),
+                "time-zone": c["time-zone"].text(),
+                "manage-epson": c["manage-epson"].isChecked(),
+                "log-level": c["log-level"].currentText() if "log-level" in c else "INFO",
+                "api-trace": c["api-trace"].isChecked() if "api-trace" in c else False,
+            }
+
+        return {}
+
+    def validate_inputs(self) -> ValidationResult:
+        tab_key = self._get_active_tab_key()
+        if tab_key == "config":
+            return ValidationResult()
+
+        config_state = self._collect_config_state()
+        tab_state = self._collect_tab_state(tab_key)
+
+        return validate_state(
+            tab_key=tab_key,
+            config_state=config_state,
+            tab_state=tab_state,
+        )
 
     def update_status(self):
         is_running = getattr(self, "running_process", None) is not None
@@ -1974,278 +2056,25 @@ class ImmichGoGUI(QMainWindow):
             if t in self.inputs and "target-server" in self.inputs[t]:
                 self.inputs[t]["target-server"].setText(srv if srv else "Not Configured")
 
-    # ==========================================================
-    # COMMAND BUILDER LOGIC
-    # ==========================================================
-
-    def _env_key_for_tab(self, tab_key: str, kind: str) -> str | None:
-        return ENV_KEY_MAP.get(tab_key, {}).get(kind)
-
     def build_plan(self, dry_run: bool) -> CommandPlan:
         tab_key = self._get_active_tab_key()
         if tab_key == "config":
             return CommandPlan(errors=["No executable tab selected."], tab_key=tab_key)
 
-        c = self.inputs[tab_key]
+        config_state = self._collect_config_state()
+        tab_state = self._collect_tab_state(tab_key)
+
         binary_path = getattr(self, "binary_path", "")
         if not binary_path:
             binary_path = get_binary_path(load_binary_metadata()) or "./immich-go"
 
-        plan = CommandPlan(tab_key=tab_key, dry_run=dry_run, binary_path=binary_path)
-
-        global_opts = []
-        cmd = []
-        cmd_opts = []
-        path_opt = []
-        env = os.environ.copy()
-
-        if "log-level" in c and c["log-level"].currentText() != "INFO":
-            global_opts.append(f"--log-level={c['log-level'].currentText()}")
-
-        if tab_key == "upload-folder":
-            cmd = ["upload", "from-folder"]
-        elif tab_key == "upload-gp":
-            cmd = ["upload", "from-google-photos"]
-        elif tab_key == "upload-immich":
-            cmd = ["upload", "from-immich"]
-        elif tab_key == "archive-folder":
-            cmd = ["archive", "from-folder"]
-        elif tab_key == "archive-immich":
-            cmd = ["archive", "from-immich"]
-        elif tab_key == "stack":
-            cmd = ["stack"]
-
-        if tab_key != "archive-folder":
-            srv = normalize_server_url(self.inputs["config"]["server"].text())
-            api = self.inputs["config"]["api_key"].text().strip()
-
-            if srv:
-                cmd_opts.append(f"--server={srv}")
-
-            if api:
-                env_key = self._env_key_for_tab(tab_key, "api_key")
-                if env_key:
-                    env[env_key] = api
-
-            if self.inputs["config"]["skip-ssl"].isChecked():
-                cmd_opts.append("--skip-verify-ssl")
-                plan.warnings.append(
-                    "SSL verification is disabled. "
-                    "Use only on trusted networks or self-hosted test servers."
-                )
-
-        if tab_key == "upload-immich":
-            from_srv = normalize_server_url(c["from-server"].text())
-            from_api = c["from-api-key"].text().strip()
-            if from_srv:
-                cmd_opts.append(f"--from-server={from_srv}")
-                env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER"] = from_srv
-            if from_api:
-                env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY"] = from_api
-
-        client_timeout = self.inputs["config"]["client_timeout"].value()
-        if client_timeout != 20:
-            cmd_opts.append(f"--client-timeout={client_timeout}m")
-
-        device_uuid = self.inputs["config"]["device_uuid"].text().strip()
-        if tab_key in self.UPLOAD_TABS and device_uuid:
-            cmd_opts.append(f"--device-uuid={device_uuid}")
-
-        conc = self.inputs["config"]["concurrent"].value()
-        cpu_default = min(max(os.cpu_count() or 2, 1), 20)
-        if conc != cpu_default:
-            cmd_opts.append(f"--concurrent-tasks={conc}")
-
-        if tab_key in self.UPLOAD_TABS:
-            if "pause-jobs" in c:
-                if not c["pause-jobs"].isChecked():
-                    cmd_opts.append("--pause-immich-jobs=false")
-            elif not self.inputs["config"]["pause_jobs"].isChecked():
-                cmd_opts.append("--pause-immich-jobs=false")
-
-        if tab_key in self.UPLOAD_TABS:
-            if "on-errors" in c:
-                if c["on-errors"].currentText() != "stop":
-                    cmd_opts.append(f"--on-errors={c['on-errors'].currentText()}")
-            else:
-                oe_text = self.inputs["config"]["on_errors"].currentText()
-                if oe_text == "custom…":
-                    tol = self.inputs["config"]["on_errors_tolerance"].value()
-                    cmd_opts.append(f"--on-errors={tol}")
-                elif oe_text != "stop":
-                    cmd_opts.append(f"--on-errors={oe_text}")
-
-        if tab_key == "upload-folder":
-            if c["include-type"].currentText() != "all":
-                cmd_opts.append(f"--include-type={c['include-type'].currentText()}")
-            if c["folder-album"].currentText() != "NONE":
-                cmd_opts.append(f"--folder-as-album={c['folder-album'].currentText()}")
-            if c["into-album"].text():
-                cmd_opts.append(f"--into-album={c['into-album'].text()}")
-            if c["overwrite"].isChecked():
-                cmd_opts.append("--overwrite")
-                plan.warnings.append("Overwrite mode will replace existing files on the server.")
-            if c["manage-burst"].currentText() != "NoStack":
-                cmd_opts.append(f"--manage-burst={c['manage-burst'].currentText()}")
-            if c["manage-raw-jpeg"].currentText() != "NoStack":
-                cmd_opts.append(f"--manage-raw-jpeg={c['manage-raw-jpeg'].currentText()}")
-            if c["manage-heic-jpeg"].currentText() != "NoStack":
-                cmd_opts.append(f"--manage-heic-jpeg={c['manage-heic-jpeg'].currentText()}")
-            if c["date-range"].text():
-                cmd_opts.append(f"--date-range={c['date-range'].text()}")
-            if c["include-ext"].text():
-                cmd_opts.append(f"--include-extensions={c['include-ext'].text()}")
-            if c["exclude-ext"].text():
-                cmd_opts.append(f"--exclude-extensions={c['exclude-ext'].text()}")
-            for line in c["ban-file"].toPlainText().split("\n"):
-                if line.strip():
-                    cmd_opts.append(f"--ban-file={line.strip()}")
-            if c["ignore-sidecar"].isChecked():
-                cmd_opts.append("--ignore-sidecar-files")
-            if not c["date-from-name"].isChecked():
-                cmd_opts.append("--date-from-name=false")
-            if c["tag"].text():
-                for t in c["tag"].text().split(","):
-                    if t.strip():
-                        cmd_opts.append(f"--tag={t.strip()}")
-            if c["session-tag"].isChecked():
-                cmd_opts.append("--session-tag")
-            if c["folder-tags"].isChecked():
-                cmd_opts.append("--folder-as-tags")
-            if c["api-trace"].isChecked():
-                cmd_opts.append("--api-trace")
-            if c["path"].text():
-                path_opt.append(c["path"].text())
-
-        elif tab_key == "upload-gp":
-            if c["include-type"].currentText() != "all":
-                cmd_opts.append(f"--include-type={c['include-type'].currentText()}")
-            if c["into-album"].text():
-                cmd_opts.append(f"--into-album={c['into-album'].text()}")
-            if c["include-unmatched"].isChecked():
-                cmd_opts.append("--include-unmatched=true")
-            if not c["include-partner"].isChecked():
-                cmd_opts.append("--include-partner=false")
-            if not c["sync-albums"].isChecked():
-                cmd_opts.append("--sync-albums=false")
-            if c["manage-burst"].currentText() != "NoStack":
-                cmd_opts.append(f"--manage-burst={c['manage-burst'].currentText()}")
-            if c["manage-heic-jpeg"].currentText() != "NoStack":
-                cmd_opts.append(f"--manage-heic-jpeg={c['manage-heic-jpeg'].currentText()}")
-            if c["from-album-name"].text():
-                cmd_opts.append(f"--from-album-name={c['from-album-name'].text()}")
-            if not c["include-archived"].isChecked():
-                cmd_opts.append("--include-archived=false")
-            if c["include-trashed"].isChecked():
-                cmd_opts.append("--include-trashed=true")
-            if c["partner-album"].text():
-                cmd_opts.append(f"--partner-shared-album={c['partner-album'].text()}")
-            if not c["takeout-tag"].isChecked():
-                cmd_opts.append("--takeout-tag=false")
-            if not c["people-tag"].isChecked():
-                cmd_opts.append("--people-tag=false")
-            if c["tag"].text():
-                for t in c["tag"].text().split(","):
-                    if t.strip():
-                        cmd_opts.append(f"--tag={t.strip()}")
-            if c["session-tag"].isChecked():
-                cmd_opts.append("--session-tag")
-            if c.get("api-trace") and c["api-trace"].isChecked():
-                cmd_opts.append("--api-trace")
-            raw_text = c["path"].toPlainText().strip()
-            if raw_text:
-                path_opt.extend(collect_paths(raw_text))
-
-        elif tab_key == "upload-immich":
-            from_ct = c.get("from-client-timeout")
-            if from_ct and from_ct.value() != 20:
-                cmd_opts.append(f"--from-client-timeout={from_ct.value()}m")
-            if c["from-favorite"].isChecked():
-                cmd_opts.append("--from-favorite=true")
-            if c["from-archived"].isChecked():
-                cmd_opts.append("--from-archived=true")
-            if c["from-trash"].isChecked():
-                cmd_opts.append("--from-trash=true")
-            if c["from-date-range"].text():
-                cmd_opts.append(f"--from-date-range={c['from-date-range'].text()}")
-            if c["from-albums"].text():
-                for a in c["from-albums"].text().split(","):
-                    if a.strip():
-                        cmd_opts.append(f"--from-albums={a.strip()}")
-            if c["from-minimal-rating"].value() > 0:
-                cmd_opts.append(f"--from-minimal-rating={c['from-minimal-rating'].value()}")
-            if c["from-people"].text():
-                for p in c["from-people"].text().split(","):
-                    if p.strip():
-                        cmd_opts.append(f"--from-people={p.strip()}")
-            if c["from-tags"].text():
-                for t in c["from-tags"].text().split(","):
-                    if t.strip():
-                        cmd_opts.append(f"--from-tags={t.strip()}")
-            if c["from-city"].text():
-                cmd_opts.append(f"--from-city={c['from-city'].text()}")
-            if c["from-state"].text():
-                cmd_opts.append(f"--from-state={c['from-state'].text()}")
-            if c["from-country"].text():
-                cmd_opts.append(f"--from-country={c['from-country'].text()}")
-            if c["from-make"].text():
-                cmd_opts.append(f"--from-make={c['from-make'].text()}")
-            if c["from-model"].text():
-                cmd_opts.append(f"--from-model={c['from-model'].text()}")
-            if c["from-skip-ssl"].isChecked():
-                cmd_opts.append("--from-skip-verify-ssl")
-            if c.get("api-trace") and c["api-trace"].isChecked():
-                cmd_opts.append("--api-trace")
-
-        elif tab_key == "archive-folder":
-            if c["write-to"].text():
-                cmd_opts.append(f"--write-to-folder={c['write-to'].text()}")
-            if c["manage-raw-jpeg"].currentText() != "NoStack":
-                cmd_opts.append(f"--manage-raw-jpeg={c['manage-raw-jpeg'].currentText()}")
-            if c["date-range"].text():
-                cmd_opts.append(f"--date-range={c['date-range'].text()}")
-            if c["path"].text():
-                path_opt.append(c["path"].text())
-
-        elif tab_key == "archive-immich":
-            if c["write-to"].text():
-                cmd_opts.append(f"--write-to-folder={c['write-to'].text()}")
-            if c["manage-burst"].currentText() != "NoStack":
-                cmd_opts.append(f"--manage-burst={c['manage-burst'].currentText()}")
-            if c["manage-raw-jpeg"].currentText() != "NoStack":
-                cmd_opts.append(f"--manage-raw-jpeg={c['manage-raw-jpeg'].currentText()}")
-            if c["from-date-range"].text():
-                cmd_opts.append(f"--from-date-range={c['from-date-range'].text()}")
-            if c["from-albums"].text():
-                for a in c["from-albums"].text().split(","):
-                    if a.strip():
-                        cmd_opts.append(f"--from-albums={a.strip()}")
-
-        elif tab_key == "stack":
-            if c["manage-burst"].currentText() != "NoStack":
-                cmd_opts.append(f"--manage-burst={c['manage-burst'].currentText()}")
-            if c["manage-raw-jpeg"].currentText() != "NoStack":
-                cmd_opts.append(f"--manage-raw-jpeg={c['manage-raw-jpeg'].currentText()}")
-            if c["manage-heic-jpeg"].currentText() != "NoStack":
-                cmd_opts.append(f"--manage-heic-jpeg={c['manage-heic-jpeg'].currentText()}")
-            if c["time-zone"].text():
-                cmd_opts.append(f"--time-zone={c['time-zone'].text()}")
-            if c["manage-epson"].isChecked():
-                cmd_opts.append("--manage-epson-fastfoto=true")
-            if c.get("api-trace") and c["api-trace"].isChecked():
-                cmd_opts.append("--api-trace")
-
-        if dry_run:
-            if "--dry-run" not in cmd_opts:
-                cmd_opts.append("--dry-run")
-        else:
-            if "--dry-run" in cmd_opts:
-                cmd_opts.remove("--dry-run")
-
-        plan.argv = global_opts + cmd + cmd_opts + path_opt
-        plan.env = env
-        plan.display_argv = mask_command_for_display([plan.binary_path] + plan.argv)
-        return plan
+        return build_plan_from_state(
+            tab_key=tab_key,
+            config_state=config_state,
+            tab_state=tab_state,
+            binary_path=binary_path,
+            dry_run=dry_run,
+        )
 
     def build_command(self, dry_run: bool) -> list[str]:
         """Backwards-compatible wrapper returning plan.argv."""

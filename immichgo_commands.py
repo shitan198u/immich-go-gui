@@ -521,5 +521,6 @@ def build_plan_from_state(
             cmd_opts.remove("--dry-run")
 
     plan.argv = global_opts + cmd + cmd_opts + path_opt
+    plan.env = env
     plan.display_argv = mask_command_for_display([binary_path] + plan.argv)
     return plan
