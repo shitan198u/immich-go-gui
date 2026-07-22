@@ -1053,6 +1053,22 @@ class ImmichGoGUI(QMainWindow):
         btn_check.clicked.connect(self.check_for_updates)
         row.addWidget(btn_check, 0, Qt.AlignmentFlag.AlignTop)
         card2.layout.addLayout(row)
+
+        manual_form = FormSection()
+        self.manual_binary_edit = QLineEdit()
+        self.manual_binary_edit.setPlaceholderText(
+            "/usr/local/bin/immich-go  (leave empty to use managed binary)"
+        )
+        meta = load_binary_metadata()
+        if meta.get("manual_path"):
+            self.manual_binary_edit.setText(meta["manual_path"])
+        self.manual_binary_edit.textChanged.connect(self._on_manual_binary_changed)
+        manual_form.add_row(
+            "Manual Binary Path",
+            self.manual_binary_edit,
+            "If set, this path is used instead of the managed binary."
+        )
+        card2.layout.addLayout(manual_form)
         page.addWidget(card2)
 
         card3 = Card("Appearance")
@@ -1079,7 +1095,6 @@ class ImmichGoGUI(QMainWindow):
         self.inputs["config"]["client_timeout"] = self.client_timeout_spin
         adv_form.add_row("Client Timeout", self.client_timeout_spin)
 
-        # FIX Phase 2 #17: default concurrent tasks to CPU count
         cpu_count = os.cpu_count() or 2
         self.concurrent_tasks_spin = QSpinBox()
         self.concurrent_tasks_spin.setRange(1, 20)
@@ -1091,7 +1106,6 @@ class ImmichGoGUI(QMainWindow):
         self.inputs["config"]["device_uuid"] = self.device_uuid_edit
         adv_form.add_row("Device UUID", self.device_uuid_edit)
 
-        # FIX Phase 2 #18: support numeric --on-errors
         self.on_errors_combo = QComboBox()
         self.on_errors_combo.addItems(["stop", "continue", "custom…"])
         self.on_errors_combo.currentTextChanged.connect(self._on_errors_changed)
@@ -1117,6 +1131,13 @@ class ImmichGoGUI(QMainWindow):
 
         page.addStretch()
         return page
+
+    def _on_manual_binary_changed(self, text: str):
+        meta = load_binary_metadata()
+        meta["manual_path"] = text.strip()
+        save_binary_metadata(meta)
+        self.binary_path = get_binary_path(meta)
+        self.check_binary_version()
 
     def _on_errors_changed(self, text):
         self.on_errors_spin.setVisible(text == "custom…")
@@ -2464,21 +2485,41 @@ class ImmichGoGUI(QMainWindow):
             return f"https://github.com/simulot/immich-go/releases/download/{version}/{filename}"
         return None
 
-    def check_binary_version(self):
-        user_home = os.path.expanduser("~")
-        binary_folder = os.path.abspath(os.path.join(user_home, ".immich-go-gui", "bin"))
-        binary_filename = "immich-go.exe" if sys.platform.startswith("win") else "immich-go"
-        self.binary_path = os.path.join(binary_folder, binary_filename)
+    def check_binary_ready(self) -> tuple[bool, str]:
+        """Check that the binary exists and is executable."""
+        if not hasattr(self, "binary_path") or not self.binary_path:
+            return False, "Binary path is not configured."
 
         if not os.path.exists(self.binary_path):
-            if hasattr(self, "lbl_binary_version"):
-                self.lbl_binary_version.setText("Current Version: Not found")
-                self.lbl_binary_path.setText(self.binary_path)
-                self.current_version = "Not found"
-            if hasattr(self, "status_card"):
-                self.status_card.set_binary("err", "Binary: Missing")
+            return False, f"Binary not found at: {self.binary_path}"
+
+        if not os.path.isfile(self.binary_path):
+            return False, f"Binary path is not a file: {self.binary_path}"
+
+        if not sys.platform.startswith("win"):
+            if not os.access(self.binary_path, os.X_OK):
+                return False, (
+                    f"Binary is not executable: {self.binary_path}\n"
+                    "Run: chmod +x " + shlex.quote(self.binary_path)
+                )
+
+        return True, "Binary ready."
+
+    def check_binary_version(self):
+        meta = load_binary_metadata()
+        self.binary_path = get_binary_path(meta)
+        if not self.binary_path:
+            binary_filename = "immich-go.exe" if sys.platform.startswith("win") else "immich-go"
+            self.binary_path = os.path.join(BINARY_BASE_DIR, binary_filename)
+
+        if not os.path.exists(self.binary_path):
+            self._set_binary_status("err", "Binary: Missing", "Not found")
             if hasattr(self, "btn_check_updates"):
                 self.btn_check_updates.setText("Download Immich-Go")
+            return
+
+        if not sys.platform.startswith("win") and not os.access(self.binary_path, os.X_OK):
+            self._set_binary_status("err", "Binary: Not Executable", "Permission denied")
             return
 
         try:
@@ -2486,26 +2527,56 @@ class ImmichGoGUI(QMainWindow):
                 [self.binary_path, "version"],
                 capture_output=True, text=True, timeout=2
             )
-            version_text = result.stdout.strip() if result.stdout else "Unknown version"
+            if result.returncode != 0:
+                stderr_snippet = (result.stderr or "").strip()[:120]
+                self._set_binary_status(
+                    "warn", "Binary: Error",
+                    f"Exit code {result.returncode}: {stderr_snippet}"
+                )
+                return
+
+            version_text = (result.stdout or "").strip()
+            if not version_text:
+                self._set_binary_status("warn", "Binary: Unknown Version", "No output")
+                return
+
             if "," in version_text:
                 version_text = version_text.split(",")[0]
-            if hasattr(self, "lbl_binary_version"):
-                self.lbl_binary_version.setText(f"Current Version: {version_text}")
-                self.lbl_binary_path.setText(self.binary_path)
-                self.current_version = version_text
-            if hasattr(self, "status_card"):
-                self.status_card.set_binary("ok", "Binary: Ready")
+            for prefix in ("immich-go version ", "version "):
+                if version_text.lower().startswith(prefix):
+                    version_text = version_text[len(prefix):]
+
+            self.current_version = version_text.strip()
+
+            status_state = "ok"
+            card_title = f"Binary: {self.current_version}"
+            if self.current_version != TESTED_IMMICH_GO_VERSION:
+                status_state = "warn"
+                card_title = f"Binary: {self.current_version} (untested)"
+
+            self._set_binary_status(status_state, card_title, self.current_version)
             if hasattr(self, "btn_check_updates"):
                 self.btn_check_updates.setText("Check for Updates")
-        except Exception:
-            if hasattr(self, "lbl_binary_version"):
-                self.lbl_binary_version.setText("Current Version: Unknown")
-                self.lbl_binary_path.setText(self.binary_path)
-                self.current_version = "Unknown"
-            if hasattr(self, "status_card"):
-                self.status_card.set_binary("ok", "Binary: Ready")
-            if hasattr(self, "btn_check_updates"):
-                self.btn_check_updates.setText("Check for Updates")
+
+        except subprocess.TimeoutExpired:
+            self._set_binary_status(
+                "warn", "Binary: Timeout",
+                "Version check timed out (>2s). Binary may be corrupted."
+            )
+        except PermissionError:
+            self._set_binary_status("err", "Binary: Permission Denied", "Permission denied")
+        except OSError as e:
+            self._set_binary_status("err", "Binary: OS Error", str(e)[:120])
+        except Exception as e:
+            self._set_binary_status("err", "Binary: Check Failed", str(e)[:120])
+
+    def _set_binary_status(self, state: str, card_text: str, version_text: str):
+        if hasattr(self, "status_card"):
+            self.status_card.set_binary(state, card_text)
+        if hasattr(self, "lbl_binary_version"):
+            self.lbl_binary_version.setText(f"Current Version: {version_text}")
+        if hasattr(self, "lbl_binary_path"):
+            self.lbl_binary_path.setText(getattr(self, "binary_path", ""))
 
     def check_for_updates(self):
         self.check_binary_version()
@@ -2516,174 +2587,185 @@ class ImmichGoGUI(QMainWindow):
                 "Failed to fetch the latest version information from GitHub."
             )
             return
+
         current_version = getattr(self, "current_version", "Unknown")
-        if current_version == "Not found":
-            reply = QMessageBox.question(
-                self, "Download Immich-Go",
-                f"The latest version is {latest_version}.\n\n"
-                "Do you want to download and install it now?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-        else:
-            reply = QMessageBox.question(
+
+        if current_version == latest_version:
+            QMessageBox.information(
                 self, "Update Check",
+                f"You are already on the latest version ({current_version})."
+            )
+            return
+
+        has_breaking, release_body = check_release_for_breaking_changes(latest_version)
+
+        if has_breaking:
+            QMessageBox.warning(
+                self,
+                "Update Blocked — Breaking Changes Detected",
                 f"Latest version: {latest_version}\n"
                 f"Current version: {current_version}\n\n"
-                "Do you want to download and install the latest version?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                f"⚠️ The release notes for {latest_version} contain breaking change "
+                f"indicators. Automatic upgrade is blocked.\n\n"
+                f"Please review the release notes manually:\n"
+                f"https://github.com/simulot/immich-go/releases/tag/{latest_version}\n\n"
+                f"If you have verified compatibility, you can download the binary "
+                f"manually and set the path in Configuration → Manual Binary Path."
             )
+            return
+
+        reply = QMessageBox.question(
+            self, "Update Available",
+            f"Latest version: {latest_version}\n"
+            f"Current version: {current_version}\n\n"
+            f"No breaking changes detected in release notes.\n"
+            f"Do you want to download and install {latest_version}?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+
         if reply == QMessageBox.StandardButton.Yes:
-            self.update_binary(force_download=True)
+            self.update_binary(version=latest_version, force_download=True)
 
-    def update_binary(self, force_download=False):
-        user_home = os.path.expanduser("~")
-        binary_folder = os.path.abspath(os.path.join(user_home, ".immich-go-gui", "bin"))
-        if not os.path.exists(binary_folder):
-            os.makedirs(binary_folder)
-        binary_filename = "immich-go.exe" if sys.platform.startswith("win") else "immich-go"
-        binary_path = os.path.join(binary_folder, binary_filename)
+    def _select_version(self, version: str, binary_path: str):
+        meta = load_binary_metadata()
+        meta["versions"][version] = {
+            "path": binary_path,
+            "downloaded_at": datetime.now(timezone.utc).isoformat(),
+            "gui_tested": version == TESTED_IMMICH_GO_VERSION,
+        }
+        meta["selected_version"] = version
+        save_binary_metadata(meta)
         self.binary_path = binary_path
+        self.check_binary_version()
 
-        if not os.path.exists(binary_path) or force_download:
-            progress_dialog = QDialog(self)
-            progress_dialog.setWindowTitle("Downloading Immich-Go")
-            progress_dialog.setFixedWidth(400)
-            layout = QVBoxLayout(progress_dialog)
-            status_label = QLabel("Downloading Immich-Go binary...")
-            layout.addWidget(status_label)
-            progress_bar = QProgressBar()
-            progress_bar.setRange(0, 100)
-            layout.addWidget(progress_bar)
-            cancel_button = QPushButton("Cancel")
-            layout.addWidget(cancel_button)
-            progress_dialog.setWindowFlags(
-                progress_dialog.windowFlags() & ~Qt.WindowType.WindowCloseButtonHint
-            )
-
-            class DownloadThread(QThread):
-                download_progress = Signal(int)
-                download_complete = Signal(bytes)
-                download_error = Signal(str)
-
-                def __init__(self, download_url):
-                    super().__init__()
-                    self.download_url = download_url
-
-                def run(self):
-                    try:
-                        response = requests.get(self.download_url, stream=True, timeout=60)
-                        response.raise_for_status()
-                        total_size = int(response.headers.get("content-length", 0))
-                        block_size = 1024
-                        downloaded_size = 0
-                        content = io.BytesIO()
-                        for data in response.iter_content(block_size):
-                            downloaded_size += len(data)
-                            content.write(data)
-                            if total_size > 0:
-                                progress = int((downloaded_size / total_size) * 100)
-                                self.download_progress.emit(progress)
-                        self.download_complete.emit(content.getvalue())
-                    except Exception as e:
-                        self.download_error.emit(str(e))
-
-            try:
-                download_url = self.get_download_url()
-                if not download_url:
-                    raise ValueError("Could not determine download URL for your system")
-
-                download_thread = DownloadThread(download_url)
-
-                def handle_download_complete(content):
-                    progress_dialog.accept()
-                    try:
-                        if download_url.endswith(".zip"):
-                            with zipfile.ZipFile(io.BytesIO(content)) as z:
-                                for filename in z.namelist():
-                                    base = os.path.basename(filename)
-                                    if base in ("immich-go", "immich-go.exe"):
-                                        with z.open(filename) as source, open(binary_path, "wb") as target:
-                                            target.write(source.read())
-                                        break
-                        elif download_url.endswith(".tar.gz"):
-                            with tarfile.open(fileobj=io.BytesIO(content), mode="r:gz") as tar:
-                                for member in tar.getmembers():
-                                    base = os.path.basename(member.name)
-                                    if base in ("immich-go", "immich-go.exe"):
-                                        source = tar.extractfile(member)
-                                        if source:
-                                            with open(binary_path, "wb") as target:
-                                                target.write(source.read())
-                                        break
-                        else:
-                            raise ValueError("Unsupported archive type")
-                        if not sys.platform.startswith("win"):
-                            os.chmod(binary_path, 0o755)
-                        self.check_binary_version()
-                    except Exception as extraction_error:
-                        QMessageBox.critical(
-                            self, "Extraction Error",
-                            f"Failed to extract binary: {str(extraction_error)}\n\n"
-                            "Please download manually from GitHub."
-                        )
-
-                def handle_download_error(error):
-                    progress_dialog.reject()
-                    error_dialog = QDialog(self)
-                    error_dialog.setWindowTitle("Binary Download Failed")
-                    error_dialog.setFixedWidth(450)
-                    error_layout = QVBoxLayout(error_dialog)
-                    error_label = QLabel("Automatic binary download failed")
-                    error_label.setStyleSheet("color: #EF4444; font-weight: bold;")
-                    error_layout.addWidget(error_label)
-                    details_label = QLabel(f"Error: {error}")
-                    details_label.setWordWrap(True)
-                    error_layout.addWidget(details_label)
-                    version = self.get_latest_release_info() or "latest"
-                    manual_download_url = f"https://github.com/simulot/immich-go/releases/tag/{version}"
-                    instructions_label = QLabel(
-                        "Please download the binary manually:\n\n"
-                        f"1. Visit: {manual_download_url}\n"
-                        "2. Download the appropriate binary for your system\n"
-                        f"3. Place it in: {binary_folder}\n"
-                        "4. Rename to 'immich-go' (or 'immich-go.exe' on Windows)\n"
-                        "5. Ensure it has executable permissions"
-                    )
-                    instructions_label.setWordWrap(True)
-                    error_layout.addWidget(instructions_label)
-                    url_layout = QHBoxLayout()
-                    url_edit = QLineEdit(manual_download_url)
-                    url_edit.setReadOnly(True)
-                    copy_btn = QPushButton("Copy URL")
-                    copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(manual_download_url))
-                    url_layout.addWidget(url_edit)
-                    url_layout.addWidget(copy_btn)
-                    error_layout.addLayout(url_layout)
-                    open_btn = QPushButton("Open Download Page")
-                    open_btn.clicked.connect(lambda: webbrowser.open(manual_download_url))
-                    error_layout.addWidget(open_btn)
-                    error_dialog.exec()
-
-                download_thread.download_progress.connect(progress_bar.setValue)
-                download_thread.download_complete.connect(handle_download_complete)
-                download_thread.download_error.connect(handle_download_error)
-
-                def cancel_download():
-                    download_thread.terminate()
-                    progress_dialog.reject()
-
-                cancel_button.clicked.connect(cancel_download)
-                progress_dialog.show()
-                download_thread.start()
-                progress_dialog.exec()
-
-            except Exception as e:
-                QMessageBox.critical(
-                    self, "Download Error",
-                    f"Failed to initiate download: {str(e)}\n\n"
-                    "Please download manually from GitHub."
-                )
+    def update_binary(self, version: str | None = None, force_download: bool = False):
+        if version is None:
+            version = self.get_latest_release_info()
+            if not version:
+                QMessageBox.critical(self, "Error", "Could not determine latest version.")
                 return False
+
+        clean_version = version.lstrip("v")
+        version_dir = os.path.join(BINARY_BASE_DIR, clean_version)
+        os.makedirs(version_dir, exist_ok=True)
+
+        binary_filename = "immich-go.exe" if sys.platform.startswith("win") else "immich-go"
+        binary_path = os.path.join(version_dir, binary_filename)
+
+        if os.path.exists(binary_path) and not force_download:
+            self._select_version(clean_version, binary_path)
+            return True
+
+        download_url = self.get_download_url(version=clean_version)
+        if not download_url:
+            QMessageBox.critical(
+                self, "Error",
+                f"Could not determine download URL for version {clean_version} on this platform."
+            )
+            return False
+
+        progress_dialog = QDialog(self)
+        progress_dialog.setWindowTitle("Downloading Immich-Go")
+        progress_dialog.setFixedWidth(400)
+        layout = QVBoxLayout(progress_dialog)
+        status_label = QLabel(f"Downloading Immich-Go v{clean_version}...")
+        layout.addWidget(status_label)
+        progress_bar = QProgressBar()
+        progress_bar.setRange(0, 100)
+        layout.addWidget(progress_bar)
+        cancel_button = QPushButton("Cancel")
+        layout.addWidget(cancel_button)
+        progress_dialog.setWindowFlags(
+            progress_dialog.windowFlags() & ~Qt.WindowType.WindowCloseButtonHint
+        )
+
+        class DownloadThread(QThread):
+            download_progress = Signal(int)
+            download_complete = Signal(bytes)
+            download_error = Signal(str)
+
+            def __init__(self, download_url):
+                super().__init__()
+                self.download_url = download_url
+
+            def run(self):
+                try:
+                    response = requests.get(self.download_url, stream=True, timeout=60)
+                    response.raise_for_status()
+                    total_size = int(response.headers.get("content-length", 0))
+                    block_size = 1024
+                    downloaded_size = 0
+                    content = io.BytesIO()
+                    for data in response.iter_content(block_size):
+                        downloaded_size += len(data)
+                        content.write(data)
+                        if total_size > 0:
+                            progress = int((downloaded_size / total_size) * 100)
+                            self.download_progress.emit(progress)
+                    self.download_complete.emit(content.getvalue())
+                except Exception as e:
+                    self.download_error.emit(str(e))
+
+        try:
+            download_thread = DownloadThread(download_url)
+
+            def handle_download_complete(content):
+                progress_dialog.accept()
+                try:
+                    if download_url.endswith(".zip"):
+                        with zipfile.ZipFile(io.BytesIO(content)) as z:
+                            for filename in z.namelist():
+                                base = os.path.basename(filename)
+                                if base in ("immich-go", "immich-go.exe"):
+                                    with z.open(filename) as source, open(binary_path, "wb") as target:
+                                        target.write(source.read())
+                                    break
+                    elif download_url.endswith(".tar.gz"):
+                        with tarfile.open(fileobj=io.BytesIO(content), mode="r:gz") as tar:
+                            for member in tar.getmembers():
+                                base = os.path.basename(member.name)
+                                if base in ("immich-go", "immich-go.exe"):
+                                    source = tar.extractfile(member)
+                                    if source:
+                                        with open(binary_path, "wb") as target:
+                                            target.write(source.read())
+                                    break
+                    else:
+                        raise ValueError("Unsupported archive type")
+                    if not sys.platform.startswith("win"):
+                        os.chmod(binary_path, 0o755)
+
+                    self._select_version(clean_version, binary_path)
+                except Exception as extraction_error:
+                    QMessageBox.critical(
+                        self, "Extraction Error",
+                        f"Failed to extract binary: {str(extraction_error)}\n\n"
+                        "Please download manually from GitHub."
+                    )
+
+            def handle_download_error(error):
+                progress_dialog.reject()
+                QMessageBox.critical(self, "Download Error", f"Failed to download: {error}")
+
+            download_thread.download_progress.connect(progress_bar.setValue)
+            download_thread.download_complete.connect(handle_download_complete)
+            download_thread.download_error.connect(handle_download_error)
+
+            def cancel_download():
+                download_thread.terminate()
+                progress_dialog.reject()
+
+            cancel_button.clicked.connect(cancel_download)
+            progress_dialog.show()
+            download_thread.start()
+            progress_dialog.exec()
+
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Download Error",
+                f"Failed to initiate download: {str(e)}"
+            )
+            return False
         return True
 
     def build_environment(self, tab_key: str = None) -> dict:
