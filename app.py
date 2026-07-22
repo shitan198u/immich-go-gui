@@ -68,54 +68,12 @@ from core.profile_manager import (
     create_profile, rename_profile, duplicate_profile, delete_profile,
     validate_profile_name, ensure_default_profile
 )
+from core.process_tracker import (
+    create_lock, release_lock, read_lock, is_lock_active,
+    scan_locks, cleanup_stale_locks, reset_all_locks
+)
+from core.terminal_launcher import launch_external_terminal, LaunchResult
 
-
-# ==========================================================
-# PURE UTILITY & SECRET HELPERS
-# ==========================================================
-
-class ProcessTracker:
-    """Tracks an externally-launched immich-go process via a lock file."""
-
-    def __init__(self):
-        self._lock_dir = os.path.join(
-            tempfile.gettempdir(), "immich-go-gui"
-        )
-        os.makedirs(self._lock_dir, exist_ok=True)
-        self._lock_path: str | None = None
-
-    @property
-    def is_running(self) -> bool:
-        if self._lock_path is None:
-            return False
-        return os.path.exists(self._lock_path)
-
-    def create_lock(self) -> str:
-        """Create a lock file and return its path."""
-        run_id = uuid.uuid4().hex[:12]
-        self._lock_path = os.path.join(self._lock_dir, f"run-{run_id}.lock")
-        with open(self._lock_path, "w") as f:
-            f.write(str(os.getpid()))
-        return self._lock_path
-
-    def release_lock(self):
-        if self._lock_path and os.path.exists(self._lock_path):
-            try:
-                os.remove(self._lock_path)
-            except OSError:
-                pass
-        self._lock_path = None
-
-    def wrap_command_with_lock(self, command_str: str) -> str:
-        """Wrap a shell command so it removes the lock file on exit."""
-        if self._lock_path is None:
-            return command_str
-        lock = self._lock_path
-        return (
-            f"trap 'rm -f {shlex.quote(lock)}' EXIT INT TERM; "
-            f"{command_str}; "
-            f"rm -f {shlex.quote(lock)}"
-        )
 
 from core import (
     AppConfig,
@@ -512,6 +470,12 @@ class ImmichGoGUI(QMainWindow):
         self.load_configuration()
         self.apply_theme(self.theme_mode)
         connect_system_theme_changes(self.on_system_theme_changed)
+
+        cleanup_stale_locks()
+        active_locks = scan_locks()
+        self.active_lock_path = active_locks[0].lock_path if active_locks else None
+        if self.active_lock_path:
+            self._start_process_timer()
 
         self.stacked_widget.currentChanged.connect(lambda: self.update_status())
 
@@ -2665,18 +2629,65 @@ class ImmichGoGUI(QMainWindow):
         from_api_key = self.inputs.get("upload-immich", {}).get("from-api-key").text().strip() if self.inputs.get("upload-immich", {}).get("from-api-key") else ""
         return build_environment(tab_key, server, api_key, from_server, from_api_key)
 
+    def _start_process_timer(self):
+        if not hasattr(self, "check_process_timer"):
+            self.check_process_timer = QTimer(self)
+            self.check_process_timer.timeout.connect(self._check_lock_file)
+        if not self.check_process_timer.isActive():
+            self.check_process_timer.start(1000)
+
+    def _check_lock_file(self):
+        active_path = getattr(self, "active_lock_path", None)
+        if not active_path:
+            if hasattr(self, "check_process_timer"):
+                self.check_process_timer.stop()
+            self.running_process = False
+            self.update_status()
+            return
+
+        if not is_lock_active(active_path):
+            if hasattr(self, "check_process_timer"):
+                self.check_process_timer.stop()
+            release_lock(active_path)
+            self.active_lock_path = None
+            self.running_process = False
+            self.update_status()
+        else:
+            self.running_process = True
+            self.update_status()
+
+    def check_if_process_running(self):
+        """Backward compatible alias for _check_lock_file."""
+        self._check_lock_file()
+
+    def closeEvent(self, event):
+        active_locks = scan_locks()
+        active_path = getattr(self, "active_lock_path", None)
+        if active_locks or (active_path and is_lock_active(active_path)):
+            reply = QMessageBox.question(
+                self,
+                "Running Command Detected",
+                "A command appears to still be running in an external terminal.\n\nClose the GUI anyway?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                event.ignore()
+                return
+
+        event.accept()
+
     def run_command(self, plan_or_parts=None):
         if isinstance(plan_or_parts, CommandPlan):
             plan = plan_or_parts
-            command_parts = plan.argv
-            env = plan.env
-            binary_path = plan.binary_path or getattr(self, "binary_path", "./immich-go")
         else:
-            command_parts = plan_or_parts or []
             tab_key = self._get_active_tab_key()
-            env = self.build_environment(tab_key)
+            config_state = self._collect_config_state()
+            tab_state = self._collect_tab_state(tab_key)
             binary_path = getattr(self, "binary_path", "./immich-go")
+            plan = build_plan_from_state(tab_key, config_state, tab_state, binary_path, False)
 
+        binary_path = plan.binary_path or getattr(self, "binary_path", "./immich-go")
         if not os.path.exists(binary_path):
             if not self.update_binary():
                 QMessageBox.critical(
@@ -2685,105 +2696,39 @@ class ImmichGoGUI(QMainWindow):
                 )
                 return
 
-        # Defense-in-depth: strip any secret flags that may have leaked
-        # into argv from legacy code paths. With CommandPlan, secrets are never
-        # added to argv, but this prevents accidental CLI exposure.
-        clean_parts = []
-        skip_next = False
-        for part in command_parts:
-            if skip_next:
-                skip_next = False
-                continue
-            if part.startswith("--api-key=") or part.startswith("--from-api-key=") or part.startswith("--admin-api-key="):
-                continue
-            if part in ("--api-key", "--from-api-key", "--admin-api-key"):
-                skip_next = True
-                continue
-            clean_parts.append(part)
+        summary = f"{plan.tab_key}"
+        if plan.argv:
+            summary = " ".join(plan.argv[:3])
 
-        command = [binary_path] + clean_parts
+        lock_path = create_lock(
+            tab_key=plan.tab_key,
+            command_summary=summary,
+            binary_path=binary_path,
+        )
 
-        self.process_tracker = ProcessTracker()
-        lock_path = self.process_tracker.create_lock()
+        pref_term = getattr(self.app_config, "preferred_terminal", "auto")
+        full_cmd = [binary_path] + plan.argv
 
-        try:
-            self.btn_run.setDisabled(True)
-            self.btn_dry_run.setDisabled(True)
+        res = launch_external_terminal(
+            command=full_cmd,
+            env=plan.env,
+            lock_path=lock_path,
+            preferred_terminal=pref_term,
+        )
 
-            if sys.platform.startswith("win"):
-                cmd_string = subprocess.list2cmdline(command)
-                bat_content = (
-                    f"@echo off\n"
-                    f"{cmd_string}\n"
-                    f'del /f "{lock_path}" 2>nul\n'
-                )
-                bat_path = lock_path.replace(".lock", ".bat")
-                with open(bat_path, "w") as f:
-                    f.write(bat_content)
-                subprocess.Popen(
-                    ["cmd", "/c", "start", "cmd", "/k", bat_path],
-                    shell=True,
-                    creationflags=subprocess.CREATE_NEW_CONSOLE,
-                    env=env,
-                )
-            elif sys.platform.startswith("darwin"):
-                cmd_str = shlex.join(command)
-                wrapped = self.process_tracker.wrap_command_with_lock(cmd_str)
-                apple_script = (
-                    'tell application "Terminal" to do script '
-                    f'"{wrapped}; exec bash"'
-                )
-                subprocess.Popen(["osascript", "-e", apple_script], env=env)
-            else:
-                cmd_str = shlex.join(command)
-                wrapped = self.process_tracker.wrap_command_with_lock(cmd_str)
-                terminals = [
-                    ("gnome-terminal", "--", "bash", "-c", f"{wrapped}; exec bash"),
-                    ("konsole", "-e", "bash", "-c", f"{wrapped}; exec bash"),
-                    ("xfce4-terminal", "-e", "bash", "-c", f"{wrapped}; exec bash"),
-                    ("xterm", "-hold", "-e", "bash", "-c", wrapped),
-                ]
-                for term in terminals:
-                    try:
-                        subprocess.Popen(term, env=env)
-                        break
-                    except FileNotFoundError:
-                        continue
-                else:
-                    self.process_tracker.release_lock()
-                    QMessageBox.critical(self, "Error", "No suitable terminal emulator found.")
-                    self.btn_run.setDisabled(False)
-                    self.btn_dry_run.setDisabled(False)
-                    return
-
-            self.running_process = True
-            self.check_process_timer = QTimer()
-            self.check_process_timer.timeout.connect(self._check_lock_file)
-            self.check_process_timer.start(1000)
-            self.update_status()
-
-        except Exception as e:
-            self.process_tracker.release_lock()
-            QMessageBox.critical(self, "Error", f"Failed to run command: {e}")
-            self.btn_run.setDisabled(False)
-            self.btn_dry_run.setDisabled(False)
-
-    def _check_lock_file(self):
-        if not hasattr(self, "process_tracker"):
-            if hasattr(self, "check_process_timer"):
-                self.check_process_timer.stop()
+        if not res.ok:
+            release_lock(lock_path)
+            QMessageBox.critical(self, "Error Launching Terminal", res.message)
+            self.btn_run.setEnabled(True)
+            self.btn_dry_run.setEnabled(True)
             return
 
-        if not self.process_tracker.is_running:
-            if hasattr(self, "check_process_timer"):
-                self.check_process_timer.stop()
-            self.process_tracker.release_lock()
-            self.running_process = None
-            self.update_status()
-
-    def check_if_process_running(self):
-        """Backward compatible alias for _check_lock_file."""
-        self._check_lock_file()
+        self.active_lock_path = lock_path
+        self.running_process = True
+        self.btn_run.setEnabled(False)
+        self.btn_dry_run.setEnabled(False)
+        self._start_process_timer()
+        self.update_status()
 
     # ==========================================================
     # PERSISTENCE

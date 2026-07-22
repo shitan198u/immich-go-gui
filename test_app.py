@@ -1189,3 +1189,58 @@ def test_collect_form_state_excludes_secrets(gui):
     for tab_name, tab_dict in state.items():
         for secret_key in ("api_key", "from-api-key", "admin_api_key"):
             assert secret_key not in tab_dict
+
+
+# ==============================================================================
+# SECTION 4: PROCESS TRACKER & TERMINAL LAUNCHER TESTS
+# ==============================================================================
+
+from core.process_tracker import (
+    create_lock,
+    release_lock,
+    read_lock,
+    is_lock_active,
+    scan_locks,
+    cleanup_stale_locks,
+    reset_all_locks,
+)
+from core.terminal_launcher import launch_external_terminal
+
+
+def test_process_tracker_lifecycle(tmp_path, monkeypatch):
+    monkeypatch.setenv("IMMICH_GO_GUI_CONFIG", str(tmp_path / "config.toml"))
+
+    lock_path = create_lock(
+        tab_key="upload-folder",
+        command_summary="upload from-folder",
+        binary_path="./immich-go",
+    )
+    assert lock_path.exists()
+
+    lock = read_lock(lock_path)
+    assert lock is not None
+    assert lock.tab_key == "upload-folder"
+
+    assert is_lock_active(lock_path) is True
+    assert len(scan_locks()) == 1
+
+    release_lock(lock_path)
+    assert lock_path.exists() is False
+    assert len(scan_locks()) == 0
+
+
+def test_terminal_launcher_posix_script_creation(tmp_path, monkeypatch):
+    monkeypatch.setenv("IMMICH_GO_GUI_CONFIG", str(tmp_path / "config.toml"))
+    lock_path = create_lock("upload-folder", "upload", "./immich-go")
+
+    env = {
+        "IMMICH_GO_UPLOAD_SERVER": "http://localhost:2283",
+        "IMMICH_GO_UPLOAD_API_KEY": "secret_key_123",
+    }
+    cmd = ["./immich-go", "upload", "from-folder", "/photos"]
+
+    with patch("subprocess.Popen") as mock_popen, patch("shutil.which") as mock_which:
+        mock_which.return_value = "/usr/bin/gnome-terminal"
+        res = launch_external_terminal(cmd, env, lock_path, preferred_terminal="auto")
+        assert res.ok is True
+        assert mock_popen.called
