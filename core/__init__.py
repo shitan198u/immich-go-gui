@@ -33,6 +33,11 @@ from .cli_help import (
     load_help_fixture,
     help_name_for_tab,
 )
+from .cli_contract import (
+    CompatibilityReport,
+    check_fixtures,
+    check_binary_help,
+)
 from .config_manager import (
     SecretStore,
     SecretSaveResult,

@@ -1360,3 +1360,25 @@ def test_golden_json_fixtures():
             dry_run=False,
         )
         assert plan.argv == expected_argv, f"Fixture {jf.name} produced unexpected argv: {plan.argv} != {expected_argv}"
+
+
+# ==============================================================================
+# SECTION 3: CLI CORRECTNESS & COMPATIBILITY TESTS (MILESTONE 4)
+# ==============================================================================
+
+from core.cli_contract import check_fixtures, check_binary_help
+
+
+def test_check_fixtures_compatibility():
+    report = check_fixtures("0.32.0")
+    assert report.version == "0.32.0"
+    assert report.is_fully_compatible() is True
+    assert len(report.missing_flags_by_tab) == 0
+
+
+def test_show_cli_compatibility_dialog(gui):
+    with patch("PySide6.QtWidgets.QMessageBox.information") as mock_info:
+        gui.show_cli_compatibility_dialog()
+        assert mock_info.called
+        title = mock_info.call_args[0][1]
+        assert "CLI Compatibility" in title

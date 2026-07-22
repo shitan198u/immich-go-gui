@@ -23,6 +23,7 @@ import subprocess
 import shlex
 import platform
 import webbrowser
+from pathlib import Path
 import zipfile
 import tarfile
 import glob
@@ -1755,9 +1756,54 @@ class ImmichGoGUI(QMainWindow):
         self.update_profiles_menu()
 
         help_menu = menu_bar.addMenu("Help")
+        compat_action = QAction("Check CLI Compatibility", self)
+        compat_action.triggered.connect(self.show_cli_compatibility_dialog)
+        help_menu.addAction(compat_action)
+
         about_action = QAction("About Immich-Go", self)
         about_action.triggered.connect(self.open_github_link)
         help_menu.addAction(about_action)
+
+    def show_cli_compatibility_dialog(self):
+        from core.cli_contract import check_fixtures, check_binary_help
+        from core.binary_manager import get_binary_path, load_binary_metadata, TESTED_IMMICH_GO_VERSION
+
+        meta = load_binary_metadata()
+        bin_path = Path(get_binary_path(meta))
+
+        report = check_fixtures(TESTED_IMMICH_GO_VERSION)
+        if bin_path.exists():
+            live_report = check_binary_help(bin_path, TESTED_IMMICH_GO_VERSION)
+        else:
+            live_report = None
+
+        msg = [f"Tested Immich-Go Version: v{report.version}\n"]
+
+        if live_report and live_report.is_fully_compatible():
+            msg.append("Status: Fully Compatible with live binary")
+        elif report.is_fully_compatible():
+            msg.append("Status: Fully Compatible with target schema")
+        else:
+            msg.append("Status: Compatibility Warning")
+
+        if report.notes:
+            msg.append(f"\nVersion Notes:\n{report.notes}")
+
+        if report.missing_flags_by_tab:
+            msg.append("\nMissing CLI Flags in Binary:")
+            for tab, flags in report.missing_flags_by_tab.items():
+                msg.append(f"  • {tab}: {', '.join(sorted(flags))}")
+
+        if report.unknown_flags_by_tab:
+            msg.append("\nNew Upstream CLI Flags Detected:")
+            for tab, flags in report.unknown_flags_by_tab.items():
+                msg.append(f"  • {tab}: {', '.join(sorted(flags))}")
+
+        QMessageBox.information(
+            self,
+            "Immich-Go CLI Compatibility",
+            "\n".join(msg),
+        )
 
     def on_reset_run_state_clicked(self):
         reply = QMessageBox.question(
