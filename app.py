@@ -28,6 +28,8 @@ import tarfile
 import glob
 import json
 import keyring
+import tempfile
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
@@ -46,7 +48,6 @@ from PySide6.QtCore import (
     Qt, QEvent, QTimer, QSettings, QThread, Signal, QSize
 )
 
-import psutil
 import requests
 
 SP = QStyle.StandardPixmap
@@ -62,6 +63,49 @@ from theme import (
 # ==========================================================
 # PURE UTILITY & SECRET HELPERS
 # ==========================================================
+
+class ProcessTracker:
+    """Tracks an externally-launched immich-go process via a lock file."""
+
+    def __init__(self):
+        self._lock_dir = os.path.join(
+            tempfile.gettempdir(), "immich-go-gui"
+        )
+        os.makedirs(self._lock_dir, exist_ok=True)
+        self._lock_path: str | None = None
+
+    @property
+    def is_running(self) -> bool:
+        if self._lock_path is None:
+            return False
+        return os.path.exists(self._lock_path)
+
+    def create_lock(self) -> str:
+        """Create a lock file and return its path."""
+        run_id = uuid.uuid4().hex[:12]
+        self._lock_path = os.path.join(self._lock_dir, f"run-{run_id}.lock")
+        with open(self._lock_path, "w") as f:
+            f.write(str(os.getpid()))
+        return self._lock_path
+
+    def release_lock(self):
+        if self._lock_path and os.path.exists(self._lock_path):
+            try:
+                os.remove(self._lock_path)
+            except OSError:
+                pass
+        self._lock_path = None
+
+    def wrap_command_with_lock(self, command_str: str) -> str:
+        """Wrap a shell command so it removes the lock file on exit."""
+        if self._lock_path is None:
+            return command_str
+        lock = self._lock_path
+        return (
+            f"trap 'rm -f {shlex.quote(lock)}' EXIT INT TERM; "
+            f"{command_str}; "
+            f"rm -f {shlex.quote(lock)}"
+        )
 
 @dataclass
 class CommandPlan:
@@ -2686,31 +2730,45 @@ class ImmichGoGUI(QMainWindow):
 
         command = [binary_path] + clean_parts
 
+        self.process_tracker = ProcessTracker()
+        lock_path = self.process_tracker.create_lock()
+
         try:
             self.btn_run.setDisabled(True)
             self.btn_dry_run.setDisabled(True)
 
             if sys.platform.startswith("win"):
                 cmd_string = subprocess.list2cmdline(command)
-                # FIX Phase 1 #5: pass env vars to the child process
+                bat_content = (
+                    f"@echo off\n"
+                    f"{cmd_string}\n"
+                    f'del /f "{lock_path}" 2>nul\n'
+                )
+                bat_path = lock_path.replace(".lock", ".bat")
+                with open(bat_path, "w") as f:
+                    f.write(bat_content)
                 subprocess.Popen(
-                    ["cmd", "/c", "start", "cmd", "/k", cmd_string],
+                    ["cmd", "/c", "start", "cmd", "/k", bat_path],
                     shell=True,
                     creationflags=subprocess.CREATE_NEW_CONSOLE,
                     env=env,
                 )
             elif sys.platform.startswith("darwin"):
+                cmd_str = shlex.join(command)
+                wrapped = self.process_tracker.wrap_command_with_lock(cmd_str)
                 apple_script = (
                     'tell application "Terminal" to do script '
-                    f'"{shlex.join(command)}; exec bash"'
+                    f'"{wrapped}; exec bash"'
                 )
                 subprocess.Popen(["osascript", "-e", apple_script], env=env)
             else:
+                cmd_str = shlex.join(command)
+                wrapped = self.process_tracker.wrap_command_with_lock(cmd_str)
                 terminals = [
-                    ("gnome-terminal", "--", "bash", "-c", f"{shlex.join(command)}; exec bash"),
-                    ("konsole", "-e", "bash", "-c", f"{shlex.join(command)}; exec bash"),
-                    ("xfce4-terminal", "-e", "bash", "-c", f"{shlex.join(command)}; exec bash"),
-                    ("xterm", "-hold", "-e", shlex.join(command)),
+                    ("gnome-terminal", "--", "bash", "-c", f"{wrapped}; exec bash"),
+                    ("konsole", "-e", "bash", "-c", f"{wrapped}; exec bash"),
+                    ("xfce4-terminal", "-e", "bash", "-c", f"{wrapped}; exec bash"),
+                    ("xterm", "-hold", "-e", "bash", "-c", wrapped),
                 ]
                 for term in terminals:
                     try:
@@ -2719,49 +2777,40 @@ class ImmichGoGUI(QMainWindow):
                     except FileNotFoundError:
                         continue
                 else:
+                    self.process_tracker.release_lock()
                     QMessageBox.critical(self, "Error", "No suitable terminal emulator found.")
                     self.btn_run.setDisabled(False)
                     self.btn_dry_run.setDisabled(False)
                     return
 
             self.running_process = True
-            self.immich_go_pid = None
-            self.launch_grace_period = 6
             self.check_process_timer = QTimer()
-            self.check_process_timer.timeout.connect(self.check_if_process_running)
-            self.check_process_timer.start(500)
+            self.check_process_timer.timeout.connect(self._check_lock_file)
+            self.check_process_timer.start(1000)
             self.update_status()
 
         except Exception as e:
+            self.process_tracker.release_lock()
             QMessageBox.critical(self, "Error", f"Failed to run command: {e}")
             self.btn_run.setDisabled(False)
             self.btn_dry_run.setDisabled(False)
 
-    def check_if_process_running(self):
-        still_running = False
-        if getattr(self, "immich_go_pid", None) is not None:
-            if psutil.pid_exists(self.immich_go_pid):
-                still_running = True
-        else:
-            for proc in psutil.process_iter(['name']):
-                try:
-                    name = proc.info['name'].lower()
-                    if 'immich-go' in name:
-                        still_running = True
-                        self.immich_go_pid = proc.pid
-                        break
-                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-                    continue
-        if still_running:
-            self.launch_grace_period = 0
-        elif getattr(self, "launch_grace_period", 0) > 0:
-            self.launch_grace_period -= 1
-            still_running = True
-        if not still_running:
-            self.check_process_timer.stop()
+    def _check_lock_file(self):
+        if not hasattr(self, "process_tracker"):
+            if hasattr(self, "check_process_timer"):
+                self.check_process_timer.stop()
+            return
+
+        if not self.process_tracker.is_running:
+            if hasattr(self, "check_process_timer"):
+                self.check_process_timer.stop()
+            self.process_tracker.release_lock()
             self.running_process = None
-            self.immich_go_pid = None
             self.update_status()
+
+    def check_if_process_running(self):
+        """Backward compatible alias for _check_lock_file."""
+        self._check_lock_file()
 
     # ==========================================================
     # PERSISTENCE
