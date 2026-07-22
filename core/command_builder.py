@@ -470,9 +470,6 @@ def build_plan_from_state(
         if tab_state.get("album-path-joiner"):
             emitter.add_option("album-path-joiner", tab_state["album-path-joiner"])
 
-        if tab_state.get("album-picasa"):
-            emitter.add_flag("album-picasa")
-
         if tab_state.get("manage-epson-fastfoto"):
             emitter.add_flag("manage-epson-fastfoto")
 
@@ -605,7 +602,7 @@ def build_plan_from_state(
 
     elif tab_key == "archive-folder":
         if tab_state.get("write-to"):
-            emitter.add_option("write-to", tab_state["write-to"])
+            emitter.add_option("write-to-folder", tab_state["write-to"])
 
         dr = clean_date_range(str(tab_state.get("date-range", "")))
         if dr:
@@ -637,8 +634,12 @@ def build_plan_from_state(
             path_opt.append(tab_state["path"])
 
     elif tab_key == "archive-immich":
+        from_srv = tab_state.get("from-server", "") or config_state.get("server", "")
+        if from_srv:
+            emitter.add_option("from-server", normalize_server_url(from_srv))
+
         if tab_state.get("write-to"):
-            emitter.add_option("write-to", tab_state["write-to"])
+            emitter.add_option("write-to-folder", tab_state["write-to"])
 
         if tab_state.get("from-date-range"):
             emitter.add_option("from-date-range", tab_state["from-date-range"])

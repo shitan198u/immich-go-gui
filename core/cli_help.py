@@ -37,16 +37,20 @@ def help_name_for_tab(tab_key: str) -> str:
     return mapping.get(tab_key, tab_key.replace("-", "_"))
 
 
-def load_help_fixture(version: str = "0.32.0", help_name: str = "root") -> set[str]:
+def load_help_fixture(version: str = "0.32.0", help_name: str = "root", raise_on_missing: bool = False) -> set[str]:
     """Loads a captured help text fixture and returns its set of parsed flag names."""
     base_dir = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "cli_help" / version
     fixture_file = base_dir / f"{help_name}.txt"
 
     if not fixture_file.exists():
+        if raise_on_missing:
+            raise FileNotFoundError(f"Help fixture '{help_name}' not found for version '{version}' at {fixture_file}")
         return set()
 
     try:
         text = fixture_file.read_text(encoding="utf-8")
         return parse_help_flags(text)
-    except Exception:
+    except Exception as e:
+        if raise_on_missing:
+            raise e
         return set()

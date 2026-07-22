@@ -12,8 +12,8 @@
   "expected_argv": [
     "archive",
     "from-immich",
-    "--server=http://localhost:2283",
-    "--write-to=/backup/zip",
+    "--from-server=http://localhost:2283",
+    "--write-to-folder=/backup/zip",
     "--from-date-range=2023",
     "--from-albums=ArchiveAlbum"
   ]

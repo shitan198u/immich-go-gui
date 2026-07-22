@@ -10,7 +10,7 @@
   "expected_argv": [
     "archive",
     "from-folder",
-    "--write-to=/backup/dest",
+    "--write-to-folder=/backup/dest",
     "--date-range=2024",
     "--include-type=image",
     "/source/photos"

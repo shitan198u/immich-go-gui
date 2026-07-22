@@ -30,11 +30,20 @@ def check_fixtures(version: str = TESTED_IMMICH_GO_VERSION) -> CompatibilityRepo
     matrix_entry = COMPATIBILITY_MATRIX.get(version, {})
     report.notes = matrix_entry.get("notes", "")
 
+    fixtures_dir = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "cli_help" / version
+    if not fixtures_dir.exists():
+        report.supported = False
+        report.notes += f"\n[Error] CLI help fixtures directory for version {version} does not exist."
+        return report
+
     for tab_key, gui_allowed in TAB_ALLOWED_FLAGS.items():
         fixture_name = help_name_for_tab(tab_key)
         fixture_flags = load_help_fixture(version, fixture_name)
 
         if not fixture_flags:
+            report.supported = False
+            report.missing_flags_by_tab[tab_key] = {"[MISSING_HELP_FIXTURE]"}
+            report.notes += f"\n[Warning] Missing or empty help fixture for tab '{tab_key}' ({fixture_name}.txt)"
             continue
 
         missing = set(gui_allowed) - fixture_flags

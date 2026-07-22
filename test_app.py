@@ -462,7 +462,7 @@ def test_build_command_archive_folder(gui):
     assert "archive" in opts
     assert "from-folder" in opts
     assert "--server=http://local:2283" not in opts
-    assert "--write-to=/dest/folder" in opts
+    assert "--write-to-folder=/dest/folder" in opts
     assert "--date-range=2024-01-01,2024-02-01" in opts
     assert "/source/folder" in opts
     assert "--dry-run" in opts
@@ -479,7 +479,7 @@ def test_build_command_archive_immich(gui):
     opts = gui.build_command(dry_run=False)
     assert "archive" in opts
     assert "from-immich" in opts
-    assert "--write-to=/dest/folder" in opts
+    assert "--write-to-folder=/dest/folder" in opts
     assert "--from-date-range=2024-01-01,2024-02-01" in opts
     assert "--from-albums=ArchiveAlbum" in opts
     assert "--dry-run" not in opts
@@ -639,7 +639,7 @@ def test_golden_archive_folder(gui):
 
     assert plan.argv == [
         "archive", "from-folder",
-        "--write-to=/organized",
+        "--write-to-folder=/organized",
         "--date-range=2024",
         "--dry-run",
         "/messy/photos",
@@ -715,8 +715,8 @@ def test_golden_archive_immich(gui):
 
     assert plan.argv == [
         "archive", "from-immich",
-        "--server=http://localhost:2283",
-        "--write-to=/backup/photos",
+        "--from-server=http://localhost:2283",
+        "--write-to-folder=/backup/photos",
         "--from-date-range=2024",
         "--from-albums=Family",
     ]

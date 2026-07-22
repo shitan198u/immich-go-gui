@@ -124,42 +124,84 @@ class FlagDef:
 # Per-tab allowed flags registry based on captured immich-go CLI help.
 TAB_ALLOWED_FLAGS: dict[str, frozenset[str]] = {
     "upload-folder": frozenset({
-        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks", "overwrite",
-        "pause-immich-jobs", "on-errors", "session-tag", "tag", "device-uuid", "api-trace", "log-level",
-        "recursive", "date-from-name", "ignore-sidecar-files", "include-extensions", "exclude-extensions",
-        "include-type", "ban-file", "date-range", "folder-as-album", "folder-as-tags", "album-path-joiner",
-        "album-picasa", "into-album", "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg", "manage-epson-fastfoto"
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks",
+        "overwrite", "pause-immich-jobs", "on-errors", "session-tag", "tag",
+        "device-uuid", "api-trace", "log-level", "time-zone",
+
+        "recursive", "date-from-name", "ignore-sidecar-files",
+        "include-extensions", "exclude-extensions", "include-type",
+        "ban-file", "date-range", "folder-as-album", "folder-as-tags",
+        "album-path-joiner", "into-album",
+
+        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg",
+        "manage-epson-fastfoto",
     }),
+
     "upload-gp": frozenset({
-        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks", "overwrite",
-        "pause-immich-jobs", "on-errors", "session-tag", "tag", "device-uuid", "api-trace", "log-level",
-        "include-extensions", "exclude-extensions", "ban-file", "date-range",
-        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg", "include-untitled-albums"
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks",
+        "overwrite", "pause-immich-jobs", "on-errors", "session-tag", "tag",
+        "device-uuid", "api-trace", "log-level", "time-zone",
+
+        "ban-file", "date-range", "exclude-extensions", "include-extensions",
+        "from-album-name", "include-archived", "include-partner",
+        "include-trashed", "include-type", "include-unmatched",
+        "include-untitled-albums", "partner-shared-album", "people-tag",
+        "sync-albums", "takeout-tag",
+
+        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg",
+        "manage-epson-fastfoto",
     }),
+
     "upload-immich": frozenset({
-        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks", "overwrite",
-        "pause-immich-jobs", "on-errors", "session-tag", "tag", "device-uuid", "api-trace", "log-level",
-        "from-server", "from-skip-verify-ssl", "from-client-timeout", "from-include-type",
-        "from-include-extensions", "from-exclude-extensions", "from-partners", "from-time-zone",
-        "from-no-album", "from-albums", "from-date-range", "from-device-uuid", "from-api-trace",
-        "from-dry-run", "from-pause-immich-jobs", "from-favorite", "from-archived", "from-trash",
-        "from-minimal-rating", "from-people", "from-tags", "from-city", "from-state", "from-country",
-        "from-make", "from-model"
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks",
+        "overwrite", "pause-immich-jobs", "on-errors", "session-tag", "tag",
+        "device-uuid", "api-trace", "log-level", "time-zone",
+
+        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg",
+        "manage-epson-fastfoto",
+
+        "from-server", "from-skip-verify-ssl", "from-client-timeout",
+        "from-include-type", "from-include-extensions", "from-exclude-extensions",
+        "from-partners", "from-time-zone", "from-no-album", "from-albums",
+        "from-date-range", "from-device-uuid", "from-api-trace",
+        "from-dry-run", "from-pause-immich-jobs",
+
+        "from-favorite", "from-archived", "from-trash",
+        "from-minimal-rating", "from-people", "from-tags",
+        "from-city", "from-state", "from-country",
+        "from-make", "from-model",
     }),
+
     "archive-folder": frozenset({
-        "write-to", "dry-run", "log-level", "include-extensions", "exclude-extensions",
-        "include-type", "ban-file", "ignore-sidecar-files", "date-from-name", "recursive", "date-range"
+        "write-to-folder", "dry-run", "log-level", "concurrent-tasks", "on-errors",
+
+        "album-path-joiner", "ban-file", "date-from-name", "date-range",
+        "exclude-extensions", "folder-as-album", "folder-as-tags",
+        "ignore-sidecar-files", "include-extensions", "include-type",
+        "into-album", "recursive",
     }),
+
     "archive-immich": frozenset({
-        "server", "skip-verify-ssl", "client-timeout", "dry-run", "log-level", "write-to",
-        "from-favorite", "from-archived", "from-trash", "from-minimal-rating", "from-people",
-        "from-tags", "from-city", "from-state", "from-country", "from-make", "from-model",
-        "from-include-type", "from-include-extensions", "from-exclude-extensions", "from-partners",
-        "from-time-zone", "from-no-album", "from-date-range", "from-albums"
+        "write-to-folder", "dry-run", "log-level", "concurrent-tasks", "on-errors",
+
+        "from-server", "from-skip-verify-ssl", "from-client-timeout",
+        "from-api-trace", "from-dry-run", "from-pause-immich-jobs",
+
+        "from-albums", "from-archived", "from-city", "from-country",
+        "from-date-range", "from-device-uuid", "from-exclude-extensions",
+        "from-favorite", "from-include-extensions", "from-include-type",
+        "from-make", "from-minimal-rating", "from-model", "from-no-album",
+        "from-partners", "from-people", "from-state", "from-tags",
+        "from-time-zone", "from-trash",
     }),
+
     "stack": frozenset({
         "server", "skip-verify-ssl", "client-timeout", "dry-run", "log-level",
-        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg"
+        "concurrent-tasks", "on-errors",
+
+        "api-trace", "date-range", "device-uuid",
+        "manage-burst", "manage-epson-fastfoto", "manage-heic-jpeg",
+        "manage-raw-jpeg", "pause-immich-jobs", "time-zone",
     }),
 }
 
