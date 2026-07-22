@@ -1121,3 +1121,71 @@ def test_admin_api_key_environment_passing():
 
     assert "super_admin_key" not in plan.argv
     assert plan.env.get("IMMICH_GO_UPLOAD_ADMIN_API_KEY") == "super_admin_key"
+
+
+# ==============================================================================
+# SECTION 5: USER PROFILES & FORM-STATE TESTS
+# ==============================================================================
+
+from core.profile_manager import (
+    list_profiles,
+    active_profile_name,
+    set_active_profile_name,
+    create_profile,
+    rename_profile,
+    duplicate_profile,
+    delete_profile,
+    validate_profile_name,
+)
+
+
+def test_profile_manager_lifecycle(tmp_path, monkeypatch):
+    cfg_dir = tmp_path / "config_dir"
+    monkeypatch.setenv("IMMICH_GO_GUI_CONFIG", str(cfg_dir / "config.toml"))
+
+    profiles = list_profiles()
+    assert len(profiles) >= 1
+    assert active_profile_name() == "default"
+
+    # Create new profile
+    pinfo = create_profile("work")
+    assert pinfo.name == "work"
+
+    all_p = [p.name for p in list_profiles()]
+    assert "work" in all_p
+
+    # Set active
+    set_active_profile_name("work")
+    assert active_profile_name() == "work"
+
+    # Duplicate
+    dup = duplicate_profile("work", "work_copy")
+    assert dup.name == "work_copy"
+    assert "work_copy" in [p.name for p in list_profiles()]
+
+    # Rename
+    rename_profile("work_copy", "work_renamed")
+    assert "work_renamed" in [p.name for p in list_profiles()]
+    assert "work_copy" not in [p.name for p in list_profiles()]
+
+    # Delete
+    delete_profile("work_renamed")
+    assert "work_renamed" not in [p.name for p in list_profiles()]
+
+
+def test_profile_name_validation():
+    valid, err = validate_profile_name("work_profile-1")
+    assert valid is True
+
+    valid, err = validate_profile_name("../bad_path")
+    assert valid is False
+
+    valid, err = validate_profile_name("")
+    assert valid is False
+
+
+def test_collect_form_state_excludes_secrets(gui):
+    state = gui.collect_form_state()
+    for tab_name, tab_dict in state.items():
+        for secret_key in ("api_key", "from-api-key", "admin_api_key"):
+            assert secret_key not in tab_dict

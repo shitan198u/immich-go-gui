@@ -63,6 +63,11 @@ from core.validation import (
     clean_date_range, normalize_extensions_csv, normalize_list_csv,
     expand_source_paths, validate_destination_folder
 )
+from core.profile_manager import (
+    list_profiles, active_profile_name, set_active_profile_name,
+    create_profile, rename_profile, duplicate_profile, delete_profile,
+    validate_profile_name, ensure_default_profile
+)
 
 
 # ==========================================================
@@ -1760,6 +1765,10 @@ class ImmichGoGUI(QMainWindow):
     def update_header_crumb(self, text):
         self.lbl_crumb.setText(text)
 
+    def update_window_title(self):
+        active = active_profile_name()
+        self.setWindowTitle(f"Immich Go GUI — {active}")
+
     def create_menu_bar(self):
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("File")
@@ -1769,13 +1778,224 @@ class ImmichGoGUI(QMainWindow):
         load_action = QAction("Load Configuration", self)
         load_action.triggered.connect(self.load_configuration)
         file_menu.addAction(load_action)
+
+        reset_action = QAction("Reset Run State", self)
+        reset_action.triggered.connect(self.on_reset_run_state_clicked)
+        file_menu.addAction(reset_action)
+
         exit_action = QAction("Exit", self)
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
+
+        self.profiles_menu = menu_bar.addMenu("Profiles")
+        self.update_profiles_menu()
+
         help_menu = menu_bar.addMenu("Help")
         about_action = QAction("About Immich-Go", self)
         about_action.triggered.connect(self.open_github_link)
         help_menu.addAction(about_action)
+
+    def on_reset_run_state_clicked(self):
+        reply = QMessageBox.question(
+            self,
+            "Reset Run State",
+            "Are you sure you want to reset all active run locks and clear running status?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            from core.process_tracker import reset_all_locks
+            reset_all_locks()
+            self.lbl_running_warning.setVisible(False)
+            self.update_status()
+
+    def update_profiles_menu(self):
+        if not hasattr(self, "profiles_menu"):
+            return
+        self.profiles_menu.clear()
+
+        new_act = QAction("New Profile…", self)
+        new_act.triggered.connect(self.on_new_profile_clicked)
+        self.profiles_menu.addAction(new_act)
+
+        dup_act = QAction("Duplicate Active Profile…", self)
+        dup_act.triggered.connect(self.on_duplicate_profile_clicked)
+        self.profiles_menu.addAction(dup_act)
+
+        ren_act = QAction("Rename Active Profile…", self)
+        ren_act.triggered.connect(self.on_rename_profile_clicked)
+        self.profiles_menu.addAction(ren_act)
+
+        del_act = QAction("Delete Active Profile…", self)
+        del_act.triggered.connect(self.on_delete_profile_clicked)
+        self.profiles_menu.addAction(del_act)
+
+        self.profiles_menu.addSeparator()
+
+        active = active_profile_name()
+        for pinfo in list_profiles():
+            act = QAction(pinfo.name, self)
+            act.setCheckable(True)
+            if pinfo.name == active:
+                act.setChecked(True)
+            act.triggered.connect(lambda checked, name=pinfo.name: self.switch_profile(name))
+            self.profiles_menu.addAction(act)
+
+    def switch_profile(self, target_name: str):
+        active = active_profile_name()
+        if target_name == active:
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Switch Profile",
+            f"Save changes to current profile '{active}' before switching?",
+            QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Save,
+        )
+
+        if reply == QMessageBox.StandardButton.Cancel:
+            self.update_profiles_menu()
+            return
+        elif reply == QMessageBox.StandardButton.Save:
+            self.save_configuration()
+
+        try:
+            set_active_profile_name(target_name)
+            self.load_configuration()
+            self.update_profiles_menu()
+            self.update_window_title()
+        except Exception as e:
+            QMessageBox.critical(self, "Error Switching Profile", str(e))
+
+    def on_new_profile_clicked(self):
+        from PySide6.QtWidgets import QInputDialog
+        name, ok = QInputDialog.getText(self, "New Profile", "Enter profile name:")
+        if ok and name.strip():
+            clean_n = name.strip()
+            existing = [p.name for p in list_profiles()]
+            valid, err = validate_profile_name(clean_n, existing)
+            if not valid:
+                QMessageBox.warning(self, "Invalid Name", err or "Invalid profile name.")
+                return
+            try:
+                create_profile(clean_n)
+                self.switch_profile(clean_n)
+            except Exception as e:
+                QMessageBox.critical(self, "Error Creating Profile", str(e))
+
+    def on_duplicate_profile_clicked(self):
+        from PySide6.QtWidgets import QInputDialog
+        active = active_profile_name()
+        name, ok = QInputDialog.getText(
+            self, "Duplicate Profile", f"Enter name for duplicate of '{active}':"
+        )
+        if ok and name.strip():
+            clean_n = name.strip()
+            existing = [p.name for p in list_profiles()]
+            valid, err = validate_profile_name(clean_n, existing)
+            if not valid:
+                QMessageBox.warning(self, "Invalid Name", err or "Invalid profile name.")
+                return
+            try:
+                duplicate_profile(active, clean_n)
+                self.switch_profile(clean_n)
+            except Exception as e:
+                QMessageBox.critical(self, "Error Duplicating Profile", str(e))
+
+    def on_rename_profile_clicked(self):
+        from PySide6.QtWidgets import QInputDialog
+        active = active_profile_name()
+        if active == "default":
+            QMessageBox.warning(self, "Cannot Rename", "The 'default' profile cannot be renamed.")
+            return
+
+        name, ok = QInputDialog.getText(
+            self, "Rename Profile", f"Enter new name for profile '{active}':", text=active
+        )
+        if ok and name.strip() and name.strip() != active:
+            clean_n = name.strip()
+            existing = [p.name for p in list_profiles() if p.name != active]
+            valid, err = validate_profile_name(clean_n, existing)
+            if not valid:
+                QMessageBox.warning(self, "Invalid Name", err or "Invalid profile name.")
+                return
+            try:
+                rename_profile(active, clean_n)
+                self.update_profiles_menu()
+                self.update_window_title()
+            except Exception as e:
+                QMessageBox.critical(self, "Error Renaming Profile", str(e))
+
+    def on_delete_profile_clicked(self):
+        active = active_profile_name()
+        if active == "default":
+            QMessageBox.warning(self, "Cannot Delete", "The 'default' profile cannot be deleted.")
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Delete Profile",
+            f"Are you sure you want to permanently delete profile '{active}' and all its saved settings?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                delete_profile(active)
+                self.load_configuration()
+                self.update_profiles_menu()
+                self.update_window_title()
+            except Exception as e:
+                QMessageBox.critical(self, "Error Deleting Profile", str(e))
+
+    def collect_form_state(self) -> dict:
+        secret_keys = {"api_key", "from-api-key", "admin_api_key", "from-admin-api-key", "target-server"}
+        state = {}
+        for tab_key, widgets in self.inputs.items():
+            tab_dict = {}
+            for k, widget in widgets.items():
+                if k in secret_keys:
+                    continue
+                if isinstance(widget, QLineEdit):
+                    tab_dict[k] = widget.text()
+                elif isinstance(widget, QPlainTextEdit):
+                    tab_dict[k] = widget.toPlainText()
+                elif isinstance(widget, QCheckBox):
+                    tab_dict[k] = widget.isChecked()
+                elif isinstance(widget, QComboBox):
+                    tab_dict[k] = widget.currentText()
+                elif isinstance(widget, QSpinBox):
+                    tab_dict[k] = widget.value()
+            if tab_dict:
+                state[tab_key] = tab_dict
+        return state
+
+    def apply_form_state(self, state: dict) -> None:
+        if not isinstance(state, dict):
+            return
+        secret_keys = {"api_key", "from-api-key", "admin_api_key", "from-admin-api-key", "target-server"}
+        for tab_key, tab_dict in state.items():
+            if tab_key in self.inputs and isinstance(tab_dict, dict):
+                for k, val in tab_dict.items():
+                    if k in secret_keys:
+                        continue
+                    widget = self.inputs[tab_key].get(k)
+                    if widget is None:
+                        continue
+                    try:
+                        widget.blockSignals(True)
+                        if isinstance(widget, QLineEdit) and isinstance(val, str):
+                            widget.setText(val)
+                        elif isinstance(widget, QPlainTextEdit) and isinstance(val, str):
+                            widget.setPlainText(val)
+                        elif isinstance(widget, QCheckBox) and isinstance(val, bool):
+                            widget.setChecked(val)
+                        elif isinstance(widget, QComboBox) and isinstance(val, str):
+                            widget.setCurrentText(val)
+                        elif isinstance(widget, QSpinBox) and isinstance(val, (int, float)):
+                            widget.setValue(int(val))
+                    finally:
+                        widget.blockSignals(False)
 
     def browse_folder_upload(self):
         folder = QFileDialog.getExistingDirectory(
@@ -2600,8 +2820,16 @@ class ImmichGoGUI(QMainWindow):
             if idx >= 0:
                 self.inputs["config"]["secret_provider"].setCurrentIndex(idx)
 
+        prof_name = getattr(self.app_config, "profile_name", "default")
+        self.inputs["config"]["api_key"].setText(
+            get_secret_with_fallback(
+                profile_name=prof_name,
+                key="api_key",
+                provider=self.app_config.secrets_provider,
+            )
+        )
+
         if "admin_api_key" in self.inputs["config"]:
-            prof_name = getattr(self.app_config, "profile_name", "default")
             self.inputs["config"]["admin_api_key"].setText(
                 get_secret_with_fallback(
                     profile_name=prof_name,
@@ -2609,6 +2837,51 @@ class ImmichGoGUI(QMainWindow):
                     provider=self.app_config.secrets_provider,
                 )
             )
+
+        if "allow_untested_updates" in self.inputs["config"]:
+            self.inputs["config"]["allow_untested_updates"].setChecked(
+                self.app_config.allow_untested_updates
+            )
+
+        if "preferred_terminal" in self.inputs["config"]:
+            self.inputs["config"]["preferred_terminal"].setCurrentText(
+                self.app_config.preferred_terminal
+            )
+
+        if "client_timeout" in self.inputs["config"]:
+            self.inputs["config"]["client_timeout"].setValue(
+                self.app_config.client_timeout_minutes
+            )
+
+        if "concurrent" in self.inputs["config"] and self.app_config.concurrent_tasks > 0:
+            self.inputs["config"]["concurrent"].setValue(
+                self.app_config.concurrent_tasks
+            )
+
+        if "device_uuid" in self.inputs["config"]:
+            self.inputs["config"]["device_uuid"].setText(
+                self.app_config.device_uuid
+            )
+
+        if "on_errors" in self.inputs["config"]:
+            if self.app_config.on_errors == "custom":
+                self.inputs["config"]["on_errors"].setCurrentText("custom…")
+            else:
+                self.inputs["config"]["on_errors"].setCurrentText(
+                    self.app_config.on_errors
+                )
+
+        if "on_errors_tolerance" in self.inputs["config"]:
+            self.inputs["config"]["on_errors_tolerance"].setValue(
+                self.app_config.on_errors_tolerance
+            )
+
+        if "pause_jobs" in self.inputs["config"]:
+            self.inputs["config"]["pause_jobs"].setChecked(
+                self.app_config.pause_immich_jobs
+            )
+
+        self.apply_form_state(self.app_config.form_state)
 
         self.theme_mode = normalize_theme_mode(self.app_config.theme_mode)
 
@@ -2618,6 +2891,7 @@ class ImmichGoGUI(QMainWindow):
             self.theme_mode_combo.blockSignals(False)
 
         self.apply_theme(self.theme_mode)
+        self.update_window_title()
 
     def save_configuration(self):
         self.app_config.server_url = self.inputs["config"]["server"].text()
@@ -2627,6 +2901,16 @@ class ImmichGoGUI(QMainWindow):
 
         if "secret_provider" in self.inputs["config"]:
             self.app_config.secrets_provider = self.inputs["config"]["secret_provider"].currentData()
+
+        if "allow_untested_updates" in self.inputs["config"]:
+            self.app_config.allow_untested_updates = (
+                self.inputs["config"]["allow_untested_updates"].isChecked()
+            )
+
+        if "preferred_terminal" in self.inputs["config"]:
+            self.app_config.preferred_terminal = (
+                self.inputs["config"]["preferred_terminal"].currentText()
+            )
 
         if "client_timeout" in self.inputs["config"]:
             self.app_config.client_timeout_minutes = (
@@ -2663,6 +2947,7 @@ class ImmichGoGUI(QMainWindow):
         if hasattr(self, "theme_mode_combo"):
             self.app_config.theme_mode = self.theme_mode_combo.currentText()
 
+        self.app_config.form_state = self.collect_form_state()
         save_config(self.app_config)
 
         prof_name = getattr(self.app_config, "profile_name", "default")
