@@ -732,3 +732,143 @@ def test_golden_archive_immich(gui):
     ]
     assert plan.env.get("IMMICH_GO_ARCHIVE_API_KEY") == "test-key"
     assert not any("--api-key" in p for p in plan.argv)
+
+
+# ==========================================================
+# PURE CORE MODULE UNIT TESTS (NO QT REQUIRED)
+# ==========================================================
+
+from immichgo_binary import BinaryManager, get_version_support
+from immichgo_commands import build_plan_from_state
+from immichgo_config import load_config, save_config
+from immichgo_models import AppConfig, VersionSupport
+
+
+def test_build_plan_from_state_upload_folder_golden():
+    config_state = {
+        "server": "http://localhost:2283",
+        "api_key": "test-key",
+        "skip-ssl": False,
+        "client_timeout": 20,
+        "concurrent": 8,
+        "concurrent_default": 8,
+        "device_uuid": "",
+        "on_errors": "stop",
+        "on_errors_tolerance": 10,
+        "pause_jobs": True,
+    }
+
+    tab_state = {
+        "path": "/photos",
+        "include-type": "all",
+        "folder-album": "NONE",
+        "into-album": "",
+        "manage-burst": "Stack",
+        "manage-raw-jpeg": "NoStack",
+        "manage-heic-jpeg": "NoStack",
+        "date-range": "",
+        "include-ext": "",
+        "exclude-ext": "",
+        "ban-file": "",
+        "ignore-sidecar": False,
+        "date-from-name": True,
+        "tag": "",
+        "session-tag": False,
+        "folder-tags": False,
+        "on-errors": "stop",
+        "overwrite": False,
+        "pause-jobs": True,
+        "log-level": "INFO",
+        "api-trace": False,
+    }
+
+    plan = build_plan_from_state(
+        tab_key="upload-folder",
+        config_state=config_state,
+        tab_state=tab_state,
+        binary_path="./immich-go",
+        dry_run=False,
+        base_env={},
+    )
+
+    assert plan.argv == [
+        "upload",
+        "from-folder",
+        "--server=http://localhost:2283",
+        "--manage-burst=Stack",
+        "/photos",
+    ]
+
+    assert plan.env.get("IMMICH_GO_UPLOAD_API_KEY") == "test-key"
+    assert not any("--api-key" in part for part in plan.argv)
+
+
+def test_version_support_tested():
+    assert get_version_support("0.32.0") == VersionSupport.TESTED
+    assert get_version_support("v0.32.0") == VersionSupport.TESTED
+
+
+def test_version_support_unsupported_old():
+    assert get_version_support("0.31.0") == VersionSupport.UNSUPPORTED_OLD
+
+
+def test_version_support_untested_new():
+    assert get_version_support("0.33.0") == VersionSupport.UNTESTED_NEW
+
+
+def test_update_decision_allows_tested_version():
+    manager = BinaryManager()
+
+    decision = manager.evaluate_update(
+        current_version="0.31.0",
+        latest_version="0.32.0",
+        allow_untested=False,
+        release_notes="",
+    )
+
+    assert decision.allowed is True
+    assert decision.requires_confirmation is True
+
+
+def test_update_decision_blocks_untested_by_default():
+    manager = BinaryManager()
+
+    decision = manager.evaluate_update(
+        current_version="0.32.0",
+        latest_version="0.33.0",
+        allow_untested=False,
+        release_notes="",
+    )
+
+    assert decision.allowed is False
+
+
+def test_update_decision_allows_untested_when_enabled():
+    manager = BinaryManager()
+
+    decision = manager.evaluate_update(
+        current_version="0.32.0",
+        latest_version="0.33.0",
+        allow_untested=True,
+        release_notes="",
+    )
+
+    assert decision.allowed is True
+    assert decision.requires_confirmation is True
+
+
+def test_config_roundtrip(tmp_path, monkeypatch):
+    cfg_file = tmp_path / "config.toml"
+    monkeypatch.setenv("IMMICH_GO_GUI_CONFIG", str(cfg_file))
+
+    cfg = AppConfig()
+    cfg.server_url = "http://localhost:2283"
+    cfg.skip_ssl = True
+    cfg.client_timeout_minutes = 60
+
+    save_config(cfg)
+    loaded = load_config()
+
+    assert loaded.server_url == "http://localhost:2283"
+    assert loaded.skip_ssl is True
+    assert loaded.client_timeout_minutes == 60
