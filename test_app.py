@@ -1440,3 +1440,22 @@ def test_plan_errors_surfaced_in_gui(gui):
             msg = mock_crit.call_args[0][2]
             assert "Command Build Errors" in title
             assert "Invalid flag '--unsupported'" in msg
+
+
+def test_running_process_boolean_state(gui):
+    from PySide6.QtWidgets import QMessageBox
+
+    gui.active_lock_path = None
+    gui.running_process = False
+    gui.update_status()
+    assert gui.lbl_running_warning.isHidden() is True
+
+    gui.running_process = True
+    gui.update_status()
+    assert gui.lbl_running_warning.isHidden() is False
+
+    with patch("PySide6.QtWidgets.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes):
+        gui.on_reset_run_state_clicked()
+        assert gui.running_process is False
+        assert gui.active_lock_path is None
+        assert gui.lbl_running_warning.isHidden() is True

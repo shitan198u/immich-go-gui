@@ -475,6 +475,7 @@ class ImmichGoGUI(QMainWindow):
         cleanup_stale_locks()
         active_locks = scan_locks()
         self.active_lock_path = active_locks[0].lock_path if active_locks else None
+        self.running_process = bool(self.active_lock_path)
         if self.active_lock_path:
             self._start_process_timer()
 
@@ -1815,6 +1816,10 @@ class ImmichGoGUI(QMainWindow):
         if reply == QMessageBox.StandardButton.Yes:
             from core.process_tracker import reset_all_locks
             reset_all_locks()
+            self.active_lock_path = None
+            self.running_process = False
+            if hasattr(self, "check_process_timer"):
+                self.check_process_timer.stop()
             self.lbl_running_warning.setVisible(False)
             self.update_status()
 
@@ -2220,7 +2225,8 @@ class ImmichGoGUI(QMainWindow):
             QMessageBox.warning(self, "Test Connection Failed", res.message)
 
     def update_status(self):
-        is_running = getattr(self, "running_process", None) is not None
+        active_lock = getattr(self, "active_lock_path", None)
+        is_running = (active_lock is not None and is_lock_active(active_lock)) or (getattr(self, "running_process", False) is True)
         validation = self.validate_inputs()
 
         if is_running:
