@@ -24,6 +24,8 @@ class RunLock:
     command_summary: str
     binary_path: str
     shell_pid: int | None = None
+    terminal_pid: int | None = None
+    last_seen: str | None = None
 
 
 def lock_dir() -> Path:
@@ -42,14 +44,17 @@ def create_lock(
     run_id = uuid.uuid4().hex[:8]
     l_path = lock_dir() / f"run_{run_id}.lock"
 
+    now_iso = datetime.now(timezone.utc).isoformat()
     data = {
         "run_id": run_id,
         "gui_pid": os.getpid(),
-        "started_at": datetime.now(timezone.utc).isoformat(),
+        "started_at": now_iso,
         "tab_key": tab_key,
         "command_summary": command_summary,
         "binary_path": binary_path,
         "shell_pid": None,
+        "terminal_pid": None,
+        "last_seen": now_iso,
     }
 
     text = json.dumps(data, indent=2)
@@ -57,12 +62,31 @@ def create_lock(
     return l_path
 
 
+def update_lock(lock_path: Path, **fields) -> None:
+    """Updates specific fields in a lock JSON file."""
+    p = Path(lock_path)
+    if not p.exists():
+        return
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        for k, v in fields.items():
+            data[k] = v
+        data["last_seen"] = datetime.now(timezone.utc).isoformat()
+        p.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
 def release_lock(lock_path: Path) -> None:
-    """Safely removes a lock file."""
+    """Safely removes a lock file and its sidecars (.pid, .bat, .heartbeat)."""
     try:
         p = Path(lock_path)
         if p.exists():
             p.unlink()
+        for ext in [".pid", ".bat", ".heartbeat"]:
+            s = p.with_suffix(ext)
+            if s.exists():
+                s.unlink()
     except Exception:
         pass
 
@@ -84,27 +108,87 @@ def read_lock(lock_path: Path) -> RunLock | None:
             command_summary=data.get("command_summary", ""),
             binary_path=data.get("binary_path", ""),
             shell_pid=data.get("shell_pid"),
+            terminal_pid=data.get("terminal_pid"),
+            last_seen=data.get("last_seen"),
         )
     except Exception:
         return None
 
 
+def _is_process_alive(pid: int | None) -> bool:
+    """Checks if a given process ID is active on current OS."""
+    if not pid or pid <= 0:
+        return False
+    if sys.platform.startswith("win"):
+        try:
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+            handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+            if handle:
+                exit_code = ctypes.c_ulong()
+                kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code))
+                kernel32.CloseHandle(handle)
+                STILL_ACTIVE = 259
+                return exit_code.value == STILL_ACTIVE
+            return False
+        except Exception:
+            return False
+    else:
+        try:
+            os.kill(pid, 0)
+            return True
+        except (OSError, ProcessLookupError):
+            return False
+
+
 def is_lock_active(lock_path: Path) -> bool:
-    """Checks whether a lock is active or stale."""
-    lock = read_lock(lock_path)
+    """Checks whether a lock is active or stale using PID, heartbeat, or timestamp grace."""
+    p = Path(lock_path)
+    lock = read_lock(p)
     if lock is None:
         return False
 
-    # Check if shell_pid is recorded and check process status on POSIX
-    if lock.shell_pid and os.name == "posix":
+    # 1. Check sidecar .pid file or lock.shell_pid
+    pid_file = p.with_suffix(".pid")
+    shell_pid = lock.shell_pid
+    if pid_file.exists():
         try:
-            os.kill(lock.shell_pid, 0)
-            return True
-        except OSError:
-            return False
+            pid_val = int(pid_file.read_text(encoding="utf-8").strip())
+            if pid_val > 0:
+                shell_pid = pid_val
+        except (ValueError, OSError):
+            pass
 
-    # If lock file exists and is readable, treat as active
-    return True
+    if shell_pid and _is_process_alive(shell_pid):
+        return True
+
+    # 2. Check terminal_pid
+    if lock.terminal_pid and _is_process_alive(lock.terminal_pid):
+        return True
+
+    # 3. Check sidecar .heartbeat file
+    hb_file = p.with_suffix(".heartbeat")
+    if hb_file.exists():
+        try:
+            mtime = hb_file.stat().st_mtime
+            age = (datetime.now().timestamp() - mtime)
+            if age < 60:
+                return True
+        except OSError:
+            pass
+
+    # 4. Grace period for freshly created lock (< 60 seconds)
+    if lock.started_at:
+        try:
+            start_dt = datetime.fromisoformat(lock.started_at)
+            now = datetime.now(timezone.utc)
+            if (now - start_dt).total_seconds() < 60:
+                return True
+        except ValueError:
+            pass
+
+    return False
 
 
 def scan_locks() -> list[RunLock]:

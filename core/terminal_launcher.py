@@ -12,6 +12,8 @@ import subprocess
 import sys
 import tempfile
 
+from .process_tracker import update_lock
+
 
 @dataclass
 class LaunchResult:
@@ -40,7 +42,6 @@ def launch_external_terminal(
         # Windows console execution
         try:
             cmd_str = subprocess.list2cmdline(command)
-            bat_dir = l_path.parent
             bat_path = l_path.with_suffix(".bat")
             bat_content = (
                 f"@echo off\n"
@@ -48,17 +49,19 @@ def launch_external_terminal(
                 f"{cmd_str}\n"
                 f"set ERR=%ERRORLEVEL%\n"
                 f'del /f "{l_path}" 2>nul\n'
+                f'del /f "{l_path.with_suffix(".bat")}" 2>nul\n'
                 f"echo.\n"
                 f"echo immich-go exited with code %ERR%\n"
             )
             bat_path.write_text(bat_content, encoding="utf-8")
 
             CREATE_NEW_CONSOLE = 0x00000010
-            subprocess.Popen(
+            proc = subprocess.Popen(
                 ["cmd", "/k", str(bat_path)],
                 creationflags=CREATE_NEW_CONSOLE,
                 env=env,
             )
+            update_lock(l_path, terminal_pid=proc.pid)
             return LaunchResult(ok=True, message="External terminal launched successfully.")
         except Exception as e:
             return LaunchResult(ok=False, message=f"Failed to launch Windows terminal: {str(e)}")
@@ -87,6 +90,9 @@ def launch_external_terminal(
             "IMMICH_GO_STACK_SERVER",
             "IMMICH_GO_STACK_API_KEY",
             "IMMICH_GO_STACK_ADMIN_API_KEY",
+            "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER",
+            "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_KEY",
+            "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_ADMIN_API_KEY",
         ]
 
         env_lines = []
@@ -101,15 +107,27 @@ def launch_external_terminal(
             except OSError:
                 pass
 
+        pid_file_path = l_path.with_suffix(".pid")
+        hb_file_path = l_path.with_suffix(".heartbeat")
+
         cmd_quoted = " ".join(shlex.quote(c) for c in command)
         run_sh_content = (
             "#!/usr/bin/env bash\n"
+            f"echo $$ > {shlex.quote(str(pid_file_path))}\n"
+            f"(\n"
+            f"  while true; do\n"
+            f"    touch {shlex.quote(str(hb_file_path))} 2>/dev/null\n"
+            f"    sleep 10\n"
+            f"  done\n"
+            f") &\n"
+            f"HB_PID=$!\n\n"
             f"set -a\n"
             f"source {shlex.quote(str(env_sh_path))}\n"
             f"set +a\n\n"
             f"cd {shlex.quote(str(temp_dir))}\n\n"
             f"cleanup() {{\n"
-            f"  rm -f {shlex.quote(str(l_path))}\n"
+            f"  kill $HB_PID 2>/dev/null\n"
+            f"  rm -f {shlex.quote(str(pid_file_path))} {shlex.quote(str(hb_file_path))} {shlex.quote(str(l_path))}\n"
             f"  rm -rf {shlex.quote(str(temp_dir))}\n"
             f"}}\n\n"
             f"trap cleanup EXIT INT TERM\n\n"
@@ -131,18 +149,14 @@ def launch_external_terminal(
 
         # macOS execution via osascript
         if sys.platform == "darwin":
-            apple_script = (
-                "on run argv\n"
-                '  tell application "Terminal" to do script (item 1 of argv)\n'
-                "end run"
-            )
-            subprocess.Popen([
+            proc = subprocess.Popen([
                 "osascript",
                 "-e", "on run argv",
                 "-e", 'tell application "Terminal" to do script (item 1 of argv)',
                 "-e", "end run",
                 str(run_sh_path),
             ])
+            update_lock(l_path, terminal_pid=proc.pid)
             return LaunchResult(ok=True, message="Terminal launched on macOS.")
 
         # Linux execution with terminal discovery order
@@ -158,22 +172,21 @@ def launch_external_terminal(
             "xterm",
         ])
 
-        launched = False
+        launched_proc = None
         for term in terminals_to_try:
             if shutil.which(term):
                 try:
                     if term == "gnome-terminal":
-                        subprocess.Popen([term, "--", str(run_sh_path)])
+                        launched_proc = subprocess.Popen([term, "--", str(run_sh_path)])
                     elif term == "xterm":
-                        subprocess.Popen([term, "-hold", "-e", str(run_sh_path)])
+                        launched_proc = subprocess.Popen([term, "-hold", "-e", str(run_sh_path)])
                     else:
-                        subprocess.Popen([term, "-e", str(run_sh_path)])
-                    launched = True
+                        launched_proc = subprocess.Popen([term, "-e", str(run_sh_path)])
                     break
                 except Exception:
                     continue
 
-        if not launched:
+        if not launched_proc:
             # Fallback cleanup on launch failure
             try:
                 if l_path.exists():
@@ -187,6 +200,7 @@ def launch_external_terminal(
                 message="No supported terminal emulator found (tried gnome-terminal, konsole, xfce4-terminal, xterm).",
             )
 
+        update_lock(l_path, terminal_pid=launched_proc.pid)
         return LaunchResult(ok=True, message="Terminal launched successfully.")
 
     except Exception as e:

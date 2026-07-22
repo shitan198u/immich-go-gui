@@ -1459,3 +1459,21 @@ def test_running_process_boolean_state(gui):
         assert gui.running_process is False
         assert gui.active_lock_path is None
         assert gui.lbl_running_warning.isHidden() is True
+
+
+def test_stale_lock_detection_with_pid_and_heartbeat(tmp_path, monkeypatch):
+    monkeypatch.setenv("IMMICH_GO_GUI_CONFIG", str(tmp_path / "config.toml"))
+    from core.process_tracker import create_lock, update_lock, is_lock_active, release_lock
+
+    l_path = create_lock("upload-folder", "upload", "./immich-go")
+    assert is_lock_active(l_path) is True
+
+    # Record dead PID (999999)
+    update_lock(l_path, shell_pid=999999, started_at="2020-01-01T00:00:00+00:00")
+    assert is_lock_active(l_path) is False
+
+    # Record current process PID
+    update_lock(l_path, shell_pid=os.getpid())
+    assert is_lock_active(l_path) is True
+
+    release_lock(l_path)
