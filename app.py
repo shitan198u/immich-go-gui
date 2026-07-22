@@ -293,31 +293,40 @@ def check_release_for_breaking_changes(version: str) -> tuple[bool, str]:
         return True, f"Could not fetch release notes: {e}"
 
 
+_ENV_KEY_MAP = {
+    "upload-folder":   {"server": "IMMICH_GO_UPLOAD_SERVER",
+                        "api_key": "IMMICH_GO_UPLOAD_API_KEY"},
+    "upload-gp":       {"server": "IMMICH_GO_UPLOAD_SERVER",
+                        "api_key": "IMMICH_GO_UPLOAD_API_KEY"},
+    "upload-immich":   {"server": "IMMICH_GO_UPLOAD_SERVER",
+                        "api_key": "IMMICH_GO_UPLOAD_API_KEY"},
+    "archive-immich":  {"server": "IMMICH_GO_ARCHIVE_SERVER",
+                        "api_key": "IMMICH_GO_ARCHIVE_API_KEY"},
+    "stack":           {"server": "IMMICH_GO_STACK_SERVER",
+                        "api_key": "IMMICH_GO_STACK_API_KEY"},
+}
+
+
 def build_environment(tab_key: str, server: str, api_key: str,
                       from_server: str = "", from_api_key: str = "") -> dict:
     """Builds a secure environment dict to pass secrets without CLI exposure."""
     env = os.environ.copy()
-    # FIX #3: removed trailing spaces from env var names
-    if tab_key in {"upload-folder", "upload-gp", "upload-immich"}:
-        if server:
-            env["IMMICH_GO_UPLOAD_SERVER"] = server
-        if api_key:
-            env["IMMICH_GO_UPLOAD_API_KEY"] = api_key
+    mapping = _ENV_KEY_MAP.get(tab_key, {})
+
+    srv_key = mapping.get("server")
+    if srv_key and server:
+        env[srv_key] = server
+
+    api_key_name = mapping.get("api_key")
+    if api_key_name and api_key:
+        env[api_key_name] = api_key
+
     if tab_key == "upload-immich":
         if from_server:
             env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER"] = from_server
         if from_api_key:
             env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY"] = from_api_key
-    if tab_key == "archive-immich":
-        if server:
-            env["IMMICH_GO_ARCHIVE_SERVER"] = server
-        if api_key:
-            env["IMMICH_GO_ARCHIVE_API_KEY"] = api_key
-    if tab_key == "stack":
-        if server:
-            env["IMMICH_GO_STACK_SERVER"] = server
-        if api_key:
-            env["IMMICH_GO_STACK_API_KEY"] = api_key
+
     return env
 
 
@@ -2081,21 +2090,8 @@ class ImmichGoGUI(QMainWindow):
     # COMMAND BUILDER LOGIC
     # ==========================================================
 
-    _ENV_KEY_MAP = {
-        "upload-folder":   {"server": "IMMICH_GO_UPLOAD_SERVER",
-                            "api_key": "IMMICH_GO_UPLOAD_API_KEY"},
-        "upload-gp":       {"server": "IMMICH_GO_UPLOAD_SERVER",
-                            "api_key": "IMMICH_GO_UPLOAD_API_KEY"},
-        "upload-immich":   {"server": "IMMICH_GO_UPLOAD_SERVER",
-                            "api_key": "IMMICH_GO_UPLOAD_API_KEY"},
-        "archive-immich":  {"server": "IMMICH_GO_ARCHIVE_SERVER",
-                            "api_key": "IMMICH_GO_ARCHIVE_API_KEY"},
-        "stack":           {"server": "IMMICH_GO_STACK_SERVER",
-                            "api_key": "IMMICH_GO_STACK_API_KEY"},
-    }
-
     def _env_key_for_tab(self, tab_key: str, kind: str) -> str | None:
-        return self._ENV_KEY_MAP.get(tab_key, {}).get(kind)
+        return _ENV_KEY_MAP.get(tab_key, {}).get(kind)
 
     def build_plan(self, dry_run: bool) -> CommandPlan:
         tab_key = self._get_active_tab_key()
@@ -2864,6 +2860,9 @@ class ImmichGoGUI(QMainWindow):
                 )
                 return
 
+        # Defense-in-depth: strip any secret flags that may have leaked
+        # into argv from legacy code paths. With CommandPlan, secrets are never
+        # added to argv, but this prevents accidental CLI exposure.
         clean_parts = []
         skip_next = False
         for part in command_parts:
