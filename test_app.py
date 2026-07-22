@@ -201,6 +201,16 @@ def gui(qapp):
 
 
 @pytest.fixture(autouse=True)
+def suppress_qt_dialogs(monkeypatch):
+    """Globally suppress modal QMessageBox dialogs during test execution."""
+    from PySide6.QtWidgets import QMessageBox
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.information", MagicMock())
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.warning", MagicMock())
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.critical", MagicMock())
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.question", MagicMock(return_value=QMessageBox.StandardButton.Yes))
+
+
+@pytest.fixture(autouse=True)
 def _reset_shared_config(gui):
     cfg = gui.inputs["config"]
     cfg["skip-ssl"].setChecked(False)

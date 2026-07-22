@@ -16,7 +16,7 @@ Files Included:
   11. core/profile_manager.py (339 lines)
   12. core/terminal_launcher.py (191 lines)
   13. core/validation.py (222 lines)
-  14. test_app.py (1562 lines)
+  14. test_app.py (1572 lines)
   15. scripts/capture_cli_help.py (84 lines)
   16. scripts/convert_markdown.py (564 lines)
 ================================================================================
@@ -3559,7 +3559,7 @@ def validate_destination_folder(
 
 
 ================================================================================
-FILE 14 / 16: test_app.py (Lines 1-1562)
+FILE 14 / 16: test_app.py (Lines 1-1572)
 ================================================================================
 import pytest
 import os
@@ -3761,6 +3761,16 @@ def gui(qapp):
         g.binary_path = "./immich-go"
         yield g
         g.close()
+
+
+@pytest.fixture(autouse=True)
+def suppress_qt_dialogs(monkeypatch):
+    """Globally suppress modal QMessageBox dialogs during test execution."""
+    from PySide6.QtWidgets import QMessageBox
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.information", MagicMock())
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.warning", MagicMock())
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.critical", MagicMock())
+    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.question", MagicMock(return_value=QMessageBox.StandardButton.Yes))
 
 
 @pytest.fixture(autouse=True)

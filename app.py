@@ -3327,7 +3327,7 @@ class ImmichGoGUI(QMainWindow):
         self.toggle_advanced(self.app_config.advanced_mode)
         self.update_window_title()
 
-    def save_configuration(self):
+    def save_configuration(self, show_popup: bool = True):
         self.app_config.server_url = self.inputs["config"]["server"].text()
 
         if "skip-ssl" in self.inputs["config"]:
@@ -3407,11 +3407,12 @@ class ImmichGoGUI(QMainWindow):
         if res_admin.message:
             msg += f"\n\nNote (Admin Key): {res_admin.message}"
 
-        QMessageBox.information(
-            self,
-            "Saved",
-            msg,
-        )
+        if show_popup:
+            QMessageBox.information(
+                self,
+                "Saved",
+                msg,
+            )
 
     def open_github_link(self):
         webbrowser.open("https://github.com/simulot/immich-go")
