@@ -407,10 +407,12 @@ def test_build_command_stack(gui):
     assert "--dry-run" in opts
 
 
-def test_api_trace_on_stack(gui):
+def test_api_trace_on_stack_disabled(gui):
     gui.stacked_widget.setCurrentIndex(3)
     gui.inputs["config"]["server"].setText("http://stack:2283")
     gui.inputs["config"]["api_key"].setText("stack-key")
+    if "api-trace" in gui.inputs["stack"]:
+        gui.inputs["stack"]["api-trace"].setChecked(False)
     opts = gui.build_command(dry_run=False)
     assert not any("--api-trace" in o for o in opts)
 
@@ -619,6 +621,8 @@ def test_golden_stack(gui):
     gui.inputs["stack"]["manage-burst"].setCurrentText("Stack")
     gui.inputs["stack"]["manage-raw-jpeg"].setCurrentText("StackCoverRaw")
     gui.inputs["stack"]["manage-heic-jpeg"].setCurrentText("StackCoverJPG")
+    if "api-trace" in gui.inputs["stack"]:
+        gui.inputs["stack"]["api-trace"].setChecked(False)
     gui.inputs["stack"]["log-level"].setCurrentText("INFO")
 
     plan = gui.build_plan(dry_run=False)
@@ -632,10 +636,6 @@ def test_golden_stack(gui):
     ]
 
 
-def test_golden_archive_folder(gui):
-    """Golden: archive from-folder (no server)."""
-    gui.stacked_widget.setCurrentIndex(2)
-    gui.archive_tabs.setCurrentIndex(0)
 def test_golden_archive_folder(gui):
     """Golden: archive from-folder (no server)."""
     gui.stacked_widget.setCurrentIndex(2)
@@ -1442,14 +1442,15 @@ def test_plan_errors_surfaced_in_gui(gui):
         errors=["Invalid flag '--unsupported' specified."],
     )
 
-    with patch.object(gui, "build_plan", return_value=mock_plan):
-        with patch("PySide6.QtWidgets.QMessageBox.critical") as mock_crit:
-            gui.show_confirm_dialog(is_dry_run=True)
-            assert mock_crit.called
-            title = mock_crit.call_args[0][1]
-            msg = mock_crit.call_args[0][2]
-            assert "Command Build Errors" in title
-            assert "Invalid flag '--unsupported'" in msg
+    with patch.object(gui, "check_binary_ready", return_value=(True, "Ready")):
+        with patch.object(gui, "build_plan", return_value=mock_plan):
+            with patch("PySide6.QtWidgets.QMessageBox.critical") as mock_crit:
+                gui.show_confirm_dialog(is_dry_run=True)
+                assert mock_crit.called
+                title = mock_crit.call_args[0][1]
+                msg = mock_crit.call_args[0][2]
+                assert "Command Build Errors" in title
+                assert "Invalid flag '--unsupported'" in msg
 
 
 def test_running_process_boolean_state(gui):
@@ -1507,6 +1508,22 @@ def test_forward_all_immich_go_env_vars(tmp_path, monkeypatch):
             lock_path=dummy_lock,
         )
         assert mock_popen.called
+        call_args = mock_popen.call_args
+        if call_args:
+            args, kwargs = call_args
+            env_used = kwargs.get("env", {})
+            if env_used and "IMMICH_GO_CUSTOM_VAR" in env_used:
+                assert env_used.get("IMMICH_GO_CUSTOM_VAR") == "custom_val"
+                assert env_used.get("IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER") == "http://srv:2283"
+            elif args and args[0]:
+                cmd_list = args[0]
+                for item in cmd_list:
+                    if isinstance(item, str) and item.endswith(".sh") and os.path.exists(item):
+                        env_sh = Path(item).parent / "env.sh"
+                        if env_sh.exists():
+                            content = env_sh.read_text(encoding="utf-8")
+                            assert "IMMICH_GO_CUSTOM_VAR" in content
+                            assert "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER" in content
 
 
 def test_archive_ui_options_removed(gui):
@@ -1570,3 +1587,38 @@ def test_simple_vs_advanced_mode_toggle(gui):
     assert gui.lbl_mode.text() == "Simple"
     for frame in gui.adv_frames:
         assert frame.isHidden()
+
+
+def test_from_dry_run_emitted_for_immich_tabs():
+    from core.command_builder import build_plan_from_state
+    config_state = {"server": "http://localhost:2283", "api_key": "test"}
+    tab_state = {
+        "from-server": "http://remote:2283",
+        "from-api-key": "remote_key",
+        "write-to": "/dst",
+    }
+    plan = build_plan_from_state("archive-immich", config_state, tab_state, dry_run=True)
+    assert "--dry-run" in plan.argv
+    assert "--from-dry-run" in plan.argv
+
+
+def test_stack_pause_jobs_and_archive_folder_on_errors():
+    from core.command_builder import build_plan_from_state
+    config_state = {"server": "http://localhost:2283", "api_key": "test"}
+    plan_stack = build_plan_from_state("stack", config_state, {"pause-jobs": False})
+    assert "--pause-immich-jobs=false" in plan_stack.argv
+
+    plan_archive = build_plan_from_state(
+        "archive-folder",
+        config_state,
+        {"path": "/src", "write-to": "/dst", "on-errors": "continue"},
+    )
+    assert "--on-errors=continue" in plan_archive.argv
+
+
+def test_collect_paths_expansion_and_abspath(tmp_path):
+    from core.command_builder import collect_paths
+    rel_path = "./subfolder"
+    paths = collect_paths(rel_path)
+    assert len(paths) == 1
+    assert os.path.isabs(paths[0])

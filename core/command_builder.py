@@ -115,17 +115,19 @@ def normalize_server_url(url: str) -> str:
 
 
 def collect_paths(raw_text: str) -> list[str]:
-    """Expands glob patterns and handles multi-line path inputs."""
+    """Expands glob patterns, expands user tildes (~), and converts relative paths to absolute paths."""
     paths = []
     for line in raw_text.splitlines():
         line = line.strip()
         if not line:
             continue
-        expanded = glob.glob(line)
+        expanded_user = os.path.expanduser(line)
+        expanded = glob.glob(expanded_user)
         if expanded:
-            paths.extend(expanded)
+            for p in expanded:
+                paths.append(os.path.abspath(p))
         else:
-            paths.append(line)
+            paths.append(os.path.abspath(expanded_user))
     return paths
 
 
@@ -225,7 +227,12 @@ def validate_state(
         srv = config_state.get("server", "").strip()
         key = config_state.get("api_key", "").strip()
         if not srv:
-            res.errors.append("Server URL is required. Configure it in the Configuration tab.")
+            if tab_key == "archive-immich":
+                res.errors.append("Source server URL is required. Configure it in the Configuration tab.")
+            elif tab_key == "stack":
+                res.errors.append("Immich server URL is required. Configure it in the Configuration tab.")
+            else:
+                res.errors.append("Server URL is required. Configure it in the Configuration tab.")
         if not key:
             res.errors.append("API Key is required. Configure it in the Configuration tab.")
 
@@ -341,14 +348,14 @@ def build_plan_from_state(
     if concurrent != concurrent_default:
         emitter.add_option("concurrent-tasks", concurrent)
 
-    if tab_key in UPLOAD_TABS:
+    if tab_key in UPLOAD_TABS or tab_key == "stack":
         if "pause-jobs" in tab_state:
             if not tab_state["pause-jobs"]:
                 emitter.add_bool_val("pause-immich-jobs", False)
         elif not config_state.get("pause_jobs", True):
             emitter.add_bool_val("pause-immich-jobs", False)
 
-    if tab_key in UPLOAD_TABS:
+    if flag_allowed_for_tab(tab_key, "on-errors"):
         if "on-errors" in tab_state:
             if tab_state["on-errors"] != "stop":
                 emitter.add_option("on-errors", tab_state["on-errors"])
@@ -801,6 +808,8 @@ def build_plan_from_state(
     # Dry-run handling
     if dry_run:
         emitter.add_flag("dry-run")
+        if tab_key in ("upload-immich", "archive-immich"):
+            emitter.add_flag("from-dry-run")
 
     if emitter.errors:
         plan.errors.extend(emitter.errors)

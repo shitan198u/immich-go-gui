@@ -59,6 +59,7 @@ SECRET_FLAGS = {
     "--api-key",
     "--from-api-key",
     "--admin-api-key",
+    "--from-admin-api-key",
 }
 
 # Environment variables used to pass secrets safely.

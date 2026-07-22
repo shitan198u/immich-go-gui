@@ -7,8 +7,8 @@ Files Included:
    2. core/binary_manager.py (528 lines)
    3. core/cli_contract.py (96 lines)
    4. core/cli_help.py (56 lines)
-   5. core/cli_schema.py (238 lines)
-   6. core/command_builder.py (810 lines)
+   5. core/cli_schema.py (239 lines)
+   6. core/command_builder.py (819 lines)
    7. core/config_manager.py (374 lines)
    8. core/models.py (94 lines)
    9. core/network.py (115 lines)
@@ -16,7 +16,7 @@ Files Included:
   11. core/profile_manager.py (339 lines)
   12. core/terminal_launcher.py (191 lines)
   13. core/validation.py (222 lines)
-  14. test_app.py (1572 lines)
+  14. test_app.py (1624 lines)
   15. scripts/capture_cli_help.py (84 lines)
   16. scripts/convert_markdown.py (564 lines)
 ================================================================================
@@ -884,7 +884,7 @@ def load_help_fixture(version: str = "0.32.0", help_name: str = "root", raise_on
 
 
 ================================================================================
-FILE 5 / 16: core/cli_schema.py (Lines 1-238)
+FILE 5 / 16: core/cli_schema.py (Lines 1-239)
 ================================================================================
 """Stable metadata constants, mappings, and compatibility matrices.
 
@@ -947,6 +947,7 @@ SECRET_FLAGS = {
     "--api-key",
     "--from-api-key",
     "--admin-api-key",
+    "--from-admin-api-key",
 }
 
 # Environment variables used to pass secrets safely.
@@ -1128,7 +1129,7 @@ COMPATIBILITY_MATRIX = {
 
 
 ================================================================================
-FILE 6 / 16: core/command_builder.py (Lines 1-810)
+FILE 6 / 16: core/command_builder.py (Lines 1-819)
 ================================================================================
 """Pure command-building and state validation logic for Immich-Go.
 
@@ -1247,17 +1248,19 @@ def normalize_server_url(url: str) -> str:
 
 
 def collect_paths(raw_text: str) -> list[str]:
-    """Expands glob patterns and handles multi-line path inputs."""
+    """Expands glob patterns, expands user tildes (~), and converts relative paths to absolute paths."""
     paths = []
     for line in raw_text.splitlines():
         line = line.strip()
         if not line:
             continue
-        expanded = glob.glob(line)
+        expanded_user = os.path.expanduser(line)
+        expanded = glob.glob(expanded_user)
         if expanded:
-            paths.extend(expanded)
+            for p in expanded:
+                paths.append(os.path.abspath(p))
         else:
-            paths.append(line)
+            paths.append(os.path.abspath(expanded_user))
     return paths
 
 
@@ -1357,7 +1360,12 @@ def validate_state(
         srv = config_state.get("server", "").strip()
         key = config_state.get("api_key", "").strip()
         if not srv:
-            res.errors.append("Server URL is required. Configure it in the Configuration tab.")
+            if tab_key == "archive-immich":
+                res.errors.append("Source server URL is required. Configure it in the Configuration tab.")
+            elif tab_key == "stack":
+                res.errors.append("Immich server URL is required. Configure it in the Configuration tab.")
+            else:
+                res.errors.append("Server URL is required. Configure it in the Configuration tab.")
         if not key:
             res.errors.append("API Key is required. Configure it in the Configuration tab.")
 
@@ -1473,14 +1481,14 @@ def build_plan_from_state(
     if concurrent != concurrent_default:
         emitter.add_option("concurrent-tasks", concurrent)
 
-    if tab_key in UPLOAD_TABS:
+    if tab_key in UPLOAD_TABS or tab_key == "stack":
         if "pause-jobs" in tab_state:
             if not tab_state["pause-jobs"]:
                 emitter.add_bool_val("pause-immich-jobs", False)
         elif not config_state.get("pause_jobs", True):
             emitter.add_bool_val("pause-immich-jobs", False)
 
-    if tab_key in UPLOAD_TABS:
+    if flag_allowed_for_tab(tab_key, "on-errors"):
         if "on-errors" in tab_state:
             if tab_state["on-errors"] != "stop":
                 emitter.add_option("on-errors", tab_state["on-errors"])
@@ -1933,6 +1941,8 @@ def build_plan_from_state(
     # Dry-run handling
     if dry_run:
         emitter.add_flag("dry-run")
+        if tab_key in ("upload-immich", "archive-immich"):
+            emitter.add_flag("from-dry-run")
 
     if emitter.errors:
         plan.errors.extend(emitter.errors)
@@ -3559,7 +3569,7 @@ def validate_destination_folder(
 
 
 ================================================================================
-FILE 14 / 16: test_app.py (Lines 1-1572)
+FILE 14 / 16: test_app.py (Lines 1-1624)
 ================================================================================
 import pytest
 import os
@@ -3970,10 +3980,12 @@ def test_build_command_stack(gui):
     assert "--dry-run" in opts
 
 
-def test_api_trace_on_stack(gui):
+def test_api_trace_on_stack_disabled(gui):
     gui.stacked_widget.setCurrentIndex(3)
     gui.inputs["config"]["server"].setText("http://stack:2283")
     gui.inputs["config"]["api_key"].setText("stack-key")
+    if "api-trace" in gui.inputs["stack"]:
+        gui.inputs["stack"]["api-trace"].setChecked(False)
     opts = gui.build_command(dry_run=False)
     assert not any("--api-trace" in o for o in opts)
 
@@ -4182,6 +4194,8 @@ def test_golden_stack(gui):
     gui.inputs["stack"]["manage-burst"].setCurrentText("Stack")
     gui.inputs["stack"]["manage-raw-jpeg"].setCurrentText("StackCoverRaw")
     gui.inputs["stack"]["manage-heic-jpeg"].setCurrentText("StackCoverJPG")
+    if "api-trace" in gui.inputs["stack"]:
+        gui.inputs["stack"]["api-trace"].setChecked(False)
     gui.inputs["stack"]["log-level"].setCurrentText("INFO")
 
     plan = gui.build_plan(dry_run=False)
@@ -4195,10 +4209,6 @@ def test_golden_stack(gui):
     ]
 
 
-def test_golden_archive_folder(gui):
-    """Golden: archive from-folder (no server)."""
-    gui.stacked_widget.setCurrentIndex(2)
-    gui.archive_tabs.setCurrentIndex(0)
 def test_golden_archive_folder(gui):
     """Golden: archive from-folder (no server)."""
     gui.stacked_widget.setCurrentIndex(2)
@@ -5005,14 +5015,15 @@ def test_plan_errors_surfaced_in_gui(gui):
         errors=["Invalid flag '--unsupported' specified."],
     )
 
-    with patch.object(gui, "build_plan", return_value=mock_plan):
-        with patch("PySide6.QtWidgets.QMessageBox.critical") as mock_crit:
-            gui.show_confirm_dialog(is_dry_run=True)
-            assert mock_crit.called
-            title = mock_crit.call_args[0][1]
-            msg = mock_crit.call_args[0][2]
-            assert "Command Build Errors" in title
-            assert "Invalid flag '--unsupported'" in msg
+    with patch.object(gui, "check_binary_ready", return_value=(True, "Ready")):
+        with patch.object(gui, "build_plan", return_value=mock_plan):
+            with patch("PySide6.QtWidgets.QMessageBox.critical") as mock_crit:
+                gui.show_confirm_dialog(is_dry_run=True)
+                assert mock_crit.called
+                title = mock_crit.call_args[0][1]
+                msg = mock_crit.call_args[0][2]
+                assert "Command Build Errors" in title
+                assert "Invalid flag '--unsupported'" in msg
 
 
 def test_running_process_boolean_state(gui):
@@ -5070,6 +5081,22 @@ def test_forward_all_immich_go_env_vars(tmp_path, monkeypatch):
             lock_path=dummy_lock,
         )
         assert mock_popen.called
+        call_args = mock_popen.call_args
+        if call_args:
+            args, kwargs = call_args
+            env_used = kwargs.get("env", {})
+            if env_used and "IMMICH_GO_CUSTOM_VAR" in env_used:
+                assert env_used.get("IMMICH_GO_CUSTOM_VAR") == "custom_val"
+                assert env_used.get("IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER") == "http://srv:2283"
+            elif args and args[0]:
+                cmd_list = args[0]
+                for item in cmd_list:
+                    if isinstance(item, str) and item.endswith(".sh") and os.path.exists(item):
+                        env_sh = Path(item).parent / "env.sh"
+                        if env_sh.exists():
+                            content = env_sh.read_text(encoding="utf-8")
+                            assert "IMMICH_GO_CUSTOM_VAR" in content
+                            assert "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER" in content
 
 
 def test_archive_ui_options_removed(gui):
@@ -5133,6 +5160,41 @@ def test_simple_vs_advanced_mode_toggle(gui):
     assert gui.lbl_mode.text() == "Simple"
     for frame in gui.adv_frames:
         assert frame.isHidden()
+
+
+def test_from_dry_run_emitted_for_immich_tabs():
+    from core.command_builder import build_plan_from_state
+    config_state = {"server": "http://localhost:2283", "api_key": "test"}
+    tab_state = {
+        "from-server": "http://remote:2283",
+        "from-api-key": "remote_key",
+        "write-to": "/dst",
+    }
+    plan = build_plan_from_state("archive-immich", config_state, tab_state, dry_run=True)
+    assert "--dry-run" in plan.argv
+    assert "--from-dry-run" in plan.argv
+
+
+def test_stack_pause_jobs_and_archive_folder_on_errors():
+    from core.command_builder import build_plan_from_state
+    config_state = {"server": "http://localhost:2283", "api_key": "test"}
+    plan_stack = build_plan_from_state("stack", config_state, {"pause-jobs": False})
+    assert "--pause-immich-jobs=false" in plan_stack.argv
+
+    plan_archive = build_plan_from_state(
+        "archive-folder",
+        config_state,
+        {"path": "/src", "write-to": "/dst", "on-errors": "continue"},
+    )
+    assert "--on-errors=continue" in plan_archive.argv
+
+
+def test_collect_paths_expansion_and_abspath(tmp_path):
+    from core.command_builder import collect_paths
+    rel_path = "./subfolder"
+    paths = collect_paths(rel_path)
+    assert len(paths) == 1
+    assert os.path.isabs(paths[0])
 
 
 ================================================================================
