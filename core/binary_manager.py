@@ -20,7 +20,7 @@ from typing import Callable, Optional
 import requests
 from packaging.version import InvalidVersion, Version
 
-from immichgo_models import (
+from .models import (
     BinaryStatus,
     UpdateDecision,
     UpdateSeverity,

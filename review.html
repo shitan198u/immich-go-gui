@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Immich-Go GUI — Review</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #1e293b;
+            --bg-card-hover: #334155;
+            --border-color: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #64748b;
+            --accent-color: #38bdf8;
+            --accent-hover: #0284c7;
+            --accent-bg: rgba(56, 189, 248, 0.12);
+            --code-bg: #090d16;
+            --code-border: #1e293b;
+            --badge-h1-bg: #2563eb;
+            --badge-h2-bg: #7c3aed;
+            --badge-h3-bg: #db2777;
+            --badge-h4-bg: #059669;
+            --shadow-color: rgba(0, 0, 0, 0.4);
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --font-code: "JetBrains Mono", "Fira Code", Consolas, Monaco, monospace;
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f8fafc;
+            --bg-secondary: #ffffff;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f1f5f9;
+            --border-color: #e2e8f0;
+            --text-primary: #0f172a;
+            --text-secondary: #334155;
+            --text-muted: #64748b;
+            --accent-color: #0284c7;
+            --accent-hover: #0369a1;
+            --accent-bg: rgba(2, 132, 199, 0.1);
+            --code-bg: #0f172a;
+            --code-border: #cbd5e1;
+            --badge-h1-bg: #2563eb;
+            --badge-h2-bg: #7c3aed;
+            --badge-h3-bg: #db2777;
+            --badge-h4-bg: #059669;
+            --shadow-color: rgba(0, 0, 0, 0.06);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            font-size: 15px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .top-nav {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            box-shadow: 0 4px 6px -1px var(--shadow-color);
+            backdrop-filter: blur(8px);
+        }
+
+        .nav-title {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-weight: 700;
+            font-size: 1.15rem;
+            color: var(--text-primary);
+        }
+
+        .nav-title svg { width: 24px; height: 24px; fill: var(--accent-color); }
+        .nav-controls { display: flex; align-items: center; gap: 0.75rem; }
+        .search-box { position: relative; }
+
+        .search-input {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.45rem 0.8rem 0.45rem 2.2rem;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            outline: none;
+            width: 240px;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-color);
+            width: 300px;
+            box-shadow: 0 0 0 3px var(--accent-bg);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 0.7rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 15px;
+            height: 15px;
+            fill: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .btn {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.45rem 0.85rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.15s ease;
+        }
+
+        .btn:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .layout-container {
+            display: flex;
+            flex: 1;
+            max-width: 1600px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .sidebar {
+            width: 320px;
+            position: sticky;
+            top: 57px;
+            height: calc(100vh - 57px);
+            overflow-y: auto;
+            border-right: 1px solid var(--border-color);
+            padding: 1.25rem 1rem;
+            background: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+
+        .sidebar h3 {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+            padding-left: 0.5rem;
+        }
+
+        .toc-list { list-style: none; }
+        .toc-item { margin-bottom: 0.2rem; }
+
+        .toc-link {
+            display: block;
+            padding: 0.35rem 0.6rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 0.88rem;
+            line-height: 1.35;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .toc-link:hover { background: var(--accent-bg); color: var(--accent-color); }
+        .toc-item.level-2 { padding-left: 0.9rem; font-size: 0.84rem; }
+        .toc-item.level-3 { padding-left: 1.7rem; font-size: 0.8rem; opacity: 0.9; }
+
+        .main-content { flex: 1; padding: 2rem 3rem; min-width: 0; }
+        .document-root { display: flex; flex-direction: column; gap: 1.25rem; }
+
+        details.sec-details {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        details.sec-details[open] { box-shadow: 0 4px 12px var(--shadow-color); }
+        details.level-h1 { border-left: 4px solid var(--badge-h1-bg); margin-bottom: 1.25rem; }
+        details.level-h2 { border-left: 4px solid var(--badge-h2-bg); margin: 0.85rem 0; background: rgba(255, 255, 255, 0.015); }
+        details.level-h3 { border-left: 4px solid var(--badge-h3-bg); margin: 0.6rem 0; background: rgba(255, 255, 255, 0.01); }
+        details.level-h4 { border-left: 4px solid var(--badge-h4-bg); margin: 0.4rem 0; }
+
+        summary.sec-summary {
+            padding: 0.85rem 1.25rem;
+            cursor: pointer;
+            user-select: none;
+            background: var(--bg-card);
+            transition: background 0.15s ease;
+            list-style: none;
+        }
+
+        summary.sec-summary::-webkit-details-marker { display: none; }
+        summary.sec-summary:hover { background: var(--bg-card-hover); }
+
+        .summary-content { display: flex; align-items: center; gap: 0.75rem; }
+
+        .chevron {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            transition: transform 0.2s ease;
+            display: inline-block;
+            width: 14px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        details[open] > summary .chevron { transform: rotate(90deg); color: var(--accent-color); }
+
+        .badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.15rem 0.45rem;
+            border-radius: 4px;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            flex-shrink: 0;
+        }
+
+        .badge-h1 { background-color: var(--badge-h1-bg); }
+        .badge-h2 { background-color: var(--badge-h2-bg); }
+        .badge-h3 { background-color: var(--badge-h3-bg); }
+        .badge-h4 { background-color: var(--badge-h4-bg); }
+
+        .heading-text { font-weight: 600; color: var(--text-primary); flex: 1; }
+        .level-h1 .heading-text { font-size: 1.2rem; }
+        .level-h2 .heading-text { font-size: 1.08rem; }
+        .level-h3 .heading-text { font-size: 1.0rem; }
+        .level-h4 .heading-text { font-size: 0.95rem; }
+
+        .sec-body {
+            padding: 1.25rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
+        p { color: var(--text-primary); margin-bottom: 0.4rem; line-height: 1.7; }
+        ul, ol { padding-left: 1.5rem; margin-bottom: 0.75rem; color: var(--text-primary); }
+        li { margin-bottom: 0.35rem; }
+        strong { color: var(--text-primary); font-weight: 600; }
+        a { color: var(--accent-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        blockquote {
+            border-left: 4px solid var(--accent-color);
+            background: var(--accent-bg);
+            padding: 0.75rem 1.25rem;
+            border-radius: 0 6px 6px 0;
+            color: var(--text-secondary);
+            margin: 0.75rem 0;
+        }
+        hr { border: 0; height: 1px; background: var(--border-color); margin: 1.5rem 0; }
+
+        pre {
+            position: relative;
+            background: var(--code-bg);
+            border: 1px solid var(--code-border);
+            border-radius: 8px;
+            padding: 1.1rem;
+            overflow-x: auto;
+            font-family: var(--font-code);
+            font-size: 0.88rem;
+            color: #f1f5f9;
+            line-height: 1.55;
+            margin: 0.75rem 0;
+        }
+
+        code {
+            font-family: var(--font-code);
+            font-size: 0.88rem;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--accent-color);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+        }
+
+        pre code { background: transparent; color: inherit; padding: 0; }
+
+        .copy-code-btn {
+            position: absolute;
+            top: 0.6rem;
+            right: 0.6rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 0.25rem 0.55rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+        }
+
+        pre:hover .copy-code-btn { opacity: 1; }
+        .copy-code-btn:hover { color: var(--accent-color); border-color: var(--accent-color); }
+
+        .search-hidden { display: none !important; }
+
+        @media (max-width: 1024px) {
+            .sidebar { display: none; }
+            .main-content { padding: 1.5rem; }
+        }
+    </style>
+</head>
+<body data-theme="dark">
+
+    <header class="top-nav">
+        <div class="nav-title">
+            <svg viewBox="0 0 24 24">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+            </svg>
+            <span>Immich-Go GUI — Review</span>
+        </div>
+        <div class="nav-controls">
+            <div class="search-box">
+                <svg class="search-icon" viewBox="0 0 24 24">
+                    <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+                <input type="text" id="searchInput" class="search-input" placeholder="Search..." onkeyup="filterContent()">
+            </div>
+            <button class="btn" onclick="expandAll()"><span>👇</span> Expand All</button>
+            <button class="btn" onclick="collapseAll()"><span>👆</span> Collapse All</button>
+            <button class="btn" onclick="toggleTheme()" id="themeBtn"><span>🌙</span> Dark Mode</button>
+        </div>
+    </header>
+
+    <div class="layout-container">
+        <aside class="sidebar">
+            <h3>Table of Contents</h3>
+            <ul class="toc-list" id="tocList"></ul>
+        </aside>
+
+        <main class="main-content">
+            <p>Yes — overall this is a <strong>very strong project</strong>. The architecture is already better than most GUI wrappers: you separated models, schema, config, binary management, and command building; you avoid putting API keys in <code>argv</code>; you have a version-support policy; you support dry-run previews; and the theming is polished.</p><p>That said, if I’m being a critic, I’d say the app is “mostly perfect” for <strong>happy-path usage</strong>, but there are still meaningful improvements in <strong>CLI correctness, operational safety, persistence, testing, and advanced workflow coverage</strong>.</p><p>Below is a structured critique with concrete suggestions, ranked by impact.</p><hr/><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="1-high-level-assessment">1. High-level assessment</span></div></summary><div class="sec-body level-h1"><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="what-is-already-excellent">What is already excellent</span></div></summary><div class="sec-body level-h2"><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="1-clean-modularization">1. Clean modularization</span></div></summary><div class="sec-body level-h3"><p>Your split into:</p><ul>
+<li><code>immichgo_models.py</code></li>
+<li><code>immichgo_schema.py</code></li>
+<li><code>immichgo_config.py</code></li>
+<li><code>immichgo_binary.py</code></li>
+<li><code>immichgo_commands.py</code></li>
+</ul><p>is very good.</p><p>This makes the backend logic much more testable than if it were embedded directly in Qt widgets.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="2-secret-handling-is-much-better-than-typical-gui-tools">2. Secret handling is much better than typical GUI tools</span></div></summary><div class="sec-body level-h3"><p>You pass secrets through environment variables instead of command-line flags:</p><ul>
+<li><code>IMMICH_GO_UPLOAD_API_KEY</code></li>
+<li><code>IMMICH_GO_ARCHIVE_API_KEY</code></li>
+<li><code>IMMICH_GO_STACK_API_KEY</code></li>
+<li><code>IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY</code></li>
+</ul><p>This is the right instinct because <code>argv</code> is often visible to other local users/processes, while environment variables are usually less exposed.</p><p>Also, using OS keyring as the default secret store is a strong default.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="3-command-preview-and-masking">3. Command preview and masking</span></div></summary><div class="sec-body level-h3"><p>The confirm dialog with masked command preview is excellent UX.</p><p>It gives users confidence without leaking secrets.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="4-binary-management-is-ambitious-and-useful">4. Binary management is ambitious and useful</span></div></summary><div class="sec-body level-h3"><p>Auto-download, version detection, tested-version policy, metadata persistence — this is a big usability win.</p><p>Many tools would just say “install immich-go yourself” and stop there.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="5-ui-polish">5. UI polish</span></div></summary><div class="sec-body level-h3"><p>The theme system, sidebar, cards, simple/advanced toggle, and status indicators make it feel like a real product rather than a prototype.</p><hr/></div></details></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="2-the-biggest-areas-for-improvement">2. The biggest areas for improvement</span></div></summary><div class="sec-body level-h1"><p>If I had to summarize the most important improvement themes, they would be:</p><ol>
+<li><strong>Guarantee CLI compatibility rigorously</strong></li>
+<li><strong>Make process execution and lock tracking more robust</strong></li>
+<li><strong>Persist user form state / presets</strong></li>
+<li><strong>Expand coverage of immich-go’s real feature set</strong></li>
+<li><strong>Add automated tests, especially golden command tests</strong></li>
+<li><strong>Improve error visibility instead of silent fallbacks</strong></li>
+<li><strong>Make binary updates safer and more predictable</strong></li>
+<li><strong>Improve accessibility and keyboard behavior</strong></li>
+<li><strong>Reduce duplicated logic and magic strings</strong></li>
+<li><strong>Add integrated logging / run history</strong></li>
+</ol><hr/></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="3-cli-correctness-and-compatibility">3. CLI correctness and compatibility</span></div></summary><div class="sec-body level-h1"><p>This is probably the most important area.</p><p>Your GUI is only as good as the exact flags accepted by the installed <code>immich-go</code> version. Right now, the command builder is hand-maintained. That is workable, but risky.</p><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="31-risk-hand-maintained-flag-mapping-can-drift">3.1 Risk: hand-maintained flag mapping can drift</span></div></summary><div class="sec-body level-h2"><p>You currently map UI state to CLI flags manually in <code>immichgo_commands.py</code>.</p><p>This is fine for a small surface, but <code>immich-go</code> has many flags and they can change between versions.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Create a <strong>schema-driven CLI adapter</strong>.</p><p>Instead of scattering flag logic through many <code>if</code> blocks, define a declarative mapping like:</p><div class="codehilite"><pre><span></span><code><span class="n">UPLOAD_FOLDER_FLAGS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"include-type"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"flag"</span><span class="p">:</span> <span class="s2">"--include-type"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"enum"</span><span class="p">,</span> <span class="s2">"default"</span><span class="p">:</span> <span class="s2">"all"</span><span class="p">},</span>
+    <span class="s2">"folder-album"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"flag"</span><span class="p">:</span> <span class="s2">"--folder-as-album"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"enum"</span><span class="p">,</span> <span class="s2">"default"</span><span class="p">:</span> <span class="s2">"NONE"</span><span class="p">},</span>
+    <span class="s2">"into-album"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"flag"</span><span class="p">:</span> <span class="s2">"--into-album"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"str"</span><span class="p">},</span>
+    <span class="s2">"date-range"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"flag"</span><span class="p">:</span> <span class="s2">"--date-range"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"date_range"</span><span class="p">},</span>
+    <span class="o">...</span>
+<span class="p">}</span>
+</code></pre></div><p>Then generate flags from that schema.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="benefits">Benefits</span></div></summary><div class="sec-body level-h3"><ul>
+<li>easier to maintain</li>
+<li>easier to test</li>
+<li>easier to add new tabs</li>
+<li>easier to compare against <code>immich-go --help</code></li>
+<li>less chance of accidental flag typos</li>
+</ul><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="32-add-contract-tests-against-immich-go-help">3.2 Add contract tests against <code>immich-go --help</code></span></div></summary><div class="sec-body level-h2"><p>This is one of the highest-value improvements you can make.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="idea">Idea</span></div></summary><div class="sec-body level-h3"><p>For each supported subcommand, run:</p><ul>
+<li><code>immich-go upload from-folder --help</code></li>
+<li><code>immich-go upload from-google-photos --help</code></li>
+<li><code>immich-go archive from-folder --help</code></li>
+<li><code>immich-go archive from-immich --help</code></li>
+<li><code>immich-go stack --help</code></li>
+</ul><p>Then assert that every flag your GUI can emit actually exists in the help output.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="why-this-matters">Why this matters</span></div></summary><div class="sec-body level-h3"><p>You immediately catch:</p><ul>
+<li>renamed flags</li>
+<li>removed flags</li>
+<li>flags that only exist in one subcommand</li>
+<li>version-specific incompatibilities</li>
+</ul><p>This is much better than discovering it at runtime.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="33-some-current-flag-coverage-seems-incomplete-or-possibly-inconsistent">3.3 Some current flag coverage seems incomplete or possibly inconsistent</span></div></summary><div class="sec-body level-h2"><p>Based on the CLI documentation and your code, there are a few places where the GUI either misses useful flags or may be emitting flags that need verification.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="a-upload-from-google-photos">A. <code>upload from-google-photos</code></span></div></summary><div class="sec-body level-h3"><p>Your GP tab has:</p><ul>
+<li>include unmatched</li>
+<li>include partner</li>
+<li>sync albums</li>
+<li>burst</li>
+<li>HEIC+JPEG</li>
+<li>from album name</li>
+<li>include archived</li>
+<li>include trashed</li>
+<li>partner shared album</li>
+<li>takeout tag</li>
+<li>people tag</li>
+</ul><p>But it appears to be missing:</p><ul>
+<li><code>--include-untitled-albums</code></li>
+<li><code>--date-range</code></li>
+<li><code>--manage-raw-jpeg</code></li>
+</ul><p>The documentation says Google Photos imports support burst / RAW+JPEG / HEIC+JPEG handling, so missing RAW+JPEG is a real gap.</p><p>Also, your GP tab emits <code>--include-type</code>, but I would verify that this flag is valid for <code>from-google-photos</code> in the exact versions you support.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="b-upload-from-folder">B. <code>upload from-folder</code></span></div></summary><div class="sec-body level-h3"><p>Missing useful options:</p><ul>
+<li><code>--recursive</code></li>
+<li><code>--album-path-joiner</code></li>
+<li><code>--album-picasa</code></li>
+<li><code>--manage-epson-fastfoto</code></li>
+</ul><p>These are not exotic; they are directly relevant to real-world imports.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="c-archive-from-folder">C. <code>archive from-folder</code></span></div></summary><div class="sec-body level-h3"><p>Currently very minimal:</p><ul>
+<li>path</li>
+<li>write-to</li>
+<li>manage-raw-jpeg</li>
+<li>date-range</li>
+</ul><p>But the CLI supports much more filtering and organization. You could add:</p><ul>
+<li>include/exclude extensions</li>
+<li>include type</li>
+<li>ban-file patterns</li>
+<li>folder-as-tags</li>
+<li>maybe folder-as-album depending on relevance</li>
+</ul></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="d-archive-from-immich">D. <code>archive from-immich</code></span></div></summary><div class="sec-body level-h3"><p>This tab could be much stronger.</p><p>Right now it has:</p><ul>
+<li>write-to</li>
+<li>manage burst</li>
+<li>manage raw+jpeg</li>
+<li>from-date-range</li>
+<li>from-albums</li>
+</ul><p>But <code>archive from-immich</code> is one of the most powerful workflows, and you could expose:</p><ul>
+<li><code>--from-favorite</code></li>
+<li><code>--from-archived</code></li>
+<li><code>--from-trash</code></li>
+<li><code>--from-minimal-rating</code></li>
+<li><code>--from-people</code></li>
+<li><code>--from-tags</code></li>
+<li><code>--from-city</code></li>
+<li><code>--from-state</code></li>
+<li><code>--from-country</code></li>
+<li><code>--from-make</code></li>
+<li><code>--from-model</code></li>
+<li><code>--from-include-type</code></li>
+<li><code>--from-include-extensions</code></li>
+<li><code>--from-exclude-extensions</code></li>
+</ul><p>That would make the GUI dramatically more useful for backups and migrations.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="e-missing-source-types">E. Missing source types</span></div></summary><div class="sec-body level-h3"><p>The CLI supports:</p><ul>
+<li><code>from-folder</code></li>
+<li><code>from-google-photos</code></li>
+<li><code>from-icloud</code></li>
+<li><code>from-picasa</code></li>
+<li><code>from-immich</code></li>
+</ul><p>Your GUI currently only exposes:</p><ul>
+<li>upload: folder / google photos / immich</li>
+<li>archive: folder / immich</li>
+</ul><p>So you are missing:</p><ul>
+<li><code>upload from-icloud</code></li>
+<li><code>upload from-picasa</code></li>
+<li><code>archive from-google-photos</code></li>
+<li><code>archive from-icloud</code></li>
+<li><code>archive from-picasa</code></li>
+</ul><p>Even if you don’t want all of them immediately, <code>archive from-google-photos</code> is a very compelling “clean up my takeout” workflow.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="34-be-careful-with-global-vs-subcommand-flags">3.4 Be careful with global vs subcommand flags</span></div></summary><div class="sec-body level-h2"><p>Some flags are truly global; some are command-specific.</p><p>For example:</p><ul>
+<li><code>--log-level</code> seems global</li>
+<li><code>--dry-run</code> seems global-ish</li>
+<li><code>--server</code> is command/subcommand-specific</li>
+<li><code>--client-timeout</code> may not be meaningful for every local operation</li>
+</ul><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="potential-issue">Potential issue</span></div></summary><div class="sec-body level-h3"><p>Your builder may add <code>--client-timeout</code> even for <code>archive-folder</code>, which is a local operation. If that flag is not accepted there, the command will fail.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_1">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Explicitly model:</p><ul>
+<li>global flags</li>
+<li>command-level flags</li>
+<li>subcommand-level flags</li>
+</ul><p>Do not rely on “add it unless it seems wrong.”</p><p>A schema can encode this cleanly.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="35-consider-generating-an-immich-go-config-file-for-complex-runs">3.5 Consider generating an immich-go config file for complex runs</span></div></summary><div class="sec-body level-h2"><p>Right now you build a long <code>argv</code>.</p><p>For very complex operations with many tags, bans, paths, and filters, this can become brittle.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="better-approach">Better approach</span></div></summary><div class="sec-body level-h3"><p>For complex runs, generate a temporary <code>immich-go.toml</code> or <code>immich-go.yaml</code> and invoke:</p><div class="codehilite"><pre><span></span><code>immich-go<span class="w"> </span>--config<span class="o">=</span>/tmp/run-123.toml<span class="w"> </span>upload<span class="w"> </span>from-folder<span class="w"> </span>...
+</code></pre></div></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="benefits_1">Benefits</span></div></summary><div class="sec-body level-h3"><ul>
+<li>avoids OS command-line length limits</li>
+<li>easier to reproduce runs</li>
+<li>easier to debug</li>
+<li>cleaner command preview</li>
+<li>less quoting pain</li>
+</ul><p>You can still pass secrets via environment variables.</p><hr/></div></details></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="4-process-execution-and-run-tracking">4. Process execution and run tracking</span></div></summary><div class="sec-body level-h1"><p>This is another area where the app is good, but can be made much more robust.</p><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="41-lock-file-tracking-is-clever-but-fragile">4.1 Lock-file tracking is clever, but fragile</span></div></summary><div class="sec-body level-h2"><p>Your <code>ProcessTracker</code> uses a lock file and wraps the command so the lock is removed on exit.</p><p>This is a nice idea, but it has failure modes.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="problems">Problems</span></div></summary><div class="sec-body level-h3"><ul>
+<li>If the terminal is killed forcefully, the lock may remain.</li>
+<li>If the GUI restarts, it does not necessarily know about old locks.</li>
+<li>If the terminal emulator launch fails in a weird way, the lock may become stale.</li>
+<li>You write the PID into the lock file, but you don’t seem to use it to verify whether the process is alive.</li>
+</ul></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_2">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Improve this in one of two ways:</p><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="option-a-make-lock-tracking-smarter">Option A: Make lock tracking smarter</span></div></summary><div class="sec-body level-h4"><p>Store:<br/>
+- PID<br/>
+- start time<br/>
+- command summary<br/>
+- tab key</p><p>On startup:<br/>
+- scan stale locks<br/>
+- check whether PID is alive<br/>
+- offer “Reset running state” if stale</p></div></details><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="option-b-add-an-internal-runner-mode">Option B: Add an internal runner mode</span></div></summary><div class="sec-body level-h4"><p>Offer two run modes:</p><ol>
+<li>
+<p><strong>External terminal</strong><br/>
+   Best for interactive <code>immich-go</code> TUI.</p>
+</li>
+<li>
+<p><strong>Embedded runner</strong><br/>
+   Use <code>QProcess</code> with:<br/>
+   - <code>--no-ui</code><br/>
+   - <code>--log-level=...</code><br/>
+   - maybe <code>--log-type=json</code></p>
+</li>
+</ol><p>Then show live output in the GUI.</p><p>This would be a huge usability upgrade for users who don’t want a separate terminal window.</p><hr/></div></details></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="42-terminal-launching-is-platform-sensitive">4.2 Terminal launching is platform-sensitive</span></div></summary><div class="sec-body level-h2"><p>Your current approach tries:</p><ul>
+<li>Windows: batch file in new console</li>
+<li>macOS: AppleScript to Terminal</li>
+<li>Linux: gnome-terminal / konsole / xfce4-terminal / xterm</li>
+</ul><p>This is ambitious, but fragile across desktop environments.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="specific-concerns">Specific concerns</span></div></summary><div class="sec-body level-h3"><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="macos">macOS</span></div></summary><div class="sec-body level-h4"><p>You embed the wrapped command into an AppleScript string.</p><p>If the command contains quotes or backslashes, this can break unless escaped perfectly.</p><details class="sec-details level-h5" open=""><summary class="sec-summary level-h5"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h5">H5</span><span class="heading-text" id="recommendation_3">Recommendation</span></div></summary><div class="sec-body level-h5"><p>Use a safer invocation method, such as:<br/>
+- writing a temporary shell script and telling Terminal to run it<br/>
+- or using a more robust AppleScript escaping routine</p></div></details></div></details><details class="sec-details level-h4" open=""><summary class="sec-summary level-h4"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h4">H4</span><span class="heading-text" id="linux">Linux</span></div></summary><div class="sec-body level-h4"><p>Terminal argument syntax differs.</p><p>For example, <code>xfce4-terminal -e</code> often expects a single command string, not separate tokens. Your current tuple may not behave as expected on all systems.</p><details class="sec-details level-h5" open=""><summary class="sec-summary level-h5"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h5">H5</span><span class="heading-text" id="recommendation_4">Recommendation</span></div></summary><div class="sec-body level-h5"><p>Add fallbacks:<br/>
+- <code>x-terminal-emulator -e ...</code><br/>
+- <code>xdg-terminal-exec</code><br/>
+- or an embedded runner fallback</p><p>Also consider letting the user choose their preferred terminal in settings.</p><hr/></div></details></div></details></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="43-add-a-close-warning-if-a-job-is-running">4.3 Add a close warning if a job is running</span></div></summary><div class="sec-body level-h2"><p>If a command is running in an external terminal and the user closes the GUI, they may not realize the job continues independently.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_5">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Add a <code>closeEvent</code> handler:</p><ul>
+<li>if a lock is active, ask:</li>
+<li>“A command is still running. Close GUI anyway?”</li>
+</ul><p>This is a small but important safety feature.</p><hr/></div></details></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="5-persistence-and-user-workflow">5. Persistence and user workflow</span></div></summary><div class="sec-body level-h1"><p>This is one of the easiest big wins.</p><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="51-persist-tab-form-state">5.1 Persist tab form state</span></div></summary><div class="sec-body level-h2"><p>Right now, your <code>AppConfig</code> has:</p><div class="codehilite"><pre><span></span><code><span class="n">form_state</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+</code></pre></div><p>but it does not seem to be used meaningfully.</p><p>That means users may lose all their carefully entered paths, filters, tags, and options after restart.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_6">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Persist per-tab widget state automatically.</p><p>For each tab key, save:<br/>
+- text fields<br/>
+- combo indexes<br/>
+- checkbox states<br/>
+- spin values</p><p>Then restore on startup.</p><p>This alone will make the app feel dramatically more polished.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="52-add-presets-profiles">5.2 Add presets / profiles</span></div></summary><div class="sec-body level-h2"><p>For a tool like this, users often have repeated workflows:</p><ul>
+<li>“Import family folder”</li>
+<li>“Google Takeout 2026”</li>
+<li>“Backup favorites”</li>
+<li>“Stack RAW+JPEG”</li>
+<li>“Archive 2023 only”</li>
+</ul><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_7">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Add named presets per tab.</p><p>Even a simple JSON/TOML preset system would be very valuable.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="even-better">Even better</span></div></summary><div class="sec-body level-h3"><p>Add <strong>server profiles</strong>:</p><ul>
+<li>Home server</li>
+<li>Work server</li>
+<li>Migration source</li>
+<li>Backup target</li>
+</ul><p>Right now the app is mostly single-server oriented. Multi-profile support would be a major usability improvement.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="53-migrate-legacy-config-properly">5.3 Migrate legacy config properly</span></div></summary><div class="sec-body level-h2"><p>The uploaded <code>immich_go_gui_config.toml</code> looks like an older flat config schema with many keys such as:</p><ul>
+<li><code>google_takeout_*</code></li>
+<li><code>upload_folder_*</code></li>
+<li><code>archive_immich_*</code></li>
+</ul><p>But your new modular config uses a different schema with sections like:</p><ul>
+<li><code>[general]</code></li>
+<li><code>[server]</code></li>
+<li><code>[secrets]</code></li>
+<li><code>[advanced]</code></li>
+</ul><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="problem">Problem</span></div></summary><div class="sec-body level-h3"><p>If users upgrade from an older GUI version, their old settings may not be migrated.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_8">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Add an explicit migration path:</p><ol>
+<li>detect old flat schema</li>
+<li>map old keys to new model</li>
+<li>write new <code>config.toml</code></li>
+<li>optionally back up old file</li>
+</ol><p>Also, remove or clearly mark that legacy config file so it does not confuse future readers.</p><hr/></div></details></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="6-security-and-secret-management">6. Security and secret management</span></div></summary><div class="sec-body level-h1"><p>You are already doing a lot right here, but there are still refinements.</p><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="61-silent-keyring-failures-are-dangerous">6.1 Silent keyring failures are dangerous</span></div></summary><div class="sec-body level-h2"><p>In <code>SecretStore</code>, many methods swallow exceptions:</p><div class="codehilite"><pre><span></span><code><span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+    <span class="k">pass</span>
+</code></pre></div><p>This is safe in the sense that the app won’t crash, but bad in the sense that the user may think the API key was saved when it was not.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_9">Recommendation</span></div></summary><div class="sec-body level-h3"><p>At minimum, log these failures.</p><p>Better:<br/>
+- show a non-intrusive warning if keyring is unavailable<br/>
+- suggest fallback to <code>secrets.toml</code> if appropriate</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="62-migration-could-lose-secrets-if-keyring-fails">6.2 Migration could lose secrets if keyring fails</span></div></summary><div class="sec-body level-h2"><p>In your migration helper, you effectively do:</p><ol>
+<li>read old key</li>
+<li>store in keyring</li>
+<li>remove old key from QSettings</li>
+</ol><p>But if step 2 fails silently, step 3 can still happen.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_10">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Only remove the old secret after confirmed successful storage.</p><p>This is a small change with high importance.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="63-expose-secret-provider-choice">6.3 Expose secret provider choice</span></div></summary><div class="sec-body level-h2"><p>Your model supports:</p><div class="codehilite"><pre><span></span><code><span class="n">secrets_provider</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"keyring"</span>
+</code></pre></div><p>and you have code for both keyring and <code>secrets.toml</code>.</p><p>But the user does not seem to be able to choose this in the UI.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_11">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Add a setting:</p><ul>
+<li>Secret storage:</li>
+<li>OS keyring (recommended)</li>
+<li>Encrypted/plain file fallback</li>
+</ul><p>This is especially useful on Linux systems where keyring may not be configured.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="64-add-an-optional-admin-api-key-field">6.4 Add an optional admin API key field</span></div></summary><div class="sec-body level-h2"><p>The CLI documentation mentions:</p><ul>
+<li><code>--admin-api-key</code></li>
+</ul><p>for pausing Immich background jobs.</p><p>Your GUI exposes <code>pause_immich_jobs</code>, but not the admin key.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_12">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Add an optional admin API key in advanced configuration, stored via the same secret mechanism.</p><p>This would make the “pause jobs during upload” feature much more reliable.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="65-warn-about-destructive-options-more-explicitly">6.5 Warn about destructive options more explicitly</span></div></summary><div class="sec-body level-h2"><p>You already warn for:</p><ul>
+<li>SSL skip</li>
+<li>overwrite</li>
+</ul><p>But some options can also have destructive consequences, such as:</p><ul>
+<li><code>KeepRaw</code></li>
+<li><code>KeepJPG</code></li>
+<li><code>KeepHeic</code></li>
+<li>possibly some burst keep modes depending on exact CLI behavior</li>
+</ul><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_13">Recommendation</span></div></summary><div class="sec-body level-h3"><p>When the user selects a mode that deletes one side of a pair, show a clear warning in the confirm dialog:</p><blockquote>
+<p>This mode may delete one file from RAW/JPEG or HEIC/JPEG pairs.</p>
+</blockquote><p>This is exactly the kind of safety detail that makes a GUI feel trustworthy.</p><hr/></div></details></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="7-binary-management-improvements">7. Binary management improvements</span></div></summary><div class="sec-body level-h1"><p>Your binary manager is already one of the strongest parts, but it can become much safer and more robust.</p><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="71-use-github-release-assets-instead-of-guessing-download-urls">7.1 Use GitHub release assets instead of guessing download URLs</span></div></summary><div class="sec-body level-h2"><p>Right now you construct URLs like:</p><div class="codehilite"><pre><span></span><code>https://github.com/simulot/immich-go/releases/download/v{version}/immich-go_{version}_{os}_{arch}{ext}
+</code></pre></div><p>That may work for some releases, but release asset naming can change.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_14">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Fetch the release metadata from:</p><div class="codehilite"><pre><span></span><code>https://api.github.com/repos/simulot/immich-go/releases/tags/v{version}
+</code></pre></div><p>and select the correct asset from the <code>assets</code> list by matching OS/arch.</p><p>This is much more robust.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="72-improve-update-decision-logic">7.2 Improve update decision logic</span></div></summary><div class="sec-body level-h2"><p>Right now, if the latest version is tested, you allow it.</p><p>But there are edge cases:</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="case-1-user-is-already-newer-than-latest-tested">Case 1: user is already newer than latest tested</span></div></summary><div class="sec-body level-h3"><p>If current is <code>0.33.0</code> and latest tested is <code>0.32.0</code>, you may prompt a downgrade.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="case-2-latest-is-untested-but-release-notes-look-safe">Case 2: latest is untested but release notes look safe</span></div></summary><div class="sec-body level-h3"><p>Your current policy is conservative, which is good, but could be more nuanced.</p></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_15">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Add explicit version comparison:</p><ul>
+<li>if latest == current → up to date</li>
+<li>if latest &lt; current → “You are already ahead”</li>
+<li>if latest &gt; current and tested → normal update</li>
+<li>if latest &gt; current and untested → optional advanced update</li>
+</ul><p>This avoids accidental downgrades.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="73-add-checksum-verification">7.3 Add checksum verification</span></div></summary><div class="sec-body level-h2"><p>You compute SHA256 after extraction, but you don’t verify against a known good value.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_16">Recommendation</span></div></summary><div class="sec-body level-h3"><p>If the release provides checksums, verify them.</p><p>If not, at least:<br/>
+- store the hash<br/>
+- show it in the UI<br/>
+- warn if a previously downloaded binary’s hash changes unexpectedly</p><p>This is a good supply-chain safety measure.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="74-make-download-and-extraction-more-robust">7.4 Make download and extraction more robust</span></div></summary><div class="sec-body level-h2"><p>Current implementation downloads into memory and uses <code>QThread.terminate()</code> on cancel.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="problems_1">Problems</span></div></summary><div class="sec-body level-h3"><ul>
+<li><code>terminate()</code> is discouraged in Qt</li>
+<li>in-memory download is less ideal for large archives</li>
+<li>no retry logic</li>
+<li>no resume support</li>
+</ul></div></details><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_17">Recommendation</span></div></summary><div class="sec-body level-h3"><ul>
+<li>stream to a temporary file</li>
+<li>use a cancellation flag instead of terminate</li>
+<li>add retry with backoff</li>
+<li>show indeterminate progress if content-length is missing</li>
+</ul><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="75-add-version-selection-and-cleanup">7.5 Add version selection and cleanup</span></div></summary><div class="sec-body level-h2"><p>If a user downloads multiple versions, let them:</p><ul>
+<li>see installed versions</li>
+<li>select active version</li>
+<li>delete old versions</li>
+</ul><p>This gives users more control and makes testing easier.</p><hr/></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="8-validation-and-input-quality">8. Validation and input quality</span></div></summary><div class="sec-body level-h1"><p>Your validation is decent, but can be made much stronger.</p><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="81-improve-date-range-validation">8.1 Improve date-range validation</span></div></summary><div class="sec-body level-h2"><p>Your regex validates shape, but not semantic validity.</p><p>For example, it may accept invalid months or days depending on exact pattern.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_18">Recommendation</span></div></summary><div class="sec-body level-h3"><p>After regex, parse with <code>datetime</code> and validate real calendar dates.</p><p>Also allow spaces after commas:</p><div class="codehilite"><pre><span></span><code>2023-01-01, 2023-12-31
+</code></pre></div><p>Users will type that.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="82-normalize-extension-lists">8.2 Normalize extension lists</span></div></summary><div class="sec-body level-h2"><p>If a user types:</p><div class="codehilite"><pre><span></span><code>.jpg, .png, .heic
+</code></pre></div><p>you should normalize to:</p><div class="codehilite"><pre><span></span><code>.jpg,.png,.heic
+</code></pre></div><p>Right now, some list fields may be passed too literally.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_19">Recommendation</span></div></summary><div class="sec-body level-h3"><p>For all comma-separated fields:<br/>
+- split<br/>
+- trim whitespace<br/>
+- remove empties<br/>
+- normalize case where appropriate<br/>
+- rejoin</p><p>This prevents silly runtime failures.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="83-validate-path-existence-where-appropriate">8.3 Validate path existence where appropriate</span></div></summary><div class="sec-body level-h2"><p>For source paths, you can warn early if:</p><ul>
+<li>folder does not exist</li>
+<li>ZIP file does not exist</li>
+<li>destination folder is not writable</li>
+<li>destination is inside source (especially for archive)</li>
+</ul><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_20">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Add non-blocking warnings in the UI before run.</p><p>This saves users from discovering obvious errors only in the terminal.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="84-add-connection-testing">8.4 Add connection testing</span></div></summary><div class="sec-body level-h2"><p>Right now “Server: Ready” mostly means “fields are non-empty.”</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_21">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Add a “Test Connection” button that checks:</p><ul>
+<li>server reachable</li>
+<li>API key valid</li>
+<li>maybe server version/about endpoint</li>
+</ul><p>This would make configuration much less stressful.</p><hr/></div></details></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="9-uiux-improvements">9. UI/UX improvements</span></div></summary><div class="sec-body level-h1"><p>The UI is already good, but there are many polish opportunities.</p><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="91-fix-misleading-labels">9.1 Fix misleading labels</span></div></summary><div class="sec-body level-h2"><p>In <code>archive from-immich</code>, the server card says “Target Server,” but the server is actually the <strong>source being archived from</strong>.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_22">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Use clearer labels:</p><ul>
+<li><code>archive from-immich</code>: <strong>Source Server</strong></li>
+<li><code>upload from-immich</code>: <strong>Source Server</strong> and <strong>Destination Server</strong></li>
+<li><code>stack</code>: <strong>Immich Server</strong></li>
+</ul><p>This reduces mental load.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="92-show-destination-context-more-clearly">9.2 Show destination context more clearly</span></div></summary><div class="sec-body level-h2"><p>For <code>upload from-immich</code>, the user enters a source server in the tab, while the destination server comes from global config.</p><p>This can be confusing.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_23">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Add a read-only summary banner:</p><blockquote>
+<p>Destination: http://new-server:2283<br/>
+Source: http://old-server:2283</p>
+</blockquote><p>This makes migrations much easier to understand.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="93-add-an-integrated-log-viewer">9.3 Add an integrated log viewer</span></div></summary><div class="sec-body level-h2"><p>Even if you keep external terminal as default, an internal log viewer would be extremely useful.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="options">Options</span></div></summary><div class="sec-body level-h3"><ul>
+<li>expose <code>--log-file</code></li>
+<li>expose <code>--log-type=json</code></li>
+<li>add a “Run with embedded output” mode</li>
+<li>show live logs in a dock panel</li>
+</ul><p>This would make the app much more self-contained.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="94-add-run-history">9.4 Add run history</span></div></summary><div class="sec-body level-h2"><p>Store recent runs:</p><ul>
+<li>timestamp</li>
+<li>tab</li>
+<li>dry-run/live</li>
+<li>command summary</li>
+<li>result/status</li>
+<li>log path</li>
+</ul><p>This is very helpful for repeated imports and troubleshooting.</p><hr/></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="95-add-showhide-api-key-toggle">9.5 Add show/hide API key toggle</span></div></summary><div class="sec-body level-h2"><p>Password fields are good, but users often need to verify what they pasted.</p><p>Add a small “reveal” toggle.</p><hr/></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="96-improve-drag-and-drop-behavior">9.6 Improve drag-and-drop behavior</span></div></summary><div class="sec-body level-h2"><p>Your <code>DroppableLineEdit</code> takes only the first dropped path.</p><p>That is fine for single-path fields, but you could improve it by:</p><ul>
+<li>accepting only valid types</li>
+<li>showing a warning if multiple files are dropped into a single-path field</li>
+<li>appending instead of replacing in multi-line fields</li>
+</ul><hr/></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="97-add-disk-space-check-for-archive-destinations">9.7 Add disk space check for archive destinations</span></div></summary><div class="sec-body level-h2"><p>Before running an archive, check available disk space.</p><p>If the destination looks too small, warn the user.</p><p>This is a very practical safety feature.</p><hr/></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="98-add-takeout-completeness-helper">9.8 Add takeout completeness helper</span></div></summary><div class="sec-body level-h2"><p>Google Takeout imports are messy.</p><p>You could add a small helper that checks:</p><ul>
+<li>how many ZIP parts were selected</li>
+<li>whether names look sequential</li>
+<li>whether an extracted folder contains expected JSON sidecars</li>
+<li>whether unmatched files exist</li>
+</ul><p>This would make your GUI stand out even more.</p><hr/></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="10-accessibility-and-keyboard-support">10. Accessibility and keyboard support</span></div></summary><div class="sec-body level-h1"><p>This is an area where many custom Qt apps fall short.</p><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="101-custom-switch-is-not-keyboard-accessible-enough">10.1 Custom switch is not keyboard-accessible enough</span></div></summary><div class="sec-body level-h2"><p>Your <code>SwitchButton</code> is mouse-driven.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_24">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Add:<br/>
+- focus outline<br/>
+- toggle on Space/Enter<br/>
+- accessible name<br/>
+- accessible state (checked/unchecked)</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="102-improve-screen-reader-support">10.2 Improve screen reader support</span></div></summary><div class="sec-body level-h2"><p>Custom widgets and labels should have accessible names.</p><p>Also ensure that:<br/>
+- icons are not the only meaning carriers<br/>
+- color-only states have text equivalents<br/>
+- warnings are announced properly</p><hr/></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="103-test-high-dpi-and-small-screen-layouts">10.3 Test high-DPI and small-screen layouts</span></div></summary><div class="sec-body level-h2"><p>Your UI looks designed for desktop, which is good, but you should still test:</p><ul>
+<li>1080p</li>
+<li>1440p</li>
+<li>4K scaling</li>
+<li>laptop DPI scaling</li>
+<li>smaller window sizes</li>
+</ul><hr/></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="11-theming-improvements">11. Theming improvements</span></div></summary><div class="sec-body level-h1"><p>Your theme system is already nice, but can be improved.</p><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="111-icon-state-coloring">11.1 Icon state coloring</span></div></summary><div class="sec-body level-h2"><p>Sidebar icons seem to be recolored only by theme, not by checked state.</p><p>That means a selected nav item may have highlighted text but a muted icon.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_25">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Generate or cache icon variants for:<br/>
+- normal<br/>
+- hovered<br/>
+- checked</p><p>Or use <code>QIcon</code> modes/states properly.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="112-move-qss-to-a-more-maintainable-structure">11.2 Move QSS to a more maintainable structure</span></div></summary><div class="sec-body level-h2"><p>The stylesheet is large and embedded in Python.</p><p>That is okay for now, but long-term it may become hard to maintain.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_26">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Consider:<br/>
+- external QSS templates<br/>
+- tokenized theme files<br/>
+- separate light/dark theme files<br/>
+- build-time validation of QSS</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="113-clear-icon-cache-when-needed">11.3 Clear icon cache when needed</span></div></summary><div class="sec-body level-h2"><p>You already have <code>clear_icon_cache()</code>, but make sure it is used when:<br/>
+- theme changes<br/>
+- assets change during development<br/>
+- icon color logic changes</p><hr/></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="12-architecture-and-code-quality">12. Architecture and code quality</span></div></summary><div class="sec-body level-h1"><p>The architecture is already good, but there are still refinements.</p><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="121-apppy-is-still-doing-too-much">12.1 <code>app.py</code> is still doing too much</span></div></summary><div class="sec-body level-h2"><p>Even with modular backend files, <code>app.py</code> appears to contain:</p><ul>
+<li>main window</li>
+<li>custom widgets</li>
+<li>page builders</li>
+<li>binary update UI</li>
+<li>process launching</li>
+<li>persistence glue</li>
+<li>theme handling</li>
+</ul><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_27">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Split UI into more focused modules:</p><ul>
+<li><code>widgets/</code></li>
+<li><code>card.py</code></li>
+<li><code>switch.py</code></li>
+<li><code>droppable.py</code></li>
+<li><code>status_card.py</code></li>
+<li><code>pages/</code></li>
+<li><code>config_page.py</code></li>
+<li><code>upload_folder_page.py</code></li>
+<li><code>upload_gp_page.py</code></li>
+<li><code>archive_folder_page.py</code></li>
+<li><code>stack_page.py</code></li>
+<li><code>controllers/</code></li>
+<li><code>run_controller.py</code></li>
+<li><code>update_controller.py</code></li>
+<li><code>config_controller.py</code></li>
+</ul><p>This will make the project much easier to grow.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="122-replace-loosely-typed-state-dictionaries-with-stronger-types">12.2 Replace loosely typed state dictionaries with stronger types</span></div></summary><div class="sec-body level-h2"><p>You currently pass around dictionaries like:</p><div class="codehilite"><pre><span></span><code><span class="n">config_state</span>
+<span class="n">tab_state</span>
+</code></pre></div><p>This works, but it is easy to introduce key-name bugs.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_28">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Use:<br/>
+- <code>TypedDict</code><br/>
+- dataclasses<br/>
+- or Pydantic models</p><p>for tab state and config state.</p><p>This gives you:<br/>
+- autocomplete<br/>
+- refactoring safety<br/>
+- easier testing<br/>
+- fewer silent key errors</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="123-reduce-magic-strings">12.3 Reduce magic strings</span></div></summary><div class="sec-body level-h2"><p>There are many repeated string keys:</p><ul>
+<li><code>"upload-folder"</code></li>
+<li><code>"upload-gp"</code></li>
+<li><code>"archive-immich"</code></li>
+<li><code>"path"</code></li>
+<li><code>"write-to"</code></li>
+<li><code>"manage-burst"</code></li>
+</ul><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_29">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Use enums or constants for:<br/>
+- tab keys<br/>
+- field keys<br/>
+- flag names<br/>
+- status states</p><p>This reduces subtle bugs.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="124-add-structured-logging">12.4 Add structured logging</span></div></summary><div class="sec-body level-h2"><p>Right now, errors are often shown via message boxes or swallowed.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_30">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Add Python <code>logging</code> with:<br/>
+- file logs<br/>
+- optional debug mode<br/>
+- rotating logs</p><p>This helps both you and users diagnose problems.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="125-avoid-broad-silent-exception-handling">12.5 Avoid broad silent exception handling</span></div></summary><div class="sec-body level-h2"><p>There are several places where exceptions are caught and ignored.</p><p>That may be acceptable for optional keyring operations, but not for:<br/>
+- config corruption<br/>
+- binary extraction failures<br/>
+- metadata write failures<br/>
+- terminal launch failures</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_31">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Catch specific exceptions and surface meaningful diagnostics.</p><hr/></div></details></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="13-testing-strategy">13. Testing strategy</span></div></summary><div class="sec-body level-h1"><p>This is probably the single best next step if you want the project to become truly robust.</p><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="131-unit-tests-for-command-building">13.1 Unit tests for command building</span></div></summary><div class="sec-body level-h2"><p>This is the highest-value test area.</p><p>For each tab, test:</p><ul>
+<li>default state → expected command</li>
+<li>simple mode → expected command</li>
+<li>advanced mode → expected command</li>
+<li>dry-run → expected <code>--dry-run</code></li>
+<li>secrets are not in argv</li>
+<li>environment contains correct secret variables</li>
+<li>warnings are generated for risky options</li>
+</ul><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="golden-tests">Golden tests</span></div></summary><div class="sec-body level-h3"><p>Create expected command snapshots:</p><div class="codehilite"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">test_upload_folder_basic</span><span class="p">():</span>
+    <span class="n">plan</span> <span class="o">=</span> <span class="n">build_plan_from_state</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+    <span class="k">assert</span> <span class="n">plan</span><span class="o">.</span><span class="n">argv</span> <span class="o">==</span> <span class="n">snapshot</span>
+</code></pre></div><p>This will protect you from regressions.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="132-unit-tests-for-validation">13.2 Unit tests for validation</span></div></summary><div class="sec-body level-h2"><p>Test:</p><ul>
+<li>missing server</li>
+<li>missing API key</li>
+<li>missing source path</li>
+<li>missing destination</li>
+<li>invalid date range</li>
+<li>serverless tab does not require server</li>
+<li>SSL warning appears when enabled</li>
+</ul><hr/></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="133-unit-tests-for-version-policy">13.3 Unit tests for version policy</span></div></summary><div class="sec-body level-h2"><p>Test:</p><ul>
+<li>tested version accepted</li>
+<li>older unsupported version detected</li>
+<li>newer untested version blocked unless allowed</li>
+<li>downgrade detection</li>
+<li>breaking release notes detection</li>
+</ul><hr/></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="134-unit-tests-for-config-and-secrets">13.4 Unit tests for config and secrets</span></div></summary><div class="sec-body level-h2"><p>Test:</p><ul>
+<li>load/save roundtrip</li>
+<li>migration from old settings</li>
+<li>keyring fallback behavior</li>
+<li>secrets.toml permissions on POSIX</li>
+<li>environment override behavior</li>
+</ul><hr/></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="135-ui-tests">13.5 UI tests</span></div></summary><div class="sec-body level-h2"><p>Use <code>pytest-qt</code> for:</p><ul>
+<li>tab switching</li>
+<li>advanced toggle</li>
+<li>confirm dialog construction</li>
+<li>save/load configuration</li>
+<li>theme switching</li>
+</ul><p>You don’t need full coverage, but a few smoke tests help a lot.</p><hr/></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="14-packaging-and-distribution">14. Packaging and distribution</span></div></summary><div class="sec-body level-h1"><p>Your Nuitka setup is already a good start.</p><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="141-pin-dependencies">14.1 Pin dependencies</span></div></summary><div class="sec-body level-h2"><p>Make sure you pin:</p><ul>
+<li>PySide6</li>
+<li>requests</li>
+<li>keyring</li>
+<li>tomli-w</li>
+<li>packaging</li>
+<li>tomli (if supporting older Python)</li>
+</ul><p>Reproducible builds matter.</p><hr/></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="142-add-ci-builds">14.2 Add CI builds</span></div></summary><div class="sec-body level-h2"><p>If you are distributing binaries, add CI for:</p><ul>
+<li>Windows</li>
+<li>macOS</li>
+<li>Linux</li>
+</ul><p>At minimum:<br/>
+- lint<br/>
+- tests<br/>
+- type check<br/>
+- build artifact</p><hr/></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="143-consider-code-signing">14.3 Consider code signing</span></div></summary><div class="sec-body level-h2"><p>If you want users to trust the app:</p><ul>
+<li>Windows code signing</li>
+<li>macOS notarization</li>
+</ul><p>This is not urgent, but it matters for wider distribution.</p><hr/></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="15-documentation-improvements">15. Documentation improvements</span></div></summary><div class="sec-body level-h1"><p>Your project would benefit from clearer user and developer docs.</p><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="151-user-documentation">15.1 User documentation</span></div></summary><div class="sec-body level-h2"><p>Add:</p><ul>
+<li>setup guide</li>
+<li>API key permission guide</li>
+<li>explanation of dry run</li>
+<li>explanation of stacking modes</li>
+<li>explanation of archive behavior</li>
+<li>troubleshooting guide</li>
+</ul><p>The CLI doc you included is excellent; a condensed GUI-specific version would help.</p><hr/></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="152-developer-documentation">15.2 Developer documentation</span></div></summary><div class="sec-body level-h2"><p>Add:</p><ul>
+<li>architecture overview</li>
+<li>how command building works</li>
+<li>how secrets are stored</li>
+<li>how binary management works</li>
+<li>how to add a new tab</li>
+<li>how to run tests</li>
+</ul><p>This will make future contributions much easier.</p><hr/></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="16-specific-bugs-rough-edges-to-check">16. Specific bugs / rough edges to check</span></div></summary><div class="sec-body level-h1"><p>These are not all guaranteed bugs, but they are worth verifying.</p><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="161-if-the-pasted-code-is-literal-some-__init__-methods-may-be-missing-underscores">16.1 If the pasted code is literal, some <code>__init__</code> methods may be missing underscores</span></div></summary><div class="sec-body level-h2"><p>In several places, the code shows:</p><div class="codehilite"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">init</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
+</code></pre></div><p>instead of:</p><div class="codehilite"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
+</code></pre></div><p>If that is not just a copy/paste artifact, those widgets will not initialize correctly.</p><hr/></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="162-themepy-may-have-a-similar-issue">16.2 <code>theme.py</code> may have a similar issue</span></div></summary><div class="sec-body level-h2"><p>It shows:</p><div class="codehilite"><pre><span></span><code><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span> <span class="n">file</span> <span class="p">)</span>
+</code></pre></div><p>If that is literally missing <code>__file__</code>, it will fail.</p><p>Again, this may just be formatting loss, but worth checking.</p><hr/></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="163-status-card-may-say-server-ready-on-the-config-tab-even-when-not-configured">16.3 Status card may say “Server: Ready” on the config tab even when not configured</span></div></summary><div class="sec-body level-h2"><p>Your validation returns valid for the <code>config</code> tab itself.</p><p>That can make the status card show “Ready” even if server URL/API key are empty.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_32">Recommendation</span></div></summary><div class="sec-body level-h3"><p>For the config tab, show a more honest state like:<br/>
+- “Server: Not Set”<br/>
+- or “Server: Incomplete”</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="164-manual-binary-path-checking-on-every-keystroke">16.4 Manual binary path checking on every keystroke</span></div></summary><div class="sec-body level-h2"><p><code>manual_binary_edit.textChanged</code> triggers binary version checking immediately.</p><p>That can spawn subprocesses too often.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_33">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Use:<br/>
+- <code>editingFinished</code><br/>
+- or a debounce timer</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="165-qsettings-organization-placeholder">16.5 <code>QSettings</code> organization placeholder</span></div></summary><div class="sec-body level-h2"><p>You currently use:</p><div class="codehilite"><pre><span></span><code><span class="n">QSettings</span><span class="p">(</span><span class="s2">"YourOrganization"</span><span class="p">,</span> <span class="s2">"ImmichGoGUI"</span><span class="p">)</span>
+</code></pre></div><p>Replace this with a real organization/domain.</p><hr/></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="166-duplicated-updateextraction-logic">16.6 Duplicated update/extraction logic</span></div></summary><div class="sec-body level-h2"><p><code>app.py</code> still contains its own download/extraction flow, while <code>BinaryManager</code> also has similar capabilities.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_34">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Move all download/extract/select logic into the manager or a controller, and keep the UI layer thin.</p><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="167-allow_untested_updates-exists-in-model-but-not-in-ui">16.7 <code>allow_untested_updates</code> exists in model but not in UI</span></div></summary><div class="sec-body level-h2"><p>Your update logic checks:</p><div class="codehilite"><pre><span></span><code><span class="n">allow_untested_updates</span>
+</code></pre></div><p>but users may have no way to change it.</p><details class="sec-details level-h3" open=""><summary class="sec-summary level-h3"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h3">H3</span><span class="heading-text" id="recommendation_35">Recommendation</span></div></summary><div class="sec-body level-h3"><p>Add a checkbox in advanced settings:</p><blockquote>
+<p>Allow installing untested immich-go versions</p>
+</blockquote><hr/></div></details></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="168-advanced-mode-state-is-not-persisted">16.8 Advanced mode state is not persisted</span></div></summary><div class="sec-body level-h2"><p><code>AppConfig.advanced_mode</code> exists, but the switch state does not appear to be restored consistently.</p><p>Persist it.</p><hr/></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="17-product-level-feature-ideas">17. Product-level feature ideas</span></div></summary><div class="sec-body level-h1"><p>If you want to make the GUI feel truly premium, consider these features.</p><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="171-command-presets">17.1 Command presets</span></div></summary><div class="sec-body level-h2"><p>Named presets per tab.</p></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="172-multi-server-profiles">17.2 Multi-server profiles</span></div></summary><div class="sec-body level-h2"><p>Especially useful for migrations and backups.</p></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="173-embedded-job-console">17.3 Embedded job console</span></div></summary><div class="sec-body level-h2"><p>With live logs and cancel support.</p></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="174-dry-run-output-parser">17.4 Dry-run output parser</span></div></summary><div class="sec-body level-h2"><p>Turn dry-run output into a friendlier summary:</p><ul>
+<li>files considered</li>
+<li>files skipped</li>
+<li>albums to create</li>
+<li>stacks to create</li>
+<li>warnings</li>
+</ul></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="175-post-run-report">17.5 Post-run report</span></div></summary><div class="sec-body level-h2"><p>After execution, show:</p><ul>
+<li>uploaded count</li>
+<li>skipped count</li>
+<li>errors</li>
+<li>log path</li>
+</ul></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="176-takeout-inspector">17.6 Takeout inspector</span></div></summary><div class="sec-body level-h2"><p>Before import:</p><ul>
+<li>count media files</li>
+<li>count JSON sidecars</li>
+<li>detect unmatched items</li>
+<li>detect partner/archived/trashed counts</li>
+</ul></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="177-archive-preview">17.7 Archive preview</span></div></summary><div class="sec-body level-h2"><p>Before export:</p><ul>
+<li>estimated file count</li>
+<li>estimated size</li>
+<li>destination tree preview</li>
+</ul></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="178-script-export">17.8 Script export</span></div></summary><div class="sec-body level-h2"><p>Generate a reusable shell/PowerShell script from the current GUI state.</p><p>This is great for automation-minded users.</p><hr/></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="18-what-i-would-prioritize-next">18. What I would prioritize next</span></div></summary><div class="sec-body level-h1"><p>If this were my project, I’d prioritize in this order:</p><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="phase-1-correctness-and-safety">Phase 1 — Correctness and safety</span></div></summary><div class="sec-body level-h2"><ol>
+<li>Add CLI contract tests against <code>immich-go --help</code></li>
+<li>Fix any questionable flags for each subcommand</li>
+<li>Improve lock/process tracking and stale-lock recovery</li>
+<li>Add safer terminal launching / embedded runner fallback</li>
+<li>Fix secret migration so it cannot lose keys</li>
+<li>Persist form state</li>
+</ol></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="phase-2-feature-completeness">Phase 2 — Feature completeness</span></div></summary><div class="sec-body level-h2"><ol>
+<li>Add missing important options:<br/>
+   - GP RAW+JPEG<br/>
+   - GP untitled albums<br/>
+   - folder recursive / joiner / picasa<br/>
+   - archive-immich advanced filters</li>
+<li>Add <code>from-icloud</code> and <code>from-picasa</code> if you want full CLI parity</li>
+<li>Add admin API key support</li>
+<li>Add connection test button</li>
+<li>Add presets/profiles</li>
+</ol></div></details><details class="sec-details level-h2" open=""><summary class="sec-summary level-h2"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h2">H2</span><span class="heading-text" id="phase-3-polish-and-scalability">Phase 3 — Polish and scalability</span></div></summary><div class="sec-body level-h2"><ol>
+<li>Integrated log viewer</li>
+<li>Run history</li>
+<li>Better binary update flow with asset discovery and checksums</li>
+<li>Accessibility improvements</li>
+<li>Split <code>app.py</code> into pages/controllers</li>
+<li>Add CI and broader test coverage</li>
+</ol><hr/></div></details></div></details><details class="sec-details level-h1" open=""><summary class="sec-summary level-h1"><div class="summary-content"><span class="chevron">❯</span><span class="badge badge-h1">H1</span><span class="heading-text" id="19-my-blunt-critics-verdict">19. My blunt critic’s verdict</span></div></summary><div class="sec-body level-h1"><p>Your project is already <strong>well above average</strong> for a GUI wrapper.</p><p>The design decisions are mostly mature:<br/>
+- modular backend<br/>
+- secret-aware execution<br/>
+- dry-run preview<br/>
+- binary management<br/>
+- theme system</p><p>But if you want it to become truly excellent, the biggest gap is not visual polish — it is <strong>operational confidence</strong>.</p><p>The app should not only work when everything is normal. It should also:</p><ul>
+<li>survive stale locks</li>
+<li>recover from failed terminals</li>
+<li>prevent secret loss during migration</li>
+<li>guarantee CLI flag compatibility</li>
+<li>persist user workflows</li>
+<li>give users logs and history</li>
+<li>handle advanced immich-go workflows completely</li>
+</ul><p>If you close those gaps, this stops being “a nice GUI for immich-go” and becomes <strong>the best way for many people to use immich-go</strong>.</p><hr/><p>If you want, I can do one of these next:</p><ol>
+<li><strong>Turn this critique into a prioritized GitHub issue list</strong></li>
+<li><strong>Review only <code>immichgo_commands.py</code> line-by-line</strong></li>
+<li><strong>Propose a concrete refactor plan for <code>app.py</code></strong></li>
+<li><strong>Design a schema-driven CLI builder for your project</strong></li>
+<li><strong>Write a test plan with example pytest cases</strong></li>
+</ol></div></details>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tocList = document.getElementById('tocList');
+            const headings = document.querySelectorAll('.sec-summary');
+
+            headings.forEach((sum, idx) => {
+                const headingText = sum.querySelector('.heading-text');
+                const badge = sum.querySelector('.badge');
+                if (!headingText || !badge) return;
+
+                const text = headingText.innerText.trim();
+                const level = badge.innerText.toLowerCase();
+                
+                const anchorId = 'sec-heading-' + idx;
+                headingText.id = anchorId;
+
+                const li = document.createElement('li');
+                li.className = `toc-item level-${level.replace('h', '')}`;
+
+                const a = document.createElement('a');
+                a.className = 'toc-link';
+                a.href = '#' + anchorId;
+                a.innerText = text;
+                a.onclick = (e) => {
+                    e.preventDefault();
+                    let details = sum.closest('details');
+                    while (details) {
+                        details.open = true;
+                        details = details.parentElement.closest('details');
+                    }
+                    headingText.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                };
+
+                li.appendChild(a);
+                tocList.appendChild(li);
+            });
+
+            document.querySelectorAll('pre').forEach(pre => {
+                const btn = document.createElement('button');
+                btn.className = 'copy-code-btn';
+                btn.innerText = 'Copy';
+                btn.onclick = () => {
+                    const code = pre.querySelector('code');
+                    const text = code ? code.innerText : pre.innerText;
+                    navigator.clipboard.writeText(text).then(() => {
+                        btn.innerText = 'Copied!';
+                        setTimeout(() => btn.innerText = 'Copy', 2000);
+                    });
+                };
+                pre.appendChild(btn);
+            });
+        });
+
+        function expandAll() { document.querySelectorAll('details').forEach(d => d.open = true); }
+        function collapseAll() { document.querySelectorAll('details').forEach(d => d.open = false); }
+
+        function toggleTheme() {
+            const body = document.body;
+            const themeBtn = document.getElementById('themeBtn');
+            if (body.getAttribute('data-theme') === 'dark') {
+                body.setAttribute('data-theme', 'light');
+                themeBtn.innerHTML = '<span>☀️</span> Light Mode';
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                themeBtn.innerHTML = '<span>🌙</span> Dark Mode';
+            }
+        }
+
+        function filterContent() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            const detailsList = document.querySelectorAll('details');
+
+            if (!query) {
+                detailsList.forEach(d => d.classList.remove('search-hidden'));
+                return;
+            }
+
+            detailsList.forEach(d => {
+                const text = d.innerText.toLowerCase();
+                if (text.includes(query)) {
+                    d.classList.remove('search-hidden');
+                    d.open = true;
+                } else {
+                    d.classList.add('search-hidden');
+                }
+            });
+        }
+    </script>
+</body>
+</html>

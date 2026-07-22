@@ -5,7 +5,7 @@ environment variable mappings, and version compatibility metadata.
 MUST NOT import PySide6 or Qt.
 """
 
-from immichgo_models import VersionSupport
+from .models import VersionSupport
 
 
 # Stable internal tab keys used by the GUI.

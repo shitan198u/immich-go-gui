@@ -17,7 +17,7 @@ except ModuleNotFoundError:
 import keyring
 import tomli_w
 
-from immichgo_models import AppConfig
+from .models import AppConfig
 
 
 def _get_keyring():

@@ -8,8 +8,8 @@ import glob
 import os
 import re
 
-from immichgo_models import CommandPlan, ValidationResult
-from immichgo_schema import (
+from .models import CommandPlan, ValidationResult
+from .cli_schema import (
     ENV_KEY_MAP,
     SECRET_FLAGS,
     SERVER_REQUIRED_TABS,

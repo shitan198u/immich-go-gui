@@ -107,60 +107,42 @@ class ProcessTracker:
             f"rm -f {shlex.quote(lock)}"
         )
 
-from immichgo_models import (
+from core import (
     AppConfig,
-    BinaryStatus,
-    CommandPlan,
-    UpdateDecision,
-    UpdateSeverity,
-    ValidationResult,
-    VersionSupport,
-)
-
-
-from immichgo_schema import (
+    BINARY_BASE_DIR,
+    METADATA_PATH,
+    TESTED_IMMICH_GO_VERSION,
     ENV_KEY_MAP,
     SECRET_FLAGS,
     SERVER_REQUIRED_TABS,
     SERVERLESS_TABS,
     TAB_COMMANDS,
     UPLOAD_TABS,
-)
-
-from immichgo_commands import (
+    BinaryManager,
+    BinaryStatus,
+    CommandPlan,
+    SecretStore,
+    UpdateDecision,
+    UpdateSeverity,
+    ValidationResult,
+    VersionSupport,
     build_environment,
     build_plan_from_state,
-    collect_paths,
-    mask_command_for_display,
-    normalize_server_url,
-    validate_date_range,
-    validate_state,
-)
-
-
-from immichgo_binary import (
-    BINARY_BASE_DIR,
-    METADATA_PATH,
-    TESTED_IMMICH_GO_VERSION,
-    BinaryManager,
     clean_version,
-    get_binary_path,
-    load_binary_metadata,
-    save_binary_metadata,
-)
-
-
-
-
-
-from immichgo_config import (
-    SecretStore,
     clear_api_key,
+    collect_paths,
     default_config_path,
     get_api_key,
+    get_binary_path,
+    load_binary_metadata,
     load_config,
+    mask_command_for_display,
+    normalize_server_url,
+    save_binary_metadata,
     save_config,
     set_api_key,
+    validate_date_range,
+    validate_state,
 )
 
 

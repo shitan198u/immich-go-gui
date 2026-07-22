@@ -184,3 +184,22 @@ When you are ready to publish a new version of the app to users:
 2. Click **Merge pull request**.
 3. Release Please will automatically create the Git tag (e.g., `v1.2.0`) and publish the GitHub Release page.
 4. Your `release.yml` GitHub Action will detect the new tag and automatically build and upload the executables for Windows, Linux, and macOS.
+
+# Developer Helper Tools (`scripts/`)
+
+### 1. Generating Interactive HTML from Markdown (`scripts/convert_markdown.py`)
+
+You can convert Markdown files (such as `review.md`) into standalone, interactive HTML files featuring nested collapsible sections, a real-time search filter, a sticky Table of Contents sidebar, dark/light theme switching, and copy buttons on code blocks.
+
+```bash
+uv run --with markdown --with beautifulsoup4 python scripts/convert_markdown.py review.md review.html
+```
+
+### 2. Bundling Codebase for LLM Prompts (`scripts/bundle_codebase.py`)
+
+You can aggregate the project's core Python modules (`core/*.py`, `app.py`, `test_app.py`) into a single text file for feeding into LLMs or code reviews:
+
+```bash
+uv run python scripts/bundle_codebase.py immichgo_modules_bundle.txt
+```
+

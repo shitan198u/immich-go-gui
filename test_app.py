@@ -738,10 +738,10 @@ def test_golden_archive_immich(gui):
 # PURE CORE MODULE UNIT TESTS (NO QT REQUIRED)
 # ==========================================================
 
-from immichgo_binary import BinaryManager, get_version_support
-from immichgo_commands import build_plan_from_state
-from immichgo_config import load_config, save_config
-from immichgo_models import AppConfig, VersionSupport
+from core.binary_manager import BinaryManager, get_version_support
+from core.command_builder import build_plan_from_state
+from core.config_manager import load_config, save_config
+from core.models import AppConfig, VersionSupport
 
 
 def test_build_plan_from_state_upload_folder_golden():
