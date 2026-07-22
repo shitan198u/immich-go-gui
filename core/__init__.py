@@ -75,6 +75,18 @@ from .profile_manager import (
     set_active_profile_name,
     validate_profile_name,
 )
+from .process_tracker import (
+    RunLock,
+    cleanup_stale_locks,
+    create_lock,
+    is_lock_active,
+    lock_dir,
+    read_lock,
+    release_lock,
+    reset_all_locks,
+    scan_locks,
+)
+from .terminal_launcher import LaunchResult, launch_external_terminal
 
 __all__ = [
     # models
