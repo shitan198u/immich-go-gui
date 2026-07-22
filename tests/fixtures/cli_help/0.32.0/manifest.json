@@ -1,0 +1,16 @@
+{
+  "version": "0.32.0",
+  "captured_at": "2026-07-22T00:00:00Z",
+  "binary_path": "immich-go",
+  "commands": {
+    "root": [],
+    "upload": ["upload"],
+    "upload_from-folder": ["upload", "from-folder"],
+    "upload_from-google-photos": ["upload", "from-google-photos"],
+    "upload_from-immich": ["upload", "from-immich"],
+    "archive": ["archive"],
+    "archive_from-folder": ["archive", "from-folder"],
+    "archive_from-immich": ["archive", "from-immich"],
+    "stack": ["stack"]
+  }
+}

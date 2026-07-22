@@ -1,0 +1,30 @@
+NAME:
+   immich-go archive from-immich - Archive assets from Immich instance to zip/folder
+
+USAGE:
+   immich-go archive from-immich [command options]
+
+OPTIONS:
+   --server value                       Immich server URL
+   --skip-verify-ssl                    Skip SSL verification (default: false)
+   --client-timeout value               Client timeout (default: 20m0s)
+   --dry-run                            Perform dry-run without archiving (default: false)
+   --log-level value                    Log output verbosity (default: "info")
+   --write-to value                     Destination folder/zip for archive output
+   --from-favorite                      Filter by favorite assets (default: false)
+   --from-archived                      Filter by archived assets (default: false)
+   --from-trash                         Filter by trashed assets (default: false)
+   --from-minimal-rating value          Filter by minimum rating value
+   --from-people value                  Filter by person names
+   --from-tags value                    Filter by tag names
+   --from-city value                    Filter by city name
+   --from-state value                   Filter by state name
+   --from-country value                 Filter by country name
+   --from-make value                    Filter by camera make
+   --from-model value                   Filter by camera model
+   --from-include-type value            Filter by media type: all, image, or video (default: "all")
+   --from-include-extensions value      Include extensions list
+   --from-exclude-extensions value      Exclude extensions list
+   --from-partners                      Include partner assets (default: false)
+   --from-time-zone value               Time zone override
+   --from-no-album                      Assets not in any album (default: false)

@@ -1244,3 +1244,57 @@ def test_terminal_launcher_posix_script_creation(tmp_path, monkeypatch):
         res = launch_external_terminal(cmd, env, lock_path, preferred_terminal="auto")
         assert res.ok is True
         assert mock_popen.called
+
+
+# ==============================================================================
+# SECTION 3: CLI CORRECTNESS & COMPATIBILITY TESTS (MILESTONE 1)
+# ==============================================================================
+
+from core.cli_help import parse_help_flags, load_help_fixture, help_name_for_tab
+from core.cli_schema import (
+    TAB_ALLOWED_FLAGS,
+    flag_allowed_for_tab,
+    assert_flag_allowed,
+)
+
+
+def test_parse_help_flags():
+    sample_help = """
+    OPTIONS:
+       --server value           Immich server URL
+       --skip-verify-ssl        Skip SSL verification (default: false)
+       -s, --session-tag value  Session tag
+       --recursive              Recursive search (default: true)
+       --help                   Show help
+    """
+    flags = parse_help_flags(sample_help)
+    assert "server" in flags
+    assert "skip-verify-ssl" in flags
+    assert "session-tag" in flags
+    assert "recursive" in flags
+    assert "help" not in flags
+
+
+def test_help_name_for_tab():
+    assert help_name_for_tab("upload-folder") == "upload_from-folder"
+    assert help_name_for_tab("upload-gp") == "upload_from-google-photos"
+    assert help_name_for_tab("archive-immich") == "archive_from-immich"
+    assert help_name_for_tab("stack") == "stack"
+
+
+def test_load_help_fixture():
+    flags = load_help_fixture("0.32.0", "upload_from-folder")
+    assert "server" in flags
+    assert "recursive" in flags
+    assert "manage-raw-jpeg" in flags
+
+
+def test_all_tab_allowed_flags_exist_in_help_fixtures():
+    tabs = ["upload-folder", "upload-gp", "upload-immich", "archive-folder", "archive-immich", "stack"]
+    for tab_key in tabs:
+        fixture_name = help_name_for_tab(tab_key)
+        fixture_flags = load_help_fixture("0.32.0", fixture_name)
+        allowed_flags = TAB_ALLOWED_FLAGS[tab_key]
+
+        for flag in allowed_flags:
+            assert flag in fixture_flags, f"Flag '--{flag}' registered in TAB_ALLOWED_FLAGS[{tab_key}] was not found in fixture '{fixture_name}'"

@@ -1,0 +1,35 @@
+NAME:
+   immich-go upload from-immich - Migration between Immich instances
+
+USAGE:
+   immich-go upload from-immich [command options]
+
+OPTIONS:
+   --server value                       Immich server URL
+   --skip-verify-ssl                    Skip SSL verification (default: false)
+   --client-timeout value               Client timeout (default: 20m0s)
+   --dry-run                            Perform dry-run without uploading (default: false)
+   --concurrent-tasks value             Max concurrent upload workers (default: 0)
+   --overwrite                          Overwrite existing assets (default: false)
+   --pause-immich-jobs                  Pause Immich background jobs during upload (default: true)
+   --on-errors value                    Error handling policy: stop, continue, or tolerance value (default: "stop")
+   --session-tag value                  Session tag identifier
+   --tag value                          Tag to apply to uploaded assets
+   --device-uuid value                  Custom device UUID
+   --api-trace                          Enable API request tracing (default: false)
+   --log-level value                    Log output verbosity (default: "info")
+   --from-server value                  Source Immich server URL
+   --from-skip-verify-ssl               Source server skip SSL verification (default: false)
+   --from-client-timeout value          Source client timeout (default: 20m0s)
+   --from-include-type value            Source media type filter (default: "all")
+   --from-include-extensions value      Source extension include filter
+   --from-exclude-extensions value      Source extension exclude filter
+   --from-partners                      Source partners assets filter (default: false)
+   --from-time-zone value               Source time zone override
+   --from-no-album                      Source no-album filter (default: false)
+   --from-albums value                  Source album name filter
+   --from-date-range value              Source date range filter
+   --from-device-uuid value             Source device UUID filter
+   --from-api-trace                     Source API tracing (default: false)
+   --from-dry-run                       Source dry-run (default: false)
+   --from-pause-immich-jobs             Source pause jobs (default: false)

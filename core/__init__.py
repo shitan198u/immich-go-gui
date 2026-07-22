@@ -23,6 +23,15 @@ from .cli_schema import (
     TAB_COMMANDS,
     TAB_KEYS,
     UPLOAD_TABS,
+    FlagDef,
+    TAB_ALLOWED_FLAGS,
+    flag_allowed_for_tab,
+    assert_flag_allowed,
+)
+from .cli_help import (
+    parse_help_flags,
+    load_help_fixture,
+    help_name_for_tab,
 )
 from .config_manager import (
     SecretStore,

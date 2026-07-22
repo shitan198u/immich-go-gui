@@ -66,14 +66,20 @@ ENV_KEY_MAP = {
     "upload-folder": {
         "server": "IMMICH_GO_UPLOAD_SERVER",
         "api_key": "IMMICH_GO_UPLOAD_API_KEY",
+        "admin_api_key": "IMMICH_GO_UPLOAD_ADMIN_API_KEY",
     },
     "upload-gp": {
         "server": "IMMICH_GO_UPLOAD_SERVER",
         "api_key": "IMMICH_GO_UPLOAD_API_KEY",
+        "admin_api_key": "IMMICH_GO_UPLOAD_ADMIN_API_KEY",
     },
     "upload-immich": {
         "server": "IMMICH_GO_UPLOAD_SERVER",
         "api_key": "IMMICH_GO_UPLOAD_API_KEY",
+        "admin_api_key": "IMMICH_GO_UPLOAD_ADMIN_API_KEY",
+        "from_server": "IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER",
+        "from_api_key": "IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY",
+        "from_admin_api_key": "IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY",
     },
     "archive-immich": {
         "server": "IMMICH_GO_ARCHIVE_SERVER",
@@ -82,8 +88,95 @@ ENV_KEY_MAP = {
     "stack": {
         "server": "IMMICH_GO_STACK_SERVER",
         "api_key": "IMMICH_GO_STACK_API_KEY",
+        "admin_api_key": "IMMICH_GO_STACK_ADMIN_API_KEY",
     },
 }
+
+from dataclasses import dataclass
+from typing import Any, Literal
+
+FlagKind = Literal[
+    "bool",
+    "str",
+    "int",
+    "duration",
+    "enum",
+    "csv",
+    "repeat",
+    "date_range",
+    "path",
+    "paths",
+]
+
+
+@dataclass(frozen=True)
+class FlagDef:
+    name: str
+    kind: FlagKind
+    scope: Literal["global", "command", "subcommand"]
+    default: Any = None
+    secret: bool = False
+    emit_in_argv: bool = True
+    env_name: str | None = None
+    notes: str = ""
+
+
+# Per-tab allowed flags registry based on captured immich-go CLI help.
+TAB_ALLOWED_FLAGS: dict[str, frozenset[str]] = {
+    "upload-folder": frozenset({
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks", "overwrite",
+        "pause-immich-jobs", "on-errors", "session-tag", "tag", "device-uuid", "api-trace", "log-level",
+        "recursive", "date-from-name", "ignore-sidecar-files", "include-extensions", "exclude-extensions",
+        "include-type", "ban-file", "date-range", "folder-as-album", "folder-as-tags", "album-path-joiner",
+        "album-picasa", "into-album", "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg", "manage-epson-fastfoto"
+    }),
+    "upload-gp": frozenset({
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks", "overwrite",
+        "pause-immich-jobs", "on-errors", "session-tag", "tag", "device-uuid", "api-trace", "log-level",
+        "include-extensions", "exclude-extensions", "ban-file", "date-range",
+        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg", "include-untitled-albums"
+    }),
+    "upload-immich": frozenset({
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks", "overwrite",
+        "pause-immich-jobs", "on-errors", "session-tag", "tag", "device-uuid", "api-trace", "log-level",
+        "from-server", "from-skip-verify-ssl", "from-client-timeout", "from-include-type",
+        "from-include-extensions", "from-exclude-extensions", "from-partners", "from-time-zone",
+        "from-no-album", "from-albums", "from-date-range", "from-device-uuid", "from-api-trace",
+        "from-dry-run", "from-pause-immich-jobs"
+    }),
+    "archive-folder": frozenset({
+        "write-to", "dry-run", "log-level", "include-extensions", "exclude-extensions",
+        "include-type", "ban-file", "ignore-sidecar-files", "date-from-name", "recursive"
+    }),
+    "archive-immich": frozenset({
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "log-level", "write-to",
+        "from-favorite", "from-archived", "from-trash", "from-minimal-rating", "from-people",
+        "from-tags", "from-city", "from-state", "from-country", "from-make", "from-model",
+        "from-include-type", "from-include-extensions", "from-exclude-extensions", "from-partners",
+        "from-time-zone", "from-no-album"
+    }),
+    "stack": frozenset({
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "log-level",
+        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg"
+    }),
+}
+
+
+def flag_allowed_for_tab(tab_key: str, flag_name: str) -> bool:
+    """Checks whether a given flag name (without --) is allowed for a tab."""
+    allowed = TAB_ALLOWED_FLAGS.get(tab_key)
+    if allowed is None:
+        return False
+    clean_flag = flag_name.lstrip("-")
+    return clean_flag in allowed
+
+
+def assert_flag_allowed(tab_key: str, flag_name: str) -> None:
+    """Raises ValueError if flag_name is not allowed for tab_key."""
+    clean_flag = flag_name.lstrip("-")
+    if not flag_allowed_for_tab(tab_key, clean_flag):
+        raise ValueError(f"Flag '--{clean_flag}' is not allowed for tab '{tab_key}'.")
+
 
 # Future compatibility metadata.
 COMPATIBILITY_MATRIX = {

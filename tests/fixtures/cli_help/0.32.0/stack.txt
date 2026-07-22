@@ -1,0 +1,15 @@
+NAME:
+   immich-go stack - Stack duplicate and burst assets on Immich server
+
+USAGE:
+   immich-go stack [command options]
+
+OPTIONS:
+   --server value               Immich server URL
+   --skip-verify-ssl            Skip SSL verification (default: false)
+   --client-timeout value       Client timeout (default: 20m0s)
+   --dry-run                    Perform dry-run without stacking (default: false)
+   --log-level value            Log output verbosity (default: "info")
+   --manage-burst value         Burst frame stacking strategy (default: "NoStack")
+   --manage-raw-jpeg value      RAW+JPEG pair stacking strategy (default: "NoStack")
+   --manage-heic-jpeg value     HEIC+JPEG pair stacking strategy (default: "NoStack")

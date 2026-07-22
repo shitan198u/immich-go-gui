@@ -1,0 +1,17 @@
+NAME:
+   immich-go archive from-folder - Archive assets to local directory
+
+USAGE:
+   immich-go archive from-folder [command options] <PATH>
+
+OPTIONS:
+   --write-to value             Destination folder for archive output
+   --dry-run                    Perform dry-run without archiving (default: false)
+   --log-level value            Log output verbosity (default: "info")
+   --include-extensions value   Comma-separated list of extensions to include
+   --exclude-extensions value   Comma-separated list of extensions to exclude
+   --include-type value         Filter by media type: all, image, or video (default: "all")
+   --ban-file value             Glob pattern for files to skip
+   --ignore-sidecar-files       Ignore XMP/sidecar metadata files (default: false)
+   --date-from-name             Infer date from asset filename (default: false)
+   --recursive                  Search source directory recursively (default: true)
