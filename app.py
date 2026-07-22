@@ -58,6 +58,11 @@ from theme import (
     apply_application_theme, connect_system_theme_changes,
     load_themed_icon
 )
+from core.network import test_immich_connection, ConnectionTestResult
+from core.validation import (
+    clean_date_range, normalize_extensions_csv, normalize_list_csv,
+    expand_source_paths, validate_destination_folder
+)
 
 
 # ==========================================================
@@ -822,6 +827,10 @@ class ImmichGoGUI(QMainWindow):
         )
 
         self._add_ssl_skip_row(form, self.inputs["config"])
+
+        self.btn_test_connection = QPushButton("Test Connection")
+        self.btn_test_connection.clicked.connect(self.on_test_connection_clicked)
+        form.add_row("", self.btn_test_connection)
 
         card.layout.addLayout(form)
         page.addWidget(card)
@@ -1922,6 +1931,28 @@ class ImmichGoGUI(QMainWindow):
             tab_state=tab_state,
         )
 
+    def on_test_connection_clicked(self):
+        srv_widget = self.inputs.get("config", {}).get("server")
+        api_widget = self.inputs.get("config", {}).get("api_key")
+        ssl_widget = self.inputs.get("config", {}).get("skip-ssl")
+
+        server_url = srv_widget.text().strip() if srv_widget else ""
+        api_key = api_widget.text().strip() if api_widget else ""
+        skip_ssl = ssl_widget.isChecked() if ssl_widget else False
+
+        if not server_url:
+            QMessageBox.warning(self, "Test Connection", "Please enter a Server URL first.")
+            return
+        if not api_key:
+            QMessageBox.warning(self, "Test Connection", "Please enter an API Key first.")
+            return
+
+        res = test_immich_connection(server_url, api_key, skip_ssl=skip_ssl)
+        if res.ok:
+            QMessageBox.information(self, "Test Connection Succeeded", res.message)
+        else:
+            QMessageBox.warning(self, "Test Connection Failed", res.message)
+
     def update_status(self):
         is_running = getattr(self, "running_process", None) is not None
         validation = self.validate_inputs()
@@ -1933,7 +1964,17 @@ class ImmichGoGUI(QMainWindow):
         else:
             self.lbl_running_warning.setVisible(False)
 
-        if validation.is_valid:
+        active_tab = self._get_active_tab_key()
+        if active_tab == "config":
+            srv_widget = self.inputs.get("config", {}).get("server")
+            api_widget = self.inputs.get("config", {}).get("api_key")
+            srv_text = srv_widget.text().strip() if srv_widget else ""
+            key_text = api_widget.text().strip() if api_widget else ""
+            if srv_text and key_text:
+                self.status_card.set_server("ok", "Server: Configured")
+            else:
+                self.status_card.set_server("err", "Server: Not Set")
+        elif validation.is_valid:
             self.status_card.set_server("ok", "Server: Ready")
             if not is_running:
                 self.btn_run.setEnabled(True)
@@ -1996,14 +2037,19 @@ class ImmichGoGUI(QMainWindow):
             else:
                 return
 
-        plan = self.build_plan(dry_run=is_dry_run)
-
-        if plan.errors:
+        validation = self.validate_inputs()
+        if validation.errors:
             QMessageBox.warning(
                 self, "Validation Errors",
-                "\n".join(f"• {e}" for e in plan.errors)
+                "\n".join(f"• {e}" for e in validation.errors)
             )
             return
+
+        plan = self.build_plan(dry_run=is_dry_run)
+        if validation.warnings:
+            for w in validation.warnings:
+                if w not in plan.warnings:
+                    plan.warnings.insert(0, w)
 
         dlg = QDialog(self)
         dlg.setWindowTitle("Confirm Execution")

@@ -16,6 +16,14 @@ from .cli_schema import (
     TAB_COMMANDS,
     UPLOAD_TABS,
 )
+from .validation import (
+    clean_date_range,
+    normalize_extensions_csv,
+    normalize_list_csv,
+    validate_date_range as validate_date_range_func,
+    expand_source_paths,
+    validate_destination_folder,
+)
 
 
 _DATE_RANGE_RE = re.compile(
@@ -62,10 +70,8 @@ def validate_date_range(text: str) -> bool:
 
     Accepts: 2023, 2023-07, 2023-07-15, 2023-01-01,2023-12-31
     """
-    text = text.strip()
-    if not text:
-        return True
-    return bool(_DATE_RANGE_RE.match(text))
+    valid, _ = validate_date_range_func(text)
+    return valid
 
 
 def mask_command_for_display(command_parts: list[str]) -> list[str]:
@@ -161,13 +167,24 @@ def validate_state(
                 "SSL verification is disabled. Use only on trusted networks."
             )
 
+    src_paths: list[str] = []
     if tab_key == "upload-folder":
-        if not str(tab_state.get("path", "")).strip():
+        raw_path = str(tab_state.get("path", "")).strip()
+        if not raw_path:
             result.errors.append("Source folder or ZIP path is required.")
+        else:
+            expanded, path_warns = expand_source_paths(raw_path)
+            src_paths = expanded
+            result.warnings.extend(path_warns)
 
     elif tab_key == "upload-gp":
-        if not str(tab_state.get("path", "")).strip():
+        raw_path = str(tab_state.get("path", "")).strip()
+        if not raw_path:
             result.errors.append("Google Takeout source is required.")
+        else:
+            expanded, path_warns = expand_source_paths(raw_path)
+            src_paths = expanded
+            result.warnings.extend(path_warns)
 
     elif tab_key == "upload-immich":
         if not str(tab_state.get("from-server", "")).strip():
@@ -176,25 +193,63 @@ def validate_state(
             result.errors.append("Source API key is required.")
 
     elif tab_key == "archive-folder":
-        if not str(tab_state.get("path", "")).strip():
+        raw_path = str(tab_state.get("path", "")).strip()
+        if not raw_path:
             result.errors.append("Source path is required.")
-        if not str(tab_state.get("write-to", "")).strip():
+        else:
+            expanded, path_warns = expand_source_paths(raw_path)
+            src_paths = expanded
+            result.warnings.extend(path_warns)
+        
+        write_to = str(tab_state.get("write-to", "")).strip()
+        if not write_to:
             result.errors.append("Destination folder is required.")
+        else:
+            dest_warns = validate_destination_folder(write_to, src_paths)
+            result.warnings.extend(dest_warns)
 
     elif tab_key == "archive-immich":
-        if not str(tab_state.get("write-to", "")).strip():
+        write_to = str(tab_state.get("write-to", "")).strip()
+        if not write_to:
             result.errors.append("Destination folder is required.")
+        else:
+            dest_warns = validate_destination_folder(write_to, [])
+            result.warnings.extend(dest_warns)
 
     # Validate date range format if provided
     dr = str(tab_state.get("date-range", "")).strip()
-    if dr and not validate_date_range(dr):
-        result.errors.append("Date range must be YYYY, YYYY-MM, YYYY-MM-DD, or start,end.")
+    if dr:
+        valid, err = validate_date_range_func(dr)
+        if not valid:
+            result.errors.append(err or "Date range must be YYYY, YYYY-MM, YYYY-MM-DD, or start,end.")
 
     fdr = str(tab_state.get("from-date-range", "")).strip()
-    if fdr and not validate_date_range(fdr):
-        result.errors.append("Date range must be YYYY, YYYY-MM, YYYY-MM-DD, or start,end.")
+    if fdr:
+        valid, err = validate_date_range_func(fdr)
+        if not valid:
+            result.errors.append(err or "Date range must be YYYY, YYYY-MM, YYYY-MM-DD, or start,end.")
 
     return result
+
+
+def _add_destructive_warnings(tab_state: dict, plan: CommandPlan) -> None:
+    raw_jpeg = tab_state.get("manage-raw-jpeg", "NoStack")
+    if raw_jpeg == "KeepRaw":
+        plan.warnings.append("RAW+JPEG mode KeepRaw may delete the JPEG file from paired assets.")
+    elif raw_jpeg == "KeepJPG":
+        plan.warnings.append("RAW+JPEG mode KeepJPG may delete the RAW file from paired assets.")
+
+    heic_jpeg = tab_state.get("manage-heic-jpeg", "NoStack")
+    if heic_jpeg == "KeepHeic":
+        plan.warnings.append("HEIC+JPEG mode KeepHeic may delete the JPEG file from paired assets.")
+    elif heic_jpeg == "KeepJPG":
+        plan.warnings.append("HEIC+JPEG mode KeepJPG may delete the HEIC file from paired assets.")
+
+    burst = tab_state.get("manage-burst", "NoStack")
+    if burst == "StackKeepJPEG":
+        plan.warnings.append("Burst mode StackKeepJPEG may discard non-cover burst frames.")
+    elif burst == "StackKeepRaw":
+        plan.warnings.append("Burst mode StackKeepRaw may discard non-cover burst frames.")
 
 
 def build_plan_from_state(
@@ -217,6 +272,8 @@ def build_plan_from_state(
         dry_run=dry_run,
         binary_path=binary_path,
     )
+
+    _add_destructive_warnings(tab_state, plan)
 
     global_opts: list[str] = []
     cmd = TAB_COMMANDS[tab_key]
@@ -314,14 +371,17 @@ def build_plan_from_state(
         if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
             cmd_opts.append(f"--manage-heic-jpeg={tab_state['manage-heic-jpeg']}")
 
-        if tab_state.get("date-range"):
-            cmd_opts.append(f"--date-range={tab_state['date-range']}")
+        dr = clean_date_range(str(tab_state.get("date-range", "")))
+        if dr:
+            cmd_opts.append(f"--date-range={dr}")
 
-        if tab_state.get("include-ext"):
-            cmd_opts.append(f"--include-extensions={tab_state['include-ext']}")
+        inc_ext = normalize_extensions_csv(str(tab_state.get("include-ext", "")))
+        if inc_ext:
+            cmd_opts.append(f"--include-extensions={inc_ext}")
 
-        if tab_state.get("exclude-ext"):
-            cmd_opts.append(f"--exclude-extensions={tab_state['exclude-ext']}")
+        exc_ext = normalize_extensions_csv(str(tab_state.get("exclude-ext", "")))
+        if exc_ext:
+            cmd_opts.append(f"--exclude-extensions={exc_ext}")
 
         if tab_state.get("ban-file"):
             for line in str(tab_state["ban-file"]).split("\n"):

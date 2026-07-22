@@ -872,3 +872,154 @@ def test_config_roundtrip(tmp_path, monkeypatch):
     assert loaded.server_url == "http://localhost:2283"
     assert loaded.skip_ssl is True
     assert loaded.client_timeout_minutes == 60
+
+
+# ==============================================================================
+# SECTION 8: VALIDATION & NETWORK TESTS
+# ==============================================================================
+
+import requests
+from core.validation import (
+    clean_date_range,
+    validate_date_range as validate_date_range_core,
+    normalize_extensions_csv,
+    normalize_list_csv,
+    has_glob_pattern,
+    expand_source_paths,
+    validate_destination_folder,
+)
+from core.network import test_immich_connection as run_test_immich_connection
+
+
+def test_clean_date_range():
+    assert clean_date_range("  2023-01-01 , 2023-12-31  ") == "2023-01-01,2023-12-31"
+    assert clean_date_range("2023") == "2023"
+    assert clean_date_range("") == ""
+
+
+def test_validate_date_range_extended():
+    ok, err = validate_date_range_core("2023")
+    assert ok is True and err is None
+
+    ok, err = validate_date_range_core("2023-07")
+    assert ok is True and err is None
+
+    ok, err = validate_date_range_core("2023-07-15")
+    assert ok is True and err is None
+
+    ok, err = validate_date_range_core("2023-01-01, 2023-12-31")
+    assert ok is True and err is None
+
+    # Invalid month
+    ok, err = validate_date_range_core("2023-13")
+    assert ok is False and "month" in err.lower()
+
+    # Invalid day
+    ok, err = validate_date_range_core("2023-02-30")
+    assert ok is False and "day" in err.lower()
+
+    # Start date after end date
+    ok, err = validate_date_range_core("2023-12-31,2023-01-01")
+    assert ok is False and "cannot be after" in err.lower()
+
+
+def test_normalize_extensions_csv():
+    assert normalize_extensions_csv(".JPG, png , .heic, jpg") == ".jpg,.png,.heic"
+    assert normalize_extensions_csv("  RAW, .CR2, raw ") == ".raw,.cr2"
+    assert normalize_extensions_csv("") == ""
+
+
+def test_normalize_list_csv():
+    assert normalize_list_csv(" vacation, family/reunion , ") == ["vacation", "family/reunion"]
+    assert normalize_list_csv("") == []
+
+
+def test_glob_and_path_validation(tmp_path):
+    f1 = tmp_path / "photo1.jpg"
+    f1.touch()
+    
+    assert has_glob_pattern("*.jpg") is True
+    assert has_glob_pattern("/path/to/file") is False
+
+    expanded, warnings = expand_source_paths(f"{tmp_path}/*.jpg")
+    assert len(expanded) == 1
+    assert len(warnings) == 0
+
+    non_existent = str(tmp_path / "non_existent_folder")
+    expanded, warnings = expand_source_paths(non_existent)
+    assert len(warnings) == 1
+    assert "does not exist" in warnings[0]
+
+
+def test_destination_validation(tmp_path):
+    src_dir = tmp_path / "photos"
+    src_dir.mkdir()
+    dest_dir = src_dir / "archive"
+    dest_dir.mkdir()
+
+    warnings = validate_destination_folder(str(dest_dir), [str(src_dir)])
+    assert len(warnings) == 1
+    assert "inside the source path" in warnings[0]
+
+
+def test_network_connection_success():
+    with patch("requests.get") as mock_get:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"version": "v1.100.0"}
+        mock_get.return_value = mock_resp
+
+        res = run_test_immich_connection("http://localhost:2283", "secret_key")
+        assert res.ok is True
+        assert res.status_code == 200
+        assert "v1.100.0" in res.message
+        assert res.server_version == "v1.100.0"
+
+
+def test_network_connection_auth_failure():
+    with patch("requests.get") as mock_get:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 401
+        mock_get.return_value = mock_resp
+
+        res = run_test_immich_connection("http://localhost:2283", "bad_key")
+        assert res.ok is False
+        assert res.status_code == 401
+        assert "Authentication failed" in res.message
+
+
+def test_network_connection_ssl_error():
+    with patch("requests.get", side_effect=requests.exceptions.SSLError):
+        res = run_test_immich_connection("https://localhost:2283", "secret_key")
+        assert res.ok is False
+        assert "SSL certificate verification failed" in res.message
+
+
+def test_network_connection_timeout():
+    with patch("requests.get", side_effect=requests.exceptions.Timeout):
+        res = run_test_immich_connection("http://localhost:2283", "secret_key")
+        assert res.ok is False
+        assert "timed out" in res.message
+
+
+def test_command_builder_destructive_warnings():
+    from core.command_builder import build_plan_from_state
+
+    config_state = {"server": "http://localhost:2283", "api_key": "test_key"}
+    tab_state = {
+        "path": "/photos",
+        "manage-raw-jpeg": "KeepJPG",
+        "manage-burst": "StackKeepJPEG",
+    }
+
+    plan = build_plan_from_state(
+        tab_key="upload-folder",
+        config_state=config_state,
+        tab_state=tab_state,
+        binary_path="./immich-go",
+        dry_run=False,
+    )
+
+    warn_text = " ".join(plan.warnings)
+    assert "KeepJPG may delete the RAW file" in warn_text
+    assert "StackKeepJPEG may discard non-cover burst frames" in warn_text
