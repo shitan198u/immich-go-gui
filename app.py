@@ -1925,35 +1925,89 @@ class ImmichGoGUI(QMainWindow):
     def browse_local_folder(self):
         self.browse_folder_upload()
 
-    def validate_inputs(self):
-        srv_edit = self.inputs.get("config", {}).get("server")
-        api_edit = self.inputs.get("config", {}).get("api_key")
-        srv = srv_edit.text() if srv_edit else ""
-        api = api_edit.text() if api_edit else ""
-        if not re.match(r"^https?://.+", srv) or not api:
-            return False
-        return True
+    def validate_inputs(self) -> ValidationResult:
+        result = ValidationResult()
+        tab_key = self._get_active_tab_key()
+
+        if tab_key != "config":
+            srv = self.inputs.get("config", {}).get("server")
+            api = self.inputs.get("config", {}).get("api_key")
+            srv_text = normalize_server_url(srv.text()) if srv else ""
+            api_text = api.text().strip() if api else ""
+
+            if tab_key != "archive-folder":
+                if not srv_text:
+                    result.errors.append("Server URL is required.")
+                elif not re.match(r"^https?://.+", srv_text):
+                    result.errors.append("Server URL must start with http:// or https://.")
+
+                if not api_text:
+                    result.errors.append("API key is required.")
+
+            skip_ssl = self.inputs.get("config", {}).get("skip-ssl")
+            if skip_ssl and skip_ssl.isChecked():
+                result.warnings.append(
+                    "SSL verification is disabled. Use only on trusted networks."
+                )
+
+        if tab_key == "upload-folder":
+            path_w = self.inputs.get("upload-folder", {}).get("path")
+            if path_w and not path_w.text().strip():
+                result.errors.append("Source folder or ZIP path is required.")
+
+        elif tab_key == "upload-gp":
+            path_w = self.inputs.get("upload-gp", {}).get("path")
+            if path_w and not path_w.toPlainText().strip():
+                result.errors.append("Google Takeout source is required.")
+
+        elif tab_key == "upload-immich":
+            fs_w = self.inputs.get("upload-immich", {}).get("from-server")
+            fa_w = self.inputs.get("upload-immich", {}).get("from-api-key")
+            if fs_w and not fs_w.text().strip():
+                result.errors.append("Source server URL is required.")
+            if fa_w and not fa_w.text().strip():
+                result.errors.append("Source API key is required.")
+
+        elif tab_key == "archive-folder":
+            p_w = self.inputs.get("archive-folder", {}).get("path")
+            w_w = self.inputs.get("archive-folder", {}).get("write-to")
+            if p_w and not p_w.text().strip():
+                result.errors.append("Source path is required.")
+            if w_w and not w_w.text().strip():
+                result.errors.append("Destination folder is required.")
+
+        elif tab_key == "archive-immich":
+            w_w = self.inputs.get("archive-immich", {}).get("write-to")
+            if w_w and not w_w.text().strip():
+                result.errors.append("Destination folder is required.")
+
+        return result
 
     def update_status(self):
         is_running = getattr(self, "running_process", None) is not None
+        validation = self.validate_inputs()
+
         if is_running:
             self.lbl_running_warning.setVisible(True)
             self.btn_run.setEnabled(False)
             self.btn_dry_run.setEnabled(False)
         else:
             self.lbl_running_warning.setVisible(False)
-        if self.validate_inputs():
+
+        if validation.is_valid:
             self.status_card.set_server("ok", "Server: Ready")
             if not is_running:
                 self.btn_run.setEnabled(True)
                 self.btn_dry_run.setEnabled(True)
         else:
-            self.status_card.set_server("err", "Server: Not Set")
+            first_error = validation.errors[0] if validation.errors else "Server: Not Set"
+            self.status_card.set_server("err", f"Server: {first_error}")
             if not is_running:
                 self.btn_run.setEnabled(False)
                 self.btn_dry_run.setEnabled(False)
+
         srv_edit = self.inputs.get("config", {}).get("server")
-        srv = srv_edit.text() if srv_edit else ""
+        srv = normalize_server_url(srv_edit.text()) if srv_edit else ""
         for t in ["archive-immich", "stack"]:
             if t in self.inputs and "target-server" in self.inputs[t]:
                 self.inputs[t]["target-server"].setText(srv if srv else "Not Configured")
