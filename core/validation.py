@@ -154,6 +154,8 @@ def expand_source_paths(raw_text: str) -> tuple[list[str], list[str]]:
 
     - split lines
     - strip lines
+    - expand user (~)
+    - make absolute
     - expand globs
     - return (expanded_paths, warnings)
 
@@ -169,17 +171,20 @@ def expand_source_paths(raw_text: str) -> tuple[list[str], list[str]]:
 
     lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
     for line in lines:
-        if has_glob_pattern(line):
-            matches = glob.glob(line, recursive=True)
+        item = os.path.expanduser(line)
+        if not os.path.isabs(item):
+            item = os.path.abspath(item)
+
+        if has_glob_pattern(item):
+            matches = glob.glob(item, recursive=True)
             if not matches:
                 warnings.append(f"Glob pattern '{line}' matched no files or directories.")
             else:
-                expanded_paths.extend(matches)
+                expanded_paths.extend(sorted(matches))
         else:
-            p = Path(line)
-            if not p.exists():
+            if not os.path.exists(item):
                 warnings.append(f"Source path '{line}' does not exist.")
-            expanded_paths.append(line)
+            expanded_paths.append(item)
 
     return expanded_paths, warnings
 

@@ -236,12 +236,13 @@ def validate_state(
         if not key:
             res.errors.append("API Key is required. Configure it in the Configuration tab.")
 
-    if tab_key == "upload-folder":
+    elif tab_key == "upload-folder":
         p = tab_state.get("path", "").strip()
         if not p:
             res.errors.append("Source folder path is required.")
-        elif not os.path.exists(p):
-            res.warnings.append(f"Source path '{p}' does not exist locally.")
+        else:
+            _, path_warns = expand_source_paths(p)
+            res.warnings.extend(path_warns)
 
     elif tab_key == "upload-gp":
         p = tab_state.get("path", "").strip()
@@ -263,11 +264,17 @@ def validate_state(
             res.errors.append("Source folder path is required.")
         if not w:
             res.errors.append("Destination folder is required.")
+        if p and w:
+            expanded_sources, path_warns = expand_source_paths(p)
+            res.warnings.extend(path_warns)
+            res.warnings.extend(validate_destination_folder(w, expanded_sources))
 
     elif tab_key == "archive-immich":
         w = tab_state.get("write-to", "").strip()
         if not w:
             res.errors.append("Destination folder is required.")
+        else:
+            res.warnings.extend(validate_destination_folder(w, []))
 
     # Date range validation across tabs
     for key in ("date-range", "from-date-range"):
@@ -445,8 +452,9 @@ def build_plan_from_state(
         if tab_state.get("manage-epson"):
             emitter.add_flag("manage-epson-fastfoto")
 
-        if tab_state.get("path"):
-            path_opt.append(tab_state["path"])
+        raw_path = str(tab_state.get("path", "")).strip()
+        if raw_path:
+            path_opt.extend(collect_paths(raw_path))
 
     elif tab_key == "upload-gp":
         if tab_state.get("manage-burst", "NoStack") != "NoStack":
@@ -686,8 +694,9 @@ def build_plan_from_state(
         if tab_state.get("album-path-joiner"):
             emitter.add_option("album-path-joiner", tab_state["album-path-joiner"])
 
-        if tab_state.get("path"):
-            path_opt.append(tab_state["path"])
+        raw_path = str(tab_state.get("path", "")).strip()
+        if raw_path:
+            path_opt.extend(collect_paths(raw_path))
 
     elif tab_key == "archive-immich":
         from_srv = tab_state.get("from-server", "") or config_state.get("server", "")

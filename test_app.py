@@ -1622,3 +1622,50 @@ def test_collect_paths_expansion_and_abspath(tmp_path):
     paths = collect_paths(rel_path)
     assert len(paths) == 1
     assert os.path.isabs(paths[0])
+
+
+def test_upload_folder_path_is_absolutized(gui):
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(0)
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-folder"]["path"].setText("relative/folder")
+    opts = gui.build_command(False)
+    assert opts[-1]
+    assert os.path.isabs(opts[-1])
+
+
+def test_archive_folder_path_is_absolutized(gui):
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(0)
+    gui.inputs["archive-folder"]["path"].setText("relative/source")
+    gui.inputs["archive-folder"]["write-to"].setText("/tmp/dest")
+    opts = gui.build_command(False)
+    assert opts[-1]
+    assert os.path.isabs(opts[-1])
+
+
+def test_archive_folder_destination_warnings(gui, tmp_path):
+    src = tmp_path / "src"
+    dest = src / "dest"
+    src.mkdir()
+    dest.mkdir()
+
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(0)
+    gui.inputs["archive-folder"]["path"].setText(str(src))
+    gui.inputs["archive-folder"]["write-to"].setText(str(dest))
+
+    validation = gui.validate_inputs()
+    assert any("inside the source" in w for w in validation.warnings)
+
+
+def test_missing_fixtures_not_fully_compatible(tmp_path):
+    from core.cli_contract import check_fixtures
+    report = check_fixtures.__wrapped__(str(tmp_path / "missing-fixtures")) if hasattr(check_fixtures, "__wrapped__") else None
+    # Direct unit test against the method
+    from core.cli_contract import CompatibilityReport
+    report_missing = CompatibilityReport(version="0.99.0", supported=False)
+    assert report_missing.is_fully_compatible() is False
+    report_empty = CompatibilityReport(version="0.99.0", supported=True)
+    assert report_empty.is_fully_compatible() is True

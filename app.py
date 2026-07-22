@@ -428,7 +428,7 @@ class ImmichGoGUI(QMainWindow):
 
         self.binary_manager = BinaryManager()
         self.app_config = load_config()
-        self.settings = QSettings("YourOrganization", "ImmichGoGUI")
+        self.settings = QSettings("Shitan198u", "ImmichGoGUI")
 
         # FIX Phase 1 #6: migrate old plain-text API key to keychain
         SecretStore.migrate_from_qsettings(self.settings)
@@ -868,7 +868,11 @@ class ImmichGoGUI(QMainWindow):
         meta = load_binary_metadata()
         if meta.get("manual_path"):
             self.manual_binary_edit.setText(meta["manual_path"])
-        self.manual_binary_edit.textChanged.connect(self._on_manual_binary_changed)
+        self.binary_debounce = QTimer()
+        self.binary_debounce.setSingleShot(True)
+        self.binary_debounce.setInterval(400)
+        self.binary_debounce.timeout.connect(self._on_manual_binary_changed)
+        self.manual_binary_edit.textChanged.connect(lambda: self.binary_debounce.start())
         manual_form.add_row(
             "Manual Binary Path",
             self.manual_binary_edit,
@@ -2103,27 +2107,59 @@ class ImmichGoGUI(QMainWindow):
         else:
             live_report = None
 
+        # Merge fixture + live-binary results
+        missing: dict[str, set[str]] = {
+            tab: set(flags)
+            for tab, flags in report.missing_flags_by_tab.items()
+        }
+        unknown: dict[str, set[str]] = {
+            tab: set(flags)
+            for tab, flags in report.unknown_flags_by_tab.items()
+        }
+
+        supported = bool(report.supported)
+        notes: list[str] = [report.notes] if report.notes else []
+
+        if live_report:
+            supported = supported and bool(live_report.supported)
+            if live_report.notes:
+                notes.append(live_report.notes)
+            for tab, flags in live_report.missing_flags_by_tab.items():
+                missing.setdefault(tab, set()).update(flags)
+            for tab, flags in live_report.unknown_flags_by_tab.items():
+                unknown.setdefault(tab, set()).update(flags)
+
+        fully_compatible = supported and not any(missing.values())
+
         msg = [f"Tested Immich-Go Version: v{report.version}\n"]
 
-        if live_report and live_report.is_fully_compatible():
-            msg.append("Status: Fully Compatible with live binary")
-        elif report.is_fully_compatible():
+        if live_report and fully_compatible:
+            msg.append("Status: Fully Compatible with fixtures and live binary")
+        elif fully_compatible:
             msg.append("Status: Fully Compatible with target schema")
         else:
             msg.append("Status: Compatibility Warning")
 
-        if report.notes:
-            msg.append(f"\nVersion Notes:\n{report.notes}")
+        if notes:
+            msg.append("\nVersion Notes:")
+            for note in notes:
+                msg.append(note)
 
-        if report.missing_flags_by_tab:
-            msg.append("\nMissing CLI Flags in Binary:")
-            for tab, flags in report.missing_flags_by_tab.items():
-                msg.append(f"  • {tab}: {', '.join(sorted(flags))}")
+        if missing:
+            msg.append("\nMissing CLI Flags:")
+            for tab, flags in missing.items():
+                if flags:
+                    msg.append(f"  [{tab}]")
+                    for flag in sorted(flags):
+                        msg.append(f"    - {flag}")
 
-        if report.unknown_flags_by_tab:
+        if unknown:
             msg.append("\nNew Upstream CLI Flags Detected:")
-            for tab, flags in report.unknown_flags_by_tab.items():
-                msg.append(f"  • {tab}: {', '.join(sorted(flags))}")
+            for tab, flags in unknown.items():
+                if flags:
+                    msg.append(f"  [{tab}]")
+                    for flag in sorted(flags):
+                        msg.append(f"    - {flag}")
 
         QMessageBox.information(
             self,

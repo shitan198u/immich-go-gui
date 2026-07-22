@@ -21,7 +21,7 @@ class CompatibilityReport:
     notes: str = ""
 
     def is_fully_compatible(self) -> bool:
-        return not any(self.missing_flags_by_tab.values())
+        return self.supported and not any(self.missing_flags_by_tab.values())
 
 
 def check_fixtures(version: str = TESTED_IMMICH_GO_VERSION) -> CompatibilityReport:
