@@ -78,27 +78,11 @@ def launch_external_terminal(
         env_sh_path = temp_dir / "env.sh"
         run_sh_path = temp_dir / "run.sh"
 
-        # Filter environment variables to pass secrets via env.sh file
-        secret_keys = [
-            "IMMICH_GO_UPLOAD_SERVER",
-            "IMMICH_GO_UPLOAD_API_KEY",
-            "IMMICH_GO_UPLOAD_ADMIN_API_KEY",
-            "IMMICH_GO_UPLOAD_FROM_IMMICH_SERVER",
-            "IMMICH_GO_UPLOAD_FROM_IMMICH_API_KEY",
-            "IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER",
-            "IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY",
-            "IMMICH_GO_STACK_SERVER",
-            "IMMICH_GO_STACK_API_KEY",
-            "IMMICH_GO_STACK_ADMIN_API_KEY",
-            "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER",
-            "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_KEY",
-            "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_ADMIN_API_KEY",
-        ]
-
+        # Export all IMMICH_GO_* environment variables to env.sh
         env_lines = []
-        for k in secret_keys:
-            if k in env:
-                env_lines.append(f"export {k}={_quote_sh_env_val(env[k])}")
+        for k, v in sorted(env.items()):
+            if k.startswith("IMMICH_GO_"):
+                env_lines.append(f"export {k}={_quote_sh_env_val(v)}")
 
         env_sh_path.write_text("\n".join(env_lines) + "\n", encoding="utf-8")
         if os.name == "posix":

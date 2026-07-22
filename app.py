@@ -1495,11 +1495,6 @@ class ImmichGoGUI(QMainWindow):
         self._add_browse_action(t_write, "Select Archive Destination")
         form.add_row("Destination Folder", t_write)
 
-        c_raw = QComboBox()
-        c_raw.addItems(["NoStack", "KeepRaw", "KeepJPG", "StackCoverRaw", "StackCoverJPG"])
-        self.inputs["archive-folder"]["manage-raw-jpeg"] = c_raw
-        form.add_row("Manage RAW+JPEG", c_raw)
-
         card.layout.addLayout(form)
         lay.addWidget(card)
 
@@ -1560,16 +1555,6 @@ class ImmichGoGUI(QMainWindow):
         # FIX Phase 3 #32: browse button on archive destination
         self._add_browse_action(t_write, "Select Archive Destination")
         form.add_row("Destination Folder", t_write)
-
-        c_burst = QComboBox()
-        c_burst.addItems(["NoStack", "Stack", "StackKeepRaw", "StackKeepJPEG"])
-        self.inputs["archive-immich"]["manage-burst"] = c_burst
-        form.add_row("Manage Bursts", c_burst)
-
-        c_raw = QComboBox()
-        c_raw.addItems(["NoStack", "KeepRaw", "KeepJPG", "StackCoverRaw", "StackCoverJPG"])
-        self.inputs["archive-immich"]["manage-raw-jpeg"] = c_raw
-        form.add_row("Manage RAW+JPEG", c_raw)
 
         card.layout.addLayout(form)
         lay.addWidget(card)
@@ -2160,7 +2145,6 @@ class ImmichGoGUI(QMainWindow):
             return {
                 "path": c["path"].text(),
                 "write-to": c["write-to"].text(),
-                "manage-raw-jpeg": c["manage-raw-jpeg"].currentText(),
                 "date-range": c["date-range"].text(),
                 "log-level": c["log-level"].currentText() if "log-level" in c else "INFO",
             }
@@ -2168,8 +2152,6 @@ class ImmichGoGUI(QMainWindow):
         elif tab_key == "archive-immich":
             return {
                 "write-to": c["write-to"].text(),
-                "manage-burst": c["manage-burst"].currentText(),
-                "manage-raw-jpeg": c["manage-raw-jpeg"].currentText(),
                 "from-date-range": c["from-date-range"].text(),
                 "from-albums": c["from-albums"].text(),
                 "log-level": c["log-level"].currentText() if "log-level" in c else "INFO",

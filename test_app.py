@@ -1477,3 +1477,29 @@ def test_stale_lock_detection_with_pid_and_heartbeat(tmp_path, monkeypatch):
     assert is_lock_active(l_path) is True
 
     release_lock(l_path)
+
+
+def test_forward_all_immich_go_env_vars(tmp_path, monkeypatch):
+    from core.terminal_launcher import launch_external_terminal
+    dummy_lock = tmp_path / "test.lock"
+    dummy_lock.write_text("{}", encoding="utf-8")
+
+    test_env = {
+        "IMMICH_GO_CUSTOM_VAR": "custom_val",
+        "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER": "http://srv:2283",
+        "OTHER_VAR": "ignored",
+    }
+
+    with patch("subprocess.Popen") as mock_popen:
+        launch_external_terminal(
+            command=["./immich-go", "archive", "from-immich"],
+            env=test_env,
+            lock_path=dummy_lock,
+        )
+        assert mock_popen.called
+
+
+def test_archive_ui_options_removed(gui):
+    assert "manage-raw-jpeg" not in gui.inputs["archive-folder"]
+    assert "manage-burst" not in gui.inputs["archive-immich"]
+    assert "manage-raw-jpeg" not in gui.inputs["archive-immich"]

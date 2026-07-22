@@ -5,18 +5,18 @@ Generated for LLM Review & Prompting
 Files Included:
    1. core/__init__.py (157 lines)
    2. core/binary_manager.py (528 lines)
-   3. core/cli_contract.py (87 lines)
-   4. core/cli_help.py (52 lines)
-   5. core/cli_schema.py (195 lines)
-   6. core/command_builder.py (731 lines)
+   3. core/cli_contract.py (96 lines)
+   4. core/cli_help.py (56 lines)
+   5. core/cli_schema.py (238 lines)
+   6. core/command_builder.py (744 lines)
    7. core/config_manager.py (374 lines)
    8. core/models.py (94 lines)
    9. core/network.py (115 lines)
-  10. core/process_tracker.py (154 lines)
+  10. core/process_tracker.py (238 lines)
   11. core/profile_manager.py (339 lines)
-  12. core/terminal_launcher.py (193 lines)
+  12. core/terminal_launcher.py (191 lines)
   13. core/validation.py (222 lines)
-  14. test_app.py (1384 lines)
+  14. test_app.py (1505 lines)
   15. scripts/capture_cli_help.py (84 lines)
   16. scripts/convert_markdown.py (564 lines)
 ================================================================================
@@ -720,7 +720,7 @@ class BinaryManager:
 
 
 ================================================================================
-FILE 3 / 16: core/cli_contract.py (Lines 1-87)
+FILE 3 / 16: core/cli_contract.py (Lines 1-96)
 ================================================================================
 """Runtime CLI Compatibility Checker module for Immich-Go GUI.
 
@@ -754,11 +754,20 @@ def check_fixtures(version: str = TESTED_IMMICH_GO_VERSION) -> CompatibilityRepo
     matrix_entry = COMPATIBILITY_MATRIX.get(version, {})
     report.notes = matrix_entry.get("notes", "")
 
+    fixtures_dir = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "cli_help" / version
+    if not fixtures_dir.exists():
+        report.supported = False
+        report.notes += f"\n[Error] CLI help fixtures directory for version {version} does not exist."
+        return report
+
     for tab_key, gui_allowed in TAB_ALLOWED_FLAGS.items():
         fixture_name = help_name_for_tab(tab_key)
         fixture_flags = load_help_fixture(version, fixture_name)
 
         if not fixture_flags:
+            report.supported = False
+            report.missing_flags_by_tab[tab_key] = {"[MISSING_HELP_FIXTURE]"}
+            report.notes += f"\n[Warning] Missing or empty help fixture for tab '{tab_key}' ({fixture_name}.txt)"
             continue
 
         missing = set(gui_allowed) - fixture_flags
@@ -813,7 +822,7 @@ def check_binary_help(binary_path: Path, version: str = TESTED_IMMICH_GO_VERSION
 
 
 ================================================================================
-FILE 4 / 16: core/cli_help.py (Lines 1-52)
+FILE 4 / 16: core/cli_help.py (Lines 1-56)
 ================================================================================
 """CLI Help parsing and fixture loading module for Immich-Go GUI.
 
@@ -854,24 +863,28 @@ def help_name_for_tab(tab_key: str) -> str:
     return mapping.get(tab_key, tab_key.replace("-", "_"))
 
 
-def load_help_fixture(version: str = "0.32.0", help_name: str = "root") -> set[str]:
+def load_help_fixture(version: str = "0.32.0", help_name: str = "root", raise_on_missing: bool = False) -> set[str]:
     """Loads a captured help text fixture and returns its set of parsed flag names."""
     base_dir = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "cli_help" / version
     fixture_file = base_dir / f"{help_name}.txt"
 
     if not fixture_file.exists():
+        if raise_on_missing:
+            raise FileNotFoundError(f"Help fixture '{help_name}' not found for version '{version}' at {fixture_file}")
         return set()
 
     try:
         text = fixture_file.read_text(encoding="utf-8")
         return parse_help_flags(text)
-    except Exception:
+    except Exception as e:
+        if raise_on_missing:
+            raise e
         return set()
 
 
 
 ================================================================================
-FILE 5 / 16: core/cli_schema.py (Lines 1-195)
+FILE 5 / 16: core/cli_schema.py (Lines 1-238)
 ================================================================================
 """Stable metadata constants, mappings, and compatibility matrices.
 
@@ -957,8 +970,9 @@ ENV_KEY_MAP = {
         "from_admin_api_key": "IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY",
     },
     "archive-immich": {
-        "server": "IMMICH_GO_ARCHIVE_SERVER",
-        "api_key": "IMMICH_GO_ARCHIVE_API_KEY",
+        "from_server": "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER",
+        "from_api_key": "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_KEY",
+        "from_admin_api_key": "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_ADMIN_API_KEY",
     },
     "stack": {
         "server": "IMMICH_GO_STACK_SERVER",
@@ -999,42 +1013,84 @@ class FlagDef:
 # Per-tab allowed flags registry based on captured immich-go CLI help.
 TAB_ALLOWED_FLAGS: dict[str, frozenset[str]] = {
     "upload-folder": frozenset({
-        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks", "overwrite",
-        "pause-immich-jobs", "on-errors", "session-tag", "tag", "device-uuid", "api-trace", "log-level",
-        "recursive", "date-from-name", "ignore-sidecar-files", "include-extensions", "exclude-extensions",
-        "include-type", "ban-file", "date-range", "folder-as-album", "folder-as-tags", "album-path-joiner",
-        "album-picasa", "into-album", "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg", "manage-epson-fastfoto"
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks",
+        "overwrite", "pause-immich-jobs", "on-errors", "session-tag", "tag",
+        "device-uuid", "api-trace", "log-level", "time-zone",
+
+        "recursive", "date-from-name", "ignore-sidecar-files",
+        "include-extensions", "exclude-extensions", "include-type",
+        "ban-file", "date-range", "folder-as-album", "folder-as-tags",
+        "album-path-joiner", "into-album",
+
+        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg",
+        "manage-epson-fastfoto",
     }),
+
     "upload-gp": frozenset({
-        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks", "overwrite",
-        "pause-immich-jobs", "on-errors", "session-tag", "tag", "device-uuid", "api-trace", "log-level",
-        "include-extensions", "exclude-extensions", "ban-file", "date-range",
-        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg", "include-untitled-albums"
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks",
+        "overwrite", "pause-immich-jobs", "on-errors", "session-tag", "tag",
+        "device-uuid", "api-trace", "log-level", "time-zone",
+
+        "ban-file", "date-range", "exclude-extensions", "include-extensions",
+        "from-album-name", "include-archived", "include-partner",
+        "include-trashed", "include-type", "include-unmatched",
+        "include-untitled-albums", "partner-shared-album", "people-tag",
+        "sync-albums", "takeout-tag",
+
+        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg",
+        "manage-epson-fastfoto",
     }),
+
     "upload-immich": frozenset({
-        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks", "overwrite",
-        "pause-immich-jobs", "on-errors", "session-tag", "tag", "device-uuid", "api-trace", "log-level",
-        "from-server", "from-skip-verify-ssl", "from-client-timeout", "from-include-type",
-        "from-include-extensions", "from-exclude-extensions", "from-partners", "from-time-zone",
-        "from-no-album", "from-albums", "from-date-range", "from-device-uuid", "from-api-trace",
-        "from-dry-run", "from-pause-immich-jobs", "from-favorite", "from-archived", "from-trash",
-        "from-minimal-rating", "from-people", "from-tags", "from-city", "from-state", "from-country",
-        "from-make", "from-model"
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks",
+        "overwrite", "pause-immich-jobs", "on-errors", "session-tag", "tag",
+        "device-uuid", "api-trace", "log-level", "time-zone",
+
+        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg",
+        "manage-epson-fastfoto",
+
+        "from-server", "from-skip-verify-ssl", "from-client-timeout",
+        "from-include-type", "from-include-extensions", "from-exclude-extensions",
+        "from-partners", "from-time-zone", "from-no-album", "from-albums",
+        "from-date-range", "from-device-uuid", "from-api-trace",
+        "from-dry-run", "from-pause-immich-jobs",
+
+        "from-favorite", "from-archived", "from-trash",
+        "from-minimal-rating", "from-people", "from-tags",
+        "from-city", "from-state", "from-country",
+        "from-make", "from-model",
     }),
+
     "archive-folder": frozenset({
-        "write-to", "dry-run", "log-level", "include-extensions", "exclude-extensions",
-        "include-type", "ban-file", "ignore-sidecar-files", "date-from-name", "recursive", "date-range"
+        "write-to-folder", "dry-run", "log-level", "concurrent-tasks", "on-errors",
+
+        "album-path-joiner", "ban-file", "date-from-name", "date-range",
+        "exclude-extensions", "folder-as-album", "folder-as-tags",
+        "ignore-sidecar-files", "include-extensions", "include-type",
+        "into-album", "recursive",
     }),
+
     "archive-immich": frozenset({
-        "server", "skip-verify-ssl", "client-timeout", "dry-run", "log-level", "write-to",
-        "from-favorite", "from-archived", "from-trash", "from-minimal-rating", "from-people",
-        "from-tags", "from-city", "from-state", "from-country", "from-make", "from-model",
-        "from-include-type", "from-include-extensions", "from-exclude-extensions", "from-partners",
-        "from-time-zone", "from-no-album", "from-date-range", "from-albums"
+        "write-to-folder", "dry-run", "log-level", "concurrent-tasks", "on-errors",
+
+        "from-server", "from-skip-verify-ssl", "from-client-timeout",
+        "from-api-trace", "from-dry-run", "from-pause-immich-jobs",
+
+        "from-albums", "from-archived", "from-city", "from-country",
+        "from-date-range", "from-device-uuid", "from-exclude-extensions",
+        "from-favorite", "from-include-extensions", "from-include-type",
+        "from-make", "from-minimal-rating", "from-model", "from-no-album",
+        "from-partners", "from-people", "from-state", "from-tags",
+        "from-time-zone", "from-trash",
     }),
+
     "stack": frozenset({
         "server", "skip-verify-ssl", "client-timeout", "dry-run", "log-level",
-        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg"
+        "concurrent-tasks", "on-errors",
+
+        "api-trace", "date-range", "device-uuid",
+        "manage-burst", "manage-epson-fastfoto", "manage-heic-jpeg",
+        "manage-raw-jpeg", "pause-immich-jobs", "time-zone",
     }),
 }
 
@@ -1072,7 +1128,7 @@ COMPATIBILITY_MATRIX = {
 
 
 ================================================================================
-FILE 6 / 16: core/command_builder.py (Lines 1-731)
+FILE 6 / 16: core/command_builder.py (Lines 1-744)
 ================================================================================
 """Pure command-building and state validation logic for Immich-Go.
 
@@ -1255,9 +1311,19 @@ def build_environment(
     if srv_key and server:
         env[srv_key] = server
 
+    from_srv_key = mapping.get("from_server")
+    target_srv = from_server or server
+    if from_srv_key and target_srv:
+        env[from_srv_key] = target_srv
+
     api_key_name = mapping.get("api_key")
     if api_key_name and api_key:
         env[api_key_name] = api_key
+
+    from_api_key_name = mapping.get("from_api_key")
+    target_api_key = from_api_key or api_key
+    if from_api_key_name and target_api_key:
+        env[from_api_key_name] = target_api_key
 
     if tab_key == "upload-immich":
         if from_server:
@@ -1270,6 +1336,8 @@ def build_environment(
             env["IMMICH_GO_UPLOAD_ADMIN_API_KEY"] = admin_api_key
         elif tab_key == "stack":
             env["IMMICH_GO_STACK_ADMIN_API_KEY"] = admin_api_key
+        elif tab_key == "archive-immich":
+            env["IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_ADMIN_API_KEY"] = admin_api_key
 
     return env
 
@@ -1546,9 +1614,6 @@ def build_plan_from_state(
         if tab_state.get("album-path-joiner"):
             emitter.add_option("album-path-joiner", tab_state["album-path-joiner"])
 
-        if tab_state.get("album-picasa"):
-            emitter.add_flag("album-picasa")
-
         if tab_state.get("manage-epson-fastfoto"):
             emitter.add_flag("manage-epson-fastfoto")
 
@@ -1681,7 +1746,7 @@ def build_plan_from_state(
 
     elif tab_key == "archive-folder":
         if tab_state.get("write-to"):
-            emitter.add_option("write-to", tab_state["write-to"])
+            emitter.add_option("write-to-folder", tab_state["write-to"])
 
         dr = clean_date_range(str(tab_state.get("date-range", "")))
         if dr:
@@ -1713,8 +1778,12 @@ def build_plan_from_state(
             path_opt.append(tab_state["path"])
 
     elif tab_key == "archive-immich":
+        from_srv = tab_state.get("from-server", "") or config_state.get("server", "")
+        if from_srv:
+            emitter.add_option("from-server", normalize_server_url(from_srv))
+
         if tab_state.get("write-to"):
-            emitter.add_option("write-to", tab_state["write-to"])
+            emitter.add_option("write-to-folder", tab_state["write-to"])
 
         if tab_state.get("from-date-range"):
             emitter.add_option("from-date-range", tab_state["from-date-range"])
@@ -2410,7 +2479,7 @@ def test_immich_connection(
 
 
 ================================================================================
-FILE 10 / 16: core/process_tracker.py (Lines 1-154)
+FILE 10 / 16: core/process_tracker.py (Lines 1-238)
 ================================================================================
 """Process lock tracking logic for Immich-Go GUI.
 
@@ -2438,6 +2507,8 @@ class RunLock:
     command_summary: str
     binary_path: str
     shell_pid: int | None = None
+    terminal_pid: int | None = None
+    last_seen: str | None = None
 
 
 def lock_dir() -> Path:
@@ -2456,14 +2527,17 @@ def create_lock(
     run_id = uuid.uuid4().hex[:8]
     l_path = lock_dir() / f"run_{run_id}.lock"
 
+    now_iso = datetime.now(timezone.utc).isoformat()
     data = {
         "run_id": run_id,
         "gui_pid": os.getpid(),
-        "started_at": datetime.now(timezone.utc).isoformat(),
+        "started_at": now_iso,
         "tab_key": tab_key,
         "command_summary": command_summary,
         "binary_path": binary_path,
         "shell_pid": None,
+        "terminal_pid": None,
+        "last_seen": now_iso,
     }
 
     text = json.dumps(data, indent=2)
@@ -2471,12 +2545,31 @@ def create_lock(
     return l_path
 
 
+def update_lock(lock_path: Path, **fields) -> None:
+    """Updates specific fields in a lock JSON file."""
+    p = Path(lock_path)
+    if not p.exists():
+        return
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+        for k, v in fields.items():
+            data[k] = v
+        data["last_seen"] = datetime.now(timezone.utc).isoformat()
+        p.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
 def release_lock(lock_path: Path) -> None:
-    """Safely removes a lock file."""
+    """Safely removes a lock file and its sidecars (.pid, .bat, .heartbeat)."""
     try:
         p = Path(lock_path)
         if p.exists():
             p.unlink()
+        for ext in [".pid", ".bat", ".heartbeat"]:
+            s = p.with_suffix(ext)
+            if s.exists():
+                s.unlink()
     except Exception:
         pass
 
@@ -2498,27 +2591,87 @@ def read_lock(lock_path: Path) -> RunLock | None:
             command_summary=data.get("command_summary", ""),
             binary_path=data.get("binary_path", ""),
             shell_pid=data.get("shell_pid"),
+            terminal_pid=data.get("terminal_pid"),
+            last_seen=data.get("last_seen"),
         )
     except Exception:
         return None
 
 
+def _is_process_alive(pid: int | None) -> bool:
+    """Checks if a given process ID is active on current OS."""
+    if not pid or pid <= 0:
+        return False
+    if sys.platform.startswith("win"):
+        try:
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+            handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+            if handle:
+                exit_code = ctypes.c_ulong()
+                kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code))
+                kernel32.CloseHandle(handle)
+                STILL_ACTIVE = 259
+                return exit_code.value == STILL_ACTIVE
+            return False
+        except Exception:
+            return False
+    else:
+        try:
+            os.kill(pid, 0)
+            return True
+        except (OSError, ProcessLookupError):
+            return False
+
+
 def is_lock_active(lock_path: Path) -> bool:
-    """Checks whether a lock is active or stale."""
-    lock = read_lock(lock_path)
+    """Checks whether a lock is active or stale using PID, heartbeat, or timestamp grace."""
+    p = Path(lock_path)
+    lock = read_lock(p)
     if lock is None:
         return False
 
-    # Check if shell_pid is recorded and check process status on POSIX
-    if lock.shell_pid and os.name == "posix":
+    # 1. Check sidecar .pid file or lock.shell_pid
+    pid_file = p.with_suffix(".pid")
+    shell_pid = lock.shell_pid
+    if pid_file.exists():
         try:
-            os.kill(lock.shell_pid, 0)
-            return True
-        except OSError:
-            return False
+            pid_val = int(pid_file.read_text(encoding="utf-8").strip())
+            if pid_val > 0:
+                shell_pid = pid_val
+        except (ValueError, OSError):
+            pass
 
-    # If lock file exists and is readable, treat as active
-    return True
+    if shell_pid and _is_process_alive(shell_pid):
+        return True
+
+    # 2. Check terminal_pid
+    if lock.terminal_pid and _is_process_alive(lock.terminal_pid):
+        return True
+
+    # 3. Check sidecar .heartbeat file
+    hb_file = p.with_suffix(".heartbeat")
+    if hb_file.exists():
+        try:
+            mtime = hb_file.stat().st_mtime
+            age = (datetime.now().timestamp() - mtime)
+            if age < 60:
+                return True
+        except OSError:
+            pass
+
+    # 4. Grace period for freshly created lock (< 60 seconds)
+    if lock.started_at:
+        try:
+            start_dt = datetime.fromisoformat(lock.started_at)
+            now = datetime.now(timezone.utc)
+            if (now - start_dt).total_seconds() < 60:
+                return True
+        except ValueError:
+            pass
+
+    return False
 
 
 def scan_locks() -> list[RunLock]:
@@ -2915,7 +3068,7 @@ def delete_profile(name: str) -> None:
 
 
 ================================================================================
-FILE 12 / 16: core/terminal_launcher.py (Lines 1-193)
+FILE 12 / 16: core/terminal_launcher.py (Lines 1-191)
 ================================================================================
 """External terminal launching logic for Immich-Go GUI.
 
@@ -2930,6 +3083,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+
+from .process_tracker import update_lock
 
 
 @dataclass
@@ -2959,7 +3114,6 @@ def launch_external_terminal(
         # Windows console execution
         try:
             cmd_str = subprocess.list2cmdline(command)
-            bat_dir = l_path.parent
             bat_path = l_path.with_suffix(".bat")
             bat_content = (
                 f"@echo off\n"
@@ -2967,17 +3121,19 @@ def launch_external_terminal(
                 f"{cmd_str}\n"
                 f"set ERR=%ERRORLEVEL%\n"
                 f'del /f "{l_path}" 2>nul\n'
+                f'del /f "{l_path.with_suffix(".bat")}" 2>nul\n'
                 f"echo.\n"
                 f"echo immich-go exited with code %ERR%\n"
             )
             bat_path.write_text(bat_content, encoding="utf-8")
 
             CREATE_NEW_CONSOLE = 0x00000010
-            subprocess.Popen(
+            proc = subprocess.Popen(
                 ["cmd", "/k", str(bat_path)],
                 creationflags=CREATE_NEW_CONSOLE,
                 env=env,
             )
+            update_lock(l_path, terminal_pid=proc.pid)
             return LaunchResult(ok=True, message="External terminal launched successfully.")
         except Exception as e:
             return LaunchResult(ok=False, message=f"Failed to launch Windows terminal: {str(e)}")
@@ -2994,24 +3150,11 @@ def launch_external_terminal(
         env_sh_path = temp_dir / "env.sh"
         run_sh_path = temp_dir / "run.sh"
 
-        # Filter environment variables to pass secrets via env.sh file
-        secret_keys = [
-            "IMMICH_GO_UPLOAD_SERVER",
-            "IMMICH_GO_UPLOAD_API_KEY",
-            "IMMICH_GO_UPLOAD_ADMIN_API_KEY",
-            "IMMICH_GO_UPLOAD_FROM_IMMICH_SERVER",
-            "IMMICH_GO_UPLOAD_FROM_IMMICH_API_KEY",
-            "IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER",
-            "IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY",
-            "IMMICH_GO_STACK_SERVER",
-            "IMMICH_GO_STACK_API_KEY",
-            "IMMICH_GO_STACK_ADMIN_API_KEY",
-        ]
-
+        # Export all IMMICH_GO_* environment variables to env.sh
         env_lines = []
-        for k in secret_keys:
-            if k in env:
-                env_lines.append(f"export {k}={_quote_sh_env_val(env[k])}")
+        for k, v in sorted(env.items()):
+            if k.startswith("IMMICH_GO_"):
+                env_lines.append(f"export {k}={_quote_sh_env_val(v)}")
 
         env_sh_path.write_text("\n".join(env_lines) + "\n", encoding="utf-8")
         if os.name == "posix":
@@ -3020,15 +3163,27 @@ def launch_external_terminal(
             except OSError:
                 pass
 
+        pid_file_path = l_path.with_suffix(".pid")
+        hb_file_path = l_path.with_suffix(".heartbeat")
+
         cmd_quoted = " ".join(shlex.quote(c) for c in command)
         run_sh_content = (
             "#!/usr/bin/env bash\n"
+            f"echo $$ > {shlex.quote(str(pid_file_path))}\n"
+            f"(\n"
+            f"  while true; do\n"
+            f"    touch {shlex.quote(str(hb_file_path))} 2>/dev/null\n"
+            f"    sleep 10\n"
+            f"  done\n"
+            f") &\n"
+            f"HB_PID=$!\n\n"
             f"set -a\n"
             f"source {shlex.quote(str(env_sh_path))}\n"
             f"set +a\n\n"
             f"cd {shlex.quote(str(temp_dir))}\n\n"
             f"cleanup() {{\n"
-            f"  rm -f {shlex.quote(str(l_path))}\n"
+            f"  kill $HB_PID 2>/dev/null\n"
+            f"  rm -f {shlex.quote(str(pid_file_path))} {shlex.quote(str(hb_file_path))} {shlex.quote(str(l_path))}\n"
             f"  rm -rf {shlex.quote(str(temp_dir))}\n"
             f"}}\n\n"
             f"trap cleanup EXIT INT TERM\n\n"
@@ -3050,18 +3205,14 @@ def launch_external_terminal(
 
         # macOS execution via osascript
         if sys.platform == "darwin":
-            apple_script = (
-                "on run argv\n"
-                '  tell application "Terminal" to do script (item 1 of argv)\n'
-                "end run"
-            )
-            subprocess.Popen([
+            proc = subprocess.Popen([
                 "osascript",
                 "-e", "on run argv",
                 "-e", 'tell application "Terminal" to do script (item 1 of argv)',
                 "-e", "end run",
                 str(run_sh_path),
             ])
+            update_lock(l_path, terminal_pid=proc.pid)
             return LaunchResult(ok=True, message="Terminal launched on macOS.")
 
         # Linux execution with terminal discovery order
@@ -3077,22 +3228,21 @@ def launch_external_terminal(
             "xterm",
         ])
 
-        launched = False
+        launched_proc = None
         for term in terminals_to_try:
             if shutil.which(term):
                 try:
                     if term == "gnome-terminal":
-                        subprocess.Popen([term, "--", str(run_sh_path)])
+                        launched_proc = subprocess.Popen([term, "--", str(run_sh_path)])
                     elif term == "xterm":
-                        subprocess.Popen([term, "-hold", "-e", str(run_sh_path)])
+                        launched_proc = subprocess.Popen([term, "-hold", "-e", str(run_sh_path)])
                     else:
-                        subprocess.Popen([term, "-e", str(run_sh_path)])
-                    launched = True
+                        launched_proc = subprocess.Popen([term, "-e", str(run_sh_path)])
                     break
                 except Exception:
                     continue
 
-        if not launched:
+        if not launched_proc:
             # Fallback cleanup on launch failure
             try:
                 if l_path.exists():
@@ -3106,6 +3256,7 @@ def launch_external_terminal(
                 message="No supported terminal emulator found (tried gnome-terminal, konsole, xfce4-terminal, xterm).",
             )
 
+        update_lock(l_path, terminal_pid=launched_proc.pid)
         return LaunchResult(ok=True, message="Terminal launched successfully.")
 
     except Exception as e:
@@ -3342,7 +3493,7 @@ def validate_destination_folder(
 
 
 ================================================================================
-FILE 14 / 16: test_app.py (Lines 1-1384)
+FILE 14 / 16: test_app.py (Lines 1-1505)
 ================================================================================
 import pytest
 import os
@@ -3808,7 +3959,7 @@ def test_build_command_archive_folder(gui):
     assert "archive" in opts
     assert "from-folder" in opts
     assert "--server=http://local:2283" not in opts
-    assert "--write-to=/dest/folder" in opts
+    assert "--write-to-folder=/dest/folder" in opts
     assert "--date-range=2024-01-01,2024-02-01" in opts
     assert "/source/folder" in opts
     assert "--dry-run" in opts
@@ -3825,7 +3976,7 @@ def test_build_command_archive_immich(gui):
     opts = gui.build_command(dry_run=False)
     assert "archive" in opts
     assert "from-immich" in opts
-    assert "--write-to=/dest/folder" in opts
+    assert "--write-to-folder=/dest/folder" in opts
     assert "--from-date-range=2024-01-01,2024-02-01" in opts
     assert "--from-albums=ArchiveAlbum" in opts
     assert "--dry-run" not in opts
@@ -3985,7 +4136,7 @@ def test_golden_archive_folder(gui):
 
     assert plan.argv == [
         "archive", "from-folder",
-        "--write-to=/organized",
+        "--write-to-folder=/organized",
         "--date-range=2024",
         "--dry-run",
         "/messy/photos",
@@ -4061,12 +4212,12 @@ def test_golden_archive_immich(gui):
 
     assert plan.argv == [
         "archive", "from-immich",
-        "--server=http://localhost:2283",
-        "--write-to=/backup/photos",
+        "--from-server=http://localhost:2283",
+        "--write-to-folder=/backup/photos",
         "--from-date-range=2024",
         "--from-albums=Family",
     ]
-    assert plan.env.get("IMMICH_GO_ARCHIVE_API_KEY") == "test-key"
+    assert plan.env.get("IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_KEY") == "test-key"
     assert not any("--api-key" in p for p in plan.argv)
 
 
@@ -4728,6 +4879,127 @@ def test_show_cli_compatibility_dialog(gui):
         assert mock_info.called
         title = mock_info.call_args[0][1]
         assert "CLI Compatibility" in title
+
+
+# ==============================================================================
+# SECTION 3: CRITICAL FIX 2 & CRITICAL FIX 3 TESTS
+# ==============================================================================
+
+from core.command_builder import CommandPlan, build_environment, build_plan_from_state
+
+
+def test_archive_immich_source_model_env():
+    env = build_environment(
+        tab_key="archive-immich",
+        server="http://source-server:2283",
+        api_key="source-key",
+        admin_api_key="source-admin-key",
+    )
+    assert env.get("IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER") == "http://source-server:2283"
+    assert env.get("IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_KEY") == "source-key"
+    assert env.get("IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_ADMIN_API_KEY") == "source-admin-key"
+    assert "IMMICH_GO_ARCHIVE_SERVER" not in env
+
+
+def test_archive_immich_source_model_cmd():
+    plan = build_plan_from_state(
+        tab_key="archive-immich",
+        config_state={"server": "http://source-server:2283", "api_key": "source-key"},
+        tab_state={"write-to": "/dest/folder"},
+        binary_path="./immich-go",
+        dry_run=True,
+    )
+    assert "--from-server=http://source-server:2283" in plan.argv
+    assert "--write-to-folder=/dest/folder" in plan.argv
+    assert "--dry-run" in plan.argv
+    assert not any(arg.startswith("--server=") for arg in plan.argv)
+
+
+def test_plan_errors_surfaced_in_gui(gui):
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(0)
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+
+    mock_plan = CommandPlan(
+        argv=["upload", "from-folder"],
+        env={},
+        tab_key="upload-folder",
+        binary_path="./immich-go",
+        errors=["Invalid flag '--unsupported' specified."],
+    )
+
+    with patch.object(gui, "build_plan", return_value=mock_plan):
+        with patch("PySide6.QtWidgets.QMessageBox.critical") as mock_crit:
+            gui.show_confirm_dialog(is_dry_run=True)
+            assert mock_crit.called
+            title = mock_crit.call_args[0][1]
+            msg = mock_crit.call_args[0][2]
+            assert "Command Build Errors" in title
+            assert "Invalid flag '--unsupported'" in msg
+
+
+def test_running_process_boolean_state(gui):
+    from PySide6.QtWidgets import QMessageBox
+
+    gui.active_lock_path = None
+    gui.running_process = False
+    gui.update_status()
+    assert gui.lbl_running_warning.isHidden() is True
+
+    gui.running_process = True
+    gui.update_status()
+    assert gui.lbl_running_warning.isHidden() is False
+
+    with patch("PySide6.QtWidgets.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes):
+        gui.on_reset_run_state_clicked()
+        assert gui.running_process is False
+        assert gui.active_lock_path is None
+        assert gui.lbl_running_warning.isHidden() is True
+
+
+def test_stale_lock_detection_with_pid_and_heartbeat(tmp_path, monkeypatch):
+    monkeypatch.setenv("IMMICH_GO_GUI_CONFIG", str(tmp_path / "config.toml"))
+    from core.process_tracker import create_lock, update_lock, is_lock_active, release_lock
+
+    l_path = create_lock("upload-folder", "upload", "./immich-go")
+    assert is_lock_active(l_path) is True
+
+    # Record dead PID (999999)
+    update_lock(l_path, shell_pid=999999, started_at="2020-01-01T00:00:00+00:00")
+    assert is_lock_active(l_path) is False
+
+    # Record current process PID
+    update_lock(l_path, shell_pid=os.getpid())
+    assert is_lock_active(l_path) is True
+
+    release_lock(l_path)
+
+
+def test_forward_all_immich_go_env_vars(tmp_path, monkeypatch):
+    from core.terminal_launcher import launch_external_terminal
+    dummy_lock = tmp_path / "test.lock"
+    dummy_lock.write_text("{}", encoding="utf-8")
+
+    test_env = {
+        "IMMICH_GO_CUSTOM_VAR": "custom_val",
+        "IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER": "http://srv:2283",
+        "OTHER_VAR": "ignored",
+    }
+
+    with patch("subprocess.Popen") as mock_popen:
+        launch_external_terminal(
+            command=["./immich-go", "archive", "from-immich"],
+            env=test_env,
+            lock_path=dummy_lock,
+        )
+        assert mock_popen.called
+
+
+def test_archive_ui_options_removed(gui):
+    assert "manage-raw-jpeg" not in gui.inputs["archive-folder"]
+    assert "manage-burst" not in gui.inputs["archive-immich"]
+    assert "manage-raw-jpeg" not in gui.inputs["archive-immich"]
 
 
 ================================================================================
