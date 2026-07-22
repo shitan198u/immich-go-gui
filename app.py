@@ -118,89 +118,24 @@ from immichgo_models import (
 )
 
 
-def collect_paths(raw_text: str) -> list[str]:
-    """Expands glob patterns and handles multi-line path inputs."""
-    paths = []
-    for line in raw_text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        expanded = glob.glob(line, recursive=True)
-        if expanded:
-            paths.extend(expanded)
-        else:
-            paths.append(line)
-    return paths
-
-
-def normalize_server_url(url: str) -> str:
-    """Normalize a server URL for CLI consumption.
-
-    - Strips leading/trailing whitespace
-    - Adds http:// if no scheme is present
-    - Strips trailing slashes
-    - Returns empty string for empty input
-    """
-    url = url.strip()
-    if not url:
-        return ""
-
-    if not url.startswith("http://") and not url.startswith("https://"):
-        url = "http://" + url
-
-    return url.rstrip("/")
-
-
-def mask_command_for_display(command_parts: list[str]) -> list[str]:
-    """Obfuscates secrets in command previews.
-
-    Handles both forms:
-      --api-key=secret   (single element)
-      --api-key secret   (two elements)
-    """
-    masked = []
-    secret_flags = {"--api-key", "--from-api-key", "--admin-api-key"}
-
-    skip_next = False
-    for part in command_parts:
-        if skip_next:
-            masked.append("********")
-            skip_next = False
-            continue
-
-        if part in secret_flags:
-            masked.append(part)
-            skip_next = True
-            continue
-
-        hidden = False
-        for flag in secret_flags:
-            if part.startswith(f"{flag}="):
-                masked.append(f"{flag}=********")
-                hidden = True
-                break
-
-        if not hidden:
-            masked.append(part)
-
-    return masked
-
-
-_DATE_RANGE_RE = re.compile(
-    r"^\d{4}(-\d{2}(-\d{2})?)?"
-    r"(,\d{4}(-\d{2}(-\d{2})?)?)?$"
+from immichgo_schema import (
+    ENV_KEY_MAP,
+    SECRET_FLAGS,
+    SERVER_REQUIRED_TABS,
+    SERVERLESS_TABS,
+    TAB_COMMANDS,
+    UPLOAD_TABS,
 )
 
-
-def validate_date_range(text: str) -> bool:
-    """Validate immich-go date range format.
-
-    Accepts: 2023, 2023-07, 2023-07-15, 2023-01-01,2023-12-31
-    """
-    text = text.strip()
-    if not text:
-        return True
-    return bool(_DATE_RANGE_RE.match(text))
+from immichgo_commands import (
+    build_environment,
+    build_plan_from_state,
+    collect_paths,
+    mask_command_for_display,
+    normalize_server_url,
+    validate_date_range,
+    validate_state,
+)
 
 
 BINARY_BASE_DIR = os.path.join(os.path.expanduser("~"), ".immich-go-gui", "bin")
@@ -280,41 +215,7 @@ def check_release_for_breaking_changes(version: str) -> tuple[bool, str]:
         return True, f"Could not fetch release notes: {e}"
 
 
-_ENV_KEY_MAP = {
-    "upload-folder":   {"server": "IMMICH_GO_UPLOAD_SERVER",
-                        "api_key": "IMMICH_GO_UPLOAD_API_KEY"},
-    "upload-gp":       {"server": "IMMICH_GO_UPLOAD_SERVER",
-                        "api_key": "IMMICH_GO_UPLOAD_API_KEY"},
-    "upload-immich":   {"server": "IMMICH_GO_UPLOAD_SERVER",
-                        "api_key": "IMMICH_GO_UPLOAD_API_KEY"},
-    "archive-immich":  {"server": "IMMICH_GO_ARCHIVE_SERVER",
-                        "api_key": "IMMICH_GO_ARCHIVE_API_KEY"},
-    "stack":           {"server": "IMMICH_GO_STACK_SERVER",
-                        "api_key": "IMMICH_GO_STACK_API_KEY"},
-}
 
-
-def build_environment(tab_key: str, server: str, api_key: str,
-                      from_server: str = "", from_api_key: str = "") -> dict:
-    """Builds a secure environment dict to pass secrets without CLI exposure."""
-    env = os.environ.copy()
-    mapping = _ENV_KEY_MAP.get(tab_key, {})
-
-    srv_key = mapping.get("server")
-    if srv_key and server:
-        env[srv_key] = server
-
-    api_key_name = mapping.get("api_key")
-    if api_key_name and api_key:
-        env[api_key_name] = api_key
-
-    if tab_key == "upload-immich":
-        if from_server:
-            env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER"] = from_server
-        if from_api_key:
-            env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY"] = from_api_key
-
-    return env
 
 
 class SecretStore:
@@ -2078,7 +1979,7 @@ class ImmichGoGUI(QMainWindow):
     # ==========================================================
 
     def _env_key_for_tab(self, tab_key: str, kind: str) -> str | None:
-        return _ENV_KEY_MAP.get(tab_key, {}).get(kind)
+        return ENV_KEY_MAP.get(tab_key, {}).get(kind)
 
     def build_plan(self, dry_run: bool) -> CommandPlan:
         tab_key = self._get_active_tab_key()
