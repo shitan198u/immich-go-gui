@@ -2371,39 +2371,39 @@ class ImmichGoGUI(QMainWindow):
         if self.stacked_widget.currentIndex() == 0:
             return
 
-        cmd_parts = self.build_command(is_dry_run)
-        binary_path = getattr(self, "binary_path", "./immich-go")
-        full_cmd = [binary_path] + cmd_parts
+        ready, msg = self.check_binary_ready()
+        if not ready:
+            reply = QMessageBox.question(
+                self, "Binary Not Ready",
+                f"{msg}\n\nDo you want to download it now?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                if not self.update_binary(force_download=True):
+                    return
+                ready, msg = self.check_binary_ready()
+                if not ready:
+                    QMessageBox.critical(self, "Error", msg)
+                    return
+            else:
+                return
 
-        # FIX Phase 1 #4: mask secrets before display
-        masked_parts = mask_command_for_display(full_cmd)
+        plan = self.build_plan(dry_run=is_dry_run)
 
-        if sys.platform.startswith("win"):
-            cmd_str = subprocess.list2cmdline(masked_parts)
-        else:
-            cmd_str = masked_parts[0] + " " + " ".join(shlex.quote(p) for p in masked_parts[1:])
+        if plan.errors:
+            QMessageBox.warning(
+                self, "Validation Errors",
+                "\n".join(f"• {e}" for e in plan.errors)
+            )
+            return
 
         dlg = QDialog(self)
         dlg.setWindowTitle("Confirm Execution")
         dlg.setModal(True)
-        dlg.resize(600, 340)
+        dlg.resize(680, 520)
         layout = QVBoxLayout(dlg)
         layout.setContentsMargins(22, 22, 22, 22)
-
-        # FIX Phase 1 #10: SSL warning banner in preview dialog
-        if self.inputs["config"]["skip-ssl"].isChecked():
-            ssl_warn = QLabel(
-                "⚠️ SSL verification is DISABLED. Your connection is vulnerable "
-                "to man-in-the-middle attacks. Proceed only on trusted networks."
-            )
-            ssl_warn.setObjectName("WarningHint")
-            ssl_warn.setWordWrap(True)
-            ssl_warn.setStyleSheet(
-                "background-color: rgba(229,192,123,0.12); padding: 10px; "
-                "border-radius: 6px; border: 1px solid #E5C07B;"
-            )
-            layout.addWidget(ssl_warn)
-            layout.addSpacing(8)
+        layout.setSpacing(10)
 
         kicker = QLabel("Dry run" if is_dry_run else "Live execution")
         kicker.setObjectName("DlgKicker")
@@ -2416,36 +2416,103 @@ class ImmichGoGUI(QMainWindow):
         desc = QLabel(
             "A dry run simulates the action. No files are changed."
             if is_dry_run
-            else "This executes the real command."
+            else "This executes the real command in an external terminal."
         )
         desc.setObjectName("DlgDesc")
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
-        layout.addSpacing(16)
+        lbl_binary = QLabel("Binary")
+        lbl_binary.setObjectName("Subhead")
+        layout.addWidget(lbl_binary)
+
+        binary_edit = QLineEdit(plan.binary_path)
+        binary_edit.setReadOnly(True)
+        layout.addWidget(binary_edit)
+
+        lbl_cmd = QLabel("Command")
+        lbl_cmd.setObjectName("Subhead")
+        layout.addWidget(lbl_cmd)
+
+        if sys.platform.startswith("win"):
+            cmd_str = subprocess.list2cmdline(plan.display_argv)
+        else:
+            cmd_str = (
+                plan.display_argv[0] + " "
+                + " ".join(shlex.quote(p) for p in plan.display_argv[1:])
+            )
 
         cmd_block = QPlainTextEdit()
         cmd_block.setObjectName("CmdBlock")
         cmd_block.setPlainText(cmd_str)
         cmd_block.setReadOnly(True)
+        cmd_block.setMaximumHeight(110)
         layout.addWidget(cmd_block)
 
-        layout.addSpacing(16)
+        immich_env = {
+            k: v for k, v in plan.env.items()
+            if k.startswith("IMMICH_GO_")
+        }
+        if immich_env:
+            lbl_env = QLabel("Environment Variables")
+            lbl_env.setObjectName("Subhead")
+            layout.addWidget(lbl_env)
+
+            env_lines = []
+            secret_env_keys = {"API_KEY", "FROM_API_KEY", "ADMIN_API_KEY"}
+            for k, v in sorted(immich_env.items()):
+                is_secret = any(s in k for s in secret_env_keys)
+                display_v = "********" if is_secret else v
+                env_lines.append(f"{k}={display_v}")
+
+            env_block = QPlainTextEdit()
+            env_block.setObjectName("CmdBlock")
+            env_block.setPlainText("\n".join(env_lines))
+            env_block.setReadOnly(True)
+            env_block.setMaximumHeight(75)
+            layout.addWidget(env_block)
+
+        if plan.warnings:
+            lbl_warn = QLabel("Warnings")
+            lbl_warn.setObjectName("Subhead")
+            layout.addWidget(lbl_warn)
+
+            for w in plan.warnings:
+                warn_lbl = QLabel(f"⚠️ {w}")
+                warn_lbl.setObjectName("WarningHint")
+                warn_lbl.setWordWrap(True)
+                warn_lbl.setStyleSheet(
+                    "background-color: rgba(229,192,123,0.12); padding: 8px; "
+                    "border-radius: 6px; border: 1px solid #E5C07B;"
+                )
+                layout.addWidget(warn_lbl)
+
+        layout.addStretch()
 
         btn_row = QHBoxLayout()
         btn_row.addStretch()
+
+        btn_copy = QPushButton("Copy Command")
+        btn_copy.setObjectName("BtnPreview")
+        btn_copy.clicked.connect(
+            lambda: QApplication.clipboard().setText(cmd_str)
+        )
+        btn_row.addWidget(btn_copy)
+
         btn_cancel = QPushButton("Cancel")
         btn_cancel.setObjectName("BtnPreview")
         btn_cancel.clicked.connect(dlg.reject)
         btn_row.addWidget(btn_cancel)
+
         btn_confirm = QPushButton("Run preview" if is_dry_run else "Start execution")
         btn_confirm.setObjectName("BtnRun")
         btn_confirm.clicked.connect(dlg.accept)
         btn_row.addWidget(btn_confirm)
+
         layout.addLayout(btn_row)
 
         if dlg.exec():
-            self.run_command(cmd_parts)
+            self.run_command(plan)
 
     # ==========================================================
     # BACKEND LOGIC
