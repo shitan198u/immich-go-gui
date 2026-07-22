@@ -33,11 +33,11 @@ from PySide6.QtWidgets import (
     QLabel, QLineEdit, QCheckBox, QComboBox, QPushButton, QFileDialog,
     QPlainTextEdit, QStackedWidget, QFrame, QSizePolicy,
     QScrollArea, QMessageBox, QDialog, QProgressBar, QSpinBox, QStyle, QLayout,
-    QFormLayout, QToolButton, QTabWidget
+    QFormLayout, QToolButton, QTabWidget, QMenu
 )
 from PySide6.QtGui import (
     QAction, QDragEnterEvent, QDropEvent, QIcon, QPainter, QPen, QColor,
-    QBrush, QFont
+    QBrush, QFont, QCursor
 )
 from PySide6.QtCore import (
     Qt, QEvent, QTimer, QSettings, QThread, Signal, QSize
@@ -637,7 +637,12 @@ class ImmichGoGUI(QMainWindow):
             child.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
     def _browse_into(self, line_edit: QLineEdit, title: str):
-        folder = QFileDialog.getExistingDirectory(self, title)
+        folder = QFileDialog.getExistingDirectory(
+            self,
+            title,
+            "",
+            QFileDialog.Option.ShowDirsOnly,
+        )
         if folder:
             line_edit.setText(folder)
 
@@ -929,22 +934,34 @@ class ImmichGoGUI(QMainWindow):
         self.source_path_edit = DroppableLineEdit()
         self.source_path_edit.setPlaceholderText("/path/to/files or /path/to/archive.zip")
         self.inputs["upload-folder"]["path"] = self.source_path_edit
+
+        btn_folder = QPushButton("Select Folder…")
+        btn_folder.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_folder.clicked.connect(self.browse_folder_upload)
+
+        btn_zip = QPushButton("Select ZIP Archive…")
+        btn_zip.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_zip.clicked.connect(self.browse_zip_upload)
+
+        btn_box = QHBoxLayout()
+        btn_box.setContentsMargins(0, 4, 0, 0)
+        btn_box.setSpacing(10)
+        btn_box.addWidget(btn_folder)
+        btn_box.addWidget(btn_zip)
+        btn_box.addStretch()
+
+        path_container = QWidget()
+        path_layout = QVBoxLayout(path_container)
+        path_layout.setContentsMargins(0, 0, 0, 0)
+        path_layout.setSpacing(6)
+        path_layout.addWidget(self.source_path_edit)
+        path_layout.addLayout(btn_box)
+
         form.add_row(
-            "Folder to upload",
-            self.source_path_edit,
+            "Folder / ZIP to upload",
+            path_container,
             "Every file inside this folder will be considered. ZIP archives are also supported."
         )
-
-        theme = getattr(self, "theme_mode", "dark")
-        browse_action = self.source_path_edit.addAction(
-            load_themed_icon("folder", theme),
-            QLineEdit.ActionPosition.TrailingPosition
-        )
-        browse_action.icon_name = "folder"
-        browse_action.triggered.connect(self.browse_local_folder)
-        for child in self.source_path_edit.findChildren(QToolButton):
-            child.setAutoRaise(True)
-            child.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         card.layout.addLayout(form)
         lay.addWidget(card)
@@ -1099,17 +1116,29 @@ class ImmichGoGUI(QMainWindow):
         )
         self.gp_path_edit.setMaximumHeight(100)
         self.inputs["upload-gp"]["path"] = self.gp_path_edit
-        # FIX Phase 3 #28: multi-ZIP file picker with browse button
-        gp_btn_row = QHBoxLayout()
-        gp_btn_row.setContentsMargins(0, 0, 0, 0)
-        gp_btn_row.setSpacing(6)
-        gp_btn_row.addWidget(self.gp_path_edit, 1)
-        btn_browse_zips = QPushButton("Browse ZIPs…")
-        btn_browse_zips.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_browse_zips.clicked.connect(self.browse_takeout_source)
-        gp_btn_row.addWidget(btn_browse_zips, 0, Qt.AlignmentFlag.AlignTop)
+
+        btn_zips = QPushButton("Select ZIP Files…")
+        btn_zips.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_zips.clicked.connect(self.browse_takeout_zips)
+
+        btn_folder = QPushButton("Select Extracted Folder…")
+        btn_folder.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_folder.clicked.connect(self.browse_takeout_folder)
+
+        gp_btn_box = QHBoxLayout()
+        gp_btn_box.setContentsMargins(0, 4, 0, 0)
+        gp_btn_box.setSpacing(10)
+        gp_btn_box.addWidget(btn_zips)
+        gp_btn_box.addWidget(btn_folder)
+        gp_btn_box.addStretch()
+
         gp_container = QWidget()
-        gp_container.setLayout(gp_btn_row)
+        gp_layout = QVBoxLayout(gp_container)
+        gp_layout.setContentsMargins(0, 0, 0, 0)
+        gp_layout.setSpacing(6)
+        gp_layout.addWidget(self.gp_path_edit)
+        gp_layout.addLayout(gp_btn_box)
+
         form.add_row(
             "Takeout Source",
             gp_container,
@@ -1399,20 +1428,32 @@ class ImmichGoGUI(QMainWindow):
         form = FormSection()
 
         p_edit = DroppableLineEdit()
-        p_edit.setPlaceholderText("/path/to/files")
+        p_edit.setPlaceholderText("/path/to/files or /path/to/archive.zip")
         self.inputs["archive-folder"]["path"] = p_edit
-        form.add_row("Source Folder Path", p_edit)
 
-        theme = getattr(self, "theme_mode", "dark")
-        browse_action = p_edit.addAction(
-            load_themed_icon("folder", theme),
-            QLineEdit.ActionPosition.TrailingPosition
-        )
-        browse_action.icon_name = "folder"
-        browse_action.triggered.connect(self.browse_local_folder)
-        for child in p_edit.findChildren(QToolButton):
-            child.setAutoRaise(True)
-            child.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        btn_folder = QPushButton("Select Folder…")
+        btn_folder.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_folder.clicked.connect(self.browse_folder_archive)
+
+        btn_zip = QPushButton("Select ZIP Archive…")
+        btn_zip.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_zip.clicked.connect(self.browse_zip_archive)
+
+        btn_box = QHBoxLayout()
+        btn_box.setContentsMargins(0, 4, 0, 0)
+        btn_box.setSpacing(10)
+        btn_box.addWidget(btn_folder)
+        btn_box.addWidget(btn_zip)
+        btn_box.addStretch()
+
+        p_container = QWidget()
+        p_layout = QVBoxLayout(p_container)
+        p_layout.setContentsMargins(0, 0, 0, 0)
+        p_layout.setSpacing(6)
+        p_layout.addWidget(p_edit)
+        p_layout.addLayout(btn_box)
+
+        form.add_row("Source Folder Path", p_container)
 
         card.layout.addLayout(form)
         lay.addWidget(card)
@@ -1680,40 +1721,53 @@ class ImmichGoGUI(QMainWindow):
         about_action.triggered.connect(self.open_github_link)
         help_menu.addAction(about_action)
 
-    def browse_takeout_source(self):
-        # FIX Phase 3 #28: multi-ZIP file picker
+    def browse_folder_upload(self):
+        folder = QFileDialog.getExistingDirectory(
+            self, "Select Folder", "", QFileDialog.Option.ShowDirsOnly
+        )
+        if folder:
+            self.inputs["upload-folder"]["path"].setText(folder)
+
+    def browse_zip_upload(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select ZIP Archive", "", "ZIP archives (*.zip *.ZIP);;All Files (*)", options=QFileDialog.Option(0)
+        )
+        if file_path:
+            self.inputs["upload-folder"]["path"].setText(file_path)
+
+    def browse_takeout_zips(self):
         files, _ = QFileDialog.getOpenFileNames(
-            self,
-            "Select Takeout ZIP parts",
-            "",
-            "ZIP archives (*.zip *.ZIP);;All Files (*)",
+            self, "Select Takeout ZIP parts", "", "ZIP archives (*.zip *.ZIP);;All Files (*)", options=QFileDialog.Option(0)
         )
         if files:
             self.inputs["upload-gp"]["path"].setPlainText("\n".join(files))
-            return
-        folder = QFileDialog.getExistingDirectory(self, "Select Extracted Folder")
+
+    def browse_takeout_folder(self):
+        folder = QFileDialog.getExistingDirectory(
+            self, "Select Extracted Folder", "", QFileDialog.Option.ShowDirsOnly
+        )
         if folder:
             self.inputs["upload-gp"]["path"].setPlainText(folder)
 
-    def browse_local_folder(self):
-        # FIX Phase 3 #31: allow ZIP selection for upload from-folder
-        idx = self.stacked_widget.currentIndex()
-        is_upload_folder = (idx == 1 and hasattr(self, "upload_tabs") and self.upload_tabs.currentIndex() == 0)
-        is_archive_folder = (idx == 2 and hasattr(self, "archive_tabs") and self.archive_tabs.currentIndex() == 0)
-        if is_upload_folder:
-            file_path, _ = QFileDialog.getOpenFileName(
-                self, "Select ZIP archive", "",
-                "ZIP archives (*.zip *.ZIP);;All Files (*)"
-            )
-            if file_path:
-                self.inputs["upload-folder"]["path"].setText(file_path)
-                return
-        folder = QFileDialog.getExistingDirectory(self, "Select Folder")
+    def browse_folder_archive(self):
+        folder = QFileDialog.getExistingDirectory(
+            self, "Select Folder", "", QFileDialog.Option.ShowDirsOnly
+        )
         if folder:
-            if is_upload_folder:
-                self.inputs["upload-folder"]["path"].setText(folder)
-            elif is_archive_folder:
-                self.inputs["archive-folder"]["path"].setText(folder)
+            self.inputs["archive-folder"]["path"].setText(folder)
+
+    def browse_zip_archive(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select ZIP Archive", "", "ZIP archives (*.zip *.ZIP);;All Files (*)", options=QFileDialog.Option(0)
+        )
+        if file_path:
+            self.inputs["archive-folder"]["path"].setText(file_path)
+
+    def browse_takeout_source(self):
+        self.browse_takeout_zips()
+
+    def browse_local_folder(self):
+        self.browse_folder_upload()
 
     def validate_inputs(self):
         srv_edit = self.inputs.get("config", {}).get("server")
