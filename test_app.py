@@ -700,3 +700,35 @@ def test_golden_upload_immich(gui):
     assert plan.env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY") == "old-key"
     assert not any("--api-key" in p for p in plan.argv)
     assert not any("--from-api-key" in p for p in plan.argv)
+
+
+def test_golden_archive_immich(gui):
+    """Golden: archive from-immich with options."""
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(1)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("test-key")
+    gui.inputs["config"]["skip-ssl"].setChecked(False)
+    gui.inputs["config"]["client_timeout"].setValue(20)
+    cpu_default = min(max(os.cpu_count() or 2, 1), 20)
+    gui.inputs["config"]["concurrent"].setValue(cpu_default)
+    gui.inputs["archive-immich"]["write-to"].setText("/backup/photos")
+    gui.inputs["archive-immich"]["manage-burst"].setCurrentText("Stack")
+    gui.inputs["archive-immich"]["manage-raw-jpeg"].setCurrentText("KeepRaw")
+    gui.inputs["archive-immich"]["from-date-range"].setText("2024")
+    gui.inputs["archive-immich"]["from-albums"].setText("Family")
+    gui.inputs["archive-immich"]["log-level"].setCurrentText("INFO")
+
+    plan = gui.build_plan(dry_run=False)
+
+    assert plan.argv == [
+        "archive", "from-immich",
+        "--server=http://localhost:2283",
+        "--write-to-folder=/backup/photos",
+        "--manage-burst=Stack",
+        "--manage-raw-jpeg=KeepRaw",
+        "--from-date-range=2024",
+        "--from-albums=Family",
+    ]
+    assert plan.env.get("IMMICH_GO_ARCHIVE_API_KEY") == "test-key"
+    assert not any("--api-key" in p for p in plan.argv)
