@@ -1,0 +1,3939 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Immich-Go GUI Refinements Navigator</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Highlight.js Theme -->
+    <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        
+:root {
+    --bg-color: #f8fafc;
+    --sidebar-bg: #ffffff;
+    --card-bg: #ffffff;
+    --card-hover-bg: #f1f5f9;
+    --content-bg: #fafafa;
+    --border-color: #e2e8f0;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --accent-color: #4f46e5;
+    --accent-light: #eeebff;
+    --accent-hover: #4338ca;
+    --code-bg: #f1f5f9;
+    --highlight-flash: #fef08a;
+    --sidebar-width: 320px;
+    --header-height: 70px;
+}
+
+[data-theme="dark"] {
+    --bg-color: #0f172a;
+    --sidebar-bg: #1e293b;
+    --card-bg: #1e293b;
+    --card-hover-bg: #334155;
+    --content-bg: #111827;
+    --border-color: #334155;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --accent-color: #6366f1;
+    --accent-light: #1e1e38;
+    --accent-hover: #4f46e5;
+    --code-bg: #0f172a;
+    --highlight-flash: #3e3d23;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    display: flex;
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.6;
+}
+
+/* Sidebar Styling */
+.sidebar {
+    width: var(--sidebar-width);
+    background-color: var(--sidebar-bg);
+    border-right: 1px solid var(--border-color);
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    transition: transform 0.3s ease, background-color 0.3s;
+}
+
+.sidebar-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.sidebar-logo {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+}
+
+.sidebar-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    background: linear-gradient(to right, var(--text-primary), var(--text-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.sidebar-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+}
+
+.toc-group {
+    margin-bottom: 1.5rem;
+}
+
+.toc-h1 {
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--accent-color);
+    margin-bottom: 0.5rem;
+    padding-left: 0.5rem;
+}
+
+.toc-h2-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    border-left: 1px solid var(--border-color);
+    margin-left: 0.5rem;
+    padding-left: 0.5rem;
+}
+
+.toc-item {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 0.375rem 0.5rem;
+    border-radius: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.toc-item:hover {
+    color: var(--accent-color);
+    background-color: var(--accent-light);
+    padding-left: 0.75rem;
+}
+
+.toc-item.active {
+    color: var(--accent-color);
+    background-color: var(--accent-light);
+    font-weight: 600;
+}
+
+/* Main Content Area */
+.main-wrapper {
+    margin-left: var(--sidebar-width);
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0; /* Prevents overflow in flex container */
+    transition: margin-left 0.3s ease;
+}
+
+/* Top Toolbar */
+.toolbar {
+    height: var(--header-height);
+    background-color: var(--sidebar-bg);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2rem;
+    z-index: 90;
+    backdrop-filter: blur(8px);
+    background-color: rgba(255, 255, 255, 0.8);
+}
+
+[data-theme="dark"] .toolbar {
+    background-color: rgba(30, 41, 59, 0.8);
+}
+
+.search-container {
+    position: relative;
+    width: 350px;
+    max-width: 100%;
+}
+
+.search-input {
+    width: 100%;
+    padding: 0.6rem 1rem 0.6rem 2.5rem;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.search-input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.search-icon {
+    position: absolute;
+    left: 0.9rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    width: 16px;
+    height: 16px;
+    pointer-events: none;
+}
+
+.actions-container {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    transition: all 0.2s;
+}
+
+.btn:hover {
+    background-color: var(--card-hover-bg);
+}
+
+.btn-primary {
+    background-color: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-hover);
+}
+
+.icon-btn {
+    padding: 0.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.icon-btn:hover {
+    background-color: var(--card-hover-bg);
+    border-color: var(--accent-color);
+}
+
+/* Content Layout */
+.content-container {
+    max-width: 1000px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.h1-section {
+    margin-bottom: 3rem;
+    scroll-margin-top: calc(var(--header-height) + 1.5rem);
+}
+
+.h1-header {
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.intro-content {
+    color: var(--text-secondary);
+    font-size: 1.05rem;
+    margin-bottom: 1.5rem;
+}
+
+.intro-content p {
+    margin-bottom: 1rem;
+}
+
+.intro-content ul, .intro-content ol {
+    margin-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+/* Accordion Accordion styling using details/summary */
+.accordion-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+details.accordion-item {
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    scroll-margin-top: calc(var(--header-height) + 1rem);
+}
+
+details.accordion-item[open] {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] details.accordion-item[open] {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+summary.accordion-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.2rem 1.5rem;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 1.1rem;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    transition: background-color 0.2s, border-color 0.2s, border-radius 0.2s;
+}
+
+summary.accordion-header::-webkit-details-marker {
+    display: none;
+}
+
+summary.accordion-header:hover {
+    background-color: var(--card-hover-bg);
+    border-color: var(--accent-color);
+}
+
+details.accordion-item[open] summary.accordion-header {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    background-color: var(--card-hover-bg);
+}
+
+.accordion-title-container {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.chevron-icon {
+    transition: transform 0.25s ease;
+    color: var(--text-secondary);
+}
+
+details.accordion-item[open] .chevron-icon {
+    transform: rotate(180deg);
+}
+
+.accordion-body {
+    padding: 1.5rem;
+    background-color: var(--content-bg);
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+
+/* Highlight flash animation when navigating from TOC */
+.highlight-flash {
+    animation: flash 1.5s ease-out;
+}
+
+@keyframes flash {
+    0% {
+        box-shadow: 0 0 0 4px var(--accent-color);
+    }
+    100% {
+        box-shadow: 0 0 0 0 transparent;
+    }
+}
+
+/* Body typography & elements inside accordions */
+.accordion-body h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.25rem;
+}
+
+.accordion-body h3:first-of-type {
+    margin-top: 0;
+}
+
+.accordion-body p {
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
+}
+
+.accordion-body ul, .accordion-body ol {
+    margin-left: 1.5rem;
+    margin-bottom: 1rem;
+    color: var(--text-secondary);
+}
+
+.accordion-body li {
+    margin-bottom: 0.25rem;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    font-size: 0.95rem;
+}
+
+th, td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+th {
+    background-color: var(--card-bg);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+tr:hover td {
+    background-color: var(--card-hover-bg);
+}
+
+/* Code Blocks */
+pre {
+    background-color: var(--code-bg);
+    padding: 1rem;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 1rem 0 1.5rem 0;
+    border: 1px solid var(--border-color);
+    position: relative;
+}
+
+code {
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, Monaco, 'Andale Mono', monospace;
+    font-size: 0.9rem;
+    background-color: var(--code-bg);
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+}
+
+pre code {
+    background-color: transparent;
+    padding: 0;
+    border-radius: 0;
+}
+
+.copy-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.2s, background-color 0.2s;
+    z-index: 10;
+}
+
+pre:hover .copy-btn {
+    opacity: 1;
+}
+
+/* Responsive Styles */
+@media (max-width: 1024px) {
+    .sidebar {
+        transform: translateX(-100%);
+    }
+    
+    .sidebar.open {
+        transform: translateX(0);
+    }
+    
+    .main-wrapper {
+        margin-left: 0;
+    }
+    
+    .hamburger-btn {
+        display: inline-flex;
+    }
+}
+
+@media (min-width: 1025px) {
+    .hamburger-btn {
+        display: none;
+    }
+}
+
+@media (max-width: 640px) {
+    .toolbar {
+        padding: 0 1rem;
+    }
+    .content-container {
+        padding: 1rem;
+    }
+    .search-container {
+        width: 180px;
+    }
+    .btn span {
+        display: none;
+    }
+}
+
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">IG</div>
+            <div class="sidebar-title">Immich-Go GUI</div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="toc-group"><div class="toc-h1">Introduction</div><div class="toc-h2-list">
+</div></div><div class="toc-group"><div class="toc-h1">Revised Detailed Observations and Implementation Draft</div><div class="toc-h2-list">
+    <a href="#0-key-clarifications-from-immich-go-documentation" class="toc-item" title="0. Key Clarifications From `immich-go` Documentation">0. Key Clarifications From `immich-go` Documentation</a>
+</div></div><div class="toc-group"><div class="toc-h1">1. Critical `immich-go` Command Builder Issues</div><div class="toc-h2-list">
+    <a href="#11-global-flags-are-placed-after-the-sub-command" class="toc-item" title="1.1. Global flags are placed after the sub-command">1.1. Global flags are placed after the sub-command</a>
+    <a href="#12-pause-immich-jobs-may-be-added-to-commands-that-do-not-support-it" class="toc-item" title="1.2. `--pause-immich-jobs` may be added to commands that do not support it">1.2. `--pause-immich-jobs` may be added to commands that do not support it</a>
+    <a href="#13-on-errors-scope-should-be-verified" class="toc-item" title="1.3. `--on-errors` scope should be verified">1.3. `--on-errors` scope should be verified</a>
+    <a href="#14-client-timeout-is-collected-but-never-used" class="toc-item" title="1.4. `--client-timeout` is collected but never used">1.4. `--client-timeout` is collected but never used</a>
+    <a href="#15-device-uuid-is-collected-but-never-used" class="toc-item" title="1.5. `--device-uuid` is collected but never used">1.5. `--device-uuid` is collected but never used</a>
+    <a href="#16-api-trace-is-only-exposed-for-upload-folder" class="toc-item" title="1.6. `--api-trace` is only exposed for `upload-folder`">1.6. `--api-trace` is only exposed for `upload-folder`</a>
+    <a href="#17-no-ui-is-missing-but-important-for-embedded-execution" class="toc-item" title="1.7. `--no-ui` is missing but important for embedded execution">1.7. `--no-ui` is missing but important for embedded execution</a>
+    <a href="#18-concurrent-tasks-default-should-probably-match-cpu-count" class="toc-item" title="1.8. `--concurrent-tasks` default should probably match CPU count">1.8. `--concurrent-tasks` default should probably match CPU count</a>
+    <a href="#19-on-errors-should-support-numeric-error-tolerance" class="toc-item" title="1.9. `--on-errors` should support numeric error tolerance">1.9. `--on-errors` should support numeric error tolerance</a>
+    <a href="#110-from-albums-flag-name-should-be-verified" class="toc-item" title="1.10. `--from-albums` flag name should be verified">1.10. `--from-albums` flag name should be verified</a>
+</div></div><div class="toc-group"><div class="toc-h1">2. Missing CLI Features That Should Be Added</div><div class="toc-h2-list">
+    <a href="#21-missing-upload-from-icloud-tab" class="toc-item" title="2.1. Missing `upload from-icloud` tab">2.1. Missing `upload from-icloud` tab</a>
+    <a href="#22-missing-upload-from-picasa-tab" class="toc-item" title="2.2. Missing `upload from-picasa` tab">2.2. Missing `upload from-picasa` tab</a>
+    <a href="#23-missing-archive-from-google-photos-tab" class="toc-item" title="2.3. Missing `archive from-google-photos` tab">2.3. Missing `archive from-google-photos` tab</a>
+    <a href="#24-missing-archive-from-icloud-tab" class="toc-item" title="2.4. Missing `archive from-icloud` tab">2.4. Missing `archive from-icloud` tab</a>
+    <a href="#25-missing-archive-from-picasa-tab" class="toc-item" title="2.5. Missing `archive from-picasa` tab">2.5. Missing `archive from-picasa` tab</a>
+    <a href="#26-archive-from-folder-is-missing-many-filtering-options" class="toc-item" title="2.6. `archive from-folder` is missing many filtering options">2.6. `archive from-folder` is missing many filtering options</a>
+    <a href="#27-archive-from-immich-is-missing-many-from-immich-filters" class="toc-item" title="2.7. `archive from-immich` is missing many `from-immich` filters">2.7. `archive from-immich` is missing many `from-immich` filters</a>
+    <a href="#28-google-photos-tab-is-missing-include-untitled-albums" class="toc-item" title="2.8. Google Photos tab is missing `--include-untitled-albums`">2.8. Google Photos tab is missing `--include-untitled-albums`</a>
+    <a href="#29-from-folder-is-missing-recursive" class="toc-item" title="2.9. `from-folder` is missing `--recursive`">2.9. `from-folder` is missing `--recursive`</a>
+    <a href="#210-from-folder-is-missing-album-path-joiner" class="toc-item" title="2.10. `from-folder` is missing `--album-path-joiner`">2.10. `from-folder` is missing `--album-path-joiner`</a>
+    <a href="#211-from-folder-is-missing-album-picasa" class="toc-item" title="2.11. `from-folder` is missing `--album-picasa`">2.11. `from-folder` is missing `--album-picasa`</a>
+    <a href="#212-global-logging-options-are-missing" class="toc-item" title="2.12. Global logging options are missing">2.12. Global logging options are missing</a>
+</div></div><div class="toc-group"><div class="toc-h1">3. Path, File, and Takeout Handling Issues</div><div class="toc-h2-list">
+    <a href="#31-google-takeout-should-support-multiple-zip-parts" class="toc-item" title="3.1. Google Takeout should support multiple ZIP parts">3.1. Google Takeout should support multiple ZIP parts</a>
+    <a href="#32-drag-and-drop-should-accept-multiple-files-for-takeout" class="toc-item" title="3.2. Drag-and-drop should accept multiple files for Takeout">3.2. Drag-and-drop should accept multiple files for Takeout</a>
+    <a href="#33-upload-from-folder-should-allow-zip-files" class="toc-item" title="3.3. `upload from-folder` should allow ZIP files">3.3. `upload from-folder` should allow ZIP files</a>
+    <a href="#34-destination-folders-need-browse-buttons" class="toc-item" title="3.4. Destination folders need browse buttons">3.4. Destination folders need browse buttons</a>
+</div></div><div class="toc-group"><div class="toc-h1">4. Security and Secret Handling</div><div class="toc-h2-list">
+    <a href="#41-api-keys-are-exposed-in-command-preview-and-process-arguments" class="toc-item" title="4.1. API keys are exposed in command preview and process arguments">4.1. API keys are exposed in command preview and process arguments</a>
+    <a href="#42-prefer-environment-variables-for-api-keys" class="toc-item" title="4.2. Prefer environment variables for API keys">4.2. Prefer environment variables for API keys</a>
+    <a href="#43-store-api-keys-in-os-keychain-not-plain-qsettings" class="toc-item" title="4.3. Store API keys in OS keychain, not plain `QSettings`">4.3. Store API keys in OS keychain, not plain `QSettings`</a>
+    <a href="#44-warn-when-skip-verify-ssl-is-enabled" class="toc-item" title="4.4. Warn when `--skip-verify-ssl` is enabled">4.4. Warn when `--skip-verify-ssl` is enabled</a>
+    <a href="#45-binary-downloads-should-be-checksum-verified" class="toc-item" title="4.5. Binary downloads should be checksum-verified">4.5. Binary downloads should be checksum-verified</a>
+</div></div><div class="toc-group"><div class="toc-h1">5. Qt/PySide6 Implementation Review</div><div class="toc-h2-list">
+    <a href="#51-what-appears-correctly-implemented" class="toc-item" title="5.1. What appears correctly implemented">5.1. What appears correctly implemented</a>
+    <a href="#52-qt-implementation-issues-that-should-be-fixed" class="toc-item" title="5.2. Qt implementation issues that should be fixed">5.2. Qt implementation issues that should be fixed</a>
+</div></div><div class="toc-group"><div class="toc-h1">6. Process Execution and Tracking</div><div class="toc-h2-list">
+    <a href="#61-external-terminal-launching-has-safety-issues" class="toc-item" title="6.1. External terminal launching has safety issues">6.1. External terminal launching has safety issues</a>
+    <a href="#62-consider-embedded-qprocess-runner" class="toc-item" title="6.2. Consider embedded `QProcess` runner">6.2. Consider embedded `QProcess` runner</a>
+    <a href="#63-psutil-process-tracking-is-unreliable-in-sandboxes" class="toc-item" title="6.3. `psutil` process tracking is unreliable in sandboxes">6.3. `psutil` process tracking is unreliable in sandboxes</a>
+</div></div><div class="toc-group"><div class="toc-h1">7. Validation Improvements</div><div class="toc-h2-list">
+    <a href="#71-current-validation-is-too-global" class="toc-item" title="7.1. Current validation is too global">7.1. Current validation is too global</a>
+    <a href="#72-add-per-tab-validation" class="toc-item" title="7.2. Add per-tab validation">7.2. Add per-tab validation</a>
+</div></div><div class="toc-group"><div class="toc-h1">8. Configuration and Persistence</div><div class="toc-h2-list">
+    <a href="#81-migrate-to-standardized-toml-config" class="toc-item" title="8.1. Migrate to standardized TOML config">8.1. Migrate to standardized TOML config</a>
+    <a href="#82-save-full-ui-state" class="toc-item" title="8.2. Save full UI state">8.2. Save full UI state</a>
+</div></div><div class="toc-group"><div class="toc-h1">9. UI and Discoverability</div><div class="toc-h2-list">
+    <a href="#91-simpleadvanced-toggle-needs-better-discoverability" class="toc-item" title="9.1. Simple/Advanced toggle needs better discoverability">9.1. Simple/Advanced toggle needs better discoverability</a>
+    <a href="#92-remove-theme-hint-text" class="toc-item" title="9.2. Remove theme hint text">9.2. Remove theme hint text</a>
+    <a href="#93-sidebar-icons-should-use-accent-color-when-active" class="toc-item" title="9.3. Sidebar icons should use accent color when active">9.3. Sidebar icons should use accent color when active</a>
+    <a href="#94-add-api-key-permissions-helper" class="toc-item" title="9.4. Add API key permissions helper">9.4. Add API key permissions helper</a>
+    <a href="#95-add-connection-test-button" class="toc-item" title="9.5. Add connection test button">9.5. Add connection test button</a>
+    <a href="#96-add-date-range-helper" class="toc-item" title="9.6. Add date range helper">9.6. Add date range helper</a>
+</div></div><div class="toc-group"><div class="toc-h1">10. Testing Strategy</div><div class="toc-h2-list">
+    <a href="#101-decouple-command-builder-from-gui" class="toc-item" title="10.1. Decouple command builder from GUI">10.1. Decouple command builder from GUI</a>
+    <a href="#102-add-documentation-driven-command-tests" class="toc-item" title="10.2. Add documentation-driven command tests">10.2. Add documentation-driven command tests</a>
+</div></div><div class="toc-group"><div class="toc-h1">11. Packaging and Distribution</div><div class="toc-h2-list">
+    <a href="#111-nuitka-directives-must-be-comments" class="toc-item" title="11.1. Nuitka directives must be comments">11.1. Nuitka directives must be comments</a>
+    <a href="#112-add-proper-app-metadata" class="toc-item" title="11.2. Add proper app metadata">11.2. Add proper app metadata</a>
+    <a href="#113-add-linux-desktop-integration" class="toc-item" title="11.3. Add Linux desktop integration">11.3. Add Linux desktop integration</a>
+    <a href="#114-add-macos-app-icon" class="toc-item" title="11.4. Add macOS app icon">11.4. Add macOS app icon</a>
+</div></div><div class="toc-group"><div class="toc-h1">12. Suggested Revised Issue Backlog</div><div class="toc-h2-list">
+    <a href="#critical" class="toc-item" title="Critical">Critical</a>
+    <a href="#cli-compatibility" class="toc-item" title="CLI Compatibility">CLI Compatibility</a>
+    <a href="#missing-cli-features" class="toc-item" title="Missing CLI Features">Missing CLI Features</a>
+    <a href="#path-handling" class="toc-item" title="Path Handling">Path Handling</a>
+    <a href="#qt-implementation-correctness" class="toc-item" title="Qt Implementation Correctness">Qt Implementation Correctness</a>
+    <a href="#process-execution" class="toc-item" title="Process Execution">Process Execution</a>
+    <a href="#security" class="toc-item" title="Security">Security</a>
+    <a href="#configuration" class="toc-item" title="Configuration">Configuration</a>
+    <a href="#uiux" class="toc-item" title="UI/UX">UI/UX</a>
+    <a href="#testing" class="toc-item" title="Testing">Testing</a>
+</div></div><div class="toc-group"><div class="toc-h1">13. Recommended Implementation Order</div><div class="toc-h2-list">
+    <a href="#phase-1-correctness-and-safety" class="toc-item" title="Phase 1: Correctness and safety">Phase 1: Correctness and safety</a>
+    <a href="#phase-2-cli-alignment" class="toc-item" title="Phase 2: CLI alignment">Phase 2: CLI alignment</a>
+    <a href="#phase-3-qt-polish" class="toc-item" title="Phase 3: Qt polish">Phase 3: Qt polish</a>
+    <a href="#phase-4-advanced-features" class="toc-item" title="Phase 4: Advanced features">Phase 4: Advanced features</a>
+</div></div><div class="toc-group"><div class="toc-h1">14. Qt Web-Search Verification Checklist</div><div class="toc-h2-list">
+    <a href="#141-custom-toggle-button" class="toc-item" title="14.1. Custom toggle button">14.1. Custom toggle button</a>
+    <a href="#142-dark-mode-detection" class="toc-item" title="14.2. Dark mode detection">14.2. Dark mode detection</a>
+    <a href="#143-qthread-termination" class="toc-item" title="14.3. QThread termination">14.3. QThread termination</a>
+    <a href="#144-hidpi-svg-icons" class="toc-item" title="14.4. HiDPI SVG icons">14.4. HiDPI SVG icons</a>
+    <a href="#145-qpushbutton-checked-icon-color" class="toc-item" title="14.5. QPushButton checked icon color">14.5. QPushButton checked icon color</a>
+    <a href="#146-qsettings-vs-toml" class="toc-item" title="14.6. QSettings vs TOML">14.6. QSettings vs TOML</a>
+</div></div><div class="toc-group"><div class="toc-h1">15. Final Summary</div><div class="toc-h2-list">
+</div></div>
+        </nav>
+    </aside>
+
+    <!-- Main Content Wrapper -->
+    <div class="main-wrapper">
+        <!-- Toolbar -->
+        <header class="toolbar">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <button class="icon-btn hamburger-btn" id="sidebar-toggle" title="Toggle Sidebar">
+                    <i data-lucide="menu"></i>
+                </button>
+                <div class="search-container">
+                    <i data-lucide="search" class="search-icon"></i>
+                    <input type="text" id="search-input" class="search-input" placeholder="Search sections/issues..." />
+                </div>
+            </div>
+            
+            <div class="actions-container">
+                <button class="btn btn-primary" id="expand-all-btn">
+                    <i data-lucide="chevrons-down-up"></i>
+                    <span>Expand All</span>
+                </button>
+                <button class="btn" id="collapse-all-btn">
+                    <i data-lucide="chevrons-up-down"></i>
+                    <span>Collapse All</span>
+                </button>
+                <button class="icon-btn" id="theme-toggle" title="Toggle Light/Dark Theme">
+                    <i data-lucide="sun" id="theme-sun" style="display:none;"></i>
+                    <i data-lucide="moon" id="theme-moon"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="content-container">
+            <section class="h1-section" id="introduction">
+  <h1 class="h1-header">Introduction</h1>
+  <div class="intro-content"><p>Below is a <strong>revised, documentation-aligned detailed draft</strong> of observations, issues, and implementation guidance.</p>
+<p>Important note on the “web search” request: I cannot perform a live web search in this environment. However, I have reviewed the Qt/PySide6 implementation against well-known Qt/PySide6 design patterns and documentation-level best practices. I have also used the uploaded <code>Documentation.md</code> to resolve previous uncertainties about <code>immich-go</code> CLI flag placement, supported flags, and command behavior.</p>
+<hr /></div>
+</section><section class="h1-section" id="revised-detailed-observations-and-implementation-draft">
+  <h1 class="h1-header">Revised Detailed Observations and Implementation Draft</h1>
+  <div class="accordion-list">
+    <details class="accordion-item" id="0-key-clarifications-from-immich-go-documentation">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>0. Key Clarifications From `immich-go` Documentation</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>The uploaded documentation clarifies several important points that affect how the GUI should generate commands.</p>
+<h3>0.1. Global command syntax is explicit</h3>
+<p>Documentation states:</p>
+<pre><code class="language-bash">immich-go [global-options] command sub-command [command-options] [path]
+</code></pre>
+<p>This means global options such as:</p>
+<pre><code class="language-bash">--log-level=DEBUG
+--log-file=...
+--log-type=JSON
+</code></pre>
+<p>should appear <strong>before</strong> the command:</p>
+<pre><code class="language-bash">immich-go --log-level=DEBUG upload from-folder ...
+</code></pre>
+<p>The current GUI builds:</p>
+<pre><code class="language-python">return cmd + global_opts + cmd_opts + path_opt
+</code></pre>
+<p>which can generate:</p>
+<pre><code class="language-bash">immich-go upload from-folder --log-level=DEBUG ...
+</code></pre>
+<p>That is likely incorrect for global flags.</p>
+<hr />
+<h3>0.2. <code>upload</code> and <code>archive</code> share the same source sub-commands</h3>
+<p>Documentation says <code>upload</code> and <code>archive</code> both support:</p>
+<pre><code class="language-text">from-folder
+from-google-photos
+from-icloud
+from-picasa
+from-immich
+</code></pre>
+<p>The GUI currently supports:</p>
+<pre><code class="language-text">upload from-folder
+upload from-google-photos
+upload from-immich
+archive from-folder
+archive from-immich
+stack
+</code></pre>
+<p>Missing possible tabs/features:</p>
+<pre><code class="language-text">upload from-icloud
+upload from-picasa
+archive from-google-photos
+archive from-icloud
+archive from-picasa
+</code></pre>
+<p>Also, because <code>upload</code> and <code>archive</code> share the same source logic, the current <code>archive from-folder</code> and <code>archive from-immich</code> pages are missing many filtering options that likely belong there.</p>
+<hr />
+<h3>0.3. Google Takeout supports split ZIPs and glob patterns</h3>
+<p>Documentation examples:</p>
+<pre><code class="language-bash">immich-go upload from-google-photos --server=... --api-key=... /path/to/takeout-*.zip
+</code></pre>
+<p>The GUI currently allows only one path string and uses a folder browser.</p>
+<p>This is insufficient for real Google Takeout imports, which often consist of many ZIP parts:</p>
+<pre><code class="language-text">takeout-001.zip
+takeout-002.zip
+takeout-003.zip
+...
+</code></pre>
+<p>The GUI should support:</p>
+<ul>
+<li>Multi-file selection.</li>
+<li>Drag-and-drop of multiple ZIP files.</li>
+<li>Glob pattern input.</li>
+<li>Optional automatic expansion of <code>takeout-*.zip</code>.</li>
+</ul>
+<hr />
+<h3>0.4. <code>upload from-folder</code> supports ZIP archives directly</h3>
+<p>Documentation example:</p>
+<pre><code class="language-bash">immich-go upload from-folder --server=... --api-key=... /path/to/photo-archive.zip
+</code></pre>
+<p>The GUI currently presents this as a folder-only workflow and uses:</p>
+<pre><code class="language-python">QFileDialog.getExistingDirectory()
+</code></pre>
+<p>It should also allow selecting ZIP files.</p>
+<hr />
+<h3>0.5. <code>immich-go</code> supports environment variables for every flag</h3>
+<p>Documentation states:</p>
+<pre><code class="language-text">IMMICH_GO_&lt;COMMAND&gt;[_&lt;SUBCOMMAND&gt;]_&lt;OPTION_NAME&gt;
+</code></pre>
+<p>Examples:</p>
+<pre><code class="language-bash">IMMICH_GO_UPLOAD_SERVER
+IMMICH_GO_UPLOAD_API_KEY
+IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER
+IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY
+IMMICH_GO_ARCHIVE_WRITE_TO_FOLDER
+IMMICH_GO_STACK_MANAGE_BURST
+</code></pre>
+<p>This is extremely useful for avoiding secrets on the command line.</p>
+<p>The GUI should prefer passing API keys through environment variables where possible, especially if using an embedded <code>QProcess</code> runner.</p>
+<hr />
+<h3>0.6. Some flags were previously unclear but are now confirmed</h3>
+<p>Confirmed by documentation:</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Applies to</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--log-level</code></td>
+<td>Global</td>
+<td>Should be before command</td>
+</tr>
+<tr>
+<td><code>--log-file</code></td>
+<td>Global</td>
+<td>Not exposed in GUI</td>
+</tr>
+<tr>
+<td><code>--log-type</code></td>
+<td>Global</td>
+<td>TEXT/JSON, not exposed</td>
+</tr>
+<tr>
+<td><code>--dry-run</code></td>
+<td>upload/stack</td>
+<td>Command-level option</td>
+</tr>
+<tr>
+<td><code>--server</code></td>
+<td>upload/archive-from-immich/stack</td>
+<td>Required for server operations</td>
+</tr>
+<tr>
+<td><code>--api-key</code></td>
+<td>upload/archive-from-immich/stack</td>
+<td>Required for server operations</td>
+</tr>
+<tr>
+<td><code>--client-timeout</code></td>
+<td>upload/stack</td>
+<td>Not currently used by GUI</td>
+</tr>
+<tr>
+<td><code>--device-uuid</code></td>
+<td>upload</td>
+<td>Collected in GUI but unused</td>
+</tr>
+<tr>
+<td><code>--api-trace</code></td>
+<td>upload/stack</td>
+<td>Only exposed for upload-folder</td>
+</tr>
+<tr>
+<td><code>--no-ui</code></td>
+<td>upload</td>
+<td>Not exposed, useful for embedded runner</td>
+</tr>
+<tr>
+<td><code>--pause-immich-jobs</code></td>
+<td>upload</td>
+<td>Should not be blindly added to all commands</td>
+</tr>
+<tr>
+<td><code>--on-errors</code></td>
+<td>upload/global-like</td>
+<td>GUI should verify exact scope</td>
+</tr>
+<tr>
+<td><code>--concurrent-tasks</code></td>
+<td>upload/global-like</td>
+<td>GUI currently uses config value</td>
+</tr>
+<tr>
+<td><code>--write-to-folder</code></td>
+<td>archive</td>
+<td>Required</td>
+</tr>
+<tr>
+<td><code>--from-server</code></td>
+<td>upload from-immich</td>
+<td>Currently implemented</td>
+</tr>
+<tr>
+<td><code>--from-api-key</code></td>
+<td>upload from-immich</td>
+<td>Currently implemented</td>
+</tr>
+<tr>
+<td><code>--from-client-timeout</code></td>
+<td>upload from-immich</td>
+<td>Missing</td>
+</tr>
+<tr>
+<td><code>--from-date-range</code></td>
+<td>upload/archive from-immich</td>
+<td>Partially implemented</td>
+</tr>
+<tr>
+<td><code>--from-albums</code></td>
+<td>upload/archive from-immich</td>
+<td>Implemented for some tabs</td>
+</tr>
+<tr>
+<td><code>--from-people</code></td>
+<td>upload/archive from-immich</td>
+<td>Missing on archive-immich</td>
+</tr>
+<tr>
+<td><code>--from-tags</code></td>
+<td>upload/archive from-immich</td>
+<td>Missing on archive-immich</td>
+</tr>
+<tr>
+<td><code>--from-city/state/country/make/model</code></td>
+<td>upload/archive from-immich</td>
+<td>Missing on archive-immich</td>
+</tr>
+<tr>
+<td><code>--include-untitled-albums</code></td>
+<td>Google Photos</td>
+<td>Missing</td>
+</tr>
+<tr>
+<td><code>--recursive</code></td>
+<td>from-folder</td>
+<td>Missing</td>
+</tr>
+<tr>
+<td><code>--album-path-joiner</code></td>
+<td>from-folder</td>
+<td>Missing</td>
+</tr>
+<tr>
+<td><code>--album-picasa</code></td>
+<td>from-folder/Picasa</td>
+<td>Missing</td>
+</tr>
+<tr>
+<td><code>--memories</code></td>
+<td>iCloud</td>
+<td>Missing tab entirely</td>
+</tr>
+</tbody>
+</table>
+<hr />
+      </div>
+    </details>
+  </div>
+</section><section class="h1-section" id="1-critical-immich-go-command-builder-issues">
+  <h1 class="h1-header">1. Critical `immich-go` Command Builder Issues</h1>
+  <div class="accordion-list">
+    <details class="accordion-item" id="11-global-flags-are-placed-after-the-sub-command">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>1.1. Global flags are placed after the sub-command</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Current code:</p>
+<pre><code class="language-python">return cmd + global_opts + cmd_opts + path_opt
+</code></pre>
+<p>Example generated command:</p>
+<pre><code class="language-bash">immich-go upload from-folder --log-level=DEBUG --server=... --api-key=...
+</code></pre>
+<p>Documentation says global options should come before the command:</p>
+<pre><code class="language-bash">immich-go --log-level=DEBUG upload from-folder --server=... --api-key=...
+</code></pre>
+<h3>Fix</h3>
+<p>Change command composition to:</p>
+<pre><code class="language-python">return global_opts + cmd + cmd_opts + path_opt
+</code></pre>
+<p>Example:</p>
+<pre><code class="language-python">def build_command(self, dry_run: bool) -&gt; list[str]:
+    ...
+    return global_opts + cmd + cmd_opts + path_opt
+</code></pre>
+<p>Add tests:</p>
+<pre><code class="language-python">def test_global_log_level_before_command():
+    cmd = builder.build_upload_folder(
+        state=state,
+        server=&quot;http://localhost:2283&quot;,
+        api_key=&quot;secret&quot;,
+        log_level=&quot;DEBUG&quot;,
+        dry_run=False,
+    )
+
+    assert cmd[0] == &quot;--log-level=DEBUG&quot;
+    assert cmd[1] == &quot;upload&quot;
+    assert cmd[2] == &quot;from-folder&quot;
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="12-pause-immich-jobs-may-be-added-to-commands-that-do-not-support-it">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>1.2. `--pause-immich-jobs` may be added to commands that do not support it</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Current logic:</p>
+<pre><code class="language-python">if &quot;pause-jobs&quot; in c:
+    if not c[&quot;pause-jobs&quot;].isChecked():
+        cmd_opts.append(&quot;--pause-immich-jobs=false&quot;)
+elif not self.inputs[&quot;config&quot;][&quot;pause_jobs&quot;].isChecked():
+    cmd_opts.append(&quot;--pause-immich-jobs=false&quot;)
+</code></pre>
+<p>This can add <code>--pause-immich-jobs=false</code> to:</p>
+<pre><code class="language-text">archive from-folder
+archive from-immich
+stack
+</code></pre>
+<p>Documentation lists <code>--pause-immich-jobs</code> under shared <code>upload</code> options, not under <code>archive</code> or <code>stack</code>.</p>
+<h3>Fix</h3>
+<p>Restrict this flag to upload commands unless verified otherwise.</p>
+<pre><code class="language-python">UPLOAD_TABS = {
+    &quot;upload-folder&quot;,
+    &quot;upload-gp&quot;,
+    &quot;upload-immich&quot;,
+}
+
+if tab_key in UPLOAD_TABS:
+    if &quot;pause-jobs&quot; in c:
+        if not c[&quot;pause-jobs&quot;].isChecked():
+            cmd_opts.append(&quot;--pause-immich-jobs=false&quot;)
+    elif not self.inputs[&quot;config&quot;][&quot;pause_jobs&quot;].isChecked():
+        cmd_opts.append(&quot;--pause-immich-jobs=false&quot;)
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="13-on-errors-scope-should-be-verified">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>1.3. `--on-errors` scope should be verified</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Current code may add <code>--on-errors=continue</code> to many command types.</p>
+<p>Documentation shows <code>--on-errors</code> under upload behavior, but also shows it as a top-level config/environment value.</p>
+<p>So it may be global-like, but the CLI documentation’s global options table does not explicitly list it.</p>
+<h3>Fix</h3>
+<p>Until verified, apply <code>--on-errors</code> only to upload commands.</p>
+<pre><code class="language-python">if tab_key in UPLOAD_TABS:
+    if &quot;on-errors&quot; in c:
+        if c[&quot;on-errors&quot;].currentText() != &quot;stop&quot;:
+            cmd_opts.append(f&quot;--on-errors={c['on-errors'].currentText()}&quot;)
+    elif self.inputs[&quot;config&quot;][&quot;on_errors&quot;].currentText() != &quot;stop&quot;:
+        cmd_opts.append(f&quot;--on-errors={self.inputs['config']['on_errors'].currentText()}&quot;)
+</code></pre>
+<p>Later, if <code>immich-go archive --help</code> or <code>immich-go stack --help</code> confirms support, expand scope.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="14-client-timeout-is-collected-but-never-used">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>1.4. `--client-timeout` is collected but never used</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Configuration tab has:</p>
+<pre><code class="language-python">self.client_timeout_spin = QSpinBox()
+self.client_timeout_spin.setRange(1, 1440)
+self.client_timeout_spin.setValue(20)
+self.client_timeout_spin.setSuffix(&quot; minutes&quot;)
+</code></pre>
+<p>But <code>build_command()</code> does not use it.</p>
+<p>Documentation confirms:</p>
+<pre><code class="language-text">--client-timeout
+</code></pre>
+<p>is a valid upload/stack option, defaulting to <code>20m</code>.</p>
+<h3>Fix</h3>
+<p>Add:</p>
+<pre><code class="language-python">client_timeout = self.inputs[&quot;config&quot;][&quot;client_timeout&quot;].value()
+
+if tab_key in UPLOAD_TABS or tab_key in {&quot;stack&quot;, &quot;archive-immich&quot;}:
+    if client_timeout != 20:
+        cmd_opts.append(f&quot;--client-timeout={client_timeout}m&quot;)
+</code></pre>
+<p>For <code>upload from-immich</code>, also add source timeout:</p>
+<pre><code class="language-python">if tab_key == &quot;upload-immich&quot;:
+    if c.get(&quot;from-client-timeout&quot;):
+        from_timeout = c[&quot;from-client-timeout&quot;].value()
+        if from_timeout != 20:
+            cmd_opts.append(f&quot;--from-client-timeout={from_timeout}m&quot;)
+</code></pre>
+<p>Add a <code>from-client-timeout</code> spinbox to the <code>upload-immich</code> advanced page.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="15-device-uuid-is-collected-but-never-used">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>1.5. `--device-uuid` is collected but never used</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Configuration tab has:</p>
+<pre><code class="language-python">self.device_uuid_edit = QLineEdit()
+self.inputs[&quot;config&quot;][&quot;device_uuid&quot;] = self.device_uuid_edit
+</code></pre>
+<p>Documentation confirms:</p>
+<pre><code class="language-text">--device-uuid
+</code></pre>
+<p>is an upload option.</p>
+<h3>Fix</h3>
+<p>Add to upload commands:</p>
+<pre><code class="language-python">device_uuid = self.inputs[&quot;config&quot;][&quot;device_uuid&quot;].text().strip()
+
+if tab_key in UPLOAD_TABS and device_uuid:
+    cmd_opts.append(f&quot;--device-uuid={device_uuid}&quot;)
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="16-api-trace-is-only-exposed-for-upload-folder">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>1.6. `--api-trace` is only exposed for `upload-folder`</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Current GUI has <code>api-trace</code> only on:</p>
+<pre><code class="language-text">upload-folder
+</code></pre>
+<p>Documentation says <code>--api-trace</code> is available for:</p>
+<pre><code class="language-text">upload sub-commands
+stack
+</code></pre>
+<h3>Fix</h3>
+<p>Add <code>--api-trace</code> checkbox to:</p>
+<pre><code class="language-text">upload-folder
+upload-gp
+upload-immich
+stack
+</code></pre>
+<p>Possibly also <code>archive-immich</code> if verified.</p>
+<p>Implementation:</p>
+<pre><code class="language-python">if c.get(&quot;api-trace&quot;) and c[&quot;api-trace&quot;].isChecked():
+    cmd_opts.append(&quot;--api-trace&quot;)
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="17-no-ui-is-missing-but-important-for-embedded-execution">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>1.7. `--no-ui` is missing but important for embedded execution</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Documentation says:</p>
+<pre><code class="language-text">--no-ui
+Disable the interactive terminal UI
+</code></pre>
+<p>The GUI currently launches <code>immich-go</code> inside an external terminal, so the interactive UI may work.</p>
+<p>However, if you later implement an embedded output console using <code>QProcess</code>, the process may not have a proper TTY. In that case, <code>--no-ui</code> may be required.</p>
+<h3>Fix</h3>
+<p>Add a global or per-tab option:</p>
+<pre><code class="language-text">Disable interactive immich-go UI (--no-ui)
+</code></pre>
+<p>Recommended behavior:</p>
+<ul>
+<li>If running in external terminal: leave optional.</li>
+<li>If running inside embedded GUI console: automatically add <code>--no-ui</code>.</li>
+</ul>
+<p>Example:</p>
+<pre><code class="language-python">if tab_key in UPLOAD_TABS and self.use_no_ui:
+    cmd_opts.append(&quot;--no-ui&quot;)
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="18-concurrent-tasks-default-should-probably-match-cpu-count">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>1.8. `--concurrent-tasks` default should probably match CPU count</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>GUI default:</p>
+<pre><code class="language-python">self.concurrent_tasks_spin.setValue(2)
+</code></pre>
+<p>Documentation says default is CPU cores, while config example shows <code>12</code>.</p>
+<p>If the GUI always emits <code>--concurrent-tasks=2</code>, it may unintentionally reduce performance.</p>
+<p>Current code only emits when value is not 2:</p>
+<pre><code class="language-python">conc = self.inputs[&quot;config&quot;][&quot;concurrent&quot;].value()
+if conc != 2:
+    cmd_opts.append(f&quot;--concurrent-tasks={conc}&quot;)
+</code></pre>
+<p>This avoids overriding when default is 2, but the default itself may be misleading.</p>
+<h3>Fix</h3>
+<p>Initialize spinbox to CPU count:</p>
+<pre><code class="language-python">import os
+
+cpu_count = os.cpu_count() or 2
+self.concurrent_tasks_spin.setValue(min(max(cpu_count, 1), 20))
+</code></pre>
+<p>Then decide whether to emit only when changed from detected default.</p>
+<p>Better:</p>
+<pre><code class="language-python">self.default_concurrent_tasks = min(max(os.cpu_count() or 2, 1), 20)
+self.concurrent_tasks_spin.setValue(self.default_concurrent_tasks)
+</code></pre>
+<p>Command builder:</p>
+<pre><code class="language-python">conc = self.inputs[&quot;config&quot;][&quot;concurrent&quot;].value()
+
+if conc != self.default_concurrent_tasks:
+    cmd_opts.append(f&quot;--concurrent-tasks={conc}&quot;)
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="19-on-errors-should-support-numeric-error-tolerance">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>1.9. `--on-errors` should support numeric error tolerance</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Documentation says:</p>
+<pre><code class="language-text">--on-errors
+stop, continue, or a tolerated error count
+</code></pre>
+<p>GUI currently offers only:</p>
+<pre><code class="language-text">stop
+continue
+</code></pre>
+<h3>Fix</h3>
+<p>Replace combo with a smarter editor.</p>
+<p>Simple option:</p>
+<pre><code class="language-python">QComboBox items:
+stop
+continue
+custom count...
+</code></pre>
+<p>Or use a line edit with validation:</p>
+<pre><code class="language-python">validator = QRegularExpressionValidator(QRegularExpression(r&quot;^(stop|continue|\d+)$&quot;))
+on_errors_edit.setValidator(validator)
+</code></pre>
+<p>Example accepted values:</p>
+<pre><code class="language-text">stop
+continue
+10
+50
+</code></pre>
+<p>Command builder:</p>
+<pre><code class="language-python">on_errors = c[&quot;on-errors&quot;].currentText().strip()
+
+if on_errors and on_errors != &quot;stop&quot;:
+    cmd_opts.append(f&quot;--on-errors={on_errors}&quot;)
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="110-from-albums-flag-name-should-be-verified">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>1.10. `--from-albums` flag name should be verified</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Documentation is slightly inconsistent.</p>
+<p>Some places use:</p>
+<pre><code class="language-bash">--from-albums=&quot;Family&quot;
+</code></pre>
+<p>Other examples use:</p>
+<pre><code class="language-bash">--from-album=&quot;Family Photos&quot;
+</code></pre>
+<p>Current GUI uses:</p>
+<pre><code class="language-python">cmd_opts.append(f&quot;--from-albums={a.strip()}&quot;)
+</code></pre>
+<h3>Fix</h3>
+<p>Verify using:</p>
+<pre><code class="language-bash">immich-go upload from-immich --help
+immich-go archive from-immich --help
+</code></pre>
+<p>If the correct flag is singular, change to:</p>
+<pre><code class="language-python">cmd_opts.append(f&quot;--from-album={a.strip()}&quot;)
+</code></pre>
+<p>If both are aliases, keep current.</p>
+<p>Add a unit test after verification.</p>
+<hr />
+      </div>
+    </details>
+  </div>
+</section><section class="h1-section" id="2-missing-cli-features-that-should-be-added">
+  <h1 class="h1-header">2. Missing CLI Features That Should Be Added</h1>
+  <div class="accordion-list">
+    <details class="accordion-item" id="21-missing-upload-from-icloud-tab">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>2.1. Missing `upload from-icloud` tab</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Documentation supports:</p>
+<pre><code class="language-bash">immich-go upload from-icloud
+</code></pre>
+<p>Special option:</p>
+<pre><code class="language-text">--memories
+</code></pre>
+<h3>Fix</h3>
+<p>Add a new tab:</p>
+<pre><code class="language-text">Upload → iCloud Import
+</code></pre>
+<p>Fields:</p>
+<ul>
+<li>iCloud export path</li>
+<li><code>--memories</code></li>
+<li>Media type</li>
+<li>Burst handling</li>
+<li>HEIC+JPEG handling</li>
+<li>Tags</li>
+<li>Session tag</li>
+<li>SSL/log options</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="22-missing-upload-from-picasa-tab">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>2.2. Missing `upload from-picasa` tab</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Documentation supports:</p>
+<pre><code class="language-bash">immich-go upload from-picasa
+</code></pre>
+<p>It uses mostly <code>from-folder</code> options plus Picasa metadata detection.</p>
+<h3>Fix</h3>
+<p>Add tab:</p>
+<pre><code class="language-text">Upload → Picasa Import
+</code></pre>
+<p>Fields:</p>
+<ul>
+<li>Picasa collection path</li>
+<li>Album options</li>
+<li><code>--album-picasa</code></li>
+<li>Filtering options</li>
+<li>RAW/JPEG/HEIC handling</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="23-missing-archive-from-google-photos-tab">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>2.3. Missing `archive from-google-photos` tab</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Documentation example:</p>
+<pre><code class="language-bash">immich-go archive from-google-photos \
+  --write-to-folder=/organized-photos \
+  /path/to/takeout-*.zip
+</code></pre>
+<p>This is a very useful feature: converting messy Google Takeout into a clean local archive.</p>
+<h3>Fix</h3>
+<p>Add tab:</p>
+<pre><code class="language-text">Archive → Google Takeout
+</code></pre>
+<p>Required fields:</p>
+<ul>
+<li>Takeout path/glob/multi-file selector</li>
+<li>Destination folder</li>
+<li>Google Photos options:</li>
+<li>include unmatched</li>
+<li>include archived</li>
+<li>include trashed</li>
+<li>include partner</li>
+<li>sync albums</li>
+<li>from album name</li>
+<li>partner shared album</li>
+<li>takeout tag</li>
+<li>people tag</li>
+<li>Filtering:</li>
+<li>date range</li>
+<li>extensions</li>
+<li>ban-file</li>
+<li>Stack options:</li>
+<li>burst</li>
+<li>RAW+JPEG</li>
+<li>HEIC+JPEG</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="24-missing-archive-from-icloud-tab">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>2.4. Missing `archive from-icloud` tab</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Documentation supports:</p>
+<pre><code class="language-bash">immich-go archive from-icloud
+</code></pre>
+<h3>Fix</h3>
+<p>Add tab:</p>
+<pre><code class="language-text">Archive → iCloud Export
+</code></pre>
+<p>Fields:</p>
+<ul>
+<li>iCloud export path</li>
+<li>Destination folder</li>
+<li><code>--memories</code></li>
+<li>HEIC/JPEG handling</li>
+<li>Date range</li>
+<li>Extension filters</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="25-missing-archive-from-picasa-tab">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>2.5. Missing `archive from-picasa` tab</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Documentation supports:</p>
+<pre><code class="language-bash">immich-go archive from-picasa
+</code></pre>
+<h3>Fix</h3>
+<p>Add tab:</p>
+<pre><code class="language-text">Archive → Picasa Export
+</code></pre>
+<p>Fields:</p>
+<ul>
+<li>Picasa path</li>
+<li>Destination folder</li>
+<li>Album handling</li>
+<li>Filtering</li>
+<li>Stack options</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="26-archive-from-folder-is-missing-many-filtering-options">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>2.6. `archive from-folder` is missing many filtering options</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Current <code>archive from-folder</code> page only exposes:</p>
+<pre><code class="language-text">source path
+destination folder
+manage-raw-jpeg
+date-range
+log-level
+</code></pre>
+<p>But documentation says <code>upload</code> and <code>archive</code> share the same sub-command options, only destination differs.</p>
+<h3>Fix</h3>
+<p>Add most <code>upload from-folder</code> filtering options to <code>archive from-folder</code>:</p>
+<pre><code class="language-text">--include-type
+--include-extensions
+--exclude-extensions
+--ban-file
+--date-range
+--ignore-sidecar-files
+--date-from-name
+--manage-burst
+--manage-raw-jpeg
+--manage-heic-jpeg
+--recursive
+</code></pre>
+<p>Album-related flags may be less relevant for local archive output, but filtering flags likely are.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="27-archive-from-immich-is-missing-many-from-immich-filters">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>2.7. `archive from-immich` is missing many `from-immich` filters</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Current <code>archive from-immich</code> page exposes only:</p>
+<pre><code class="language-text">destination folder
+manage-burst
+manage-raw-jpeg
+from-date-range
+from-albums
+skip-ssl
+log-level
+</code></pre>
+<p>But <code>upload from-immich</code> has many more filters, and documentation says archive shares the same source filtering behavior.</p>
+<h3>Fix</h3>
+<p>Add to <code>archive from-immich</code>:</p>
+<pre><code class="language-text">--from-favorite
+--from-archived
+--from-trash
+--from-minimal-rating
+--from-people
+--from-tags
+--from-city
+--from-state
+--from-country
+--from-make
+--from-model
+--from-no-album
+--from-client-timeout
+--from-skip-verify-ssl
+</code></pre>
+<p>This would make archive much more useful for selective backups.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="28-google-photos-tab-is-missing-include-untitled-albums">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>2.8. Google Photos tab is missing `--include-untitled-albums`</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Documentation lists:</p>
+<pre><code class="language-text">--include-untitled-albums
+</code></pre>
+<h3>Fix</h3>
+<p>Add checkbox:</p>
+<pre><code class="language-text">Include Untitled Albums
+</code></pre>
+<p>Command builder:</p>
+<pre><code class="language-python">if c[&quot;include-untitled-albums&quot;].isChecked():
+    cmd_opts.append(&quot;--include-untitled-albums=true&quot;)
+</code></pre>
+<p>Or if default is false, bare flag may be enough:</p>
+<pre><code class="language-python">if c[&quot;include-untitled-albums&quot;].isChecked():
+    cmd_opts.append(&quot;--include-untitled-albums&quot;)
+</code></pre>
+<p>Verify exact boolean behavior.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="29-from-folder-is-missing-recursive">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>2.9. `from-folder` is missing `--recursive`</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Documentation says:</p>
+<pre><code class="language-text">--recursive
+Default: true
+</code></pre>
+<h3>Fix</h3>
+<p>Add checkbox:</p>
+<pre><code class="language-text">Recursive
+</code></pre>
+<p>Default checked.</p>
+<p>Command builder:</p>
+<pre><code class="language-python">if not c[&quot;recursive&quot;].isChecked():
+    cmd_opts.append(&quot;--recursive=false&quot;)
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="210-from-folder-is-missing-album-path-joiner">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>2.10. `from-folder` is missing `--album-path-joiner`</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Documentation says:</p>
+<pre><code class="language-text">--album-path-joiner
+Default: &quot;/&quot;
+</code></pre>
+<h3>Fix</h3>
+<p>Add advanced field:</p>
+<pre><code class="language-text">Album Path Joiner
+</code></pre>
+<p>Example:</p>
+<pre><code class="language-text"> / 
+ - 
+ &gt; 
+</code></pre>
+<p>Command builder:</p>
+<pre><code class="language-python">joiner = c[&quot;album-path-joiner&quot;].text()
+
+if joiner and joiner != &quot;/&quot;:
+    cmd_opts.append(f&quot;--album-path-joiner={joiner}&quot;)
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="211-from-folder-is-missing-album-picasa">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>2.11. `from-folder` is missing `--album-picasa`</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Documentation says:</p>
+<pre><code class="language-text">--album-picasa
+Use album name found in .picasa.ini files
+</code></pre>
+<h3>Fix</h3>
+<p>Add checkbox to folder upload advanced options:</p>
+<pre><code class="language-text">Use Picasa album metadata
+</code></pre>
+<p>Command builder:</p>
+<pre><code class="language-python">if c[&quot;album-picasa&quot;].isChecked():
+    cmd_opts.append(&quot;--album-picasa=true&quot;)
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="212-global-logging-options-are-missing">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>2.12. Global logging options are missing</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Documentation supports:</p>
+<pre><code class="language-text">--log-file
+--log-level
+--log-type
+</code></pre>
+<p>GUI only exposes per-tab <code>--log-level</code>.</p>
+<h3>Fix</h3>
+<p>Add a logging card to Configuration or Advanced:</p>
+<pre><code class="language-text">Log File Path
+Log Level
+Log Type: TEXT / JSON
+</code></pre>
+<p>Command builder:</p>
+<pre><code class="language-python">log_file = self.inputs[&quot;config&quot;][&quot;log_file&quot;].text().strip()
+log_type = self.inputs[&quot;config&quot;][&quot;log_type&quot;].currentText().strip()
+
+if log_file:
+    global_opts.append(f&quot;--log-file={log_file}&quot;)
+
+if log_type and log_type != &quot;TEXT&quot;:
+    global_opts.append(f&quot;--log-type={log_type}&quot;)
+</code></pre>
+<p>Also add a button:</p>
+<pre><code class="language-text">Open Log Folder
+</code></pre>
+<p>Default log locations from documentation:</p>
+<table>
+<thead>
+<tr>
+<th>OS</th>
+<th>Path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Linux</td>
+<td><code>$HOME/.cache/immich-go/</code></td>
+</tr>
+<tr>
+<td>macOS</td>
+<td><code>$HOME/Library/Caches/immich-go/</code></td>
+</tr>
+<tr>
+<td>Windows</td>
+<td><code>%LocalAppData%\immich-go\</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+      </div>
+    </details>
+  </div>
+</section><section class="h1-section" id="3-path-file-and-takeout-handling-issues">
+  <h1 class="h1-header">3. Path, File, and Takeout Handling Issues</h1>
+  <div class="accordion-list">
+    <details class="accordion-item" id="31-google-takeout-should-support-multiple-zip-parts">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>3.1. Google Takeout should support multiple ZIP parts</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Current GUI accepts only one path string.</p>
+<p>Real Takeouts often contain many ZIPs:</p>
+<pre><code class="language-text">takeout-001.zip
+takeout-002.zip
+takeout-003.zip
+</code></pre>
+<p>Documentation examples use glob:</p>
+<pre><code class="language-bash">/path/to/takeout-*.zip
+</code></pre>
+<h3>Fix</h3>
+<p>Add a multi-file picker:</p>
+<pre><code class="language-python">def browse_takeout_source(self):
+    files, _ = QFileDialog.getOpenFileNames(
+        self,
+        &quot;Select Takeout ZIP parts&quot;,
+        &quot;&quot;,
+        &quot;ZIP archives (*.zip);;All Files (*)&quot;,
+    )
+
+    if files:
+        self.inputs[&quot;upload-gp&quot;][&quot;path&quot;].setText(&quot;\n&quot;.join(files))
+        return
+
+    folder = QFileDialog.getExistingDirectory(self, &quot;Select Extracted Folder&quot;)
+    if folder:
+        self.inputs[&quot;upload-gp&quot;][&quot;path&quot;].setText(folder)
+</code></pre>
+<p>Use a <code>QPlainTextEdit</code> instead of <code>QLineEdit</code> for Takeout path input so users can paste multiple paths.</p>
+<p>Command builder should support multiple paths:</p>
+<pre><code class="language-python">def collect_paths(self, raw_text: str) -&gt; list[str]:
+    paths = []
+
+    for line in raw_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+
+        expanded = glob.glob(line, recursive=True)
+
+        if expanded:
+            paths.extend(expanded)
+        else:
+            paths.append(line)
+
+    return paths
+</code></pre>
+<p>Then:</p>
+<pre><code class="language-python">if tab_key == &quot;upload-gp&quot;:
+    path_opt.extend(self.collect_paths(c[&quot;path&quot;].toPlainText()))
+</code></pre>
+<p>For other tabs, maybe keep single path.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="32-drag-and-drop-should-accept-multiple-files-for-takeout">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>3.2. Drag-and-drop should accept multiple files for Takeout</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Current drop handler only uses first path:</p>
+<pre><code class="language-python">if paths:
+    target.setText(paths[0])
+</code></pre>
+<h3>Fix</h3>
+<p>For Takeout, accept all paths:</p>
+<pre><code class="language-python">def dropEvent(self, event: QDropEvent, target=None):
+    if target is None:
+        return
+
+    paths = [url.toLocalFile() for url in event.mimeData().urls()]
+
+    if not paths:
+        return
+
+    if isinstance(target, QPlainTextEdit):
+        target.setPlainText(&quot;\n&quot;.join(paths))
+    elif isinstance(target, QLineEdit):
+        target.setText(paths[0])
+
+    event.acceptProposedAction()
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="33-upload-from-folder-should-allow-zip-files">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>3.3. `upload from-folder` should allow ZIP files</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Documentation says <code>upload from-folder</code> can upload from ZIP archives.</p>
+<p>Current browse action only selects directories.</p>
+<h3>Fix</h3>
+<p>Add a chooser or two actions:</p>
+<pre><code class="language-python">def browse_folder_or_zip(self, target: QLineEdit):
+    file_path, _ = QFileDialog.getOpenFileName(
+        self,
+        &quot;Select ZIP archive&quot;,
+        &quot;&quot;,
+        &quot;ZIP archives (*.zip);;All Files (*)&quot;,
+    )
+
+    if file_path:
+        target.setText(file_path)
+        return
+
+    folder = QFileDialog.getExistingDirectory(self, &quot;Select folder&quot;)
+    if folder:
+        target.setText(folder)
+</code></pre>
+<p>Better UX: show a small menu:</p>
+<pre><code class="language-text">Select Folder
+Select ZIP Archive
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="34-destination-folders-need-browse-buttons">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>3.4. Destination folders need browse buttons</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Fields like:</p>
+<pre><code class="language-text">archive-folder write-to
+archive-immich write-to
+</code></pre>
+<p>are plain line edits.</p>
+<h3>Fix</h3>
+<p>Add trailing folder browse actions:</p>
+<pre><code class="language-python">def add_folder_browse_action(self, line_edit: QLineEdit, title: str):
+    action = line_edit.addAction(
+        load_themed_icon(&quot;folder&quot;, self.resolved_theme),
+        QLineEdit.ActionPosition.TrailingPosition,
+    )
+
+    action.triggered.connect(
+        lambda: self.browse_into_line_edit(line_edit, title)
+    )
+
+def browse_into_line_edit(self, line_edit: QLineEdit, title: str):
+    folder = QFileDialog.getExistingDirectory(self, title)
+    if folder:
+        line_edit.setText(folder)
+</code></pre>
+<p>Apply to:</p>
+<pre><code class="language-text">archive-folder write-to
+archive-immich write-to
+future archive tabs write-to
+</code></pre>
+<hr />
+      </div>
+    </details>
+  </div>
+</section><section class="h1-section" id="4-security-and-secret-handling">
+  <h1 class="h1-header">4. Security and Secret Handling</h1>
+  <div class="accordion-list">
+    <details class="accordion-item" id="41-api-keys-are-exposed-in-command-preview-and-process-arguments">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>4.1. API keys are exposed in command preview and process arguments</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Current confirm dialog shows:</p>
+<pre><code class="language-bash">--api-key=SECRET
+</code></pre>
+<p>This is risky.</p>
+<h3>Fix</h3>
+<p>At minimum, mask secrets in the UI:</p>
+<pre><code class="language-python">SECRET_FLAGS = [
+    &quot;--api-key&quot;,
+    &quot;--from-api-key&quot;,
+]
+
+def mask_command_for_display(command_parts: list[str]) -&gt; list[str]:
+    masked = []
+
+    for part in command_parts:
+        hidden = False
+
+        for flag in SECRET_FLAGS:
+            prefix = f&quot;{flag}=&quot;
+            if part.startswith(prefix):
+                masked.append(f&quot;{flag}=********&quot;)
+                hidden = True
+                break
+
+        if not hidden:
+            masked.append(part)
+
+    return masked
+</code></pre>
+<p>Use:</p>
+<pre><code class="language-python">masked_parts = mask_command_for_display(full_cmd)
+cmd_block.setPlainText(shlex.join(masked_parts))
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="42-prefer-environment-variables-for-api-keys">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>4.2. Prefer environment variables for API keys</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Documentation confirms environment variables exist.</p>
+<h3>Fix</h3>
+<p>Create a secret-through-environment mode.</p>
+<p>Example:</p>
+<pre><code class="language-python">def build_environment(self, tab_key: str) -&gt; dict:
+    env = os.environ.copy()
+
+    server = self.inputs[&quot;config&quot;][&quot;server&quot;].text().strip()
+    api_key = self.inputs[&quot;config&quot;][&quot;api_key&quot;].text().strip()
+
+    if tab_key in {&quot;upload-folder&quot;, &quot;upload-gp&quot;, &quot;upload-immich&quot;}:
+        if server:
+            env[&quot;IMMICH_GO_UPLOAD_SERVER&quot;] = server
+        if api_key:
+            env[&quot;IMMICH_GO_UPLOAD_API_KEY&quot;] = api_key
+
+    if tab_key == &quot;upload-immich&quot;:
+        from_server = self.inputs[&quot;upload-immich&quot;][&quot;from-server&quot;].text().strip()
+        from_api_key = self.inputs[&quot;upload-immich&quot;][&quot;from-api-key&quot;].text().strip()
+
+        if from_server:
+            env[&quot;IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER&quot;] = from_server
+        if from_api_key:
+            env[&quot;IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY&quot;] = from_api_key
+
+    if tab_key == &quot;archive-immich&quot;:
+        if server:
+            env[&quot;IMMICH_GO_ARCHIVE_SERVER&quot;] = server
+        if api_key:
+            env[&quot;IMMICH_GO_ARCHIVE_API_KEY&quot;] = api_key
+
+    if tab_key == &quot;stack&quot;:
+        if server:
+            env[&quot;IMMICH_GO_STACK_SERVER&quot;] = server
+        if api_key:
+            env[&quot;IMMICH_GO_STACK_API_KEY&quot;] = api_key
+
+    return env
+</code></pre>
+<p>Then command builder should omit secret flags when environment mode is enabled:</p>
+<pre><code class="language-python">if server and not secrets_via_env:
+    cmd_opts.append(f&quot;--server={server}&quot;)
+
+if api_key and not secrets_via_env:
+    cmd_opts.append(f&quot;--api-key={api_key}&quot;)
+</code></pre>
+<p>For external terminal execution, you would need to export these variables in a temporary script. For embedded <code>QProcess</code>, pass <code>env</code> directly.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="43-store-api-keys-in-os-keychain-not-plain-qsettings">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>4.3. Store API keys in OS keychain, not plain `QSettings`</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Current save logic:</p>
+<pre><code class="language-python">self.settings.setValue(&quot;api_key&quot;, self.inputs[&quot;config&quot;][&quot;api_key&quot;].text())
+</code></pre>
+<p>This stores secrets in plain text.</p>
+<h3>Fix</h3>
+<p>Use <code>keyring</code>:</p>
+<pre><code class="language-bash">python -m pip install keyring
+</code></pre>
+<p>Example:</p>
+<pre><code class="language-python">import keyring
+
+SERVICE_NAME = &quot;immich-go-gui&quot;
+
+class SecretStore:
+    def set_api_key(self, api_key: str):
+        keyring.set_password(SERVICE_NAME, &quot;immich_api_key&quot;, api_key)
+
+    def get_api_key(self) -&gt; str:
+        return keyring.get_password(SERVICE_NAME, &quot;immich_api_key&quot;) or &quot;&quot;
+
+    def clear_api_key(self):
+        try:
+            keyring.delete_password(SERVICE_NAME, &quot;immich_api_key&quot;)
+        except Exception:
+            pass
+</code></pre>
+<p>Store non-secret settings in TOML, secrets in keychain.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="44-warn-when-skip-verify-ssl-is-enabled">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>4.4. Warn when `--skip-verify-ssl` is enabled</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Documentation says this is not recommended for production.</p>
+<h3>Fix</h3>
+<p>Show inline warning:</p>
+<pre><code class="language-text">Skipping SSL verification reduces security. Use only for trusted self-hosted servers with self-signed certificates.
+</code></pre>
+<p>Optionally require confirmation before running.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="45-binary-downloads-should-be-checksum-verified">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>4.5. Binary downloads should be checksum-verified</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Current binary updater downloads and extracts without checksum verification.</p>
+<h3>Fix</h3>
+<p>If upstream provides checksums, verify them.</p>
+<pre><code class="language-python">import hashlib
+
+def verify_sha256(path: Path, expected: str) -&gt; bool:
+    digest = hashlib.sha256()
+
+    with open(path, &quot;rb&quot;) as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b&quot;&quot;):
+            digest.update(chunk)
+
+    return digest.hexdigest().lower() == expected.lower()
+</code></pre>
+<p>Also replace binary atomically:</p>
+<pre><code class="language-python">temp_path = final_path.with_suffix(&quot;.tmp&quot;)
+shutil.move(temp_path, final_path)
+</code></pre>
+<hr />
+      </div>
+    </details>
+  </div>
+</section><section class="h1-section" id="5-qtpyside6-implementation-review">
+  <h1 class="h1-header">5. Qt/PySide6 Implementation Review</h1>
+  <div class="intro-content"><p>Because I cannot perform a live web search here, this section is based on established Qt/PySide6 patterns. It highlights what appears correct and what should be changed.</p>
+<hr /></div>
+  <div class="accordion-list">
+    <details class="accordion-item" id="51-what-appears-correctly-implemented">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>5.1. What appears correctly implemented</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>5.1.1. Fusion style usage is correct</h3>
+<pre><code class="language-python">style = QStyleFactory.create(&quot;Fusion&quot;)
+if style:
+    app.setStyle(style)
+</code></pre>
+<p>This is a standard way to get a consistent cross-platform look.</p>
+<p>Verdict:</p>
+<pre><code class="language-text">Correct.
+</code></pre>
+<hr />
+<h3>5.1.2. Theme detection using <code>QGuiApplication.styleHints()</code> is reasonable</h3>
+<pre><code class="language-python">hints = QGuiApplication.styleHints()
+if hasattr(hints, &quot;colorScheme&quot;):
+    scheme = hints.colorScheme()
+</code></pre>
+<p>This is a good defensive approach because newer Qt APIs may not exist in older Qt versions.</p>
+<p>Verdict:</p>
+<pre><code class="language-text">Correct in principle.
+</code></pre>
+<p>Recommendation:</p>
+<ul>
+<li>Keep <code>hasattr</code> guards.</li>
+<li>Add fallback palette detection, which you already do.</li>
+</ul>
+<hr />
+<h3>5.1.3. Handling <code>QEvent.Type.ThemeChange</code> is a good pattern</h3>
+<pre><code class="language-python">def event(self, e):
+    if e.type() == QEvent.Type.ThemeChange:
+        ...
+</code></pre>
+<p>Verdict:</p>
+<pre><code class="language-text">Correct pattern.
+</code></pre>
+<p>Using <code>QTimer.singleShot(0, ...)</code> to defer theme application is also reasonable to avoid recursive event handling.</p>
+<hr />
+<h3>5.1.4. <code>QStackedWidget</code> sidebar navigation is appropriate</h3>
+<p>The app uses:</p>
+<pre><code class="language-python">QStackedWidget
+</code></pre>
+<p>with sidebar <code>NavItem</code> buttons.</p>
+<p>Verdict:</p>
+<pre><code class="language-text">Correct UI pattern.
+</code></pre>
+<p>This is more appropriate than a <code>QTabWidget</code> for a sidebar-driven interface.</p>
+<p>Note: your existing technical debt mentions tests breaking after transition to <code>QTabWidget</code>, but the current code uses <code>QStackedWidget</code>. This suggests either the code changed or the issue description is outdated.</p>
+<hr />
+<h3>5.1.5. <code>QScrollArea</code> with <code>setWidgetResizable(True)</code> is correct</h3>
+<pre><code class="language-python">self.scroll = QScrollArea()
+self.scroll.setWidgetResizable(True)
+</code></pre>
+<p>Verdict:</p>
+<pre><code class="language-text">Correct.
+</code></pre>
+<p>However, the inner layout using <code>QHBoxLayout</code> plus stretches plus <code>SetMinimumSize</code> should be tested carefully for vertical scrolling behavior.</p>
+<hr />
+<h3>5.1.6. <code>QFormLayout</code> usage is generally correct</h3>
+<pre><code class="language-python">form = FormSection()
+form.add_row(&quot;Server URL&quot;, self.server_url_edit)
+</code></pre>
+<p>Verdict:</p>
+<pre><code class="language-text">Correct.
+</code></pre>
+<p><code>QFormLayout</code> is appropriate for settings-style pages.</p>
+<hr />
+<h3>5.1.7. <code>QLineEdit</code> trailing actions are correct</h3>
+<pre><code class="language-python">browse_action = self.source_path_edit.addAction(
+    load_themed_icon(&quot;folder&quot;, theme),
+    QLineEdit.ActionPosition.TrailingPosition
+)
+</code></pre>
+<p>Verdict:</p>
+<pre><code class="language-text">Correct Qt pattern.
+</code></pre>
+<hr />
+<h3>5.1.8. Password field uses correct echo mode</h3>
+<pre><code class="language-python">self.api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
+</code></pre>
+<p>Verdict:</p>
+<pre><code class="language-text">Correct.
+</code></pre>
+<p>But secret storage and preview masking still need improvement.</p>
+<hr />
+<h3>5.1.9. <code>QSvgRenderer</code> recoloring approach is valid</h3>
+<pre><code class="language-python">svg_content = svg_content.replace('currentColor', color)
+renderer = QSvgRenderer(QByteArray(svg_content.encode(&quot;utf-8&quot;)))
+</code></pre>
+<p>Verdict:</p>
+<pre><code class="language-text">Valid approach.
+</code></pre>
+<p>But it needs:</p>
+<ul>
+<li>HiDPI support.</li>
+<li>Caching.</li>
+<li>Checked/hover/disabled states.</li>
+<li>Fallback icons if assets are missing.</li>
+</ul>
+<hr />
+<h3>5.1.10. <code>QTimer</code>-based process polling is acceptable</h3>
+<pre><code class="language-python">self.check_process_timer = QTimer()
+self.check_process_timer.timeout.connect(self.check_if_process_running)
+self.check_process_timer.start(500)
+</code></pre>
+<p>Verdict:</p>
+<pre><code class="language-text">Acceptable.
+</code></pre>
+<p>But the underlying process tracking strategy should be improved.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="52-qt-implementation-issues-that-should-be-fixed">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>5.2. Qt implementation issues that should be fixed</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>5.2.1. Possible syntax/formatting defects</h3>
+<p>The pasted code contains several likely formatting artifacts:</p>
+<pre><code class="language-python">def init(self, ...):
+    super().init(parent)
+</code></pre>
+<p>instead of:</p>
+<pre><code class="language-python">def __init__(self, ...):
+    super().__init__(parent)
+</code></pre>
+<p>Also:</p>
+<pre><code class="language-python">if name == &quot;main&quot;:
+</code></pre>
+<p>instead of:</p>
+<pre><code class="language-python">if __name__ == &quot;__main__&quot;:
+</code></pre>
+<p>Also Nuitka directives appear without <code>#</code>:</p>
+<pre><code class="language-python">nuitka-project: --assume-yes-for-downloads
+</code></pre>
+<p>They should be comments:</p>
+<pre><code class="language-python"># nuitka-project: --assume-yes-for-downloads
+</code></pre>
+<p>Also section separators:</p>
+<pre><code class="language-python">==========================================================
+CUSTOM WIDGETS
+==========================================================
+</code></pre>
+<p>must be comments:</p>
+<pre><code class="language-python"># ==========================================================
+# CUSTOM WIDGETS
+# ==========================================================
+</code></pre>
+<p>Also <code>theme.py</code> appears to have trailing spaces in keys:</p>
+<pre><code class="language-python">&quot;bg &quot;:  &quot;#0E1113 &quot;
+</code></pre>
+<p>but stylesheet uses:</p>
+<pre><code class="language-python">t['bg']
+</code></pre>
+<h3>Fix</h3>
+<p>Audit source and normalize:</p>
+<pre><code class="language-python">def __init__(self, ...):
+    super().__init__(parent)
+</code></pre>
+<pre><code class="language-python">if __name__ == &quot;__main__&quot;:
+</code></pre>
+<pre><code class="language-python"># nuitka-project: --enable-plugin=pyside6
+</code></pre>
+<pre><code class="language-python">return {
+    &quot;bg&quot;: &quot;#0E1113&quot;,
+    &quot;sidebar&quot;: &quot;#121619&quot;,
+    ...
+}
+</code></pre>
+<p>Add a smoke test that imports and instantiates the main window.</p>
+<hr />
+<h3>5.2.2. <code>Card.layout</code> shadows <code>QWidget.layout()</code></h3>
+<p>Current code:</p>
+<pre><code class="language-python">self.layout = QVBoxLayout(self)
+</code></pre>
+<p>This shadows the Qt method:</p>
+<pre><code class="language-python">QWidget.layout()
+</code></pre>
+<p>Verdict:</p>
+<pre><code class="language-text">Bad practice.
+</code></pre>
+<p>It may not immediately break the app, but it can cause confusing bugs.</p>
+<h3>Fix</h3>
+<p>Use a private attribute:</p>
+<pre><code class="language-python">self.card_layout = QVBoxLayout(self)
+</code></pre>
+<p>or:</p>
+<pre><code class="language-python">self._layout = QVBoxLayout(self)
+</code></pre>
+<p>Then update references:</p>
+<pre><code class="language-python">card.card_layout.addLayout(form)
+</code></pre>
+<hr />
+<h3>5.2.3. <code>SwitchButton</code> should inherit from <code>QAbstractButton</code></h3>
+<p>Current implementation inherits from <code>QWidget</code> and manually handles mouse release.</p>
+<p>Verdict:</p>
+<pre><code class="language-text">Functionally possible, but not ideal.
+</code></pre>
+<p>Problems:</p>
+<ul>
+<li>No keyboard activation.</li>
+<li>No standard focus behavior.</li>
+<li>No accessible role.</li>
+<li>No built-in checked button semantics.</li>
+</ul>
+<h3>Fix</h3>
+<p>Use <code>QAbstractButton</code>:</p>
+<pre><code class="language-python">from PySide6.QtWidgets import QAbstractButton
+
+class SwitchButton(QAbstractButton):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setCheckable(True)
+        self.setFixedSize(38, 22)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key.Key_Space, Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self.toggle()
+        else:
+            super().keyPressEvent(event)
+</code></pre>
+<p>Add accessible name:</p>
+<pre><code class="language-python">self.switch_advanced.setAccessibleName(&quot;Toggle advanced options&quot;)
+</code></pre>
+<hr />
+<h3>5.2.4. Icons are not HiDPI-aware</h3>
+<p>Current icon rendering:</p>
+<pre><code class="language-python">pixmap = QPixmap(20, 20)
+</code></pre>
+<p>Verdict:</p>
+<pre><code class="language-text">Not ideal on high-DPI displays.
+</code></pre>
+<h3>Fix</h3>
+<p>Render at higher resolution and set device pixel ratio:</p>
+<pre><code class="language-python">def render_icon(svg_content: str, color: str, logical_size: int = 20, scale: int = 2) -&gt; QIcon:
+    pixmap = QPixmap(logical_size * scale, logical_size * scale)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    pixmap.setDevicePixelRatio(scale)
+
+    renderer = QSvgRenderer(QByteArray(svg_content.encode(&quot;utf-8&quot;)))
+
+    painter = QPainter(pixmap)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    renderer.render(painter)
+    painter.end()
+
+    return QIcon(pixmap)
+</code></pre>
+<hr />
+<h3>5.2.5. Sidebar icons do not reflect checked state</h3>
+<p>Current QSS changes text color:</p>
+<pre><code class="language-css">QPushButton#NavBtn:checked {
+    color: accent;
+}
+</code></pre>
+<p>But the icon remains muted because <code>load_themed_icon()</code> always uses:</p>
+<pre><code class="language-python">color = t[&quot;text_muted&quot;]
+</code></pre>
+<p>Verdict:</p>
+<pre><code class="language-text">Needs improvement.
+</code></pre>
+<h3>Fix</h3>
+<p>Extend icon loading:</p>
+<pre><code class="language-python">def load_themed_icon(icon_name: str, theme: str, state: str = &quot;normal&quot;) -&gt; QIcon:
+    t = theme_tokens(theme)
+
+    if state == &quot;checked&quot;:
+        color = t[&quot;accent&quot;]
+    elif state == &quot;hover&quot;:
+        color = t[&quot;accent_hover&quot;]
+    elif state == &quot;disabled&quot;:
+        color = t[&quot;text_faint&quot;]
+    else:
+        color = t[&quot;text_muted&quot;]
+
+    ...
+</code></pre>
+<p>Then refresh icons on tab switch:</p>
+<pre><code class="language-python">def refresh_sidebar_icons(self, theme: str):
+    nav_buttons = [
+        self.btn_config,
+        self.btn_upload_folder,
+        self.btn_upload_gp,
+        self.btn_upload_immich,
+        self.btn_archive_folder,
+        self.btn_archive_immich,
+        self.btn_stack,
+    ]
+
+    for btn in nav_buttons:
+        if not hasattr(btn, &quot;icon_name&quot;) or not btn.icon_name:
+            continue
+
+        state = &quot;checked&quot; if btn.isChecked() else &quot;normal&quot;
+        btn.setIcon(load_themed_icon(btn.icon_name, theme, state))
+        btn.setIconSize(QSize(18, 18))
+</code></pre>
+<p>Call this after:</p>
+<pre><code class="language-python">btn.setChecked(True)
+</code></pre>
+<hr />
+<h3>5.2.6. Icon loading should be cached</h3>
+<p>Current implementation reads SVG from disk every time.</p>
+<p>Verdict:</p>
+<pre><code class="language-text">Inefficient.
+</code></pre>
+<h3>Fix</h3>
+<p>Add caching:</p>
+<pre><code class="language-python">from functools import lru_cache
+
+@lru_cache(maxsize=256)
+def load_themed_icon_cached(icon_name: str, theme: str, state: str) -&gt; QIcon:
+    return _load_themed_icon_uncached(icon_name, theme, state)
+</code></pre>
+<hr />
+<h3>5.2.7. <code>QThread.terminate()</code> is unsafe</h3>
+<p>Current cancel logic:</p>
+<pre><code class="language-python">download_thread.terminate()
+</code></pre>
+<p>Qt documentation strongly discourages this.</p>
+<p>Verdict:</p>
+<pre><code class="language-text">Incorrect/dangerous.
+</code></pre>
+<h3>Fix</h3>
+<p>Use cooperative cancellation:</p>
+<pre><code class="language-python">class DownloadThread(QThread):
+    download_progress = Signal(int)
+    download_complete = Signal(str)
+    download_error = Signal(str)
+
+    def __init__(self, url: str, destination: str):
+        super().__init__()
+        self.url = url
+        self.destination = destination
+        self._cancelled = False
+
+    def cancel(self):
+        self._cancelled = True
+
+    def run(self):
+        try:
+            with requests.get(self.url, stream=True, timeout=60) as response:
+                response.raise_for_status()
+
+                with open(self.destination, &quot;wb&quot;) as f:
+                    for chunk in response.iter_content(1024 * 1024):
+                        if self._cancelled:
+                            return
+                        f.write(chunk)
+
+            self.download_complete.emit(self.destination)
+
+        except Exception as exc:
+            self.download_error.emit(str(exc))
+</code></pre>
+<p>Cancel:</p>
+<pre><code class="language-python">def cancel_download():
+    download_thread.cancel()
+    progress_dialog.reject()
+</code></pre>
+<hr />
+<h3>5.2.8. Network requests block the UI thread</h3>
+<p>Current update check uses:</p>
+<pre><code class="language-python">requests.get(...)
+</code></pre>
+<p>inside main-thread methods.</p>
+<p>Verdict:</p>
+<pre><code class="language-text">Incorrect for responsive UI.
+</code></pre>
+<h3>Fix</h3>
+<p>Move all network calls to worker threads.</p>
+<p>Example:</p>
+<pre><code class="language-python">class ReleaseInfoWorker(QThread):
+    success = Signal(str)
+    error = Signal(str)
+
+    def run(self):
+        try:
+            response = requests.get(
+                &quot;https://api.github.com/repos/simulot/immich-go/releases/latest&quot;,
+                timeout=20,
+            )
+            response.raise_for_status()
+            self.success.emit(response.json()[&quot;tag_name&quot;])
+        except Exception as exc:
+            self.error.emit(str(exc))
+</code></pre>
+<hr />
+<h3>5.2.9. <code>QSettings</code> organization name is placeholder</h3>
+<p>Current:</p>
+<pre><code class="language-python">self.settings = QSettings(&quot;YourOrganization&quot;, &quot;ImmichGoGUI&quot;)
+</code></pre>
+<p>Verdict:</p>
+<pre><code class="language-text">Functional but should be fixed.
+</code></pre>
+<h3>Fix</h3>
+<p>Set application metadata early:</p>
+<pre><code class="language-python">app.setOrganizationName(&quot;ImmichGoGUI&quot;)
+app.setOrganizationDomain(&quot;immich-go-gui.example&quot;)
+app.setApplicationName(&quot;Immich Go GUI&quot;)
+app.setApplicationVersion(APP_VERSION)
+</code></pre>
+<p>Then:</p>
+<pre><code class="language-python">self.settings = QSettings()
+</code></pre>
+<p>Longer term, migrate to TOML using <code>platformdirs</code>.</p>
+<hr />
+<h3>5.2.10. Application window icon is not set</h3>
+<p>Nuitka includes:</p>
+<pre><code class="language-text">immich-go-gui.png
+</code></pre>
+<p>But code does not appear to call:</p>
+<pre><code class="language-python">app.setWindowIcon(...)
+</code></pre>
+<p>Verdict:</p>
+<pre><code class="language-text">Missing.
+</code></pre>
+<h3>Fix</h3>
+<pre><code class="language-python">app.setWindowIcon(QIcon(resource_path(&quot;immich-go-gui.png&quot;)))
+</code></pre>
+<hr />
+<h3>5.2.11. QSS font-family may override emoji fallbacks</h3>
+<p>App font includes emoji families:</p>
+<pre><code class="language-python">base_font.setFamilies([
+    &quot;Segoe UI&quot;,
+    &quot;Segoe UI Emoji&quot;,
+    ...
+])
+</code></pre>
+<p>But QSS sets:</p>
+<pre><code class="language-css">font-family: &quot;Segoe UI&quot;, system-ui, sans-serif;
+</code></pre>
+<p>Verdict:</p>
+<pre><code class="language-text">May reduce emoji fallback coverage.
+</code></pre>
+<h3>Fix</h3>
+<p>Either remove <code>font-family</code> from QSS and rely on <code>app.setFont()</code>, or include emoji families in QSS:</p>
+<pre><code class="language-css">font-family:
+    &quot;Segoe UI&quot;,
+    &quot;Segoe UI Emoji&quot;,
+    &quot;Helvetica Neue&quot;,
+    &quot;Apple Color Emoji&quot;,
+    &quot;Noto Sans&quot;,
+    &quot;Noto Color Emoji&quot;,
+    system-ui,
+    sans-serif;
+</code></pre>
+<hr />
+<h3>5.2.12. <code>QComboBox</code> drop-down arrow is removed</h3>
+<p>Current QSS:</p>
+<pre><code class="language-css">QComboBox::drop-down {
+    border: none;
+    width: 20px;
+}
+</code></pre>
+<p>No arrow image is defined.</p>
+<p>Verdict:</p>
+<pre><code class="language-text">Can reduce discoverability.
+</code></pre>
+<h3>Fix</h3>
+<p>Add a custom arrow or keep default indicator.</p>
+<p>Example:</p>
+<pre><code class="language-css">QComboBox::down-arrow {
+    image: url(assets/icons/chevron-down.svg);
+    width: 12px;
+    height: 12px;
+}
+</code></pre>
+<p>Or generate themed arrow icons.</p>
+<hr />
+<h3>5.2.13. Drag-and-drop monkeypatching is fragile</h3>
+<p>Current:</p>
+<pre><code class="language-python">line_edit.dragEnterEvent = self.dragEnterEvent
+line_edit.dropEvent = lambda e, le=line_edit: self.dropEvent(e, le)
+</code></pre>
+<p>Verdict:</p>
+<pre><code class="language-text">Works, but fragile.
+</code></pre>
+<h3>Fix</h3>
+<p>Create a reusable subclass:</p>
+<pre><code class="language-python">class DroppableLineEdit(QLineEdit):
+    filesDropped = Signal(list)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event: QDropEvent):
+        paths = [url.toLocalFile() for url in event.mimeData().urls()]
+        if paths:
+            self.filesDropped.emit(paths)
+            event.acceptProposedAction()
+</code></pre>
+<p>Then connect:</p>
+<pre><code class="language-python">self.source_path_edit.filesDropped.connect(
+    lambda paths: self.source_path_edit.setText(paths[0])
+)
+</code></pre>
+<p>For Takeout:</p>
+<pre><code class="language-python">self.gp_path_edit.filesDropped.connect(
+    lambda paths: self.gp_path_edit.setPlainText(&quot;\n&quot;.join(paths))
+)
+</code></pre>
+<hr />
+      </div>
+    </details>
+  </div>
+</section><section class="h1-section" id="6-process-execution-and-tracking">
+  <h1 class="h1-header">6. Process Execution and Tracking</h1>
+  <div class="accordion-list">
+    <details class="accordion-item" id="61-external-terminal-launching-has-safety-issues">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>6.1. External terminal launching has safety issues</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Windows</h3>
+<p>Current:</p>
+<pre><code class="language-python">subprocess.Popen(
+    [&quot;cmd&quot;, &quot;/c&quot;, &quot;start&quot;, &quot;cmd&quot;, &quot;/k&quot;, cmd_string],
+    shell=True,
+    creationflags=subprocess.CREATE_NEW_CONSOLE
+)
+</code></pre>
+<p>Using <code>shell=True</code> with constructed command strings is risky.</p>
+<h3>Fix</h3>
+<p>Prefer argument lists and temporary scripts.</p>
+<p>Example:</p>
+<pre><code class="language-python">def launch_windows_terminal(command: list[str]):
+    with tempfile.NamedTemporaryFile(
+        &quot;w&quot;,
+        suffix=&quot;.bat&quot;,
+        delete=False,
+        encoding=&quot;utf-8&quot;,
+    ) as f:
+        f.write(&quot;@echo off\n&quot;)
+        f.write(subprocess.list2cmdline(command))
+        f.write(&quot;\npause\n&quot;)
+        script_path = f.name
+
+    subprocess.Popen(
+        [&quot;cmd&quot;, &quot;/c&quot;, &quot;start&quot;, &quot;&quot;, script_path],
+        creationflags=subprocess.CREATE_NEW_CONSOLE,
+    )
+</code></pre>
+<hr />
+<h3>macOS</h3>
+<p>Current:</p>
+<pre><code class="language-python">apple_script = (
+    'tell application &quot;Terminal&quot; to do script '
+    f'&quot;{shlex.join(command)}; exec bash&quot;'
+)
+</code></pre>
+<p>This can break with quotes/special characters.</p>
+<h3>Fix</h3>
+<p>Generate a temporary <code>.command</code> script:</p>
+<pre><code class="language-python">def launch_macos_terminal(command: list[str]):
+    with tempfile.NamedTemporaryFile(
+        &quot;w&quot;,
+        suffix=&quot;.command&quot;,
+        delete=False,
+        encoding=&quot;utf-8&quot;,
+    ) as f:
+        f.write(&quot;#!/bin/bash\n&quot;)
+        f.write(shlex.join(command))
+        f.write(&quot;\nexec bash\n&quot;)
+        script_path = f.name
+
+    os.chmod(script_path, 0o755)
+    subprocess.Popen([&quot;open&quot;, &quot;-a&quot;, &quot;Terminal&quot;, script_path])
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="62-consider-embedded-qprocess-runner">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>6.2. Consider embedded `QProcess` runner</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Current design opens an external terminal and then scans processes with <code>psutil</code>.</p>
+<p>Problems:</p>
+<ul>
+<li>Sandbox incompatibility.</li>
+<li>No output capture.</li>
+<li>No cancellation.</li>
+<li>No exact exit code.</li>
+<li>No completion notification.</li>
+</ul>
+<h3>Fix</h3>
+<p>Add optional embedded runner:</p>
+<pre><code class="language-python">class ProcessRunner(QObject):
+    output = Signal(str)
+    finished = Signal(int)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.process = QProcess(self)
+        self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        self.process.readyReadStandardOutput.connect(self._read_output)
+        self.process.finished.connect(self._finished)
+
+    def _read_output(self):
+        data = self.process.readAllStandardOutput()
+        self.output.emit(bytes(data).decode(&quot;utf-8&quot;, errors=&quot;replace&quot;))
+
+    def _finished(self, exit_code, exit_status):
+        self.finished.emit(exit_code)
+
+    def start(self, program: str, args: list[str], env: dict):
+        self.process.start(program, args, env=env)
+
+    def cancel(self):
+        self.process.kill()
+</code></pre>
+<p>For embedded mode, add:</p>
+<pre><code class="language-python">--no-ui
+</code></pre>
+<p>to upload commands.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="63-psutil-process-tracking-is-unreliable-in-sandboxes">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>6.3. `psutil` process tracking is unreliable in sandboxes</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Observation</h3>
+<p>Current tracking scans all processes:</p>
+<pre><code class="language-python">for proc in psutil.process_iter(['name']):
+    if 'immich-go' in name:
+        still_running = True
+</code></pre>
+<p>This may fail in:</p>
+<ul>
+<li>Flatpak</li>
+<li>Snap</li>
+<li>containers</li>
+<li>restricted sandbox environments</li>
+</ul>
+<h3>Fix</h3>
+<p>Prefer direct child process tracking with <code>QProcess</code>.</p>
+<p>If external terminal must be used:</p>
+<ul>
+<li>create wrapper script</li>
+<li>write PID to lock file</li>
+<li>remove lock file on exit</li>
+<li>GUI watches lock file</li>
+</ul>
+<p>But in strict sandboxes, even that may be limited.</p>
+<p>Recommended long-term:</p>
+<pre><code class="language-text">Use embedded QProcess runner where possible.
+</code></pre>
+<hr />
+      </div>
+    </details>
+  </div>
+</section><section class="h1-section" id="7-validation-improvements">
+  <h1 class="h1-header">7. Validation Improvements</h1>
+  <div class="accordion-list">
+    <details class="accordion-item" id="71-current-validation-is-too-global">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>7.1. Current validation is too global</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Current validation only checks target server and API key:</p>
+<pre><code class="language-python">if not re.match(r&quot;^https?://.+&quot;, srv) or not api:
+    return False
+</code></pre>
+<p>This is insufficient.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="72-add-per-tab-validation">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>7.2. Add per-tab validation</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Fix</h3>
+<pre><code class="language-python">def current_tab_validation_errors(self) -&gt; list[str]:
+    errors = []
+
+    idx = self.stacked_widget.currentIndex()
+    tab_key = self.TAB_KEYS[idx]
+
+    if tab_key == &quot;config&quot;:
+        return errors
+
+    server = self.inputs[&quot;config&quot;][&quot;server&quot;].text().strip()
+    api_key = self.inputs[&quot;config&quot;][&quot;api_key&quot;].text().strip()
+
+    requires_target_server = {
+        &quot;upload-folder&quot;,
+        &quot;upload-gp&quot;,
+        &quot;upload-immich&quot;,
+        &quot;archive-immich&quot;,
+        &quot;stack&quot;,
+    }
+
+    if tab_key in requires_target_server:
+        if not re.match(r&quot;^https?://.+&quot;, server):
+            errors.append(&quot;Immich server URL is missing or invalid.&quot;)
+        if not api_key:
+            errors.append(&quot;Immich API key is missing.&quot;)
+
+    if tab_key in {&quot;upload-folder&quot;, &quot;upload-gp&quot;, &quot;archive-folder&quot;}:
+        path_widget = self.inputs[tab_key][&quot;path&quot;]
+
+        if isinstance(path_widget, QPlainTextEdit):
+            path_value = path_widget.toPlainText().strip()
+        else:
+            path_value = path_widget.text().strip()
+
+        if not path_value:
+            errors.append(&quot;Source path is required.&quot;)
+
+    if tab_key == &quot;upload-immich&quot;:
+        from_server = self.inputs[&quot;upload-immich&quot;][&quot;from-server&quot;].text().strip()
+        from_api_key = self.inputs[&quot;upload-immich&quot;][&quot;from-api-key&quot;].text().strip()
+
+        if not re.match(r&quot;^https?://.+&quot;, from_server):
+            errors.append(&quot;Source Immich server URL is missing or invalid.&quot;)
+        if not from_api_key:
+            errors.append(&quot;Source Immich API key is missing.&quot;)
+
+    if tab_key in {&quot;archive-folder&quot;, &quot;archive-immich&quot;}:
+        write_to = self.inputs[tab_key][&quot;write-to&quot;].text().strip()
+        if not write_to:
+            errors.append(&quot;Destination folder is required.&quot;)
+
+    return errors
+</code></pre>
+<p>Then disable Run/Preview when errors exist.</p>
+<hr />
+      </div>
+    </details>
+  </div>
+</section><section class="h1-section" id="8-configuration-and-persistence">
+  <h1 class="h1-header">8. Configuration and Persistence</h1>
+  <div class="accordion-list">
+    <details class="accordion-item" id="81-migrate-to-standardized-toml-config">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>8.1. Migrate to standardized TOML config</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Your existing issue already mentions this, and <code>immich-go</code> documentation also uses TOML examples, so this is a good direction.</p>
+<h3>Fix</h3>
+<p>Use:</p>
+<pre><code class="language-bash">python -m pip install platformdirs tomli-w
+</code></pre>
+<p>Python 3.11+ includes <code>tomllib</code>.</p>
+<p>Example:</p>
+<pre><code class="language-python">from pathlib import Path
+from platformdirs import user_config_path
+import tomllib
+import tomli_w
+
+APP_NAME = &quot;immich-go-gui&quot;
+
+def config_file() -&gt; Path:
+    return user_config_path(APP_NAME, appauthor=False, ensure_exists=True) / &quot;config.toml&quot;
+</code></pre>
+<p>Example config:</p>
+<pre><code class="language-toml">schema_version = 1
+
+[appearance]
+theme = &quot;System&quot;
+
+[server]
+url = &quot;http://localhost:2283&quot;
+
+[binary]
+path = &quot;&quot;
+
+[upload_folder]
+path = &quot;&quot;
+include_type = &quot;all&quot;
+folder_album = &quot;NONE&quot;
+
+[upload_google_photos]
+path = &quot;&quot;
+include_partner = true
+sync_albums = true
+</code></pre>
+<p>Secrets should not be stored here.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="82-save-full-ui-state">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>8.2. Save full UI state</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Current save only stores:</p>
+<pre><code class="language-text">server
+api_key
+theme
+</code></pre>
+<p>It should optionally save:</p>
+<pre><code class="language-text">all tab inputs
+advanced options
+last selected tab
+simple/advanced mode
+binary path preference
+update preferences
+</code></pre>
+<hr />
+      </div>
+    </details>
+  </div>
+</section><section class="h1-section" id="9-ui-and-discoverability">
+  <h1 class="h1-header">9. UI and Discoverability</h1>
+  <div class="accordion-list">
+    <details class="accordion-item" id="91-simpleadvanced-toggle-needs-better-discoverability">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>9.1. Simple/Advanced toggle needs better discoverability</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Your existing issue is valid.</p>
+<h3>Recommended fix</h3>
+<p>Instead of only a small header switch, use one or more of:</p>
+<ol>
+<li>Collapsible advanced cards.</li>
+<li>Sidebar mode selector.</li>
+<li>Toolbar button.</li>
+<li>Badge when hidden advanced options are active.</li>
+</ol>
+<p>Best long-term UX:</p>
+<pre><code class="language-text">Each advanced card is collapsible.
+</code></pre>
+<p>Example:</p>
+<pre><code class="language-text">Advanced Options [Show]
+Advanced Options [Hide]
+</code></pre>
+<p>This makes advanced features discoverable without a global hidden mode.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="92-remove-theme-hint-text">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>9.2. Remove theme hint text</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Your existing issue is valid.</p>
+<p>Current:</p>
+<pre><code class="language-python">theme_form.add_row(
+    &quot;Theme&quot;,
+    self.theme_mode_combo,
+    &quot;System follows your operating system theme when supported by Qt.&quot;
+)
+</code></pre>
+<h3>Fix</h3>
+<p>Remove hint:</p>
+<pre><code class="language-python">theme_form.add_row(&quot;Theme&quot;, self.theme_mode_combo)
+</code></pre>
+<p>Optional tooltip:</p>
+<pre><code class="language-python">self.theme_mode_combo.setToolTip(
+    &quot;System follows your operating system theme when supported by Qt.&quot;
+)
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="93-sidebar-icons-should-use-accent-color-when-active">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>9.3. Sidebar icons should use accent color when active</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Your existing issue is valid.</p>
+<p>See Qt section above for implementation.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="94-add-api-key-permissions-helper">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>9.4. Add API key permissions helper</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Documentation lists many required API key scopes.</p>
+<h3>Fix</h3>
+<p>Add a collapsible helper in Configuration:</p>
+<pre><code class="language-text">Required API key permissions:
+asset.read
+asset.statistics
+asset.update
+asset.upload
+asset.copy
+asset.delete
+asset.download
+album.create
+album.read
+albumAsset.create
+server.about
+stack.create
+tag.asset
+tag.create
+user.read
+
+For --pause-immich-jobs:
+job.create
+job.read
+</code></pre>
+<p>This would help users debug permission problems.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="95-add-connection-test-button">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>9.5. Add connection test button</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Documentation lists <code>server.about</code> permission.</p>
+<h3>Fix</h3>
+<p>Add:</p>
+<pre><code class="language-text">Test Connection
+</code></pre>
+<p>Use Immich API endpoint, likely:</p>
+<pre><code class="language-text">GET /api/server/about
+</code></pre>
+<p>or another lightweight authenticated endpoint.</p>
+<p>Run in worker thread.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="96-add-date-range-helper">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>9.6. Add date range helper</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Documentation supports:</p>
+<pre><code class="language-text">2023
+2023-07
+2023-07-15
+2023-01-15,2023-03-15
+</code></pre>
+<p>Current GUI only shows placeholder:</p>
+<pre><code class="language-text">YYYY-MM-DD,YYYY-MM-DD
+</code></pre>
+<h3>Fix</h3>
+<p>Add helper text or date picker.</p>
+<p>Simple helper:</p>
+<pre><code class="language-text">Accepted:
+YYYY
+YYYY-MM
+YYYY-MM-DD
+YYYY-MM-DD,YYYY-MM-DD
+</code></pre>
+<p>Better:</p>
+<pre><code class="language-python">QDateEdit from/to
+</code></pre>
+<hr />
+      </div>
+    </details>
+  </div>
+</section><section class="h1-section" id="10-testing-strategy">
+  <h1 class="h1-header">10. Testing Strategy</h1>
+  <div class="accordion-list">
+    <details class="accordion-item" id="101-decouple-command-builder-from-gui">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>10.1. Decouple command builder from GUI</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Your existing technical debt item is correct.</p>
+<h3>Fix</h3>
+<p>Create:</p>
+<pre><code class="language-text">core/command_builder.py
+</code></pre>
+<p>Use pure state objects:</p>
+<pre><code class="language-python">from dataclasses import dataclass
+
+@dataclass
+class UploadFolderState:
+    path: str = &quot;&quot;
+    include_type: str = &quot;all&quot;
+    folder_album: str = &quot;NONE&quot;
+    into_album: str = &quot;&quot;
+    manage_burst: str = &quot;NoStack&quot;
+    manage_raw_jpeg: str = &quot;NoStack&quot;
+    manage_heic_jpeg: str = &quot;NoStack&quot;
+    date_range: str = &quot;&quot;
+    include_ext: str = &quot;&quot;
+    exclude_ext: str = &quot;&quot;
+    ban_file: str = &quot;&quot;
+    ignore_sidecar: bool = False
+    date_from_name: bool = True
+    tags: str = &quot;&quot;
+    session_tag: bool = False
+    folder_tags: bool = False
+    on_errors: str = &quot;stop&quot;
+    overwrite: bool = False
+    pause_jobs: bool = True
+    skip_ssl: bool = False
+    log_level: str = &quot;INFO&quot;
+    api_trace: bool = False
+    recursive: bool = True
+</code></pre>
+<p>Then GUI converts widgets to state.</p>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="102-add-documentation-driven-command-tests">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>10.2. Add documentation-driven command tests</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Examples:</p>
+<pre><code class="language-python">def test_upload_folder_basic():
+    cmd = builder.upload_folder(
+        state=UploadFolderState(path=&quot;/photos&quot;),
+        server=&quot;http://localhost:2283&quot;,
+        api_key=&quot;key&quot;,
+        log_level=&quot;INFO&quot;,
+        dry_run=False,
+    )
+
+    assert cmd == [
+        &quot;upload&quot;,
+        &quot;from-folder&quot;,
+        &quot;--server=http://localhost:2283&quot;,
+        &quot;--api-key=key&quot;,
+        &quot;/photos&quot;,
+    ]
+</code></pre>
+<pre><code class="language-python">def test_global_log_level_before_command():
+    cmd = builder.upload_folder(
+        state=UploadFolderState(path=&quot;/photos&quot;),
+        server=&quot;http://localhost:2283&quot;,
+        api_key=&quot;key&quot;,
+        log_level=&quot;DEBUG&quot;,
+        dry_run=False,
+    )
+
+    assert cmd[0] == &quot;--log-level=DEBUG&quot;
+    assert cmd[1] == &quot;upload&quot;
+    assert cmd[2] == &quot;from-folder&quot;
+</code></pre>
+<pre><code class="language-python">def test_archive_folder_does_not_include_server():
+    cmd = builder.archive_folder(
+        state=ArchiveFolderState(path=&quot;/photos&quot;, write_to=&quot;/backup&quot;),
+        dry_run=False,
+    )
+
+    assert &quot;--server=http://localhost:2283&quot; not in cmd
+    assert &quot;--api-key=key&quot; not in cmd
+</code></pre>
+<pre><code class="language-python">def test_google_takeout_multiple_paths():
+    cmd = builder.upload_google_photos(
+        state=GooglePhotosState(paths=[
+            &quot;/takeout/takeout-001.zip&quot;,
+            &quot;/takeout/takeout-002.zip&quot;,
+        ]),
+        server=&quot;http://localhost:2283&quot;,
+        api_key=&quot;key&quot;,
+    )
+
+    assert cmd[-2:] == [
+        &quot;/takeout/takeout-001.zip&quot;,
+        &quot;/takeout/takeout-002.zip&quot;,
+    ]
+</code></pre>
+<hr />
+      </div>
+    </details>
+  </div>
+</section><section class="h1-section" id="11-packaging-and-distribution">
+  <h1 class="h1-header">11. Packaging and Distribution</h1>
+  <div class="accordion-list">
+    <details class="accordion-item" id="111-nuitka-directives-must-be-comments">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>11.1. Nuitka directives must be comments</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>If the current file really contains:</p>
+<pre><code class="language-python">nuitka-project: --assume-yes-for-downloads
+</code></pre>
+<p>it is invalid Python.</p>
+<h3>Fix</h3>
+<pre><code class="language-python"># nuitka-project: --assume-yes-for-downloads
+# nuitka-project: --enable-plugin=pyside6
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="112-add-proper-app-metadata">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>11.2. Add proper app metadata</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <h3>Fix</h3>
+<pre><code class="language-python">app.setOrganizationName(&quot;ImmichGoGUI&quot;)
+app.setApplicationName(&quot;Immich Go GUI&quot;)
+app.setApplicationVersion(APP_VERSION)
+app.setWindowIcon(QIcon(resource_path(&quot;immich-go-gui.png&quot;)))
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="113-add-linux-desktop-integration">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>11.3. Add Linux desktop integration</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Provide:</p>
+<pre><code class="language-text">immich-go-gui.desktop
+</code></pre>
+<p>Example:</p>
+<pre><code class="language-ini">[Desktop Entry]
+Type=Application
+Name=Immich-Go GUI
+Comment=Graphical interface for immich-go
+Exec=immich-go-gui
+Icon=immich-go-gui
+Categories=Graphics;Photography;Utility;
+Terminal=false
+</code></pre>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="114-add-macos-app-icon">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>11.4. Add macOS app icon</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Nuitka macOS bundle should include an icon option, for example:</p>
+<pre><code class="language-text">--macos-app-icon=immich-go-gui.icns
+</code></pre>
+<p>Verify exact option for your Nuitka version.</p>
+<hr />
+      </div>
+    </details>
+  </div>
+</section><section class="h1-section" id="12-suggested-revised-issue-backlog">
+  <h1 class="h1-header">12. Suggested Revised Issue Backlog</h1>
+  <div class="intro-content"><p>Below is a cleaned-up, documentation-aligned backlog.</p>
+<hr /></div>
+  <div class="accordion-list">
+    <details class="accordion-item" id="critical">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>Critical</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <ul>
+<li>[ ] Fix global flag ordering: global options must precede command/sub-command.</li>
+<li>[ ] Fix possible syntax artifacts: <code>__init__</code>, <code>__name__</code>, commented Nuitka directives, commented section separators.</li>
+<li>[ ] Normalize <code>theme.py</code> token keys/values if trailing spaces exist.</li>
+<li>[ ] Add per-tab validation before enabling Run/Preview.</li>
+<li>[ ] Mask API keys in command preview.</li>
+<li>[ ] Move network operations off the UI thread.</li>
+<li>[ ] Replace <code>QThread.terminate()</code> with cooperative cancellation.</li>
+<li>[ ] Fix unsafe Windows/macOS terminal launching.</li>
+<li>[ ] Add binary checksum verification.</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="cli-compatibility">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>CLI Compatibility</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <ul>
+<li>[ ] Restrict <code>--pause-immich-jobs</code> to upload commands unless verified otherwise.</li>
+<li>[ ] Verify and restrict <code>--on-errors</code> scope.</li>
+<li>[ ] Implement <code>--client-timeout</code>.</li>
+<li>[ ] Implement <code>--from-client-timeout</code> for <code>upload from-immich</code>.</li>
+<li>[ ] Implement <code>--device-uuid</code>.</li>
+<li>[ ] Add <code>--api-trace</code> to all upload tabs and stack.</li>
+<li>[ ] Add <code>--no-ui</code> option, especially for embedded runner.</li>
+<li>[ ] Verify <code>--from-albums</code> vs <code>--from-album</code>.</li>
+<li>[ ] Support numeric <code>--on-errors</code> tolerance.</li>
+<li>[ ] Initialize concurrent tasks to CPU count.</li>
+<li>[ ] Add global <code>--log-file</code> and <code>--log-type</code> support.</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="missing-cli-features">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>Missing CLI Features</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <ul>
+<li>[ ] Add <code>upload from-icloud</code> tab.</li>
+<li>[ ] Add <code>upload from-picasa</code> tab.</li>
+<li>[ ] Add <code>archive from-google-photos</code> tab.</li>
+<li>[ ] Add <code>archive from-icloud</code> tab.</li>
+<li>[ ] Add <code>archive from-picasa</code> tab.</li>
+<li>[ ] Expand <code>archive from-folder</code> filtering options.</li>
+<li>[ ] Expand <code>archive from-immich</code> filtering options.</li>
+<li>[ ] Add <code>--include-untitled-albums</code> to Google Photos tab.</li>
+<li>[ ] Add <code>--recursive</code> to from-folder workflows.</li>
+<li>[ ] Add <code>--album-path-joiner</code>.</li>
+<li>[ ] Add <code>--album-picasa</code>.</li>
+<li>[ ] Add <code>--from-no-album</code> where applicable.</li>
+<li>[ ] Add overwrite/session-tag/custom tags to all upload tabs where supported.</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="path-handling">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>Path Handling</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <ul>
+<li>[ ] Support multiple Takeout ZIP parts.</li>
+<li>[ ] Support glob patterns for Takeout.</li>
+<li>[ ] Support drag-and-drop of multiple files.</li>
+<li>[ ] Support ZIP selection for <code>upload from-folder</code>.</li>
+<li>[ ] Add browse buttons for destination folders.</li>
+<li>[ ] Use <code>QPlainTextEdit</code> for multi-path Takeout input.</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="qt-implementation-correctness">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>Qt Implementation Correctness</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <ul>
+<li>[ ] Replace custom <code>SwitchButton</code> base class with <code>QAbstractButton</code>.</li>
+<li>[ ] Add keyboard support and accessibility names.</li>
+<li>[ ] Make icons HiDPI-aware.</li>
+<li>[ ] Cache rendered icons.</li>
+<li>[ ] Use accent-colored icons for checked sidebar items.</li>
+<li>[ ] Stop shadowing <code>QWidget.layout()</code> in <code>Card</code>.</li>
+<li>[ ] Set application window icon.</li>
+<li>[ ] Set proper organization/application metadata.</li>
+<li>[ ] Fix or remove QSS font-family override.</li>
+<li>[ ] Add combo box drop-down indicator.</li>
+<li>[ ] Replace drag-and-drop monkeypatching with reusable widget subclass.</li>
+<li>[ ] Debounce <code>update_status()</code> to avoid excessive recomputation.</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="process-execution">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>Process Execution</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <ul>
+<li>[ ] Add embedded <code>QProcess</code> runner option.</li>
+<li>[ ] Use <code>--no-ui</code> for embedded runner.</li>
+<li>[ ] Capture stdout/stderr in GUI.</li>
+<li>[ ] Show exit code and completion status.</li>
+<li>[ ] Add cancel button for embedded runs.</li>
+<li>[ ] Replace <code>psutil</code> scanning with direct child process tracking where possible.</li>
+<li>[ ] Provide fallback behavior for Flatpak/Snap sandboxes.</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="security">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>Security</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <ul>
+<li>[ ] Store API keys in OS keychain.</li>
+<li>[ ] Pass secrets via environment variables where possible.</li>
+<li>[ ] Mask secrets in previews and logs.</li>
+<li>[ ] Warn when <code>--skip-verify-ssl</code> is enabled.</li>
+<li>[ ] Warn when importing trashed/archived items.</li>
+<li>[ ] Verify binary downloads with checksums.</li>
+<li>[ ] Use atomic binary replacement.</li>
+<li>[ ] Avoid exposing secrets in terminal scrollback.</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="configuration">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>Configuration</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <ul>
+<li>[ ] Migrate from placeholder <code>QSettings</code> organization to proper metadata.</li>
+<li>[ ] Migrate configuration to TOML.</li>
+<li>[ ] Use cross-platform config directory via <code>platformdirs</code>.</li>
+<li>[ ] Add schema versioning.</li>
+<li>[ ] Add migration from old <code>QSettings</code>.</li>
+<li>[ ] Save full form state optionally.</li>
+<li>[ ] Add server profiles.</li>
+<li>[ ] Store secrets separately from config.</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="uiux">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>UI/UX</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <ul>
+<li>[ ] Improve Simple/Advanced discoverability.</li>
+<li>[ ] Remove unnecessary theme hint.</li>
+<li>[ ] Use accent color for active sidebar icons.</li>
+<li>[ ] Add connection test button.</li>
+<li>[ ] Add API key permission helper.</li>
+<li>[ ] Add date range helper or date pickers.</li>
+<li>[ ] Add live command preview.</li>
+<li>[ ] Add copy command button.</li>
+<li>[ ] Add export command as script.</li>
+<li>[ ] Add open log folder button.</li>
+<li>[ ] Add non-blocking toast notifications.</li>
+<li>[ ] Add About dialog with GUI/CLI versions.</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="testing">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>Testing</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <ul>
+<li>[ ] Create pure <code>CommandBuilder</code> module.</li>
+<li>[ ] Add documentation-driven CLI generation tests.</li>
+<li>[ ] Add validation tests.</li>
+<li>[ ] Add GUI smoke tests using object names.</li>
+<li>[ ] Decouple tests from <code>gui.inputs</code>.</li>
+<li>[ ] Add offscreen Qt test configuration.</li>
+<li>[ ] Add CI matrix for Linux/macOS/Windows.</li>
+</ul>
+<hr />
+      </div>
+    </details>
+  </div>
+</section><section class="h1-section" id="13-recommended-implementation-order">
+  <h1 class="h1-header">13. Recommended Implementation Order</h1>
+  <div class="accordion-list">
+    <details class="accordion-item" id="phase-1-correctness-and-safety">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>Phase 1: Correctness and safety</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <ol>
+<li>Fix syntax/theme artifacts if real.</li>
+<li>Fix global flag ordering.</li>
+<li>Add per-tab validation.</li>
+<li>Mask API keys.</li>
+<li>Move network off UI thread.</li>
+<li>Remove <code>QThread.terminate()</code>.</li>
+<li>Fix terminal launching safety.</li>
+<li>Add checksum verification.</li>
+</ol>
+      </div>
+    </details>
+    <details class="accordion-item" id="phase-2-cli-alignment">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>Phase 2: CLI alignment</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <ol>
+<li>Add <code>--client-timeout</code>.</li>
+<li>Add <code>--device-uuid</code>.</li>
+<li>Add <code>--api-trace</code> where supported.</li>
+<li>Add <code>--no-ui</code> option.</li>
+<li>Restrict <code>--pause-immich-jobs</code>.</li>
+<li>Verify <code>--on-errors</code> scope.</li>
+<li>Verify <code>--from-albums</code> flag name.</li>
+<li>Add missing Google Photos/folder options.</li>
+</ol>
+      </div>
+    </details>
+    <details class="accordion-item" id="phase-3-qt-polish">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>Phase 3: Qt polish</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <ol>
+<li>HiDPI icons.</li>
+<li>Active sidebar accent icons.</li>
+<li>Accessible switch button.</li>
+<li>Remove layout shadowing.</li>
+<li>Add window icon and metadata.</li>
+<li>Improve theme handling.</li>
+<li>Improve drag-and-drop.</li>
+</ol>
+      </div>
+    </details>
+    <details class="accordion-item" id="phase-4-advanced-features">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>Phase 4: Advanced features</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <ol>
+<li>Embedded <code>QProcess</code> runner.</li>
+<li>Output console.</li>
+<li>TOML configuration.</li>
+<li>Keychain secrets.</li>
+<li>GUI update notifications.</li>
+<li>Additional upload/archive source tabs.</li>
+<li>Server profiles.</li>
+</ol>
+<hr />
+      </div>
+    </details>
+  </div>
+</section><section class="h1-section" id="14-qt-web-search-verification-checklist">
+  <h1 class="h1-header">14. Qt Web-Search Verification Checklist</h1>
+  <div class="intro-content"><p>Since I cannot perform a live web search here, you can verify the Qt-specific conclusions using these searches.</p></div>
+  <div class="accordion-list">
+    <details class="accordion-item" id="141-custom-toggle-button">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>14.1. Custom toggle button</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Search:</p>
+<pre><code class="language-text">PySide6 custom toggle button QAbstractButton
+Qt custom switch widget accessibility
+QAbstractButton keyPressEvent space toggle
+</code></pre>
+<p>What to confirm:</p>
+<ul>
+<li>Custom buttons should usually inherit <code>QAbstractButton</code>.</li>
+<li>Buttons should support keyboard activation.</li>
+<li>Accessible names should be set.</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="142-dark-mode-detection">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>14.2. Dark mode detection</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Search:</p>
+<pre><code class="language-text">Qt QStyleHints colorScheme
+PySide6 Qt.ColorScheme.Dark
+Qt colorSchemeChanged signal
+</code></pre>
+<p>What to confirm:</p>
+<ul>
+<li><code>QGuiApplication.styleHints().colorScheme()</code> is appropriate in modern Qt.</li>
+<li>Guarding with <code>hasattr</code> is good for compatibility.</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="143-qthread-termination">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>14.3. QThread termination</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Search:</p>
+<pre><code class="language-text">Qt QThread terminate discouraged
+PySide6 QThread cancel gracefully
+QThread cooperative cancellation
+</code></pre>
+<p>What to confirm:</p>
+<ul>
+<li><code>QThread.terminate()</code> is unsafe.</li>
+<li>Cooperative cancellation is recommended.</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="144-hidpi-svg-icons">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>14.4. HiDPI SVG icons</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Search:</p>
+<pre><code class="language-text">PySide6 QSvgRenderer QPixmap devicePixelRatio
+Qt HiDPI QIcon QPixmap setDevicePixelRatio
+</code></pre>
+<p>What to confirm:</p>
+<ul>
+<li>Fixed 20x20 pixmaps may blur on HiDPI.</li>
+<li><code>setDevicePixelRatio()</code> or multi-size <code>QIcon</code> is preferred.</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="145-qpushbutton-checked-icon-color">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>14.5. QPushButton checked icon color</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Search:</p>
+<pre><code class="language-text">QPushButton checked icon color QSS
+Qt QIcon selected state QPushButton checked
+recolor SVG icon QPushButton checked
+</code></pre>
+<p>What to confirm:</p>
+<ul>
+<li>QSS can change text color but not easily recolor QIcon.</li>
+<li>Custom painting or icon swapping is often needed.</li>
+</ul>
+<hr />
+      </div>
+    </details>
+    <details class="accordion-item" id="146-qsettings-vs-toml">
+      <summary class="accordion-header">
+        <div class="accordion-title-container">
+          <span>14.6. QSettings vs TOML</span>
+        </div>
+        <i data-lucide="chevron-down" class="chevron-icon"></i>
+      </summary>
+      <div class="accordion-body">
+        <p>Search:</p>
+<pre><code class="language-text">PySide6 QSettings cross platform
+Python platformdirs TOML config
+Qt application organization name
+</code></pre>
+<p>What to confirm:</p>
+<ul>
+<li><code>QSettings</code> is functional but platform-specific.</li>
+<li>TOML + <code>platformdirs</code> gives more predictable config files.</li>
+<li>Secrets should not be stored in plain config.</li>
+</ul>
+<hr />
+      </div>
+    </details>
+  </div>
+</section><section class="h1-section" id="15-final-summary">
+  <h1 class="h1-header">15. Final Summary</h1>
+  <div class="intro-content"><p>The biggest documentation-driven corrections are:</p>
+<ol>
+<li><strong>Global flags must come before the command.</strong></li>
+<li><strong><code>upload</code> and <code>archive</code> share many source options, so archive pages are incomplete.</strong></li>
+<li><strong>Google Takeout needs multi-ZIP/glob support.</strong></li>
+<li><strong><code>upload from-folder</code> should support ZIP files.</strong></li>
+<li><strong>Environment variables can be used to avoid exposing API keys.</strong></li>
+<li><strong>Several collected options are unused: <code>client_timeout</code>, <code>device_uuid</code>.</strong></li>
+<li><strong>Some flags should be scoped carefully: <code>--pause-immich-jobs</code>, <code>--on-errors</code>, <code>--api-trace</code>.</strong></li>
+<li><strong>Missing source tabs: iCloud, Picasa, archive Google Photos.</strong></li>
+</ol>
+<p>The biggest Qt-driven corrections are:</p>
+<ol>
+<li><strong>Possible syntax/formatting defects must be verified.</strong></li>
+<li><strong><code>SwitchButton</code> should be a proper <code>QAbstractButton</code>.</strong></li>
+<li><strong>Icons need HiDPI, caching, and checked-state coloring.</strong></li>
+<li><strong>Network and downloads must be fully asynchronous and cancellable.</strong></li>
+<li><strong>Process execution should move toward <code>QProcess</code> with <code>--no-ui</code>.</strong></li>
+<li><strong>Configuration should move to TOML + keychain.</strong></li>
+<li><strong>Tests should target a decoupled command builder, not GUI internals.</strong></li>
+</ol></div>
+</section>
+        </main>
+    </div>
+
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Initialize syntax highlighting
+        hljs.highlightAll();
+
+        // Add copy code buttons to all code blocks
+        document.querySelectorAll('pre').forEach(pre => {
+            const btn = document.createElement('button');
+            btn.className = 'icon-btn copy-btn';
+            btn.innerHTML = '<i data-lucide="copy" style="width: 14px; height: 14px;"></i>';
+            btn.title = 'Copy Code';
+            
+            pre.appendChild(btn);
+            
+            btn.addEventListener('click', () => {
+                const code = pre.querySelector('code').innerText;
+                navigator.clipboard.writeText(code).then(() => {
+                    btn.innerHTML = '<i data-lucide="check" style="width: 14px; height: 14px; color: #22c55e;"></i>';
+                    lucide.createIcons();
+                    setTimeout(() => {
+                        btn.innerHTML = '<i data-lucide="copy" style="width: 14px; height: 14px;"></i>';
+                        lucide.createIcons();
+                    }, 2000);
+                });
+            });
+        });
+        // Re-run lucide for newly added copy elements
+        lucide.createIcons();
+
+        // Theme Toggle Logic
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeSun = document.getElementById('theme-sun');
+        const themeMoon = document.getElementById('theme-moon');
+        const hljsTheme = document.getElementById('hljs-theme');
+        
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            if (theme === 'dark') {
+                themeSun.style.display = 'none';
+                themeMoon.style.display = 'block';
+                hljsTheme.href = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css";
+            } else {
+                themeSun.style.display = 'block';
+                themeMoon.style.display = 'none';
+                hljsTheme.href = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css";
+            }
+        }
+
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        setTheme(savedTheme);
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+        });
+
+        // Sidebar Toggle for Mobile
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        sidebarToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            sidebar.classList.toggle('open');
+        });
+        
+        document.addEventListener('click', (e) => {
+            if (!sidebar.contains(e.target) && sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+        });
+
+        // Expand / Collapse All
+        const expandAllBtn = document.getElementById('expand-all-btn');
+        const collapseAllBtn = document.getElementById('collapse-all-btn');
+        const details = document.querySelectorAll('details.accordion-item');
+
+        expandAllBtn.addEventListener('click', () => {
+            details.forEach(item => item.open = true);
+        });
+
+        collapseAllBtn.addEventListener('click', () => {
+            details.forEach(item => item.open = false);
+        });
+
+        // Navigation from TOC
+        const tocItems = document.querySelectorAll('.toc-item');
+        
+        tocItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = item.getAttribute('href').substring(1);
+                const targetEl = document.getElementById(targetId);
+                
+                if (targetEl) {
+                    // Highlight selected TOC item
+                    tocItems.forEach(el => el.classList.remove('active'));
+                    item.classList.add('active');
+                    
+                    // Open the item
+                    targetEl.open = true;
+                    
+                    // Scroll to it
+                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    
+                    // Highlight the container
+                    targetEl.classList.add('highlight-flash');
+                    setTimeout(() => targetEl.classList.remove('highlight-flash'), 1500);
+                    
+                    // Close sidebar on mobile
+                    sidebar.classList.remove('open');
+                }
+            });
+        });
+
+        // Update active TOC item on scroll
+        const sections = document.querySelectorAll('section.h1-section');
+        const scrollContainer = window;
+        
+        // Search Filter Logic
+        const searchInput = document.getElementById('search-input');
+        
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().strip();
+            
+            if (query === '') {
+                // Reset everything
+                details.forEach(item => {
+                    item.style.display = 'block';
+                    item.open = false;
+                });
+                document.querySelectorAll('.h1-section').forEach(sec => sec.style.display = 'block');
+                document.querySelectorAll('.toc-group').forEach(grp => grp.style.display = 'block');
+                document.querySelectorAll('.toc-item').forEach(item => item.style.display = 'block');
+                return;
+            }
+            
+            // Search inside accordions
+            document.querySelectorAll('.h1-section').forEach(section => {
+                let hasVisibleAccordion = false;
+                const h1Text = section.querySelector('h1').innerText.toLowerCase();
+                
+                const accordions = section.querySelectorAll('details.accordion-item');
+                accordions.forEach(accordion => {
+                    const titleText = accordion.querySelector('summary').innerText.toLowerCase();
+                    const bodyText = accordion.querySelector('.accordion-body').innerText.toLowerCase();
+                    const matches = titleText.includes(query) || bodyText.includes(query) || h1Text.includes(query);
+                    
+                    if (matches) {
+                        accordion.style.display = 'block';
+                        accordion.open = true; // Auto-expand matching ones
+                        hasVisibleAccordion = true;
+                    } else {
+                        accordion.style.display = 'none';
+                        accordion.open = false;
+                    }
+                    
+                    // Filter matching TOC items
+                    const slug = accordion.id;
+                    const tocItem = document.querySelector(`.toc-item[href="#${slug}"]`);
+                    if (tocItem) {
+                        tocItem.style.display = matches ? 'block' : 'none';
+                    }
+                });
+                
+                // Show section only if it has matching accordions
+                if (hasVisibleAccordion) {
+                    section.style.display = 'block';
+                } else {
+                    section.style.display = 'none';
+                }
+                
+                // Match H1s in TOC
+                const slug = section.id;
+                const tocGroup = document.querySelector(`.toc-item[href="#${slug}"]`)?.closest('.toc-group');
+                if (tocGroup) {
+                    tocGroup.style.display = hasVisibleAccordion ? 'block' : 'none';
+                }
+            });
+        });
+        
+        // Helper to strip whitespaces
+        if (!String.prototype.strip) {
+            String.prototype.strip = function() {
+                return this.replace(/^\s+|\s+$/g, '');
+            };
+        }
+    </script>
+</body>
+</html>

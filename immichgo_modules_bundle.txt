@@ -1,0 +1,1540 @@
+================================================================================
+IMMICH-GO GUI - MODULARIZED PYTHON BACKEND BUNDLE
+================================================================================
+Generated for Code Review
+Contains the 5 core backend modules:
+  1. immichgo_models.py   (Data classes & Enums)
+  2. immichgo_schema.py   (CLI Schemas, Tab Mappings & Constants)
+  3. immichgo_config.py   (TOML Config & Keyring Secret Management)
+  4. immichgo_binary.py   (Binary Download, Execution & Version Policy)
+  5. immichgo_commands.py (CLI Command Builder & State Validation)
+================================================================================
+
+
+================================================================================
+FILE 1 / 5: immichgo_models.py (Lines 1-93)
+================================================================================
+"""Pure data structures and dataclasses for Immich-Go GUI core logic.
+
+This module contains pure Python types only and MUST NOT import PySide6, Qt widgets,
+or perform any file I/O or network operations.
+"""
+
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Optional
+
+
+class VersionSupport(str, Enum):
+    UNKNOWN = "unknown"
+    UNSUPPORTED_OLD = "unsupported_old"
+    TESTED = "tested"
+    UNTESTED_BUT_MAY_WORK = "untested_but_may_work"
+    UNTESTED_NEW = "untested_new"
+
+
+class UpdateSeverity(str, Enum):
+    INFO = "info"
+    WARNING = "warning"
+    BLOCKED = "blocked"
+
+
+@dataclass
+class ValidationResult:
+    """Structured validation output for form states."""
+    errors: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+
+    @property
+    def is_valid(self) -> bool:
+        return len(self.errors) == 0
+
+
+@dataclass
+class CommandPlan:
+    """Represents a fully resolved immich-go execution plan."""
+    argv: list[str] = field(default_factory=list)
+    env: dict[str, str] = field(default_factory=dict)
+    display_argv: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+    tab_key: str = ""
+    dry_run: bool = False
+    binary_path: str = ""
+
+
+@dataclass
+class BinaryStatus:
+    """Status details for an immich-go binary."""
+    state: str  # "ok" | "warn" | "err"
+    card_text: str
+    version_text: str
+    support: VersionSupport = VersionSupport.UNKNOWN
+    message: str = ""
+
+
+@dataclass
+class UpdateDecision:
+    """Evaluation result for a software update attempt."""
+    allowed: bool
+    requires_confirmation: bool
+    severity: UpdateSeverity
+    message: str
+    latest_version: str = ""
+    current_version: str = ""
+
+
+@dataclass
+class AppConfig:
+    """Application user configuration model."""
+    schema_version: int = 2
+
+    theme_mode: str = "system"
+    advanced_mode: bool = False
+    allow_untested_updates: bool = False
+
+    server_url: str = ""
+    skip_ssl: bool = False
+
+    secrets_provider: str = "keyring"
+
+    client_timeout_minutes: int = 20
+    concurrent_tasks: int = 0
+    device_uuid: str = ""
+    on_errors: str = "stop"
+    on_errors_tolerance: int = 10
+    pause_immich_jobs: bool = True
+
+    form_state: dict = field(default_factory=dict)
+
+
+================================================================================
+FILE 2 / 5: immichgo_schema.py (Lines 1-101)
+================================================================================
+"""Stable metadata constants, mappings, and compatibility matrices.
+
+This module defines tab keys, immich-go CLI token mappings, secret flag definitions,
+environment variable mappings, and version compatibility metadata.
+MUST NOT import PySide6 or Qt.
+"""
+
+from immichgo_models import VersionSupport
+
+
+# Stable internal tab keys used by the GUI.
+TAB_KEYS = [
+    "config",
+    "upload-folder",
+    "upload-gp",
+    "upload-immich",
+    "archive-folder",
+    "archive-immich",
+    "stack",
+]
+
+UPLOAD_TABS = {
+    "upload-folder",
+    "upload-gp",
+    "upload-immich",
+}
+
+ARCHIVE_TABS = {
+    "archive-folder",
+    "archive-immich",
+}
+
+# Tabs that require the main Immich server and API key.
+SERVER_REQUIRED_TABS = {
+    "upload-folder",
+    "upload-gp",
+    "upload-immich",
+    "archive-immich",
+    "stack",
+}
+
+# Tabs that do not require the main Immich server.
+SERVERLESS_TABS = {
+    "archive-folder",
+}
+
+# Mapping from internal tab key to immich-go command tokens.
+TAB_COMMANDS = {
+    "upload-folder": ["upload", "from-folder"],
+    "upload-gp": ["upload", "from-google-photos"],
+    "upload-immich": ["upload", "from-immich"],
+    "archive-folder": ["archive", "from-folder"],
+    "archive-immich": ["archive", "from-immich"],
+    "stack": ["stack"],
+}
+
+# Flags that must always be masked in previews.
+SECRET_FLAGS = {
+    "--api-key",
+    "--from-api-key",
+    "--admin-api-key",
+}
+
+# Environment variables used to pass secrets safely.
+ENV_KEY_MAP = {
+    "upload-folder": {
+        "server": "IMMICH_GO_UPLOAD_SERVER",
+        "api_key": "IMMICH_GO_UPLOAD_API_KEY",
+    },
+    "upload-gp": {
+        "server": "IMMICH_GO_UPLOAD_SERVER",
+        "api_key": "IMMICH_GO_UPLOAD_API_KEY",
+    },
+    "upload-immich": {
+        "server": "IMMICH_GO_UPLOAD_SERVER",
+        "api_key": "IMMICH_GO_UPLOAD_API_KEY",
+    },
+    "archive-immich": {
+        "server": "IMMICH_GO_ARCHIVE_SERVER",
+        "api_key": "IMMICH_GO_ARCHIVE_API_KEY",
+    },
+    "stack": {
+        "server": "IMMICH_GO_STACK_SERVER",
+        "api_key": "IMMICH_GO_STACK_API_KEY",
+    },
+}
+
+# Future compatibility metadata.
+COMPATIBILITY_MATRIX = {
+    "0.32.0": {
+        "tested": True,
+        "notes": (
+            "GUI-tested version. Upstream removed the ReplaceAsset API. "
+            "The asset.replace API-key permission is no longer required. "
+            "No known immich-go CLI flag breakage for this GUI."
+        ),
+        "renamed_flags": {},
+        "removed_flags": [],
+    },
+}
+
+
+================================================================================
+FILE 3 / 5: immichgo_config.py (Lines 1-258)
+================================================================================
+"""TOML configuration loading, saving, and secret management logic.
+
+This module handles user-level TOML configuration files and secret providers (OS keyring
+and plaintext secrets.toml) without PySide6 or Qt dependencies.
+"""
+
+import os
+import sys
+from pathlib import Path
+from typing import Optional
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
+
+import keyring
+import tomli_w
+
+from immichgo_models import AppConfig
+
+
+def _get_keyring():
+    app_mod = sys.modules.get("app")
+    if app_mod and hasattr(app_mod, "keyring"):
+        return app_mod.keyring
+    return keyring
+
+
+class SecretStore:
+    """Manages API keys via OS-native keyring."""
+
+    SERVICE_NAME = "immich-go-gui"
+
+    @staticmethod
+    def set_api_key(api_key: str) -> None:
+        try:
+            _get_keyring().set_password(SecretStore.SERVICE_NAME, "immich_api_key", api_key)
+        except Exception:
+            pass
+
+    @staticmethod
+    def get_api_key() -> str:
+        try:
+            return _get_keyring().get_password(SecretStore.SERVICE_NAME, "immich_api_key") or ""
+        except Exception:
+            return ""
+
+    @staticmethod
+    def clear_api_key() -> None:
+        try:
+            _get_keyring().delete_password(SecretStore.SERVICE_NAME, "immich_api_key")
+        except Exception:
+            pass
+
+    @staticmethod
+    def migrate_from_qsettings(settings) -> None:
+        """One-time migration helper for settings objects."""
+        try:
+            old_key = settings.value("api_key", "")
+            if old_key:
+                SecretStore.set_api_key(old_key)
+                settings.remove("api_key")
+                settings.sync()
+        except Exception:
+            pass
+
+
+def default_config_dir() -> Path:
+    """Returns the user-level configuration directory."""
+    env_override = os.environ.get("IMMICH_GO_GUI_CONFIG", "").strip()
+    if env_override:
+        return Path(env_override).parent
+
+    if sys.platform.startswith("win"):
+        base = os.environ.get("APPDATA") or os.path.expanduser("~")
+        return Path(base) / "immich-go-gui"
+    elif sys.platform.startswith("darwin"):
+        return Path.home() / "Library" / "Application Support" / "immich-go-gui"
+    else:
+        xdg = os.environ.get("XDG_CONFIG_HOME")
+        if xdg:
+            return Path(xdg) / "immich-go-gui"
+        return Path.home() / ".config" / "immich-go-gui"
+
+
+def default_config_path() -> Path:
+    """Returns the path to the primary config TOML file."""
+    env_override = os.environ.get("IMMICH_GO_GUI_CONFIG", "").strip()
+    if env_override:
+        return Path(env_override)
+    return default_config_dir() / "config.toml"
+
+
+def default_secrets_path() -> Path:
+    """Returns the path to secrets.toml file."""
+    return default_config_path().parent / "secrets.toml"
+
+
+def _atomic_write_text(path: Path, text: str, mode: int | None = None) -> None:
+    """Atomically writes text to path and optionally sets POSIX permissions."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+
+    if mode is not None and os.name == "posix":
+        try:
+            os.chmod(tmp, mode)
+        except OSError:
+            pass
+
+    os.replace(tmp, path)
+
+
+def load_config(path: Path | None = None) -> AppConfig:
+    """Loads configuration from user-level TOML file."""
+    if path is None:
+        path = default_config_path()
+
+    cfg = AppConfig()
+
+    if not path.exists():
+        return cfg
+
+    try:
+        content = path.read_text(encoding="utf-8")
+        data = tomllib.loads(content)
+    except Exception:
+        return cfg
+
+    cfg.schema_version = data.get("schema_version", 2)
+
+    gen = data.get("general", {})
+    cfg.theme_mode = gen.get("theme", "system")
+    cfg.advanced_mode = gen.get("advanced_mode", False)
+    cfg.allow_untested_updates = gen.get("allow_untested_updates", False)
+
+    srv = data.get("server", {})
+    cfg.server_url = srv.get("url", "")
+    cfg.skip_ssl = srv.get("skip_ssl", False)
+
+    sec = data.get("secrets", {})
+    cfg.secrets_provider = sec.get("provider", "keyring")
+
+    adv = data.get("advanced", {})
+    cfg.client_timeout_minutes = adv.get("client_timeout_minutes", 20)
+    cfg.concurrent_tasks = adv.get("concurrent_tasks", 0)
+    cfg.device_uuid = adv.get("device_uuid", "")
+
+    oe = adv.get("on_errors", "stop")
+    cfg.on_errors = "custom" if oe in ("custom", "custom…") else oe
+    cfg.on_errors_tolerance = adv.get("on_errors_tolerance", 10)
+    cfg.pause_immich_jobs = adv.get("pause_immich_jobs", True)
+
+    cfg.form_state = data.get("form_state", {})
+
+    return cfg
+
+
+def save_config(config: AppConfig, path: Path | None = None) -> None:
+    """Saves AppConfig to user-level TOML file."""
+    if path is None:
+        path = default_config_path()
+
+    on_errors_val = "custom" if config.on_errors in ("custom", "custom…") else config.on_errors
+
+    data = {
+        "schema_version": 2,
+        "general": {
+            "theme": config.theme_mode,
+            "advanced_mode": config.advanced_mode,
+            "allow_untested_updates": config.allow_untested_updates,
+        },
+        "server": {
+            "url": config.server_url,
+            "skip_ssl": config.skip_ssl,
+        },
+        "secrets": {
+            "provider": config.secrets_provider,
+        },
+        "advanced": {
+            "client_timeout_minutes": config.client_timeout_minutes,
+            "concurrent_tasks": config.concurrent_tasks,
+            "device_uuid": config.device_uuid,
+            "on_errors": on_errors_val,
+            "on_errors_tolerance": config.on_errors_tolerance,
+            "pause_immich_jobs": config.pause_immich_jobs,
+        },
+        "form_state": config.form_state or {},
+    }
+
+    text = tomli_w.dumps(data)
+    _atomic_write_text(path, text, mode=0o644)
+
+
+def load_secrets(path: Path | None = None) -> dict:
+    """Loads plaintext secrets from secrets.toml."""
+    if path is None:
+        path = default_secrets_path()
+
+    if not path.exists():
+        return {}
+
+    try:
+        content = path.read_text(encoding="utf-8")
+        return tomllib.loads(content)
+    except Exception:
+        return {}
+
+
+def save_secrets(secrets: dict, path: Path | None = None) -> None:
+    """Saves plaintext secrets to secrets.toml with 0600 permissions."""
+    if path is None:
+        path = default_secrets_path()
+
+    text = tomli_w.dumps(secrets)
+    _atomic_write_text(path, text, mode=0o600)
+
+
+def get_api_key(config: AppConfig | None = None) -> str:
+    """Resolves API key according to secret policy."""
+    env_val = os.environ.get("IMMICH_GO_GUI_API_KEY", "").strip()
+    if env_val:
+        return env_val
+
+    if config and config.secrets_provider == "config":
+        secrets = load_secrets()
+        val = str(secrets.get("api_key", "")).strip()
+        if val:
+            return val
+
+    return SecretStore.get_api_key()
+
+
+def set_api_key(value: str, config: AppConfig) -> None:
+    """Saves API key using the configured secret provider."""
+    value = value.strip()
+
+    if config.secrets_provider == "config":
+        secrets = load_secrets()
+        secrets["api_key"] = value
+        save_secrets(secrets)
+        SecretStore.clear_api_key()
+    else:
+        SecretStore.set_api_key(value)
+        secrets = load_secrets()
+        if "api_key" in secrets:
+            secrets.pop("api_key", None)
+            save_secrets(secrets)
+
+
+def clear_api_key(config: AppConfig | None = None) -> None:
+    """Cleans up API key from all secret stores."""
+    SecretStore.clear_api_key()
+    secrets = load_secrets()
+    if "api_key" in secrets:
+        secrets.pop("api_key", None)
+        save_secrets(secrets)
+
+
+================================================================================
+FILE 4 / 5: immichgo_binary.py (Lines 1-529)
+================================================================================
+"""Binary management, version detection, tested version policies, and extraction logic.
+
+This module manages immich-go CLI binaries, version compatibility checks, GitHub update
+evaluations, and archive extractions without any PySide6 or Qt dependencies.
+"""
+
+import hashlib
+import io
+import json
+import os
+import platform
+import re
+import subprocess
+import sys
+import tarfile
+import zipfile
+from pathlib import Path
+from typing import Callable, Optional
+
+import requests
+from packaging.version import InvalidVersion, Version
+
+from immichgo_models import (
+    BinaryStatus,
+    UpdateDecision,
+    UpdateSeverity,
+    VersionSupport,
+)
+
+
+BINARY_BASE_DIR = os.path.join(os.path.expanduser("~"), ".immich-go-gui", "bin")
+METADATA_PATH = os.path.join(BINARY_BASE_DIR, "metadata.json")
+
+# The GUI is built and tested against immich-go v0.32.0.
+RECOMMENDED_IMMICH_GO_VERSION = "0.32.0"
+TESTED_IMMICH_GO_VERSION = RECOMMENDED_IMMICH_GO_VERSION
+
+TESTED_IMMICH_GO_VERSIONS = frozenset({
+    "0.32.0",
+})
+
+MIN_SUPPORTED_IMMICH_GO_VERSION = "0.32.0"
+MAX_KNOWN_COMPATIBLE_IMMICH_GO_VERSION = "0.32.0"
+
+VERSION_NOTES = {
+    "0.32.0": (
+        "GUI-tested version. Upstream removed the ReplaceAsset API. "
+        "The asset.replace API-key permission is no longer required. "
+        "No known immich-go CLI flag breakage for this GUI."
+    ),
+}
+
+BREAKING_INDICATORS = [
+    r"\bbreaking\s+change",
+    r"\bbreaking\b",
+    r"\bBREAKING\b",
+    r"\bremoved\b.*\bflag\b",
+    r"\brenamed\b.*\bflag\b",
+    r"\bincompatible\b",
+    r"\bdeprecat(ed|ion)\b",
+]
+
+_BREAKING_RE = re.compile(
+    "|".join(BREAKING_INDICATORS),
+    re.IGNORECASE,
+)
+
+
+def clean_version(version: str) -> str:
+    """Normalize version string by removing leading 'v', build info, and whitespace."""
+    version = version.strip()
+    if not version:
+        return ""
+    if version.startswith("v") or version.startswith("V"):
+        version = version[1:]
+    # Handle version string like "0.32.0, built with..."
+    version = version.split(",")[0].strip().split()[0].strip()
+    return version
+
+
+def parse_version_output(text: str) -> str:
+    """Parses output from `immich-go version`."""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return ""
+    for line in lines:
+        match = re.search(r"v?(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?)\b", line)
+        if match:
+            return clean_version(match.group(1))
+    return clean_version(lines[0])
+
+
+def get_version_support(version: str) -> VersionSupport:
+    """Return support classification for a given version string."""
+    cleaned = clean_version(version)
+    if not cleaned:
+        return VersionSupport.UNKNOWN
+
+    try:
+        v = Version(cleaned)
+    except InvalidVersion:
+        return VersionSupport.UNKNOWN
+
+    try:
+        min_v = Version(MIN_SUPPORTED_IMMICH_GO_VERSION)
+        max_v = Version(MAX_KNOWN_COMPATIBLE_IMMICH_GO_VERSION)
+    except InvalidVersion:
+        return VersionSupport.UNKNOWN
+
+    if v < min_v:
+        return VersionSupport.UNSUPPORTED_OLD
+
+    if cleaned in TESTED_IMMICH_GO_VERSIONS:
+        return VersionSupport.TESTED
+
+    if v > max_v:
+        return VersionSupport.UNTESTED_NEW
+
+    return VersionSupport.UNTESTED_BUT_MAY_WORK
+
+
+def calculate_sha256(data: bytes) -> str:
+    """Calculate hex digest SHA256 of byte array."""
+    return hashlib.sha256(data).hexdigest()
+
+
+def load_binary_metadata(metadata_path: str = METADATA_PATH) -> dict:
+    """Loads binary metadata JSON from disk, migrating schema if needed."""
+    meta = {
+        "schema_version": 2,
+        "selected_version": "",
+        "manual_path": "",
+        "versions": {},
+    }
+
+    if os.path.exists(metadata_path):
+        try:
+            with open(metadata_path, "r", encoding="utf-8") as f:
+                loaded = json.load(f)
+                if isinstance(loaded, dict):
+                    meta.update(loaded)
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    # Schema version migration
+    if meta.get("schema_version", 1) < 2:
+        for version, record in meta.get("versions", {}).items():
+            if isinstance(record, dict):
+                record.setdefault("gui_tested", version in TESTED_IMMICH_GO_VERSIONS)
+                record.setdefault(
+                    "support_status",
+                    get_version_support(version).value,
+                )
+                record.setdefault("sha256", "")
+                record.setdefault("release_url", "")
+        meta["schema_version"] = 2
+
+    return meta
+
+
+def save_binary_metadata(meta: dict, metadata_path: str = METADATA_PATH) -> None:
+    """Saves binary metadata JSON to disk atomically."""
+    base_dir = os.path.dirname(metadata_path)
+    os.makedirs(base_dir, exist_ok=True)
+
+    tmp_path = metadata_path + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f, indent=2)
+    os.replace(tmp_path, metadata_path)
+
+
+def get_binary_path(meta: dict | None = None, base_dir: str = BINARY_BASE_DIR) -> str:
+    """Resolve effective executable binary path from metadata or standard directory."""
+    if meta is None:
+        meta = load_binary_metadata()
+
+    manual = meta.get("manual_path", "").strip()
+    if manual and os.path.exists(manual):
+        return manual
+
+    selected = meta.get("selected_version", "")
+    if selected and selected in meta.get("versions", {}):
+        v_record = meta["versions"][selected]
+        if isinstance(v_record, dict) and "path" in v_record:
+            path = v_record["path"]
+            if os.path.exists(path):
+                return path
+
+    binary_filename = "immich-go.exe" if sys.platform.startswith("win") else "immich-go"
+
+    # Check selected version directory fallback
+    if selected:
+        version_path = os.path.join(base_dir, selected, binary_filename)
+        if os.path.exists(version_path):
+            return version_path
+
+    # Check legacy base directory
+    legacy = os.path.join(base_dir, binary_filename)
+    if os.path.exists(legacy):
+        return legacy
+
+    return ""
+
+
+class BinaryManager:
+    """Encapsulates binary inspection, GitHub release checking, and extraction."""
+
+    def __init__(
+        self,
+        base_dir: str | None = None,
+        metadata_path: str | None = None,
+        os_name: str | None = None,
+        arch: str | None = None,
+    ):
+        self.base_dir = base_dir or BINARY_BASE_DIR
+        self.metadata_path = metadata_path or os.path.join(self.base_dir, "metadata.json")
+        self.os_name = os_name or sys.platform
+        self.arch = arch or platform.machine().lower()
+
+    def load_metadata(self) -> dict:
+        return load_binary_metadata(self.metadata_path)
+
+    def save_metadata(self, meta: dict) -> None:
+        save_binary_metadata(meta, self.metadata_path)
+
+    def resolve_binary_path(self, meta: dict | None = None) -> str:
+        return get_binary_path(meta, self.base_dir)
+
+    def check_binary(self) -> BinaryStatus:
+        """Inspects the local binary and returns a BinaryStatus."""
+        binary_path = self.resolve_binary_path()
+        if not binary_path or not os.path.exists(binary_path):
+            return BinaryStatus(
+                state="err",
+                card_text="Binary: Missing",
+                version_text="Not found",
+                support=VersionSupport.UNKNOWN,
+                message="Immich-Go binary not found.",
+            )
+
+        if not self.os_name.startswith("win") and not os.access(binary_path, os.X_OK):
+            try:
+                os.chmod(binary_path, 0o755)
+            except OSError:
+                return BinaryStatus(
+                    state="err",
+                    card_text="Binary: Permission Denied",
+                    version_text="Not executable",
+                    support=VersionSupport.UNKNOWN,
+                    message="Binary exists but is not executable.",
+                )
+
+        try:
+            res = subprocess.run(
+                [binary_path, "version"],
+                capture_output=True,
+                text=True,
+                timeout=3,
+            )
+            version_text = parse_version_output(res.stdout or res.stderr)
+            if not version_text:
+                version_text = "Unknown"
+        except Exception as e:
+            return BinaryStatus(
+                state="warn",
+                card_text="Binary: Error",
+                version_text="Error running binary",
+                support=VersionSupport.UNKNOWN,
+                message=f"Failed to execute binary version command: {e}",
+            )
+
+        support = get_version_support(version_text)
+
+        if support == VersionSupport.TESTED:
+            return BinaryStatus(
+                state="ok",
+                card_text=f"Binary: {version_text} (tested)",
+                version_text=version_text,
+                support=support,
+                message=VERSION_NOTES.get(version_text, "Tested and supported version."),
+            )
+        elif support == VersionSupport.UNTESTED_BUT_MAY_WORK:
+            return BinaryStatus(
+                state="warn",
+                card_text=f"Binary: {version_text} (untested)",
+                version_text=version_text,
+                support=support,
+                message=f"Version {version_text} is untested but within expected range.",
+            )
+        elif support == VersionSupport.UNTESTED_NEW:
+            return BinaryStatus(
+                state="warn",
+                card_text=f"Binary: {version_text} (newer than tested)",
+                version_text=version_text,
+                support=support,
+                message=f"Version {version_text} is newer than tested version ({RECOMMENDED_IMMICH_GO_VERSION}).",
+            )
+        elif support == VersionSupport.UNSUPPORTED_OLD:
+            return BinaryStatus(
+                state="warn",
+                card_text=f"Binary: {version_text} (older than supported)",
+                version_text=version_text,
+                support=support,
+                message=f"Version {version_text} is older than minimum supported version ({MIN_SUPPORTED_IMMICH_GO_VERSION}).",
+            )
+
+        return BinaryStatus(
+            state="warn",
+            card_text=f"Binary: {version_text}",
+            version_text=version_text,
+            support=support,
+            message=f"Unknown support status for version {version_text}.",
+        )
+
+    def get_latest_version(self) -> str | None:
+        """Fetch latest release tag from GitHub."""
+        try:
+            url = "https://api.github.com/repos/simulot/immich-go/releases/latest"
+            res = requests.get(url, timeout=15)
+            res.raise_for_status()
+            data = res.json()
+            tag = data.get("tag_name", "")
+            return clean_version(tag) if tag else None
+        except Exception:
+            return None
+
+    def get_release_notes(self, version: str) -> str:
+        """Fetch release notes for a given version tag."""
+        try:
+            url = f"https://api.github.com/repos/simulot/immich-go/releases/tags/v{clean_version(version)}"
+            res = requests.get(url, timeout=15)
+            if res.status_code == 404:
+                url = f"https://api.github.com/repos/simulot/immich-go/releases/tags/{clean_version(version)}"
+                res = requests.get(url, timeout=15)
+            res.raise_for_status()
+            data = res.json()
+            return data.get("body", "") or ""
+        except Exception:
+            return ""
+
+    def get_download_url(self, version: str | None = None) -> str | None:
+        """Determine download URL for current OS/arch and target version."""
+        if not version:
+            version = self.get_latest_version()
+        if not version:
+            return None
+
+        clean_v = clean_version(version)
+
+        # OS detection
+        if self.os_name.startswith("win"):
+            target_os = "Windows"
+            ext = ".zip"
+        elif self.os_name.startswith("darwin"):
+            target_os = "Darwin"
+            ext = ".tar.gz"
+        else:
+            target_os = "Linux"
+            ext = ".tar.gz"
+
+        # Arch detection
+        arch_map = {
+            "x86_64": "x86_64",
+            "amd64": "x86_64",
+            "aarch64": "arm64",
+            "arm64": "arm64",
+            "i386": "i386",
+            "i686": "i386",
+        }
+        target_arch = arch_map.get(self.arch, "x86_64")
+
+        filename = f"immich-go_{clean_v}_{target_os}_{target_arch}{ext}"
+        return f"https://github.com/simulot/immich-go/releases/download/v{clean_v}/{filename}"
+
+    def evaluate_update(
+        self,
+        current_version: str,
+        latest_version: str,
+        allow_untested: bool = False,
+        release_notes: str = "",
+    ) -> UpdateDecision:
+        """Evaluates whether an update to latest_version should be allowed."""
+        latest_clean = clean_version(latest_version)
+        current_clean = clean_version(current_version)
+
+        # 1. If latest_version is explicitly tested
+        if latest_clean in TESTED_IMMICH_GO_VERSIONS:
+            return UpdateDecision(
+                allowed=True,
+                requires_confirmation=True,
+                severity=UpdateSeverity.INFO,
+                message="This version has been tested with this GUI.",
+                latest_version=latest_clean,
+                current_version=current_clean,
+            )
+
+        has_breaking = bool(_BREAKING_RE.search(release_notes)) if release_notes else False
+
+        # 2. If latest_version is newer than tested
+        if not allow_untested:
+            msg = (
+                f"immich-go {latest_clean} is newer than the tested version ({RECOMMENDED_IMMICH_GO_VERSION}). "
+                "Automatic update is disabled for untested versions. "
+                "Review release notes or enable untested updates in settings."
+            )
+            if has_breaking:
+                msg += " (Release notes indicate possible breaking CLI changes)."
+
+            return UpdateDecision(
+                allowed=False,
+                requires_confirmation=False,
+                severity=UpdateSeverity.WARNING,
+                message=msg,
+                latest_version=latest_clean,
+                current_version=current_clean,
+            )
+
+        msg = (
+            f"immich-go {latest_clean} has not been tested with this GUI. "
+            "Review release notes before continuing."
+        )
+        if has_breaking:
+            msg += "\n\nWarning: Release notes contain breaking change indicators."
+
+        return UpdateDecision(
+            allowed=True,
+            requires_confirmation=True,
+            severity=UpdateSeverity.WARNING,
+            message=msg,
+            latest_version=latest_clean,
+            current_version=current_clean,
+        )
+
+    def download_archive(
+        self,
+        url: str,
+        progress_cb: Optional[Callable[[int], None]] = None,
+    ) -> bytes:
+        """Downloads the binary archive and returns raw bytes."""
+        response = requests.get(url, stream=True, timeout=60)
+        response.raise_for_status()
+
+        total_size = int(response.headers.get("content-length", 0))
+        block_size = 1024
+        downloaded_size = 0
+        content = io.BytesIO()
+
+        for data in response.iter_content(block_size):
+            downloaded_size += len(data)
+            content.write(data)
+            if total_size > 0 and progress_cb:
+                progress = int((downloaded_size / total_size) * 100)
+                progress_cb(progress)
+
+        return content.getvalue()
+
+    def extract_binary(
+        self,
+        archive_bytes: bytes,
+        download_url: str,
+        version: str,
+    ) -> str:
+        """Extracts immich-go binary from archive bytes into version directory."""
+        v_clean = clean_version(version)
+        target_dir = os.path.join(self.base_dir, v_clean)
+        os.makedirs(target_dir, exist_ok=True)
+
+        binary_filename = "immich-go.exe" if self.os_name.startswith("win") else "immich-go"
+        binary_path = os.path.join(target_dir, binary_filename)
+
+        if download_url.endswith(".zip"):
+            with zipfile.ZipFile(io.BytesIO(archive_bytes)) as z:
+                for filename in z.namelist():
+                    base = os.path.basename(filename)
+                    if base in ("immich-go", "immich-go.exe"):
+                        with z.open(filename) as source, open(binary_path, "wb") as target:
+                            target.write(source.read())
+                        break
+        elif download_url.endswith(".tar.gz") or download_url.endswith(".tgz"):
+            with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:gz") as tar:
+                for member in tar.getmembers():
+                    base = os.path.basename(member.name)
+                    if base in ("immich-go", "immich-go.exe"):
+                        source = tar.extractfile(member)
+                        if source:
+                            with open(binary_path, "wb") as target:
+                                target.write(source.read())
+                        break
+        else:
+            raise ValueError(f"Unsupported archive extension in URL: {download_url}")
+
+        if not self.os_name.startswith("win") and os.path.exists(binary_path):
+            os.chmod(binary_path, 0o755)
+
+        return binary_path
+
+    def select_version(
+        self,
+        version: str,
+        binary_path: str,
+        sha256: str = "",
+        release_url: str = "",
+    ) -> None:
+        """Updates selected version record in metadata and saves to disk."""
+        v_clean = clean_version(version)
+        meta = self.load_metadata()
+
+        meta["selected_version"] = v_clean
+        if "versions" not in meta or not isinstance(meta["versions"], dict):
+            meta["versions"] = {}
+
+        if not sha256 and os.path.exists(binary_path):
+            try:
+                with open(binary_path, "rb") as f:
+                    sha256 = calculate_sha256(f.read())
+            except OSError:
+                pass
+
+        meta["versions"][v_clean] = {
+            "path": binary_path,
+            "downloaded_at": meta["versions"].get(v_clean, {}).get("downloaded_at", ""),
+            "gui_tested": v_clean in TESTED_IMMICH_GO_VERSIONS,
+            "support_status": get_version_support(v_clean).value,
+            "sha256": sha256,
+            "release_url": release_url or f"https://github.com/simulot/immich-go/releases/tag/v{v_clean}",
+        }
+
+        self.save_metadata(meta)
+
+
+================================================================================
+FILE 5 / 5: immichgo_commands.py (Lines 1-527)
+================================================================================
+"""Pure command-building and state validation logic for Immich-Go.
+
+This module contains pure command generation logic and MUST NOT import PySide6 or Qt.
+It operates entirely on plain Python dictionaries and primitive types.
+"""
+
+import glob
+import os
+import re
+
+from immichgo_models import CommandPlan, ValidationResult
+from immichgo_schema import (
+    ENV_KEY_MAP,
+    SECRET_FLAGS,
+    SERVER_REQUIRED_TABS,
+    TAB_COMMANDS,
+    UPLOAD_TABS,
+)
+
+
+_DATE_RANGE_RE = re.compile(
+    r"^\d{4}(-\d{2}(-\d{2})?)?"
+    r"(,\d{4}(-\d{2}(-\d{2})?)?)?$"
+)
+
+
+def normalize_server_url(url: str) -> str:
+    """Normalize a server URL for CLI consumption.
+
+    - Strips leading/trailing whitespace
+    - Adds http:// if no scheme is present
+    - Strips trailing slashes
+    - Returns empty string for empty input
+    """
+    url = url.strip()
+    if not url:
+        return ""
+
+    if not url.startswith("http://") and not url.startswith("https://"):
+        url = "http://" + url
+
+    return url.rstrip("/")
+
+
+def collect_paths(raw_text: str) -> list[str]:
+    """Expands glob patterns and handles multi-line path inputs."""
+    paths = []
+    for line in raw_text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        expanded = glob.glob(line)
+        if expanded:
+            paths.extend(expanded)
+        else:
+            paths.append(line)
+    return paths
+
+
+def validate_date_range(text: str) -> bool:
+    """Validate immich-go date range format.
+
+    Accepts: 2023, 2023-07, 2023-07-15, 2023-01-01,2023-12-31
+    """
+    text = text.strip()
+    if not text:
+        return True
+    return bool(_DATE_RANGE_RE.match(text))
+
+
+def mask_command_for_display(command_parts: list[str]) -> list[str]:
+    """Obfuscates secrets in command previews.
+
+    Handles both forms:
+      --api-key=secret   (single element)
+      --api-key secret   (two elements)
+    """
+    masked = []
+    skip_next = False
+    for part in command_parts:
+        if skip_next:
+            masked.append("********")
+            skip_next = False
+            continue
+
+        if part in SECRET_FLAGS:
+            masked.append(part)
+            skip_next = True
+            continue
+
+        hidden = False
+        for flag in SECRET_FLAGS:
+            if part.startswith(f"{flag}="):
+                masked.append(f"{flag}=********")
+                hidden = True
+                break
+
+        if not hidden:
+            masked.append(part)
+
+    return masked
+
+
+def build_environment(
+    tab_key: str,
+    server: str,
+    api_key: str,
+    from_server: str = "",
+    from_api_key: str = "",
+    base_env: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Builds a secure environment dict to pass secrets without CLI exposure."""
+    if base_env is not None:
+        env = base_env.copy()
+    else:
+        env = os.environ.copy()
+
+    mapping = ENV_KEY_MAP.get(tab_key, {})
+
+    srv_key = mapping.get("server")
+    if srv_key and server:
+        env[srv_key] = server
+
+    api_key_name = mapping.get("api_key")
+    if api_key_name and api_key:
+        env[api_key_name] = api_key
+
+    if tab_key == "upload-immich":
+        if from_server:
+            env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER"] = from_server
+        if from_api_key:
+            env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY"] = from_api_key
+
+    return env
+
+
+def validate_state(
+    tab_key: str,
+    config_state: dict,
+    tab_state: dict,
+) -> ValidationResult:
+    """Validates global and tab-specific input states returning a ValidationResult."""
+    result = ValidationResult()
+
+    if tab_key != "config":
+        server = config_state.get("server", "").strip()
+        api_key = config_state.get("api_key", "").strip()
+        normalized_server = normalize_server_url(server)
+
+        if tab_key in SERVER_REQUIRED_TABS:
+            if not server:
+                result.errors.append("Server URL is required.")
+            elif not re.match(r"^https?://.+", normalized_server):
+                result.errors.append("Server URL must start with http:// or https://.")
+
+            if not api_key:
+                result.errors.append("API key is required.")
+
+        if config_state.get("skip-ssl"):
+            result.warnings.append(
+                "SSL verification is disabled. Use only on trusted networks."
+            )
+
+    if tab_key == "upload-folder":
+        if not str(tab_state.get("path", "")).strip():
+            result.errors.append("Source folder or ZIP path is required.")
+
+    elif tab_key == "upload-gp":
+        if not str(tab_state.get("path", "")).strip():
+            result.errors.append("Google Takeout source is required.")
+
+    elif tab_key == "upload-immich":
+        if not str(tab_state.get("from-server", "")).strip():
+            result.errors.append("Source server URL is required.")
+        if not str(tab_state.get("from-api-key", "")).strip():
+            result.errors.append("Source API key is required.")
+
+    elif tab_key == "archive-folder":
+        if not str(tab_state.get("path", "")).strip():
+            result.errors.append("Source path is required.")
+        if not str(tab_state.get("write-to", "")).strip():
+            result.errors.append("Destination folder is required.")
+
+    elif tab_key == "archive-immich":
+        if not str(tab_state.get("write-to", "")).strip():
+            result.errors.append("Destination folder is required.")
+
+    # Validate date range format if provided
+    dr = str(tab_state.get("date-range", "")).strip()
+    if dr and not validate_date_range(dr):
+        result.errors.append("Date range must be YYYY, YYYY-MM, YYYY-MM-DD, or start,end.")
+
+    fdr = str(tab_state.get("from-date-range", "")).strip()
+    if fdr and not validate_date_range(fdr):
+        result.errors.append("Date range must be YYYY, YYYY-MM, YYYY-MM-DD, or start,end.")
+
+    return result
+
+
+def build_plan_from_state(
+    tab_key: str,
+    config_state: dict,
+    tab_state: dict,
+    binary_path: str,
+    dry_run: bool,
+    base_env: dict[str, str] | None = None,
+) -> CommandPlan:
+    """Builds a CommandPlan from pure state dictionaries without UI dependencies."""
+    if tab_key == "config" or tab_key not in TAB_COMMANDS:
+        return CommandPlan(
+            errors=["No executable tab selected."],
+            tab_key=tab_key,
+        )
+
+    plan = CommandPlan(
+        tab_key=tab_key,
+        dry_run=dry_run,
+        binary_path=binary_path,
+    )
+
+    global_opts: list[str] = []
+    cmd = TAB_COMMANDS[tab_key]
+    cmd_opts: list[str] = []
+    path_opt: list[str] = []
+
+    server = str(config_state.get("server", ""))
+    api_key = str(config_state.get("api_key", ""))
+    from_server = str(tab_state.get("from-server", ""))
+    from_api_key = str(tab_state.get("from-api-key", ""))
+
+    env = build_environment(
+        tab_key=tab_key,
+        server=normalize_server_url(server) if server else "",
+        api_key=api_key,
+        from_server=normalize_server_url(from_server) if from_server else "",
+        from_api_key=from_api_key,
+        base_env=base_env,
+    )
+
+    # 6.1 Global options
+    log_level = str(tab_state.get("log-level", "INFO"))
+    if log_level and log_level != "INFO":
+        global_opts.append(f"--log-level={log_level}")
+
+    # 6.3 Server and SSL
+    if tab_key != "archive-folder":
+        if server:
+            cmd_opts.append(f"--server={normalize_server_url(server)}")
+
+        if config_state.get("skip-ssl"):
+            cmd_opts.append("--skip-verify-ssl")
+            plan.warnings.append(
+                "SSL verification is disabled. "
+                "Use only on trusted networks or self-hosted test servers."
+            )
+
+    # 6.4 API key handling for upload-immich source server
+    if tab_key == "upload-immich" and from_server:
+        cmd_opts.append(f"--from-server={normalize_server_url(from_server)}")
+
+    # 6.5 Global advanced options
+    client_timeout = config_state.get("client_timeout", 20)
+    if client_timeout != 20:
+        cmd_opts.append(f"--client-timeout={client_timeout}m")
+
+    if tab_key in UPLOAD_TABS and config_state.get("device_uuid"):
+        cmd_opts.append(f"--device-uuid={config_state['device_uuid']}")
+
+    concurrent = config_state.get("concurrent", 0)
+    concurrent_default = config_state.get("concurrent_default", 0)
+    if concurrent != concurrent_default:
+        cmd_opts.append(f"--concurrent-tasks={concurrent}")
+
+    if tab_key in UPLOAD_TABS:
+        if "pause-jobs" in tab_state:
+            if not tab_state["pause-jobs"]:
+                cmd_opts.append("--pause-immich-jobs=false")
+        elif not config_state.get("pause_jobs", True):
+            cmd_opts.append("--pause-immich-jobs=false")
+
+    if tab_key in UPLOAD_TABS:
+        if "on-errors" in tab_state:
+            if tab_state["on-errors"] != "stop":
+                cmd_opts.append(f"--on-errors={tab_state['on-errors']}")
+        else:
+            oe_config = config_state.get("on_errors", "stop")
+            if oe_config == "custom…":
+                tol = config_state.get("on_errors_tolerance", 10)
+                cmd_opts.append(f"--on-errors={tol}")
+            elif oe_config != "stop":
+                cmd_opts.append(f"--on-errors={oe_config}")
+
+    # 6.6 Tab-specific options in strict order
+    if tab_key == "upload-folder":
+        if tab_state.get("include-type", "all") != "all":
+            cmd_opts.append(f"--include-type={tab_state['include-type']}")
+
+        if tab_state.get("folder-album", "NONE") != "NONE":
+            cmd_opts.append(f"--folder-as-album={tab_state['folder-album']}")
+
+        if tab_state.get("into-album"):
+            cmd_opts.append(f"--into-album={tab_state['into-album']}")
+
+        if tab_state.get("overwrite"):
+            cmd_opts.append("--overwrite")
+            plan.warnings.append("Overwrite mode will replace existing files on the server.")
+
+        if tab_state.get("manage-burst", "NoStack") != "NoStack":
+            cmd_opts.append(f"--manage-burst={tab_state['manage-burst']}")
+
+        if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
+            cmd_opts.append(f"--manage-raw-jpeg={tab_state['manage-raw-jpeg']}")
+
+        if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
+            cmd_opts.append(f"--manage-heic-jpeg={tab_state['manage-heic-jpeg']}")
+
+        if tab_state.get("date-range"):
+            cmd_opts.append(f"--date-range={tab_state['date-range']}")
+
+        if tab_state.get("include-ext"):
+            cmd_opts.append(f"--include-extensions={tab_state['include-ext']}")
+
+        if tab_state.get("exclude-ext"):
+            cmd_opts.append(f"--exclude-extensions={tab_state['exclude-ext']}")
+
+        if tab_state.get("ban-file"):
+            for line in str(tab_state["ban-file"]).split("\n"):
+                if line.strip():
+                    cmd_opts.append(f"--ban-file={line.strip()}")
+
+        if tab_state.get("ignore-sidecar"):
+            cmd_opts.append("--ignore-sidecar-files")
+
+        if "date-from-name" in tab_state and not tab_state["date-from-name"]:
+            cmd_opts.append("--date-from-name=false")
+
+        if tab_state.get("tag"):
+            for t in str(tab_state["tag"]).split(","):
+                if t.strip():
+                    cmd_opts.append(f"--tag={t.strip()}")
+
+        if tab_state.get("session-tag"):
+            cmd_opts.append("--session-tag")
+
+        if tab_state.get("folder-tags"):
+            cmd_opts.append("--folder-as-tags")
+
+        if tab_state.get("api-trace"):
+            cmd_opts.append("--api-trace")
+
+        if tab_state.get("path"):
+            path_opt.append(tab_state["path"])
+
+    elif tab_key == "upload-gp":
+        if tab_state.get("include-type", "all") != "all":
+            cmd_opts.append(f"--include-type={tab_state['include-type']}")
+
+        if tab_state.get("into-album"):
+            cmd_opts.append(f"--into-album={tab_state['into-album']}")
+
+        if tab_state.get("include-unmatched"):
+            cmd_opts.append("--include-unmatched=true")
+
+        if "include-partner" in tab_state and not tab_state["include-partner"]:
+            cmd_opts.append("--include-partner=false")
+
+        if "sync-albums" in tab_state and not tab_state["sync-albums"]:
+            cmd_opts.append("--sync-albums=false")
+
+        if tab_state.get("manage-burst", "NoStack") != "NoStack":
+            cmd_opts.append(f"--manage-burst={tab_state['manage-burst']}")
+
+        if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
+            cmd_opts.append(f"--manage-heic-jpeg={tab_state['manage-heic-jpeg']}")
+
+        if tab_state.get("from-album-name"):
+            cmd_opts.append(f"--from-album-name={tab_state['from-album-name']}")
+
+        if "include-archived" in tab_state and not tab_state["include-archived"]:
+            cmd_opts.append("--include-archived=false")
+
+        if tab_state.get("include-trashed"):
+            cmd_opts.append("--include-trashed=true")
+
+        if tab_state.get("partner-album"):
+            cmd_opts.append(f"--partner-shared-album={tab_state['partner-album']}")
+
+        if "takeout-tag" in tab_state and not tab_state["takeout-tag"]:
+            cmd_opts.append("--takeout-tag=false")
+
+        if "people-tag" in tab_state and not tab_state["people-tag"]:
+            cmd_opts.append("--people-tag=false")
+
+        if tab_state.get("tag"):
+            for t in str(tab_state["tag"]).split(","):
+                if t.strip():
+                    cmd_opts.append(f"--tag={t.strip()}")
+
+        if tab_state.get("session-tag"):
+            cmd_opts.append("--session-tag")
+
+        if tab_state.get("api-trace"):
+            cmd_opts.append("--api-trace")
+
+        raw_paths = str(tab_state.get("path", "")).strip()
+        if raw_paths:
+            path_opt.extend(collect_paths(raw_paths))
+
+    elif tab_key == "upload-immich":
+        from_ct = tab_state.get("from-client-timeout")
+        if from_ct is not None and int(from_ct) != 20 and int(from_ct) > 0:
+            cmd_opts.append(f"--from-client-timeout={from_ct}m")
+
+        if tab_state.get("from-favorite"):
+            cmd_opts.append("--from-favorite=true")
+
+        if tab_state.get("from-archived"):
+            cmd_opts.append("--from-archived=true")
+
+        if tab_state.get("from-trash"):
+            cmd_opts.append("--from-trash=true")
+
+        if tab_state.get("from-date-range"):
+            cmd_opts.append(f"--from-date-range={tab_state['from-date-range']}")
+
+        if tab_state.get("from-albums"):
+            for a in str(tab_state["from-albums"]).split(","):
+                if a.strip():
+                    cmd_opts.append(f"--from-albums={a.strip()}")
+
+        if tab_state.get("from-minimal-rating", 0) > 0:
+            cmd_opts.append(f"--from-minimal-rating={tab_state['from-minimal-rating']}")
+
+        if tab_state.get("from-people"):
+            for p in str(tab_state["from-people"]).split(","):
+                if p.strip():
+                    cmd_opts.append(f"--from-people={p.strip()}")
+
+        if tab_state.get("from-tags"):
+            for t in str(tab_state["from-tags"]).split(","):
+                if t.strip():
+                    cmd_opts.append(f"--from-tags={t.strip()}")
+
+        if tab_state.get("from-city"):
+            cmd_opts.append(f"--from-city={tab_state['from-city']}")
+
+        if tab_state.get("from-state"):
+            cmd_opts.append(f"--from-state={tab_state['from-state']}")
+
+        if tab_state.get("from-country"):
+            cmd_opts.append(f"--from-country={tab_state['from-country']}")
+
+        if tab_state.get("from-make"):
+            cmd_opts.append(f"--from-make={tab_state['from-make']}")
+
+        if tab_state.get("from-model"):
+            cmd_opts.append(f"--from-model={tab_state['from-model']}")
+
+        if tab_state.get("from-skip-ssl"):
+            cmd_opts.append("--from-skip-verify-ssl")
+
+        if tab_state.get("api-trace"):
+            cmd_opts.append("--api-trace")
+
+    elif tab_key == "archive-folder":
+        if tab_state.get("write-to"):
+            cmd_opts.append(f"--write-to-folder={tab_state['write-to']}")
+
+        if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
+            cmd_opts.append(f"--manage-raw-jpeg={tab_state['manage-raw-jpeg']}")
+
+        if tab_state.get("date-range"):
+            cmd_opts.append(f"--date-range={tab_state['date-range']}")
+
+        if tab_state.get("path"):
+            path_opt.append(tab_state["path"])
+
+    elif tab_key == "archive-immich":
+        if tab_state.get("write-to"):
+            cmd_opts.append(f"--write-to-folder={tab_state['write-to']}")
+
+        if tab_state.get("manage-burst", "NoStack") != "NoStack":
+            cmd_opts.append(f"--manage-burst={tab_state['manage-burst']}")
+
+        if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
+            cmd_opts.append(f"--manage-raw-jpeg={tab_state['manage-raw-jpeg']}")
+
+        if tab_state.get("from-date-range"):
+            cmd_opts.append(f"--from-date-range={tab_state['from-date-range']}")
+
+        if tab_state.get("from-albums"):
+            for a in str(tab_state["from-albums"]).split(","):
+                if a.strip():
+                    cmd_opts.append(f"--from-albums={a.strip()}")
+
+    elif tab_key == "stack":
+        if tab_state.get("manage-burst", "NoStack") != "NoStack":
+            cmd_opts.append(f"--manage-burst={tab_state['manage-burst']}")
+
+        if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
+            cmd_opts.append(f"--manage-raw-jpeg={tab_state['manage-raw-jpeg']}")
+
+        if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
+            cmd_opts.append(f"--manage-heic-jpeg={tab_state['manage-heic-jpeg']}")
+
+        if tab_state.get("time-zone"):
+            cmd_opts.append(f"--time-zone={tab_state['time-zone']}")
+
+        if tab_state.get("manage-epson"):
+            cmd_opts.append("--manage-epson-fastfoto=true")
+
+        if tab_state.get("api-trace"):
+            cmd_opts.append("--api-trace")
+
+    # 6.7 Dry-run handling
+    if dry_run:
+        if "--dry-run" not in cmd_opts:
+            cmd_opts.append("--dry-run")
+    else:
+        if "--dry-run" in cmd_opts:
+            cmd_opts.remove("--dry-run")
+
+    plan.argv = global_opts + cmd + cmd_opts + path_opt
+    plan.env = env
+    plan.display_argv = mask_command_for_display([binary_path] + plan.argv)
+    return plan
