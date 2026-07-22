@@ -107,28 +107,15 @@ class ProcessTracker:
             f"rm -f {shlex.quote(lock)}"
         )
 
-@dataclass
-class CommandPlan:
-    """Represents a fully resolved immich-go execution plan."""
-    argv: list[str] = field(default_factory=list)
-    env: dict[str, str] = field(default_factory=dict)
-    display_argv: list[str] = field(default_factory=list)
-    warnings: list[str] = field(default_factory=list)
-    errors: list[str] = field(default_factory=list)
-    tab_key: str = ""
-    dry_run: bool = False
-    binary_path: str = ""
-
-
-@dataclass
-class ValidationResult:
-    """Structured validation output."""
-    errors: list[str] = field(default_factory=list)
-    warnings: list[str] = field(default_factory=list)
-
-    @property
-    def is_valid(self) -> bool:
-        return len(self.errors) == 0
+from immichgo_models import (
+    AppConfig,
+    BinaryStatus,
+    CommandPlan,
+    UpdateDecision,
+    UpdateSeverity,
+    ValidationResult,
+    VersionSupport,
+)
 
 
 def collect_paths(raw_text: str) -> list[str]:
