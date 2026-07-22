@@ -8,15 +8,15 @@ Files Included:
    3. core/cli_contract.py (96 lines)
    4. core/cli_help.py (56 lines)
    5. core/cli_schema.py (239 lines)
-   6. core/command_builder.py (819 lines)
+   6. core/command_builder.py (828 lines)
    7. core/config_manager.py (374 lines)
    8. core/models.py (94 lines)
    9. core/network.py (115 lines)
   10. core/process_tracker.py (238 lines)
   11. core/profile_manager.py (339 lines)
   12. core/terminal_launcher.py (191 lines)
-  13. core/validation.py (222 lines)
-  14. test_app.py (1624 lines)
+  13. core/validation.py (227 lines)
+  14. test_app.py (1671 lines)
   15. scripts/capture_cli_help.py (84 lines)
   16. scripts/convert_markdown.py (564 lines)
 ================================================================================
@@ -745,7 +745,7 @@ class CompatibilityReport:
     notes: str = ""
 
     def is_fully_compatible(self) -> bool:
-        return not any(self.missing_flags_by_tab.values())
+        return self.supported and not any(self.missing_flags_by_tab.values())
 
 
 def check_fixtures(version: str = TESTED_IMMICH_GO_VERSION) -> CompatibilityReport:
@@ -1129,7 +1129,7 @@ COMPATIBILITY_MATRIX = {
 
 
 ================================================================================
-FILE 6 / 16: core/command_builder.py (Lines 1-819)
+FILE 6 / 16: core/command_builder.py (Lines 1-828)
 ================================================================================
 """Pure command-building and state validation logic for Immich-Go.
 
@@ -1369,12 +1369,13 @@ def validate_state(
         if not key:
             res.errors.append("API Key is required. Configure it in the Configuration tab.")
 
-    if tab_key == "upload-folder":
+    elif tab_key == "upload-folder":
         p = tab_state.get("path", "").strip()
         if not p:
             res.errors.append("Source folder path is required.")
-        elif not os.path.exists(p):
-            res.warnings.append(f"Source path '{p}' does not exist locally.")
+        else:
+            _, path_warns = expand_source_paths(p)
+            res.warnings.extend(path_warns)
 
     elif tab_key == "upload-gp":
         p = tab_state.get("path", "").strip()
@@ -1396,11 +1397,17 @@ def validate_state(
             res.errors.append("Source folder path is required.")
         if not w:
             res.errors.append("Destination folder is required.")
+        if p and w:
+            expanded_sources, path_warns = expand_source_paths(p)
+            res.warnings.extend(path_warns)
+            res.warnings.extend(validate_destination_folder(w, expanded_sources))
 
     elif tab_key == "archive-immich":
         w = tab_state.get("write-to", "").strip()
         if not w:
             res.errors.append("Destination folder is required.")
+        else:
+            res.warnings.extend(validate_destination_folder(w, []))
 
     # Date range validation across tabs
     for key in ("date-range", "from-date-range"):
@@ -1578,8 +1585,9 @@ def build_plan_from_state(
         if tab_state.get("manage-epson"):
             emitter.add_flag("manage-epson-fastfoto")
 
-        if tab_state.get("path"):
-            path_opt.append(tab_state["path"])
+        raw_path = str(tab_state.get("path", "")).strip()
+        if raw_path:
+            path_opt.extend(collect_paths(raw_path))
 
     elif tab_key == "upload-gp":
         if tab_state.get("manage-burst", "NoStack") != "NoStack":
@@ -1819,8 +1827,9 @@ def build_plan_from_state(
         if tab_state.get("album-path-joiner"):
             emitter.add_option("album-path-joiner", tab_state["album-path-joiner"])
 
-        if tab_state.get("path"):
-            path_opt.append(tab_state["path"])
+        raw_path = str(tab_state.get("path", "")).strip()
+        if raw_path:
+            path_opt.extend(collect_paths(raw_path))
 
     elif tab_key == "archive-immich":
         from_srv = tab_state.get("from-server", "") or config_state.get("server", "")
@@ -3341,7 +3350,7 @@ def launch_external_terminal(
 
 
 ================================================================================
-FILE 13 / 16: core/validation.py (Lines 1-222)
+FILE 13 / 16: core/validation.py (Lines 1-227)
 ================================================================================
 """Validation and input normalization helpers for Immich-Go GUI.
 
@@ -3499,6 +3508,8 @@ def expand_source_paths(raw_text: str) -> tuple[list[str], list[str]]:
 
     - split lines
     - strip lines
+    - expand user (~)
+    - make absolute
     - expand globs
     - return (expanded_paths, warnings)
 
@@ -3514,17 +3525,20 @@ def expand_source_paths(raw_text: str) -> tuple[list[str], list[str]]:
 
     lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
     for line in lines:
-        if has_glob_pattern(line):
-            matches = glob.glob(line, recursive=True)
+        item = os.path.expanduser(line)
+        if not os.path.isabs(item):
+            item = os.path.abspath(item)
+
+        if has_glob_pattern(item):
+            matches = glob.glob(item, recursive=True)
             if not matches:
                 warnings.append(f"Glob pattern '{line}' matched no files or directories.")
             else:
-                expanded_paths.extend(matches)
+                expanded_paths.extend(sorted(matches))
         else:
-            p = Path(line)
-            if not p.exists():
+            if not os.path.exists(item):
                 warnings.append(f"Source path '{line}' does not exist.")
-            expanded_paths.append(line)
+            expanded_paths.append(item)
 
     return expanded_paths, warnings
 
@@ -3569,7 +3583,7 @@ def validate_destination_folder(
 
 
 ================================================================================
-FILE 14 / 16: test_app.py (Lines 1-1624)
+FILE 14 / 16: test_app.py (Lines 1-1671)
 ================================================================================
 import pytest
 import os
@@ -5195,6 +5209,53 @@ def test_collect_paths_expansion_and_abspath(tmp_path):
     paths = collect_paths(rel_path)
     assert len(paths) == 1
     assert os.path.isabs(paths[0])
+
+
+def test_upload_folder_path_is_absolutized(gui):
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(0)
+    gui.inputs["config"]["server"].setText("http://local:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-folder"]["path"].setText("relative/folder")
+    opts = gui.build_command(False)
+    assert opts[-1]
+    assert os.path.isabs(opts[-1])
+
+
+def test_archive_folder_path_is_absolutized(gui):
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(0)
+    gui.inputs["archive-folder"]["path"].setText("relative/source")
+    gui.inputs["archive-folder"]["write-to"].setText("/tmp/dest")
+    opts = gui.build_command(False)
+    assert opts[-1]
+    assert os.path.isabs(opts[-1])
+
+
+def test_archive_folder_destination_warnings(gui, tmp_path):
+    src = tmp_path / "src"
+    dest = src / "dest"
+    src.mkdir()
+    dest.mkdir()
+
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(0)
+    gui.inputs["archive-folder"]["path"].setText(str(src))
+    gui.inputs["archive-folder"]["write-to"].setText(str(dest))
+
+    validation = gui.validate_inputs()
+    assert any("inside the source" in w for w in validation.warnings)
+
+
+def test_missing_fixtures_not_fully_compatible(tmp_path):
+    from core.cli_contract import check_fixtures
+    report = check_fixtures.__wrapped__(str(tmp_path / "missing-fixtures")) if hasattr(check_fixtures, "__wrapped__") else None
+    # Direct unit test against the method
+    from core.cli_contract import CompatibilityReport
+    report_missing = CompatibilityReport(version="0.99.0", supported=False)
+    assert report_missing.is_fully_compatible() is False
+    report_empty = CompatibilityReport(version="0.99.0", supported=True)
+    assert report_empty.is_fully_compatible() is True
 
 
 ================================================================================
