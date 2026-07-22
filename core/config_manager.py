@@ -141,17 +141,22 @@ def default_config_dir() -> Path:
         return Path.home() / ".config" / "immich-go-gui"
 
 
-def default_config_path() -> Path:
-    """Returns the path to the primary config TOML file."""
+def default_config_path(profile_name: str | None = None) -> Path:
+    """Returns the path to the config TOML file for the given or active profile."""
     env_override = os.environ.get("IMMICH_GO_GUI_CONFIG", "").strip()
     if env_override:
         return Path(env_override)
-    return default_config_dir() / "config.toml"
+
+    from .profile_manager import active_profile_name, profile_config_path
+    target_profile = profile_name or active_profile_name()
+    return profile_config_path(target_profile)
 
 
-def default_secrets_path() -> Path:
-    """Returns the path to secrets.toml file."""
-    return default_config_path().parent / "secrets.toml"
+def default_secrets_path(profile_name: str | None = None) -> Path:
+    """Returns the path to secrets.toml file for the given or active profile."""
+    from .profile_manager import active_profile_name, profile_secrets_path
+    target_profile = profile_name or active_profile_name()
+    return profile_secrets_path(target_profile)
 
 
 def _atomic_write_text(path: Path, text: str, mode: int | None = None) -> None:
@@ -169,12 +174,15 @@ def _atomic_write_text(path: Path, text: str, mode: int | None = None) -> None:
     os.replace(tmp, path)
 
 
-def load_config(path: Path | None = None) -> AppConfig:
+def load_config(path: Path | None = None, profile_name: str | None = None) -> AppConfig:
     """Loads configuration from user-level TOML file."""
     if path is None:
-        path = default_config_path()
+        path = default_config_path(profile_name)
 
     cfg = AppConfig()
+    from .profile_manager import active_profile_name
+    cfg.profile_name = profile_name or active_profile_name()
+
     if not path.exists():
         return cfg
 
@@ -190,6 +198,7 @@ def load_config(path: Path | None = None) -> AppConfig:
     cfg.theme_mode = gen.get("theme", "system")
     cfg.advanced_mode = gen.get("advanced_mode", False)
     cfg.allow_untested_updates = gen.get("allow_untested_updates", False)
+    cfg.preferred_terminal = gen.get("preferred_terminal", "auto")
 
     srv = data.get("server", {})
     cfg.server_url = srv.get("url", "")
@@ -213,10 +222,11 @@ def load_config(path: Path | None = None) -> AppConfig:
     return cfg
 
 
-def save_config(config: AppConfig, path: Path | None = None) -> None:
+def save_config(config: AppConfig, path: Path | None = None, profile_name: str | None = None) -> None:
     """Saves AppConfig to user-level TOML file."""
+    target_prof = profile_name or config.profile_name
     if path is None:
-        path = default_config_path()
+        path = default_config_path(target_prof)
 
     on_errors_val = "custom" if config.on_errors in ("custom", "custom…") else config.on_errors
 
@@ -226,6 +236,7 @@ def save_config(config: AppConfig, path: Path | None = None) -> None:
             "theme": config.theme_mode,
             "advanced_mode": config.advanced_mode,
             "allow_untested_updates": config.allow_untested_updates,
+            "preferred_terminal": config.preferred_terminal,
         },
         "server": {
             "url": config.server_url,

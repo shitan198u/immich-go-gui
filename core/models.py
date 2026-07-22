@@ -73,9 +73,11 @@ class AppConfig:
     """Application user configuration model."""
     schema_version: int = 2
 
+    profile_name: str = "default"
     theme_mode: str = "system"
     advanced_mode: bool = False
     allow_untested_updates: bool = False
+    preferred_terminal: str = "auto"
 
     server_url: str = ""
     skip_ssl: bool = False

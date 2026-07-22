@@ -63,6 +63,18 @@ from .command_builder import (
     validate_date_range,
     validate_state,
 )
+from .profile_manager import (
+    ProfileInfo,
+    active_profile_name,
+    create_profile,
+    delete_profile,
+    duplicate_profile,
+    ensure_default_profile,
+    list_profiles,
+    rename_profile,
+    set_active_profile_name,
+    validate_profile_name,
+)
 
 __all__ = [
     # models
