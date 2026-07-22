@@ -3,7 +3,7 @@ name = "immich-go-gui"
 version = "1.0.1"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.11.8"
+requires-python = ">=3.14"
 dependencies = [
     "keyring>=25.0.0",
     "psutil>=6.1.1",
