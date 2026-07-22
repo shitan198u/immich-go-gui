@@ -153,39 +153,15 @@ from immichgo_binary import (
 
 
 
-class SecretStore:
-    """Manages API keys via the OS-native keychain."""
-    SERVICE_NAME = "immich-go-gui"
-
-    @staticmethod
-    def set_api_key(api_key: str):
-        try:
-            keyring.set_password(SecretStore.SERVICE_NAME, "immich_api_key", api_key)
-        except Exception:
-            pass
-
-    @staticmethod
-    def get_api_key() -> str:
-        try:
-            return keyring.get_password(SecretStore.SERVICE_NAME, "immich_api_key") or ""
-        except Exception:
-            return ""
-
-    @staticmethod
-    def clear_api_key():
-        try:
-            keyring.delete_password(SecretStore.SERVICE_NAME, "immich_api_key")
-        except Exception:
-            pass
-
-    @staticmethod
-    def migrate_from_qsettings(settings: QSettings):
-        """One-time migration: move plain-text API key from QSettings to keychain."""
-        old_key = settings.value("api_key", "")
-        if old_key:
-            SecretStore.set_api_key(old_key)
-            settings.remove("api_key")
-            settings.sync()
+from immichgo_config import (
+    SecretStore,
+    clear_api_key,
+    default_config_path,
+    get_api_key,
+    load_config,
+    save_config,
+    set_api_key,
+)
 
 
 # ==========================================================
@@ -496,6 +472,7 @@ class ImmichGoGUI(QMainWindow):
         self.setMinimumSize(900, 600)
 
         self.binary_manager = BinaryManager()
+        self.app_config = load_config()
         self.settings = QSettings("YourOrganization", "ImmichGoGUI")
 
         # FIX Phase 1 #6: migrate old plain-text API key to keychain
@@ -2528,39 +2505,129 @@ class ImmichGoGUI(QMainWindow):
     # PERSISTENCE
     # ==========================================================
 
-    def save_configuration(self):
-        self.settings.setValue("server_url", self.inputs["config"]["server"].text())
-        # FIX Phase 1 #6: API key goes to OS keychain, NOT QSettings
-        api_key = self.inputs["config"]["api_key"].text().strip()
-        if api_key:
-            SecretStore.set_api_key(api_key)
-        if "skip-ssl" in self.inputs["config"]:
-            self.settings.setValue("skip_ssl", self.inputs["config"]["skip-ssl"].isChecked())
-        if hasattr(self, "theme_mode_combo"):
-            self.settings.setValue("theme_mode", self.theme_mode_combo.currentText())
-        QMessageBox.information(self, "Saved", "Configuration saved successfully.")
-
-    def load_configuration(self):
-        self.inputs["config"]["server"].setText(
-            self.settings.value("server_url", "")
-        )
-        # FIX Phase 1 #6: API key loaded from OS keychain
-        self.inputs["config"]["api_key"].setText(
-            SecretStore.get_api_key()
-        )
-        if "skip-ssl" in self.inputs["config"]:
-            self.inputs["config"]["skip-ssl"].setChecked(
-                self.settings.value("skip_ssl", False, type=bool)
-            )
-        theme_mode = normalize_theme_mode(
+    def _migrate_legacy_qsettings_to_config(self):
+        cfg = AppConfig()
+        cfg.server_url = self.settings.value("server_url", "")
+        cfg.skip_ssl = self.settings.value("skip_ssl", False, type=bool)
+        cfg.theme_mode = normalize_theme_mode(
             self.settings.value("theme_mode", THEME_SYSTEM)
         )
-        self.theme_mode = theme_mode
+        save_config(cfg)
+        old_key = self.settings.value("api_key", "")
+        if old_key:
+            set_api_key(old_key, cfg)
+            self.settings.remove("api_key")
+            self.settings.sync()
+
+    def load_configuration(self):
+        self.app_config = load_config()
+
+        if not default_config_path().exists():
+            self._migrate_legacy_qsettings_to_config()
+            self.app_config = load_config()
+
+        self.inputs["config"]["server"].setText(self.app_config.server_url)
+
+        if "skip-ssl" in self.inputs["config"]:
+            self.inputs["config"]["skip-ssl"].setChecked(self.app_config.skip_ssl)
+
+        self.inputs["config"]["api_key"].setText(
+            get_api_key(self.app_config)
+        )
+
+        if "client_timeout" in self.inputs["config"]:
+            self.inputs["config"]["client_timeout"].setValue(
+                self.app_config.client_timeout_minutes
+            )
+
+        if "concurrent" in self.inputs["config"] and self.app_config.concurrent_tasks > 0:
+            self.inputs["config"]["concurrent"].setValue(
+                self.app_config.concurrent_tasks
+            )
+
+        if "device_uuid" in self.inputs["config"]:
+            self.inputs["config"]["device_uuid"].setText(
+                self.app_config.device_uuid
+            )
+
+        if "on_errors" in self.inputs["config"]:
+            if self.app_config.on_errors == "custom":
+                self.inputs["config"]["on_errors"].setCurrentText("custom…")
+            else:
+                self.inputs["config"]["on_errors"].setCurrentText(
+                    self.app_config.on_errors
+                )
+
+        if "on_errors_tolerance" in self.inputs["config"]:
+            self.inputs["config"]["on_errors_tolerance"].setValue(
+                self.app_config.on_errors_tolerance
+            )
+
+        if "pause_jobs" in self.inputs["config"]:
+            self.inputs["config"]["pause_jobs"].setChecked(
+                self.app_config.pause_immich_jobs
+            )
+
+        self.theme_mode = normalize_theme_mode(self.app_config.theme_mode)
+
         if hasattr(self, "theme_mode_combo"):
             self.theme_mode_combo.blockSignals(True)
-            self.theme_mode_combo.setCurrentText(theme_mode)
+            self.theme_mode_combo.setCurrentText(self.theme_mode)
             self.theme_mode_combo.blockSignals(False)
-        self.apply_theme(theme_mode)
+
+        self.apply_theme(self.theme_mode)
+
+    def save_configuration(self):
+        self.app_config.server_url = self.inputs["config"]["server"].text()
+
+        if "skip-ssl" in self.inputs["config"]:
+            self.app_config.skip_ssl = self.inputs["config"]["skip-ssl"].isChecked()
+
+        if "client_timeout" in self.inputs["config"]:
+            self.app_config.client_timeout_minutes = (
+                self.inputs["config"]["client_timeout"].value()
+            )
+
+        if "concurrent" in self.inputs["config"]:
+            self.app_config.concurrent_tasks = (
+                self.inputs["config"]["concurrent"].value()
+            )
+
+        if "device_uuid" in self.inputs["config"]:
+            self.app_config.device_uuid = (
+                self.inputs["config"]["device_uuid"].text().strip()
+            )
+
+        if "on_errors" in self.inputs["config"]:
+            on_errors_text = self.inputs["config"]["on_errors"].currentText()
+            if on_errors_text == "custom…":
+                self.app_config.on_errors = "custom"
+            else:
+                self.app_config.on_errors = on_errors_text
+
+        if "on_errors_tolerance" in self.inputs["config"]:
+            self.app_config.on_errors_tolerance = (
+                self.inputs["config"]["on_errors_tolerance"].value()
+            )
+
+        if "pause_jobs" in self.inputs["config"]:
+            self.app_config.pause_immich_jobs = (
+                self.inputs["config"]["pause_jobs"].isChecked()
+            )
+
+        if hasattr(self, "theme_mode_combo"):
+            self.app_config.theme_mode = self.theme_mode_combo.currentText()
+
+        save_config(self.app_config)
+
+        api_key = self.inputs["config"]["api_key"].text().strip()
+        set_api_key(api_key, self.app_config)
+
+        QMessageBox.information(
+            self,
+            "Saved",
+            "Configuration saved successfully.",
+        )
 
     def open_github_link(self):
         webbrowser.open("https://github.com/simulot/immich-go")
