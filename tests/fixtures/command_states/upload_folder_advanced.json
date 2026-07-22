@@ -1,0 +1,42 @@
+{
+  "tab_key": "upload-folder",
+  "config_state": {
+    "server": "http://localhost:2283",
+    "api_key": "secret_key_123",
+    "skip-ssl": false,
+    "client_timeout": 30,
+    "concurrent": 4
+  },
+  "tab_state": {
+    "path": "/data/photos",
+    "include-type": "image",
+    "folder-album": "RELATIVE",
+    "overwrite": true,
+    "manage-burst": "Stack",
+    "date-range": "2023-01-01,2023-12-31",
+    "include-ext": ".jpg,.png",
+    "exclude-ext": ".tmp",
+    "ignore-sidecar": true,
+    "tag": "Imported, 2023",
+    "session-tag": true
+  },
+  "expected_argv": [
+    "upload",
+    "from-folder",
+    "--server=http://localhost:2283",
+    "--client-timeout=30m",
+    "--concurrent-tasks=4",
+    "--include-type=image",
+    "--folder-as-album=RELATIVE",
+    "--overwrite",
+    "--manage-burst=Stack",
+    "--date-range=2023-01-01,2023-12-31",
+    "--include-extensions=.jpg,.png",
+    "--exclude-extensions=.tmp",
+    "--ignore-sidecar-files",
+    "--tag=Imported",
+    "--tag=2023",
+    "--session-tag",
+    "/data/photos"
+  ]
+}

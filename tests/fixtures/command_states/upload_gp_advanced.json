@@ -1,0 +1,29 @@
+{
+  "tab_key": "upload-gp",
+  "config_state": {
+    "server": "http://localhost:2283",
+    "api_key": "secret_key_123",
+    "skip-ssl": true,
+    "client_timeout": 20
+  },
+  "tab_state": {
+    "path": "/takeout/takeout-001.zip",
+    "manage-burst": "Stack",
+    "manage-raw-jpeg": "StackCoverRaw",
+    "include-untitled-albums": true,
+    "date-range": "2022",
+    "tag": "GooglePhotos"
+  },
+  "expected_argv": [
+    "upload",
+    "from-google-photos",
+    "--server=http://localhost:2283",
+    "--skip-verify-ssl",
+    "--manage-burst=Stack",
+    "--manage-raw-jpeg=StackCoverRaw",
+    "--include-untitled-albums",
+    "--date-range=2022",
+    "--tag=GooglePhotos",
+    "/takeout/takeout-001.zip"
+  ]
+}

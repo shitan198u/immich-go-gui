@@ -1,0 +1,18 @@
+{
+  "tab_key": "archive-folder",
+  "config_state": {},
+  "tab_state": {
+    "path": "/source/photos",
+    "write-to": "/backup/dest",
+    "date-range": "2024",
+    "include-type": "image"
+  },
+  "expected_argv": [
+    "archive",
+    "from-folder",
+    "--write-to=/backup/dest",
+    "--date-range=2024",
+    "--include-type=image",
+    "/source/photos"
+  ]
+}

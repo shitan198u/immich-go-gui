@@ -467,6 +467,15 @@ def build_plan_from_state(
         if tab_state.get("api-trace"):
             emitter.add_flag("api-trace")
 
+        if tab_state.get("album-path-joiner"):
+            emitter.add_option("album-path-joiner", tab_state["album-path-joiner"])
+
+        if tab_state.get("album-picasa"):
+            emitter.add_flag("album-picasa")
+
+        if tab_state.get("manage-epson-fastfoto"):
+            emitter.add_flag("manage-epson-fastfoto")
+
         if tab_state.get("path"):
             path_opt.append(tab_state["path"])
 
@@ -568,6 +577,29 @@ def build_plan_from_state(
         if tab_state.get("from-skip-ssl"):
             emitter.add_flag("from-skip-verify-ssl")
 
+        if tab_state.get("from-include-type", "all") != "all":
+            emitter.add_option("from-include-type", tab_state["from-include-type"])
+
+        inc_ext = normalize_extensions_csv(str(tab_state.get("from-include-ext", "")))
+        if inc_ext:
+            emitter.add_option("from-include-extensions", inc_ext)
+
+        exc_ext = normalize_extensions_csv(str(tab_state.get("from-exclude-ext", "")))
+        if exc_ext:
+            emitter.add_option("from-exclude-extensions", exc_ext)
+
+        if tab_state.get("from-partners"):
+            emitter.add_flag("from-partners")
+
+        if tab_state.get("from-time-zone"):
+            emitter.add_option("from-time-zone", tab_state["from-time-zone"])
+
+        if tab_state.get("from-no-album"):
+            emitter.add_flag("from-no-album")
+
+        if tab_state.get("from-device-uuid"):
+            emitter.add_option("from-device-uuid", tab_state["from-device-uuid"])
+
         if tab_state.get("api-trace"):
             emitter.add_flag("api-trace")
 
@@ -578,6 +610,28 @@ def build_plan_from_state(
         dr = clean_date_range(str(tab_state.get("date-range", "")))
         if dr:
             emitter.add_option("date-range", dr)
+
+        if tab_state.get("include-type", "all") != "all":
+            emitter.add_option("include-type", tab_state["include-type"])
+
+        inc_ext = normalize_extensions_csv(str(tab_state.get("include-ext", "")))
+        if inc_ext:
+            emitter.add_option("include-extensions", inc_ext)
+
+        exc_ext = normalize_extensions_csv(str(tab_state.get("exclude-ext", "")))
+        if exc_ext:
+            emitter.add_option("exclude-extensions", exc_ext)
+
+        if tab_state.get("ban-file"):
+            for line in str(tab_state["ban-file"]).split("\n"):
+                if line.strip():
+                    emitter.add_option("ban-file", line.strip())
+
+        if tab_state.get("ignore-sidecar"):
+            emitter.add_flag("ignore-sidecar-files")
+
+        if tab_state.get("date-from-name"):
+            emitter.add_flag("date-from-name")
 
         if tab_state.get("path"):
             path_opt.append(tab_state["path"])
@@ -593,6 +647,63 @@ def build_plan_from_state(
             for a in str(tab_state["from-albums"]).split(","):
                 if a.strip():
                     emitter.add_option("from-albums", a.strip())
+
+        if tab_state.get("from-favorite"):
+            emitter.add_flag("from-favorite")
+
+        if tab_state.get("from-archived"):
+            emitter.add_flag("from-archived")
+
+        if tab_state.get("from-trash"):
+            emitter.add_flag("from-trash")
+
+        if tab_state.get("from-minimal-rating", 0) > 0:
+            emitter.add_option("from-minimal-rating", tab_state["from-minimal-rating"])
+
+        if tab_state.get("from-people"):
+            for p in str(tab_state["from-people"]).split(","):
+                if p.strip():
+                    emitter.add_option("from-people", p.strip())
+
+        if tab_state.get("from-tags"):
+            for t in str(tab_state["from-tags"]).split(","):
+                if t.strip():
+                    emitter.add_option("from-tags", t.strip())
+
+        if tab_state.get("from-city"):
+            emitter.add_option("from-city", tab_state["from-city"])
+
+        if tab_state.get("from-state"):
+            emitter.add_option("from-state", tab_state["from-state"])
+
+        if tab_state.get("from-country"):
+            emitter.add_option("from-country", tab_state["from-country"])
+
+        if tab_state.get("from-make"):
+            emitter.add_option("from-make", tab_state["from-make"])
+
+        if tab_state.get("from-model"):
+            emitter.add_option("from-model", tab_state["from-model"])
+
+        if tab_state.get("from-include-type", "all") != "all":
+            emitter.add_option("from-include-type", tab_state["from-include-type"])
+
+        inc_ext = normalize_extensions_csv(str(tab_state.get("from-include-ext", "")))
+        if inc_ext:
+            emitter.add_option("from-include-extensions", inc_ext)
+
+        exc_ext = normalize_extensions_csv(str(tab_state.get("from-exclude-ext", "")))
+        if exc_ext:
+            emitter.add_option("from-exclude-extensions", exc_ext)
+
+        if tab_state.get("from-partners"):
+            emitter.add_flag("from-partners")
+
+        if tab_state.get("from-time-zone"):
+            emitter.add_option("from-time-zone", tab_state["from-time-zone"])
+
+        if tab_state.get("from-no-album"):
+            emitter.add_flag("from-no-album")
 
     elif tab_key == "stack":
         if tab_state.get("manage-burst", "NoStack") != "NoStack":

@@ -1,0 +1,26 @@
+{
+  "tab_key": "upload-immich",
+  "config_state": {
+    "server": "http://new-immich:2283",
+    "api_key": "target-secret-key"
+  },
+  "tab_state": {
+    "from-server": "http://old-immich:2283",
+    "from-api-key": "source-secret-key",
+    "from-favorite": true,
+    "from-archived": true,
+    "from-date-range": "2021-01-01,2023-01-01",
+    "from-albums": "Vacation, Favorites"
+  },
+  "expected_argv": [
+    "upload",
+    "from-immich",
+    "--server=http://new-immich:2283",
+    "--from-server=http://old-immich:2283",
+    "--from-favorite",
+    "--from-archived",
+    "--from-date-range=2021-01-01,2023-01-01",
+    "--from-albums=Vacation",
+    "--from-albums=Favorites"
+  ]
+}

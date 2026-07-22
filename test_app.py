@@ -1330,3 +1330,33 @@ def test_terminal_launcher_working_directory_isolation(tmp_path, monkeypatch):
         if run_sh.exists():
             content = run_sh.read_text(encoding="utf-8")
             assert f"cd '{latest_temp}'" in content or "cd " in content
+
+
+# ==============================================================================
+# SECTION 3: CLI CORRECTNESS & COMPATIBILITY TESTS (MILESTONE 3)
+# ==============================================================================
+
+import json
+from core.command_builder import build_plan_from_state
+
+
+def test_golden_json_fixtures():
+    fixtures_dir = Path(__file__).resolve().parent / "tests" / "fixtures" / "command_states"
+    json_files = list(fixtures_dir.glob("*.json"))
+    assert len(json_files) >= 6, "Expected at least 6 golden state fixtures"
+
+    for jf in json_files:
+        data = json.loads(jf.read_text(encoding="utf-8"))
+        tab_key = data["tab_key"]
+        config_state = data.get("config_state", {})
+        tab_state = data.get("tab_state", {})
+        expected_argv = data["expected_argv"]
+
+        plan = build_plan_from_state(
+            tab_key=tab_key,
+            config_state=config_state,
+            tab_state=tab_state,
+            binary_path="./immich-go",
+            dry_run=False,
+        )
+        assert plan.argv == expected_argv, f"Fixture {jf.name} produced unexpected argv: {plan.argv} != {expected_argv}"
