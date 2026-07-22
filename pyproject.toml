@@ -3,11 +3,14 @@ name = "immich-go-gui"
 version = "1.0.1"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.11.8"
+requires-python = ">=3.14"
 dependencies = [
+    "keyring>=25.0.0",
+    "packaging>=24.0.0",
     "psutil>=6.1.1",
     "pyside6>=6.8.2",
     "requests>=2.32.3",
+    "tomli-w>=1.2.0",
 ]
 
 [dependency-groups]

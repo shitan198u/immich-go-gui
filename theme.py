@@ -2,6 +2,7 @@ from PySide6.QtWidgets import QApplication, QStyleFactory
 from PySide6.QtGui import QGuiApplication, QPalette, QColor, QIcon, QPixmap, QPainter
 from PySide6.QtCore import Qt, QByteArray
 from PySide6.QtSvg import QSvgRenderer
+from functools import lru_cache
 import os
 
 THEME_SYSTEM = "System"
@@ -37,6 +38,7 @@ def detect_system_theme() -> str:
     fg = pal.color(QPalette.ColorRole.WindowText)
     return "dark" if fg.lightness() > bg.lightness() else "light"
 
+@lru_cache(maxsize=8)
 def theme_tokens(theme: str) -> dict:
     if theme == "dark":
         return {
@@ -60,15 +62,21 @@ def theme_tokens(theme: str) -> dict:
         "terminal_bg": "#111827", "terminal_text": "#F9FAFB",
     }
 
+@lru_cache(maxsize=8)
 def build_stylesheet(theme: str) -> str:
     t = theme_tokens(theme)
+    check_icon = os.path.join(os.path.dirname(__file__), "assets", "icons", "check.svg").replace("\\", "/")
     return f"""
-QMainWindow, QDialog, QWidget {{
-    background-color: {t['bg']};
-    color: {t['text']};
-    font-family: "Segoe UI", system-ui, sans-serif;
-    font-size: 14px;
-}}
+        QMainWindow, QDialog {{
+            background-color: {t['bg']};
+            color: {t['text']};
+        }}
+        QWidget {{
+            color: {t['text']};
+            font-family: "Segoe UI", system-ui, sans-serif;
+            font-size: 14px;
+            background: transparent;
+        }}
 
 QToolTip {{
     background-color: {t['surface']};
@@ -294,6 +302,35 @@ QComboBox QAbstractItemView {{
     border: 1px solid {t['border']};
 }}
 
+        /* ---- Item-view headers: explicit so they don't fall back to black under an app stylesheet ---- */
+        QHeaderView {{
+            background-color: {t['surface_alt']};
+            border: none;
+        }}
+        QHeaderView::section {{
+            background-color: {t['surface_alt']};
+            color: {t['text_muted']};
+            border: none;
+            border-right: 1px solid {t['border']};
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 600;
+        }}
+        QHeaderView::section:last {{
+            border-right: none;
+        }}
+        /* keep the dialog's tree/list body on a real plane too (rows already read from palette Base) */
+        QAbstractItemView {{
+            background-color: {t['surface']};
+            color: {t['text']};
+            border: 1px solid {t['border']};
+            outline: 0;
+        }}
+        QAbstractItemView::item:selected {{
+            background-color: {t['accent_subtle']};
+            color: {t['accent']};
+        }}
+
 QCheckBox {{
     color: {t['text']};
     spacing: 8px;
@@ -302,6 +339,56 @@ QCheckBox {{
 QCheckBox:disabled {{
     color: {t['text_faint']};
 }}
+
+        /* ---- Check / radio indicators: explicit so they survive QSS styled-mode ---- */
+        QCheckBox::indicator,
+        QRadioButton::indicator {{
+            width: 16px;
+            height: 16px;
+            border: 1px solid {t['border_strong']};
+            border-radius: 4px;
+            background-color: {t['input_bg']};
+        }}
+        QCheckBox::indicator:hover,
+        QRadioButton::indicator:hover {{
+            border-color: {t['accent']};
+        }}
+        QCheckBox::indicator:checked,
+        QRadioButton::indicator:checked {{
+            background-color: {t['accent']};
+            border-color: {t['accent']};
+        }}
+        QCheckBox::indicator:checked {{
+            image: url("{check_icon}");
+        }}
+        QCheckBox::indicator:disabled,
+        QRadioButton::indicator:disabled {{
+            background-color: {t['surface_alt']};
+            border-color: {t['border']};
+        }}
+        QRadioButton::indicator {{
+            border-radius: 8px;
+        }}
+        /* ---- Combo / spin arrows: CSS triangles, no image files needed ---- */
+        QComboBox::down-arrow {{
+            width: 0; height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid {t['text_muted']};
+            margin-right: 6px;
+        }}
+        QSpinBox::up-arrow {{
+            width: 0; height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-bottom: 5px solid {t['text_muted']};
+        }}
+        QSpinBox::down-arrow {{
+            width: 0; height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid {t['text_muted']};
+        }}
 
 /* Buttons */
 QPushButton {{
@@ -362,6 +449,38 @@ QPushButton#BtnPreview:disabled {{
     border-color: {t['border']};
 }}
 
+        /* ---- Tabs (Upload / Archive sub-navigation) ---- */
+        QTabWidget {{
+            background: transparent;
+            border: none;
+        }}
+        QTabWidget::pane {{
+            border: none;
+            background: transparent;
+        }}
+        QTabBar {{
+            background: transparent;
+            spacing: 6px;
+        }}
+        QTabBar::tab {{
+            background: transparent;
+            color: {t['text_muted']};
+            border: 1px solid transparent;
+            border-radius: 7px;
+            padding: 8px 18px;
+            font-size: 13.5px;
+            font-weight: 600;
+        }}
+        QTabBar::tab:hover:!selected {{
+            color: {t['text']};
+            background-color: {t['button_hover']};
+        }}
+        QTabBar::tab:selected {{
+            color: {t['accent']};
+            background-color: {t['accent_subtle']};
+            border: 1px solid {t['accent']};
+        }}
+
 /* Dialogs */
 QDialog {{
     background-color: {t['surface']};
@@ -416,7 +535,7 @@ QProgressBar::chunk {{
 /* Scroll areas */
 QScrollArea {{
     border: none;
-    background: transparent;
+    background-color: {t['bg']};
 }}
 
 QScrollBar:vertical {{
@@ -530,8 +649,15 @@ def connect_system_theme_changes(callback):
     except Exception: pass
     return False
 
+_ICON_CACHE: dict[tuple[str, str], QIcon] = {}
+
 def load_themed_icon(icon_name: str, theme: str) -> QIcon:
     """Loads an SVG icon from assets/icons and colors it based on the theme."""
+    key = (icon_name, theme)
+    cached = _ICON_CACHE.get(key)
+    if cached is not None:
+        return cached
+
     t = theme_tokens(theme)
     # Using text_muted for a subtle unselected look in sidebar
     color = t["text_muted"]
@@ -539,7 +665,9 @@ def load_themed_icon(icon_name: str, theme: str) -> QIcon:
     svg_path = os.path.join(os.path.dirname(__file__), "assets", "icons", f"{icon_name}.svg")
     
     if not os.path.exists(svg_path):
-        return QIcon()
+        icon = QIcon()
+        _ICON_CACHE[key] = icon
+        return icon
         
     with open(svg_path, "r", encoding="utf-8") as f:
         svg_content = f.read()
@@ -556,4 +684,9 @@ def load_themed_icon(icon_name: str, theme: str) -> QIcon:
     renderer.render(painter)
     painter.end()
     
-    return QIcon(pixmap)
+    icon = QIcon(pixmap)
+    _ICON_CACHE[key] = icon
+    return icon
+
+def clear_icon_cache() -> None:
+    _ICON_CACHE.clear()
