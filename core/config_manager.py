@@ -4,9 +4,10 @@ This module handles user-level TOML configuration files and secret providers (OS
 and plaintext secrets.toml) without PySide6 or Qt dependencies.
 """
 
+from dataclasses import dataclass
 import os
-import sys
 from pathlib import Path
+import sys
 from typing import Optional
 
 try:
@@ -21,49 +22,105 @@ from .models import AppConfig
 
 
 def _get_keyring():
-    app_mod = sys.modules.get("app")
-    if app_mod and hasattr(app_mod, "keyring"):
-        return app_mod.keyring
     return keyring
 
 
+@dataclass
+class SecretSaveResult:
+    ok: bool
+    provider_used: str
+    message: str = ""
+
+
 class SecretStore:
-    """Manages API keys via OS-native keyring."""
+    """Manages profile-scoped API keys via OS-native keyring with safe migration."""
 
     SERVICE_NAME = "immich-go-gui"
 
     @staticmethod
-    def set_api_key(api_key: str) -> None:
+    def _make_keyring_user(profile_name: str, key: str) -> str:
+        return f"{profile_name}:{key}"
+
+    @staticmethod
+    def set_secret(profile_name: str, key: str, value: str) -> bool:
+        user = SecretStore._make_keyring_user(profile_name, key)
         try:
-            _get_keyring().set_password(SecretStore.SERVICE_NAME, "immich_api_key", api_key)
+            _get_keyring().set_password(SecretStore.SERVICE_NAME, user, value)
+            return True
+        except Exception:
+            return False
+
+    @staticmethod
+    def get_secret(profile_name: str, key: str) -> str:
+        user = SecretStore._make_keyring_user(profile_name, key)
+        try:
+            val = _get_keyring().get_password(SecretStore.SERVICE_NAME, user)
+            if val:
+                return val
+        except Exception:
+            pass
+
+        # Legacy compatibility for default profile api_key
+        if profile_name == "default" and key == "api_key":
+            try:
+                legacy_val = _get_keyring().get_password(SecretStore.SERVICE_NAME, "immich_api_key")
+                if legacy_val:
+                    # Non-destructive migration
+                    if SecretStore.set_secret("default", "api_key", legacy_val):
+                        # Verify read back before deleting old key
+                        verified = _get_keyring().get_password(SecretStore.SERVICE_NAME, user)
+                        if verified == legacy_val:
+                            try:
+                                _get_keyring().delete_password(SecretStore.SERVICE_NAME, "immich_api_key")
+                            except Exception:
+                                pass
+                    return legacy_val
+            except Exception:
+                pass
+
+        return ""
+
+    @staticmethod
+    def clear_secret(profile_name: str, key: str) -> None:
+        user = SecretStore._make_keyring_user(profile_name, key)
+        try:
+            _get_keyring().delete_password(SecretStore.SERVICE_NAME, user)
         except Exception:
             pass
 
     @staticmethod
-    def get_api_key() -> str:
-        try:
-            return _get_keyring().get_password(SecretStore.SERVICE_NAME, "immich_api_key") or ""
-        except Exception:
-            return ""
-
-    @staticmethod
-    def clear_api_key() -> None:
-        try:
-            _get_keyring().delete_password(SecretStore.SERVICE_NAME, "immich_api_key")
-        except Exception:
-            pass
+    def copy_secrets(src_profile: str, dst_profile: str) -> None:
+        for k in ("api_key", "admin_api_key"):
+            val = SecretStore.get_secret(src_profile, k)
+            if val:
+                SecretStore.set_secret(dst_profile, k, val)
 
     @staticmethod
     def migrate_from_qsettings(settings) -> None:
-        """One-time migration helper for settings objects."""
+        """One-time migration helper for QSettings objects."""
         try:
             old_key = settings.value("api_key", "")
             if old_key:
-                SecretStore.set_api_key(old_key)
-                settings.remove("api_key")
-                settings.sync()
+                if SecretStore.set_secret("default", "api_key", old_key):
+                    read_back = SecretStore.get_secret("default", "api_key")
+                    if read_back == old_key:
+                        settings.remove("api_key")
+                        settings.sync()
         except Exception:
             pass
+
+    # Legacy static helpers for backwards compatibility
+    @staticmethod
+    def set_api_key(api_key: str) -> None:
+        SecretStore.set_secret("default", "api_key", api_key)
+
+    @staticmethod
+    def get_api_key() -> str:
+        return SecretStore.get_secret("default", "api_key")
+
+    @staticmethod
+    def clear_api_key() -> None:
+        SecretStore.clear_secret("default", "api_key")
 
 
 def default_config_dir() -> Path:
@@ -216,42 +273,91 @@ def save_secrets(secrets: dict, path: Path | None = None) -> None:
     _atomic_write_text(path, text, mode=0o600)
 
 
-def get_api_key(config: AppConfig | None = None) -> str:
-    """Resolves API key according to secret policy."""
-    env_val = os.environ.get("IMMICH_GO_GUI_API_KEY", "").strip()
+def get_secret_with_fallback(
+    profile_name: str = "default",
+    key: str = "api_key",
+    provider: str = "keyring",
+    secrets_path: Path | None = None,
+) -> str:
+    """Resolves secret using environment overrides and provider settings."""
+    env_var = "IMMICH_GO_GUI_API_KEY" if key == "api_key" else "IMMICH_GO_GUI_ADMIN_API_KEY"
+    env_val = os.environ.get(env_var, "").strip()
     if env_val:
         return env_val
 
-    if config and config.secrets_provider == "config":
-        secrets = load_secrets()
-        val = str(secrets.get("api_key", "")).strip()
+    if provider == "config":
+        secrets = load_secrets(secrets_path)
+        val = str(secrets.get(key, "")).strip()
         if val:
             return val
+        return SecretStore.get_secret(profile_name, key)
+    else: # keyring provider
+        val = SecretStore.get_secret(profile_name, key)
+        if val:
+            return val
+        secrets = load_secrets(secrets_path)
+        return str(secrets.get(key, "")).strip()
 
-    return SecretStore.get_api_key()
 
-
-def set_api_key(value: str, config: AppConfig) -> None:
-    """Saves API key using the configured secret provider."""
+def save_secret_with_fallback(
+    profile_name: str = "default",
+    key: str = "api_key",
+    value: str = "",
+    provider: str = "keyring",
+    secrets_path: Path | None = None,
+) -> SecretSaveResult:
+    """Saves secret according to provider preference with keyring write failure fallback."""
     value = value.strip()
 
-    if config.secrets_provider == "config":
-        secrets = load_secrets()
-        secrets["api_key"] = value
-        save_secrets(secrets)
-        SecretStore.clear_api_key()
-    else:
-        SecretStore.set_api_key(value)
-        secrets = load_secrets()
-        if "api_key" in secrets:
-            secrets.pop("api_key", None)
-            save_secrets(secrets)
+    if provider == "keyring":
+        if SecretStore.set_secret(profile_name, key, value):
+            # Verify read back
+            read_back = SecretStore.get_secret(profile_name, key)
+            if read_back == value:
+                # Clear local file secret if present
+                secrets = load_secrets(secrets_path)
+                if key in secrets:
+                    secrets.pop(key, None)
+                    save_secrets(secrets, secrets_path)
+                return SecretSaveResult(ok=True, provider_used="keyring")
+
+        # Keyring write failed or failed verification -> Fallback to file
+        secrets = load_secrets(secrets_path)
+        secrets[key] = value
+        save_secrets(secrets, secrets_path)
+        return SecretSaveResult(
+            ok=True,
+            provider_used="config",
+            message="OS keyring is unavailable. Secret was saved to local secrets file instead.",
+        )
+    else: # provider == "config"
+        secrets = load_secrets(secrets_path)
+        secrets[key] = value
+        save_secrets(secrets, secrets_path)
+        SecretStore.clear_secret(profile_name, key)
+        return SecretSaveResult(ok=True, provider_used="config")
+
+
+def get_api_key(config: AppConfig | None = None) -> str:
+    """Resolves API key according to secret policy (backwards-compatible wrapper)."""
+    provider = config.secrets_provider if config else "keyring"
+    return get_secret_with_fallback(profile_name="default", key="api_key", provider=provider)
 
 
 def clear_api_key(config: AppConfig | None = None) -> None:
-    """Cleans up API key from all secret stores."""
-    SecretStore.clear_api_key()
+    """Clears API key (backwards-compatible wrapper)."""
+    SecretStore.clear_secret("default", "api_key")
     secrets = load_secrets()
     if "api_key" in secrets:
         secrets.pop("api_key", None)
         save_secrets(secrets)
+
+
+def set_api_key(value: str, config: AppConfig) -> SecretSaveResult:
+    """Saves API key using configured secret provider (backwards-compatible wrapper)."""
+    return save_secret_with_fallback(
+        profile_name="default",
+        key="api_key",
+        value=value,
+        provider=config.secrets_provider,
+    )

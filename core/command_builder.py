@@ -113,6 +113,7 @@ def build_environment(
     api_key: str,
     from_server: str = "",
     from_api_key: str = "",
+    admin_api_key: str = "",
     base_env: dict[str, str] | None = None,
 ) -> dict[str, str]:
     """Builds a secure environment dict to pass secrets without CLI exposure."""
@@ -136,6 +137,12 @@ def build_environment(
             env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER"] = from_server
         if from_api_key:
             env["IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY"] = from_api_key
+
+    if admin_api_key:
+        if tab_key in UPLOAD_TABS:
+            env["IMMICH_GO_UPLOAD_ADMIN_API_KEY"] = admin_api_key
+        elif tab_key == "stack":
+            env["IMMICH_GO_STACK_ADMIN_API_KEY"] = admin_api_key
 
     return env
 
@@ -282,6 +289,7 @@ def build_plan_from_state(
 
     server = str(config_state.get("server", ""))
     api_key = str(config_state.get("api_key", ""))
+    admin_api_key = str(config_state.get("admin_api_key", ""))
     from_server = str(tab_state.get("from-server", ""))
     from_api_key = str(tab_state.get("from-api-key", ""))
 
@@ -291,6 +299,7 @@ def build_plan_from_state(
         api_key=api_key,
         from_server=normalize_server_url(from_server) if from_server else "",
         from_api_key=from_api_key,
+        admin_api_key=admin_api_key,
         base_env=base_env,
     )
 

@@ -358,22 +358,23 @@ def test_global_skip_ssl_option(gui):
 
 
 def test_secret_store_save_load():
-    with patch("app.keyring") as mock_kr:
+    with patch("core.config_manager.keyring") as mock_kr:
         mock_kr.get_password.return_value = "STORED"
         SecretStore.set_api_key("STORED")
         mock_kr.set_password.assert_called_once_with(
-            "immich-go-gui", "immich_api_key", "STORED"
+            "immich-go-gui", "default:api_key", "STORED"
         )
         assert SecretStore.get_api_key() == "STORED"
 
 
 def test_secret_store_migration():
-    with patch("app.keyring") as mock_kr:
+    with patch("core.config_manager.keyring") as mock_kr:
+        mock_kr.get_password.return_value = "OLD_KEY"
         mock_settings = MagicMock()
         mock_settings.value.return_value = "OLD_KEY"
         SecretStore.migrate_from_qsettings(mock_settings)
         mock_kr.set_password.assert_called_once_with(
-            "immich-go-gui", "immich_api_key", "OLD_KEY"
+            "immich-go-gui", "default:api_key", "OLD_KEY"
         )
         mock_settings.remove.assert_called_once_with("api_key")
 
@@ -1023,3 +1024,100 @@ def test_command_builder_destructive_warnings():
     warn_text = " ".join(plan.warnings)
     assert "KeepJPG may delete the RAW file" in warn_text
     assert "StackKeepJPEG may discard non-cover burst frames" in warn_text
+
+
+# ==============================================================================
+# SECTION 6: SECURITY & SECRET MANAGEMENT TESTS
+# ==============================================================================
+
+from core.config_manager import (
+    SecretStore,
+    get_secret_with_fallback,
+    save_secret_with_fallback,
+    load_secrets,
+    save_secrets,
+)
+
+
+def test_secret_store_profile_scoped(monkeypatch):
+    store = {}
+
+    def mock_set(service, username, password):
+        store[username] = password
+
+    def mock_get(service, username):
+        return store.get(username, None)
+
+    def mock_delete(service, username):
+        store.pop(username, None)
+
+    monkeypatch.setattr("core.config_manager.keyring.set_password", mock_set)
+    monkeypatch.setattr("core.config_manager.keyring.get_password", mock_get)
+    monkeypatch.setattr("core.config_manager.keyring.delete_password", mock_delete)
+
+    assert SecretStore.set_secret("default", "api_key", "key_default") is True
+    assert SecretStore.set_secret("work", "api_key", "key_work") is True
+    assert SecretStore.set_secret("work", "admin_api_key", "admin_work") is True
+
+    assert SecretStore.get_secret("default", "api_key") == "key_default"
+    assert SecretStore.get_secret("work", "api_key") == "key_work"
+    assert SecretStore.get_secret("work", "admin_api_key") == "admin_work"
+
+    SecretStore.clear_secret("work", "api_key")
+    assert SecretStore.get_secret("work", "api_key") == ""
+    assert SecretStore.get_secret("default", "api_key") == "key_default"
+
+
+def test_secret_keyring_failure_fallback(tmp_path, monkeypatch):
+    secrets_file = tmp_path / "secrets.toml"
+
+    def mock_failing_set(service, username, password):
+        raise RuntimeError("Keyring unavailable")
+
+    def mock_failing_get(service, username):
+        return ""
+
+    monkeypatch.setattr("core.config_manager.keyring.set_password", mock_failing_set)
+    monkeypatch.setattr("core.config_manager.keyring.get_password", mock_failing_get)
+
+    res = save_secret_with_fallback(
+        profile_name="default",
+        key="api_key",
+        value="fallback_secret",
+        provider="keyring",
+        secrets_path=secrets_file,
+    )
+
+    assert res.ok is True
+    assert res.provider_used == "config"
+    assert "keyring is unavailable" in res.message.lower()
+
+    val = get_secret_with_fallback(
+        profile_name="default",
+        key="api_key",
+        provider="keyring",
+        secrets_path=secrets_file,
+    )
+    assert val == "fallback_secret"
+
+
+def test_admin_api_key_environment_passing():
+    from core.command_builder import build_plan_from_state
+
+    config_state = {
+        "server": "http://localhost:2283",
+        "api_key": "user_key",
+        "admin_api_key": "super_admin_key",
+    }
+    tab_state = {"path": "/photos"}
+
+    plan = build_plan_from_state(
+        tab_key="upload-folder",
+        config_state=config_state,
+        tab_state=tab_state,
+        binary_path="./immich-go",
+        dry_run=False,
+    )
+
+    assert "super_admin_key" not in plan.argv
+    assert plan.env.get("IMMICH_GO_UPLOAD_ADMIN_API_KEY") == "super_admin_key"

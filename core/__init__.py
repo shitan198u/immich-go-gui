@@ -26,15 +26,18 @@ from .cli_schema import (
 )
 from .config_manager import (
     SecretStore,
+    SecretSaveResult,
     clear_api_key,
     default_config_dir,
     default_config_path,
     default_secrets_path,
     get_api_key,
+    get_secret_with_fallback,
     load_config,
     load_secrets,
     save_config,
     save_secrets,
+    save_secret_with_fallback,
     set_api_key,
 )
 from .binary_manager import (

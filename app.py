@@ -137,17 +137,21 @@ from core import (
     clear_api_key,
     collect_paths,
     default_config_path,
+    default_secrets_path,
     get_api_key,
     get_binary_path,
+    get_secret_with_fallback,
     load_binary_metadata,
     load_config,
     mask_command_for_display,
     normalize_server_url,
     save_binary_metadata,
     save_config,
+    save_secret_with_fallback,
     set_api_key,
     validate_date_range,
     validate_state,
+    SecretStore,
 )
 
 
@@ -834,6 +838,36 @@ class ImmichGoGUI(QMainWindow):
 
         card.layout.addLayout(form)
         page.addWidget(card)
+
+        card_sec = Card("Security & Secret Management")
+        sec_form = FormSection()
+
+        self.cmb_secret_provider = QComboBox()
+        self.cmb_secret_provider.addItem("OS Keyring (recommended)", "keyring")
+        self.cmb_secret_provider.addItem("Local secrets file", "config")
+        self.inputs["config"]["secret_provider"] = self.cmb_secret_provider
+        sec_form.add_row(
+            "Secret Storage",
+            self.cmb_secret_provider,
+            "OS Keyring uses system credential store (Keychain/KWallet/Credential Manager)."
+        )
+
+        self.admin_api_key_edit = QLineEdit()
+        self.admin_api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self.admin_api_key_edit.setPlaceholderText("Optional Immich Admin API key")
+        self.inputs["config"]["admin_api_key"] = self.admin_api_key_edit
+        sec_form.add_row(
+            "Admin API Key",
+            self.admin_api_key_edit,
+            "Required for administrative operations like partner shared albums or user management."
+        )
+
+        self.lbl_secrets_path_hint = QLabel(f"Local secrets path: {default_secrets_path()}")
+        self.lbl_secrets_path_hint.setObjectName("Hint")
+        sec_form.add_row("", self.lbl_secrets_path_hint)
+
+        card_sec.layout.addLayout(sec_form)
+        page.addWidget(card_sec)
 
         card2 = Card("Binary Management")
         row = QHBoxLayout()
@@ -1797,6 +1831,8 @@ class ImmichGoGUI(QMainWindow):
         return {
             "server": c.get("server").text() if c.get("server") else "",
             "api_key": c.get("api_key").text().strip() if c.get("api_key") else "",
+            "admin_api_key": c.get("admin_api_key").text().strip() if c.get("admin_api_key") else "",
+            "secrets_provider": c.get("secret_provider").currentData() if c.get("secret_provider") else "keyring",
             "skip-ssl": c.get("skip-ssl").isChecked() if c.get("skip-ssl") else False,
             "client_timeout": c.get("client_timeout").value() if c.get("client_timeout") else 20,
             "concurrent": c.get("concurrent").value() if c.get("concurrent") else cpu_default,
@@ -2559,41 +2595,19 @@ class ImmichGoGUI(QMainWindow):
         if "skip-ssl" in self.inputs["config"]:
             self.inputs["config"]["skip-ssl"].setChecked(self.app_config.skip_ssl)
 
-        self.inputs["config"]["api_key"].setText(
-            get_api_key(self.app_config)
-        )
+        if "secret_provider" in self.inputs["config"]:
+            idx = self.inputs["config"]["secret_provider"].findData(self.app_config.secrets_provider)
+            if idx >= 0:
+                self.inputs["config"]["secret_provider"].setCurrentIndex(idx)
 
-        if "client_timeout" in self.inputs["config"]:
-            self.inputs["config"]["client_timeout"].setValue(
-                self.app_config.client_timeout_minutes
-            )
-
-        if "concurrent" in self.inputs["config"] and self.app_config.concurrent_tasks > 0:
-            self.inputs["config"]["concurrent"].setValue(
-                self.app_config.concurrent_tasks
-            )
-
-        if "device_uuid" in self.inputs["config"]:
-            self.inputs["config"]["device_uuid"].setText(
-                self.app_config.device_uuid
-            )
-
-        if "on_errors" in self.inputs["config"]:
-            if self.app_config.on_errors == "custom":
-                self.inputs["config"]["on_errors"].setCurrentText("custom…")
-            else:
-                self.inputs["config"]["on_errors"].setCurrentText(
-                    self.app_config.on_errors
+        if "admin_api_key" in self.inputs["config"]:
+            prof_name = getattr(self.app_config, "profile_name", "default")
+            self.inputs["config"]["admin_api_key"].setText(
+                get_secret_with_fallback(
+                    profile_name=prof_name,
+                    key="admin_api_key",
+                    provider=self.app_config.secrets_provider,
                 )
-
-        if "on_errors_tolerance" in self.inputs["config"]:
-            self.inputs["config"]["on_errors_tolerance"].setValue(
-                self.app_config.on_errors_tolerance
-            )
-
-        if "pause_jobs" in self.inputs["config"]:
-            self.inputs["config"]["pause_jobs"].setChecked(
-                self.app_config.pause_immich_jobs
             )
 
         self.theme_mode = normalize_theme_mode(self.app_config.theme_mode)
@@ -2610,6 +2624,9 @@ class ImmichGoGUI(QMainWindow):
 
         if "skip-ssl" in self.inputs["config"]:
             self.app_config.skip_ssl = self.inputs["config"]["skip-ssl"].isChecked()
+
+        if "secret_provider" in self.inputs["config"]:
+            self.app_config.secrets_provider = self.inputs["config"]["secret_provider"].currentData()
 
         if "client_timeout" in self.inputs["config"]:
             self.app_config.client_timeout_minutes = (
@@ -2648,13 +2665,33 @@ class ImmichGoGUI(QMainWindow):
 
         save_config(self.app_config)
 
+        prof_name = getattr(self.app_config, "profile_name", "default")
         api_key = self.inputs["config"]["api_key"].text().strip()
-        set_api_key(api_key, self.app_config)
+        admin_key = self.inputs["config"]["admin_api_key"].text().strip() if "admin_api_key" in self.inputs["config"] else ""
+
+        res_api = save_secret_with_fallback(
+            profile_name=prof_name,
+            key="api_key",
+            value=api_key,
+            provider=self.app_config.secrets_provider,
+        )
+        res_admin = save_secret_with_fallback(
+            profile_name=prof_name,
+            key="admin_api_key",
+            value=admin_key,
+            provider=self.app_config.secrets_provider,
+        )
+
+        msg = "Configuration saved successfully."
+        if res_api.message:
+            msg += f"\n\nNote (API Key): {res_api.message}"
+        if res_admin.message:
+            msg += f"\n\nNote (Admin Key): {res_admin.message}"
 
         QMessageBox.information(
             self,
             "Saved",
-            "Configuration saved successfully.",
+            msg,
         )
 
     def open_github_link(self):
