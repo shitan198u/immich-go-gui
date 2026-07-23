@@ -16,6 +16,7 @@ from .cli_schema import (
     ON_ERRORS_CUSTOM_VALUE,
     SECRET_FLAGS,
     SERVER_REQUIRED_TABS,
+    SERVERLESS_TABS,
     TAB_COMMANDS,
     UPLOAD_TABS,
     flag_allowed_for_tab,
@@ -279,11 +280,63 @@ def validate_state(
         if not fk:
             res.errors.append("Source Immich API Key is required.")
 
+    elif tab_key == "upload-icloud":
+        p = tab_state.get("path", "").strip()
+        if not p:
+            res.errors.append("iCloud export path is required.")
+        else:
+            _, path_warns = expand_source_paths(p)
+            res.warnings.extend(path_warns)
+
+    elif tab_key == "upload-picasa":
+        p = tab_state.get("path", "").strip()
+        if not p:
+            res.errors.append("Picasa collection path is required.")
+        else:
+            _, path_warns = expand_source_paths(p)
+            res.warnings.extend(path_warns)
+
     elif tab_key == "archive-folder":
         p = tab_state.get("path", "").strip()
         w = tab_state.get("write-to", "").strip()
         if not p:
             res.errors.append("Source folder path is required.")
+        if not w:
+            res.errors.append("Destination folder is required.")
+        if p and w:
+            expanded_sources, path_warns = expand_source_paths(p)
+            res.warnings.extend(path_warns)
+            res.warnings.extend(validate_destination_folder(w, expanded_sources))
+
+    elif tab_key == "archive-gp":
+        p = tab_state.get("path", "").strip()
+        w = tab_state.get("write-to", "").strip()
+        if not p:
+            res.errors.append("Google Photos takeout source path is required.")
+        if not w:
+            res.errors.append("Destination folder is required.")
+        if p and w:
+            expanded_sources, path_warns = expand_source_paths(p)
+            res.warnings.extend(path_warns)
+            res.warnings.extend(validate_destination_folder(w, expanded_sources))
+
+    elif tab_key == "archive-icloud":
+        p = tab_state.get("path", "").strip()
+        w = tab_state.get("write-to", "").strip()
+        if not p:
+            res.errors.append("iCloud export path is required.")
+        if not w:
+            res.errors.append("Destination folder is required.")
+        if p and w:
+            expanded_sources, path_warns = expand_source_paths(p)
+            res.warnings.extend(path_warns)
+            res.warnings.extend(validate_destination_folder(w, expanded_sources))
+
+    elif tab_key == "archive-picasa":
+        p = tab_state.get("path", "").strip()
+        w = tab_state.get("write-to", "").strip()
+        if not p:
+            res.errors.append("Picasa collection path is required.")
         if not w:
             res.errors.append("Destination folder is required.")
         if p and w:
@@ -354,8 +407,8 @@ def build_plan_from_state(
     if log_level and log_level != "INFO":
         emitter.add_option("log-level", log_level)
 
-    # Server and SSL (exclude serverless archive-folder & source-only archive-immich)
-    if tab_key not in ("archive-folder", "archive-immich"):
+    # Server and SSL (exclude serverless tabs & source-only archive-immich)
+    if tab_key not in SERVERLESS_TABS and tab_key != "archive-immich":
         if server:
             emitter.add_option("server", normalize_server_url(server))
 
@@ -367,7 +420,7 @@ def build_plan_from_state(
             )
 
     # Global advanced options
-    if tab_key not in ("archive-folder", "archive-immich"):
+    if tab_key not in SERVERLESS_TABS and tab_key != "archive-immich":
         client_timeout = config_state.get("client_timeout", 20)
         if client_timeout != 20:
             emitter.add_option("client-timeout", f"{client_timeout}m")
@@ -452,6 +505,30 @@ def build_plan_from_state(
         if raw_paths:
             path_opt.extend(collect_paths(raw_paths))
 
+    elif tab_key == "upload-icloud":
+        if tab_state.get("manage-burst", "NoStack") != "NoStack":
+            emitter.add_option("manage-burst", tab_state["manage-burst"])
+        if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
+            emitter.add_option("manage-raw-jpeg", tab_state["manage-raw-jpeg"])
+        if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
+            emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
+
+        raw_path = str(tab_state.get("path", "")).strip()
+        if raw_path:
+            path_opt.extend(collect_paths(raw_path))
+
+    elif tab_key == "upload-picasa":
+        if tab_state.get("manage-burst", "NoStack") != "NoStack":
+            emitter.add_option("manage-burst", tab_state["manage-burst"])
+        if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
+            emitter.add_option("manage-raw-jpeg", tab_state["manage-raw-jpeg"])
+        if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
+            emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
+
+        raw_path = str(tab_state.get("path", "")).strip()
+        if raw_path:
+            path_opt.extend(collect_paths(raw_path))
+
     elif tab_key == "upload-immich":
         if from_server:
             emitter.add_option("from-server", normalize_server_url(from_server))
@@ -461,6 +538,46 @@ def build_plan_from_state(
             emitter.add_option("from-albums", album)
 
     elif tab_key == "archive-folder":
+        if tab_state.get("write-to"):
+            write_to = os.path.abspath(
+                os.path.expanduser(str(tab_state["write-to"]).strip())
+            )
+            emitter.add_option("write-to-folder", write_to)
+
+        raw_path = str(tab_state.get("path", "")).strip()
+        if raw_path:
+            path_opt.extend(collect_paths(raw_path))
+
+    elif tab_key == "archive-gp":
+        if not tab_state.get("include-partner", True):
+            emitter.add_bool_val("include-partner", False)
+        if not tab_state.get("sync-albums", True):
+            emitter.add_bool_val("sync-albums", False)
+        if not tab_state.get("include-archived", True):
+            emitter.add_bool_val("include-archived", False)
+
+        if tab_state.get("write-to"):
+            write_to = os.path.abspath(
+                os.path.expanduser(str(tab_state["write-to"]).strip())
+            )
+            emitter.add_option("write-to-folder", write_to)
+
+        raw_paths = str(tab_state.get("path", "")).strip()
+        if raw_paths:
+            path_opt.extend(collect_paths(raw_paths))
+
+    elif tab_key == "archive-icloud":
+        if tab_state.get("write-to"):
+            write_to = os.path.abspath(
+                os.path.expanduser(str(tab_state["write-to"]).strip())
+            )
+            emitter.add_option("write-to-folder", write_to)
+
+        raw_path = str(tab_state.get("path", "")).strip()
+        if raw_path:
+            path_opt.extend(collect_paths(raw_path))
+
+    elif tab_key == "archive-picasa":
         if tab_state.get("write-to"):
             write_to = os.path.abspath(
                 os.path.expanduser(str(tab_state["write-to"]).strip())
