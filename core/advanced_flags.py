@@ -196,20 +196,6 @@ ADVANCED_FLAGS: dict[str, tuple[AdvancedFlagDef, ...]] = {
             default=False,
         ),
         AdvancedFlagDef(
-            key="include-partner",
-            flag="include-partner",
-            label="Include partner photos",
-            kind="bool",
-            default=True,
-        ),
-        AdvancedFlagDef(
-            key="sync-albums",
-            flag="sync-albums",
-            label="Sync Google Photos albums",
-            kind="bool",
-            default=True,
-        ),
-        AdvancedFlagDef(
             key="from-album-name",
             flag="from-album-name",
             label="Only import from album",
@@ -222,13 +208,6 @@ ADVANCED_FLAGS: dict[str, tuple[AdvancedFlagDef, ...]] = {
             label="Add partner photos to album",
             kind="text",
             placeholder="Partner Photos",
-        ),
-        AdvancedFlagDef(
-            key="include-archived",
-            flag="include-archived",
-            label="Include archived photos",
-            kind="bool",
-            default=True,
         ),
         AdvancedFlagDef(
             key="include-trashed",

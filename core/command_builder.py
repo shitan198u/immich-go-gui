@@ -422,6 +422,15 @@ def build_plan_from_state(
             path_opt.extend(collect_paths(raw_path))
 
     elif tab_key == "upload-gp":
+        if not tab_state.get("include-partner", True):
+            emitter.add_bool_val("include-partner", False)
+
+        if not tab_state.get("sync-albums", True):
+            emitter.add_bool_val("sync-albums", False)
+
+        if not tab_state.get("include-archived", True):
+            emitter.add_bool_val("include-archived", False)
+
         if tab_state.get("manage-burst", "NoStack") != "NoStack":
             emitter.add_option("manage-burst", tab_state["manage-burst"])
 

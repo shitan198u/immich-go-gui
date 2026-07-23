@@ -1581,12 +1581,14 @@ def test_default_true_boolean_emission():
     assert "--date-from-name=false" in plan_folder.argv
     assert "--pause-immich-jobs=false" in plan_folder.argv
 
-    # upload-gp boolean flags explicitly enabled and set to False
-    tab_state_gp = {"path": "/takeout"}
+    # upload-gp boolean flags explicitly set to False in tab_state & advanced_state
+    tab_state_gp = {
+        "path": "/takeout",
+        "include-archived": False,
+        "include-partner": False,
+        "sync-albums": False,
+    }
     advanced_gp = {
-        "include-archived": {"enabled": True, "value": False},
-        "include-partner": {"enabled": True, "value": False},
-        "sync-albums": {"enabled": True, "value": False},
         "takeout-tag": {"enabled": True, "value": False},
         "people-tag": {"enabled": True, "value": False},
     }
@@ -1970,11 +1972,48 @@ def test_advanced_secret_value_not_persisted(gui):
     assert saved["value"] == ""
 
 
-def test_gp_simple_card_has_no_dead_checkboxes(gui):
+def test_gp_simple_card_has_restored_checkboxes(gui):
+    """A9: GP simple card has include-partner, sync-albums, include-archived checkboxes."""
     gp_inputs = gui.inputs.get("upload-gp", {})
-    assert "include-partner" not in gp_inputs
-    assert "sync-albums" not in gp_inputs
-    assert "include-archived" not in gp_inputs
+    assert "include-partner" in gp_inputs
+    assert "sync-albums" in gp_inputs
+    assert "include-archived" in gp_inputs
+
+
+def test_gp_simple_mode_checkboxes_emitted_when_unchecked(gui):
+    """A9: When GP simple checkboxes are unchecked, --flag=false is emitted."""
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(1)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-gp"]["path"].setPlainText("/path/to/takeout.zip")
+    gui.inputs["upload-gp"]["include-partner"].setChecked(False)
+    gui.inputs["upload-gp"]["sync-albums"].setChecked(False)
+    gui.inputs["upload-gp"]["include-archived"].setChecked(False)
+
+    plan = gui.build_plan(dry_run=False)
+    assert "--include-partner=false" in plan.argv
+    assert "--sync-albums=false" in plan.argv
+    assert "--include-archived=false" in plan.argv
+
+
+def test_gp_simple_mode_checkboxes_omitted_when_checked(gui):
+    """A9: When GP simple checkboxes are checked (default), --flag=false is NOT emitted."""
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(1)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-gp"]["path"].setPlainText("/path/to/takeout.zip")
+    gui.inputs["upload-gp"]["include-partner"].setChecked(True)
+    gui.inputs["upload-gp"]["sync-albums"].setChecked(True)
+    gui.inputs["upload-gp"]["include-archived"].setChecked(True)
+
+    plan = gui.build_plan(dry_run=False)
+    assert "--include-partner=false" not in plan.argv
+    assert "--sync-albums=false" not in plan.argv
+    assert "--include-archived=false" not in plan.argv
 
 
 # ==============================================================================

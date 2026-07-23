@@ -1271,6 +1271,21 @@ class ImmichGoGUI(QMainWindow):
         card = Card("Options")
         form = FormSection()
 
+        chk_partner = QCheckBox("Include Partner Photos")
+        chk_partner.setChecked(True)
+        self.inputs["upload-gp"]["include-partner"] = chk_partner
+        form.addRow("", chk_partner)
+
+        chk_sync = QCheckBox("Sync Google Albums")
+        chk_sync.setChecked(True)
+        self.inputs["upload-gp"]["sync-albums"] = chk_sync
+        form.addRow("", chk_sync)
+
+        chk_archived = QCheckBox("Include Archived Photos")
+        chk_archived.setChecked(True)
+        self.inputs["upload-gp"]["include-archived"] = chk_archived
+        form.addRow("", chk_archived)
+
         c_burst = QComboBox()
         c_burst.addItems(["NoStack", "Stack", "StackKeepRaw", "StackKeepJPEG"])
         self.inputs["upload-gp"]["manage-burst"] = c_burst
@@ -2042,6 +2057,9 @@ class ImmichGoGUI(QMainWindow):
         elif tab_key == "upload-gp":
             return {
                 "path": get_text("path"),
+                "include-partner": get_bool("include-partner", True),
+                "sync-albums": get_bool("sync-albums", True),
+                "include-archived": get_bool("include-archived", True),
                 "manage-burst": get_combo("manage-burst", "NoStack"),
                 "manage-heic-jpeg": get_combo("manage-heic-jpeg", "NoStack"),
             }
