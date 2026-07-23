@@ -1892,3 +1892,13 @@ def test_golden_stack(gui):
     assert "--pause-immich-jobs=false" in argv
     assert "--api-trace" in argv
     assert "--device-uuid=stack-dev-123" in argv
+
+
+def test_advanced_mode_persistence(gui):
+    gui.toggle_advanced(True)
+    assert gui.is_advanced is True
+    assert gui.app_config.advanced_mode is True
+
+    gui.toggle_advanced(False)
+    assert gui.is_advanced is False
+    assert gui.app_config.advanced_mode is False
