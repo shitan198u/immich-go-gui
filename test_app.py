@@ -1669,3 +1669,226 @@ def test_missing_fixtures_not_fully_compatible(tmp_path):
     assert report_missing.is_fully_compatible() is False
     report_empty = CompatibilityReport(version="0.99.0", supported=True)
     assert report_empty.is_fully_compatible() is True
+
+
+def test_golden_upload_folder(gui):
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(0)
+    cfg = gui.inputs["config"]
+    cfg["server"].setText("http://local:2283")
+    cfg["api_key"].setText("key")
+    inp = gui.inputs["upload-folder"]
+    inp["path"].setText("/photos")
+    inp["recursive"].setChecked(False)
+    inp["date-from-name"].setChecked(False)
+    inp["album-path-joiner"].setText("/")
+    inp["time-zone"].setText("UTC")
+    inp["manage-epson"].setChecked(True)
+
+    plan = gui.build_plan(dry_run=False)
+    argv = plan.argv
+    assert "upload" in argv
+    assert "from-folder" in argv
+    assert "--recursive=false" in argv
+    assert "--date-from-name=false" in argv
+    assert "--album-path-joiner=/" in argv
+    assert "--time-zone=UTC" in argv
+    assert "--manage-epson-fastfoto" in argv
+
+
+def test_golden_upload_gp(gui):
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(1)
+    cfg = gui.inputs["config"]
+    cfg["server"].setText("http://local:2283")
+    cfg["api_key"].setText("key")
+    inp = gui.inputs["upload-gp"]
+    inp["path"].setPlainText("/takeout")
+    inp["include-archived"].setChecked(False)
+    inp["include-partner"].setChecked(False)
+    inp["sync-albums"].setChecked(False)
+    inp["takeout-tag"].setChecked(False)
+    inp["people-tag"].setChecked(False)
+    inp["include-trashed"].setChecked(True)
+    inp["include-unmatched"].setChecked(True)
+    inp["include-untitled-albums"].setChecked(True)
+    inp["from-album-name"].setText("Family")
+    inp["partner-album"].setText("Partner")
+    inp["include-type"].setCurrentText("VIDEO")
+    inp["manage-raw-jpeg"].setCurrentText("KeepJPG")
+    inp["manage-epson"].setChecked(True)
+
+    plan = gui.build_plan(dry_run=False)
+    argv = plan.argv
+    assert "from-google-photos" in argv
+    assert "--include-archived=false" in argv
+    assert "--include-partner=false" in argv
+    assert "--sync-albums=false" in argv
+    assert "--takeout-tag=false" in argv
+    assert "--people-tag=false" in argv
+    assert "--include-trashed" in argv
+    assert "--include-unmatched" in argv
+    assert "--include-untitled-albums" in argv
+    assert "--from-album-name=Family" in argv
+    assert "--partner-shared-album=Partner" in argv
+    assert "--include-type=VIDEO" in argv
+    assert "--manage-raw-jpeg=KeepJPG" in argv
+    assert "--manage-epson-fastfoto" in argv
+
+
+def test_golden_upload_immich(gui):
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(2)
+    cfg = gui.inputs["config"]
+    cfg["server"].setText("http://local:2283")
+    cfg["api_key"].setText("key")
+    inp = gui.inputs["upload-immich"]
+    inp["from-server"].setText("http://remote:2283")
+    inp["from-api-key"].setText("remote-key")
+    inp["from-admin-api-key"].setText("remote-admin-key")
+    inp["from-include-type"].setCurrentText("IMAGE")
+    inp["from-include-ext"].setText(".jpg, .png")
+    inp["from-exclude-ext"].setText(".mov")
+    inp["from-partners"].setChecked(True)
+    inp["from-no-album"].setChecked(True)
+    inp["from-time-zone"].setText("UTC")
+    inp["from-device-uuid"].setText("123-abc")
+    inp["from-api-trace"].setChecked(True)
+    inp["from-pause-jobs"].setChecked(False)
+    inp["tag"].setText("migrated")
+    inp["session-tag"].setChecked(True)
+    inp["overwrite"].setChecked(True)
+    inp["time-zone"].setText("UTC")
+
+    plan = gui.build_plan(dry_run=False)
+    argv = plan.argv
+    assert "upload" in argv
+    assert "from-immich" in argv
+    assert "--from-include-type=IMAGE" in argv
+    assert "--from-include-extensions=.jpg,.png" in argv
+    assert "--from-exclude-extensions=.mov" in argv
+    assert "--from-partners" in argv
+    assert "--from-no-album" in argv
+    assert "--from-time-zone=UTC" in argv
+    assert "--from-device-uuid=123-abc" in argv
+    assert "--from-api-trace" in argv
+    assert "--from-pause-immich-jobs=false" in argv
+    assert "--tag=migrated" in argv
+    assert "--session-tag" in argv
+    assert "--overwrite" in argv
+    assert "--time-zone=UTC" in argv
+    assert plan.env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY") == "remote-admin-key"
+
+
+def test_golden_archive_folder(gui):
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(0)
+    inp = gui.inputs["archive-folder"]
+    inp["path"].setText("/src")
+    inp["write-to"].setText("/dst")
+    inp["recursive"].setChecked(False)
+    inp["date-from-name"].setChecked(False)
+    inp["folder-album"].setCurrentText("FOLDER")
+    inp["folder-tags"].setChecked(True)
+    inp["into-album"].setText("Archived")
+    inp["album-path-joiner"].setText("_")
+    inp["on-errors"].setCurrentText("continue")
+
+    plan = gui.build_plan(dry_run=False)
+    argv = plan.argv
+    assert "archive" in argv
+    assert "from-folder" in argv
+    assert "--write-to-folder=/dst" in argv
+    assert "--recursive=false" in argv
+    assert "--date-from-name=false" in argv
+    assert "--folder-as-album=FOLDER" in argv
+    assert "--folder-as-tags" in argv
+    assert "--into-album=Archived" in argv
+    assert "--album-path-joiner=_" in argv
+    assert "--on-errors=continue" in argv
+
+
+def test_golden_archive_immich(gui):
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(1)
+    cfg = gui.inputs["config"]
+    cfg["server"].setText("http://local:2283")
+    cfg["api_key"].setText("key")
+    inp = gui.inputs["archive-immich"]
+    inp["write-to"].setText("/out")
+    inp["from-favorite"].setChecked(True)
+    inp["from-archived"].setChecked(True)
+    inp["from-trash"].setChecked(True)
+    inp["from-minimal-rating"].setValue(4)
+    inp["from-people"].setText("Alice")
+    inp["from-tags"].setText("vacation")
+    inp["from-city"].setText("Tokyo")
+    inp["from-state"].setText("Kanto")
+    inp["from-country"].setText("Japan")
+    inp["from-make"].setText("Apple")
+    inp["from-model"].setText("iPhone")
+    inp["from-include-type"].setCurrentText("IMAGE")
+    inp["from-include-ext"].setText(".heic")
+    inp["from-exclude-ext"].setText(".png")
+    inp["from-partners"].setChecked(True)
+    inp["from-time-zone"].setText("JST")
+    inp["from-no-album"].setChecked(True)
+    inp["from-device-uuid"].setText("dev-999")
+    inp["from-skip-ssl"].setChecked(True)
+    inp["from-api-trace"].setChecked(True)
+    inp["from-pause-jobs"].setChecked(False)
+    inp["from-client-timeout"].setValue(30)
+
+    plan = gui.build_plan(dry_run=True)
+    argv = plan.argv
+    assert "archive" in argv
+    assert "from-immich" in argv
+    assert "--write-to-folder=/out" in argv
+    assert "--from-favorite" in argv
+    assert "--from-archived" in argv
+    assert "--from-trash" in argv
+    assert "--from-minimal-rating=4" in argv
+    assert "--from-people=Alice" in argv
+    assert "--from-tags=vacation" in argv
+    assert "--from-city=Tokyo" in argv
+    assert "--from-state=Kanto" in argv
+    assert "--from-country=Japan" in argv
+    assert "--from-make=Apple" in argv
+    assert "--from-model=iPhone" in argv
+    assert "--from-include-type=IMAGE" in argv
+    assert "--from-include-extensions=.heic" in argv
+    assert "--from-exclude-extensions=.png" in argv
+    assert "--from-partners" in argv
+    assert "--from-time-zone=JST" in argv
+    assert "--from-no-album" in argv
+    assert "--from-device-uuid=dev-999" in argv
+    assert "--from-skip-verify-ssl" in argv
+    assert "--from-api-trace" in argv
+    assert "--from-pause-immich-jobs=false" in argv
+    assert "--from-client-timeout=30m" in argv
+    assert "--dry-run" in argv
+    assert "--from-dry-run" in argv
+
+
+def test_golden_stack(gui):
+    gui.stacked_widget.setCurrentIndex(3)
+    cfg = gui.inputs["config"]
+    cfg["server"].setText("http://local:2283")
+    cfg["api_key"].setText("key")
+    cfg["device_uuid"].setText("stack-dev-123")
+    inp = gui.inputs["stack"]
+    inp["date-range"].setText("2023-01-01,2023-12-31")
+    inp["time-zone"].setText("UTC")
+    inp["manage-epson"].setChecked(True)
+    inp["pause-jobs"].setChecked(False)
+    inp["api-trace"].setChecked(True)
+
+    plan = gui.build_plan(dry_run=False)
+    argv = plan.argv
+    assert "stack" in argv
+    assert "--date-range=2023-01-01,2023-12-31" in argv
+    assert "--time-zone=UTC" in argv
+    assert "--manage-epson-fastfoto" in argv
+    assert "--pause-immich-jobs=false" in argv
+    assert "--api-trace" in argv
+    assert "--device-uuid=stack-dev-123" in argv

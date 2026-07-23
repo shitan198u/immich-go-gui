@@ -1433,6 +1433,16 @@ class ImmichGoGUI(QMainWindow):
         subhead.setObjectName("Subhead")
         form.addRow(subhead)
 
+        t_from_admin = QLineEdit()
+        t_from_admin.setEchoMode(QLineEdit.EchoMode.Password)
+        t_from_admin.setPlaceholderText("Optional Source Admin API Key")
+        self.inputs["upload-immich"]["from-admin-api-key"] = t_from_admin
+        form.add_row(
+            "Source Admin API Key",
+            t_from_admin,
+            "Only needed if source server requires admin-level operations."
+        )
+
         chk_arch = QCheckBox("Include Source Archived")
         self.inputs["upload-immich"]["from-archived"] = chk_arch
         form.addRow("", chk_arch)
@@ -2544,6 +2554,7 @@ class ImmichGoGUI(QMainWindow):
             return {
                 "from-server": get_text("from-server"),
                 "from-api-key": get_text("from-api-key"),
+                "from-admin-api-key": get_text("from-admin-api-key"),
                 "from-client-timeout": get_int("from-client-timeout", 20),
                 "from-favorite": get_bool("from-favorite", False),
                 "from-archived": get_bool("from-archived", False),
@@ -2828,10 +2839,7 @@ class ImmichGoGUI(QMainWindow):
         if sys.platform.startswith("win"):
             cmd_str = subprocess.list2cmdline(plan.display_argv)
         else:
-            cmd_str = (
-                plan.display_argv[0] + " "
-                + " ".join(shlex.quote(p) for p in plan.display_argv[1:])
-            )
+            cmd_str = " ".join(shlex.quote(p) for p in plan.display_argv)
 
         cmd_block = QPlainTextEdit()
         cmd_block.setObjectName("CmdBlock")
