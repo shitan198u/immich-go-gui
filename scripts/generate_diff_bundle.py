@@ -22,9 +22,10 @@ def generate_diff_bundle(start_ref: str = "9dbbc54", output_path: Path = None, e
     rev_spec = f"{start_ref}..{end_ref}"
 
     try:
-        diff = subprocess.check_output(["git", "diff", rev_spec], cwd=repo_root).decode("utf-8")
+        exclude_paths = [":!command_binary_bugs_fix.txt", ":!command_binary_bugs.md", ":!phase2_review_changes.txt"]
+        diff = subprocess.check_output(["git", "diff", rev_spec, "--", "."] + exclude_paths, cwd=repo_root).decode("utf-8")
         log = subprocess.check_output(["git", "log", rev_spec, "--oneline"], cwd=repo_root).decode("utf-8")
-        stat = subprocess.check_output(["git", "diff", rev_spec, "--stat"], cwd=repo_root).decode("utf-8")
+        stat = subprocess.check_output(["git", "diff", rev_spec, "--stat", "--", "."] + exclude_paths, cwd=repo_root).decode("utf-8")
     except subprocess.CalledProcessError as e:
         print(f"Error executing git command for {rev_spec}: {e}")
         sys.exit(1)
