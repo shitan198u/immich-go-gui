@@ -3,22 +3,26 @@ IMMICH-GO GUI - REVIEW & CHANGES BUNDLE (375cbfa..HEAD)
 ================================================================================
 
 COMMITS IN RANGE:
+c45a851 fix(security): prevent secret advanced values from being persisted in form_state and remove dead GP checkboxes
+ce678dc docs: generate clean diff bundle for changes made during 'A few fixes again. check'
 d3ca800 docs: update command_binary_bugs_fix.txt to show dump starting from before 'A few fixes again. check'
 cf6da31 docs: update command_binary_bugs_fix.txt diff bundle with cleanup commit
 1f97bca fix(cleanup): derive ADVANCED_KEYS programmatically and fix from-admin-api-key flag name
 
 SUMMARY OF CHANGED FILES:
- app.py                          | 134 +---------------------------------------
+ app.py                          | 154 ++--------------------------------------
  core/advanced_flags.py          |   2 +-
+ core/cli_schema.py              |   2 +-
  scripts/generate_diff_bundle.py |   5 +-
- 3 files changed, 7 insertions(+), 134 deletions(-)
+ test_app.py                     |  54 +++++++++++++-
+ 5 files changed, 65 insertions(+), 152 deletions(-)
 
 ================================================================================
 FULL GIT DIFF:
 ================================================================================
 
 diff --git a/app.py b/app.py
-index f7a65d9..b8c76d2 100644
+index f7a65d9..c355ba4 100644
 --- a/app.py
 +++ b/app.py
 @@ -76,6 +76,7 @@ from core.process_tracker import (
@@ -29,7 +33,41 @@ index f7a65d9..b8c76d2 100644
  from core import (
      AppConfig,
      BINARY_BASE_DIR,
-@@ -1964,136 +1965,8 @@ class ImmichGoGUI(QMainWindow):
+@@ -1270,21 +1271,6 @@ class ImmichGoGUI(QMainWindow):
+         card = Card("Options")
+         form = FormSection()
+ 
+-        chk_partner = QCheckBox("Include Partner Photos")
+-        chk_partner.setChecked(True)
+-        self.inputs["upload-gp"]["include-partner"] = chk_partner
+-        form.addRow("", chk_partner)
+-
+-        chk_sync = QCheckBox("Sync Google Albums")
+-        chk_sync.setChecked(True)
+-        self.inputs["upload-gp"]["sync-albums"] = chk_sync
+-        form.addRow("", chk_sync)
+-
+-        chk_archived = QCheckBox("Include Archived Photos")
+-        chk_archived.setChecked(True)
+-        self.inputs["upload-gp"]["include-archived"] = chk_archived
+-        form.addRow("", chk_archived)
+-
+         c_burst = QComboBox()
+         c_burst.addItems(["NoStack", "Stack", "StackKeepRaw", "StackKeepJPEG"])
+         self.inputs["upload-gp"]["manage-burst"] = c_burst
+@@ -1849,7 +1835,10 @@ class ImmichGoGUI(QMainWindow):
+         for tab_key, rows in getattr(self, "adv_rows", {}).items():
+             tab_adv = {}
+             for k, row in rows.items():
+-                tab_adv[k] = row.state()
++                st = row.state()
++                if getattr(row, "def_", None) and row.def_.secret_env or k in secret_keys:
++                    st = {"enabled": st.get("enabled", False), "value": ""}
++                tab_adv[k] = st
+             if tab_adv:
+                 adv_state[tab_key] = tab_adv
+ 
+@@ -1964,136 +1953,8 @@ class ImmichGoGUI(QMainWindow):
          self.browse_folder_upload()
  
      ADVANCED_KEYS = {
@@ -168,7 +206,7 @@ index f7a65d9..b8c76d2 100644
      }
  
  
-@@ -2184,7 +2057,6 @@ class ImmichGoGUI(QMainWindow):
+@@ -2184,7 +2045,6 @@ class ImmichGoGUI(QMainWindow):
              return {
                  "path": get_text("path"),
                  "manage-burst": get_combo("manage-burst", "NoStack"),
@@ -189,6 +227,19 @@ index 0357449..f6e1188 100644
              label="Source admin API key",
              kind="text",
              secret_env="IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY",
+diff --git a/core/cli_schema.py b/core/cli_schema.py
+index afd9522..5e166d2 100644
+--- a/core/cli_schema.py
++++ b/core/cli_schema.py
+@@ -166,7 +166,7 @@ TAB_ALLOWED_FLAGS: dict[str, frozenset[str]] = {
+         "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg",
+         "manage-epson-fastfoto",
+ 
+-        "from-server", "from-skip-verify-ssl", "from-client-timeout",
++        "from-server", "from-admin-api-key", "from-skip-verify-ssl", "from-client-timeout",
+         "from-include-type", "from-include-extensions", "from-exclude-extensions",
+         "from-partners", "from-time-zone", "from-no-album", "from-albums",
+         "from-date-range", "from-device-uuid", "from-api-trace",
 diff --git a/scripts/generate_diff_bundle.py b/scripts/generate_diff_bundle.py
 index 80615b9..fb8ef82 100644
 --- a/scripts/generate_diff_bundle.py
@@ -206,3 +257,67 @@ index 80615b9..fb8ef82 100644
      except subprocess.CalledProcessError as e:
          print(f"Error executing git command for {rev_spec}: {e}")
          sys.exit(1)
+diff --git a/test_app.py b/test_app.py
+index 72720fe..6393e81 100644
+--- a/test_app.py
++++ b/test_app.py
+@@ -1909,4 +1909,56 @@ def test_cleanup_stale_temp_dirs(tmp_path, monkeypatch):
+ 
+     cleaned = cleanup_stale_temp_dirs(max_age_hours=24)
+     assert cleaned == 1
+-    assert not dummy_dir.exists()
+\ No newline at end of file
++    assert not dummy_dir.exists()
++
++
++def test_advanced_keys_derived_from_advanced_flags():
++    from app import ImmichGoGUI
++    from core.advanced_flags import ADVANCED_FLAGS
++
++    expected = {
++        tab: {def_.key for def_ in defs}
++        for tab, defs in ADVANCED_FLAGS.items()
++    }
++    assert ImmichGoGUI.ADVANCED_KEYS == expected
++
++
++def test_upload_gp_does_not_include_into_album_advanced_key():
++    from app import ImmichGoGUI
++
++    assert "into-album" not in ImmichGoGUI.ADVANCED_KEYS.get("upload-gp", set())
++
++
++def test_from_admin_api_key_advanced_secret_env(gui):
++    gui.toggle_advanced(True)
++    gui.stacked_widget.setCurrentIndex(1)
++    gui.upload_tabs.setCurrentIndex(2)
++
++    gui.inputs["config"]["server"].setText("http://new:2283")
++    gui.inputs["config"]["api_key"].setText("new-key")
++    gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
++    gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
++
++    gui.adv_rows["upload-immich"]["from-admin-api-key"].set_state({
++        "enabled": True,
++        "value": "old-admin-secret",
++    })
++
++    plan = gui.build_plan(False)
++
++    assert "--from-admin-api-key" not in " ".join(plan.argv)
++    assert "old-admin-secret" not in " ".join(plan.argv)
++    assert plan.env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY") == "old-admin-secret"
++
++
++def test_advanced_secret_value_not_persisted(gui):
++    gui.toggle_advanced(True)
++    gui.adv_rows["upload-immich"]["from-admin-api-key"].set_state({
++        "enabled": True,
++        "value": "super-secret-admin-key",
++    })
++
++    state = gui.collect_form_state()
++    saved = state["advanced"]["upload-immich"]["from-admin-api-key"]
++    assert saved["enabled"] is True
++    assert saved["value"] == ""
+\ No newline at end of file
