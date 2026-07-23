@@ -1574,7 +1574,7 @@ class ImmichGoGUI(QMainWindow):
         file_menu.addAction(reset_action)
 
         reset_adv_action = QAction("Reset Advanced Flags", self)
-        reset_adv_action.triggered.connect(lambda: self.reset_advanced_flags())
+        reset_adv_action.triggered.connect(self._confirm_reset_advanced_flags)
         file_menu.addAction(reset_adv_action)
 
         exit_action = QAction("Exit", self)
@@ -1850,7 +1850,7 @@ class ImmichGoGUI(QMainWindow):
             for k, row in rows.items():
                 st = row.state()
                 if (getattr(row, "def_", None) and row.def_.secret_env) or (k in secret_keys):
-                    st = {"enabled": st.get("enabled", False), "value": ""}
+                    st = {"enabled": False, "value": ""}
                 tab_adv[k] = st
             if tab_adv:
                 adv_state[tab_key] = tab_adv
@@ -1903,6 +1903,17 @@ class ImmichGoGUI(QMainWindow):
                         row = rows.get(k)
                         if row is not None and isinstance(row_state, dict):
                             row.set_state(row_state)
+
+    def _confirm_reset_advanced_flags(self):
+        reply = QMessageBox.question(
+            self,
+            "Reset Advanced Flags",
+            "Reset all advanced flags to defaults for all tabs?\nThis cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.reset_advanced_flags()
 
     def reset_advanced_flags(self, tab_key: str | None = None):
         """Resets advanced flag enable checkboxes to False and values to defaults."""

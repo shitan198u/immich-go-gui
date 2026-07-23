@@ -1968,7 +1968,7 @@ def test_advanced_secret_value_not_persisted(gui):
 
     state = gui.collect_form_state()
     saved = state["advanced"]["upload-immich"]["from-admin-api-key"]
-    assert saved["enabled"] is True
+    assert saved["enabled"] is False
     assert saved["value"] == ""
 
 
