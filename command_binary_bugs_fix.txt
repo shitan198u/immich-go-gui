@@ -3,6 +3,8 @@ IMMICH-GO GUI - REVIEW & CHANGES BUNDLE (375cbfa..HEAD)
 ================================================================================
 
 COMMITS IN RANGE:
+bfd62d3 refactor(cleanup): add explicit operator precedence parentheses and test_gp_simple_card_has_no_dead_checkboxes
+f22aed2 docs: finalize command_binary_bugs_fix.txt bundle
 bcd0c8b docs: update command_binary_bugs_fix.txt with secret masking and GP cleanup diff
 c45a851 fix(security): prevent secret advanced values from being persisted in form_state and remove dead GP checkboxes
 ce678dc docs: generate clean diff bundle for changes made during 'A few fixes again. check'
@@ -15,15 +17,15 @@ SUMMARY OF CHANGED FILES:
  core/advanced_flags.py          |   2 +-
  core/cli_schema.py              |   2 +-
  scripts/generate_diff_bundle.py |   5 +-
- test_app.py                     |  54 +++++++++++++-
- 5 files changed, 65 insertions(+), 152 deletions(-)
+ test_app.py                     |  61 +++++++++++++++-
+ 5 files changed, 72 insertions(+), 152 deletions(-)
 
 ================================================================================
 FULL GIT DIFF:
 ================================================================================
 
 diff --git a/app.py b/app.py
-index f7a65d9..c355ba4 100644
+index f7a65d9..8c3fd5f 100644
 --- a/app.py
 +++ b/app.py
 @@ -76,6 +76,7 @@ from core.process_tracker import (
@@ -62,7 +64,7 @@ index f7a65d9..c355ba4 100644
              for k, row in rows.items():
 -                tab_adv[k] = row.state()
 +                st = row.state()
-+                if getattr(row, "def_", None) and row.def_.secret_env or k in secret_keys:
++                if (getattr(row, "def_", None) and row.def_.secret_env) or (k in secret_keys):
 +                    st = {"enabled": st.get("enabled", False), "value": ""}
 +                tab_adv[k] = st
              if tab_adv:
@@ -259,10 +261,10 @@ index 80615b9..fb8ef82 100644
          print(f"Error executing git command for {rev_spec}: {e}")
          sys.exit(1)
 diff --git a/test_app.py b/test_app.py
-index 72720fe..6393e81 100644
+index 72720fe..0969c16 100644
 --- a/test_app.py
 +++ b/test_app.py
-@@ -1909,4 +1909,56 @@ def test_cleanup_stale_temp_dirs(tmp_path, monkeypatch):
+@@ -1909,4 +1909,63 @@ def test_cleanup_stale_temp_dirs(tmp_path, monkeypatch):
  
      cleaned = cleanup_stale_temp_dirs(max_age_hours=24)
      assert cleaned == 1
@@ -321,4 +323,11 @@ index 72720fe..6393e81 100644
 +    saved = state["advanced"]["upload-immich"]["from-admin-api-key"]
 +    assert saved["enabled"] is True
 +    assert saved["value"] == ""
++
++
++def test_gp_simple_card_has_no_dead_checkboxes(gui):
++    gp_inputs = gui.inputs.get("upload-gp", {})
++    assert "include-partner" not in gp_inputs
++    assert "sync-albums" not in gp_inputs
++    assert "include-archived" not in gp_inputs
 \ No newline at end of file
