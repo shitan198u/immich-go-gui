@@ -824,6 +824,23 @@ def test_simple_mode_ignores_advanced_stack_flags(gui):
     assert "--api-trace" not in plan.argv
 
 
+def test_archive_folder_destination_is_absolutized(gui):
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(0)
+
+    gui.inputs["archive-folder"]["path"].setText("/src")
+    gui.inputs["archive-folder"]["write-to"].setText("relative/dest")
+
+    plan = gui.build_plan(dry_run=False)
+
+    assert any(arg.startswith("--write-to-folder=") for arg in plan.argv)
+
+    write_arg = next(arg for arg in plan.argv if arg.startswith("--write-to-folder="))
+    write_path = write_arg.split("=", 1)[1]
+    assert os.path.isabs(write_path)
+
+
 # ==========================================================
 # PURE CORE MODULE UNIT TESTS (NO QT REQUIRED)
 # ==========================================================

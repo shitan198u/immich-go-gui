@@ -674,7 +674,10 @@ def build_plan_from_state(
 
     elif tab_key == "archive-folder":
         if tab_state.get("write-to"):
-            emitter.add_option("write-to-folder", tab_state["write-to"])
+            write_to = os.path.abspath(
+                os.path.expanduser(str(tab_state["write-to"]).strip())
+            )
+            emitter.add_option("write-to-folder", write_to)
 
         dr = clean_date_range(str(tab_state.get("date-range", "")))
         if dr:
@@ -724,7 +727,10 @@ def build_plan_from_state(
             emitter.add_option("from-server", normalize_server_url(from_srv))
 
         if tab_state.get("write-to"):
-            emitter.add_option("write-to-folder", tab_state["write-to"])
+            write_to = os.path.abspath(
+                os.path.expanduser(str(tab_state["write-to"]).strip())
+            )
+            emitter.add_option("write-to-folder", write_to)
 
         if tab_state.get("from-date-range"):
             emitter.add_option("from-date-range", tab_state["from-date-range"])
