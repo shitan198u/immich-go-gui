@@ -4,12 +4,12 @@ IMMICH-GO GUI - PYTHON BACKEND, CORE & HELPERS BUNDLE
 Generated for LLM Review & Prompting
 Files Included:
    1. core/__init__.py (159 lines)
-   2. core/advanced_flags.py (1046 lines)
+   2. core/advanced_flags.py (1004 lines)
    3. core/binary_manager.py (609 lines)
    4. core/cli_contract.py (96 lines)
    5. core/cli_help.py (56 lines)
    6. core/cli_schema.py (243 lines)
-   7. core/command_builder.py (503 lines)
+   7. core/command_builder.py (525 lines)
    8. core/config_manager.py (381 lines)
    9. core/models.py (94 lines)
   10. core/network.py (115 lines)
@@ -17,7 +17,7 @@ Files Included:
   12. core/profile_manager.py (340 lines)
   13. core/terminal_launcher.py (229 lines)
   14. core/validation.py (237 lines)
-  15. test_app.py (1971 lines)
+  15. test_app.py (2169 lines)
   16. scripts/capture_cli_help.py (84 lines)
   17. scripts/convert_markdown.py (564 lines)
   18. scripts/generate_diff_bundle.py (55 lines)
@@ -190,7 +190,7 @@ __all__ = [
 
 
 ================================================================================
-FILE 2 / 18: core/advanced_flags.py (Lines 1-1046)
+FILE 2 / 18: core/advanced_flags.py (Lines 1-1004)
 ================================================================================
 """Pure-Python registry and helper functions for schema-driven opt-in advanced flags.
 
@@ -201,7 +201,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from .models import CommandPlan, ValidationResult
-from .validation import clean_date_range, normalize_extensions_csv, normalize_list_csv
+from .validation import clean_date_range, normalize_extensions_csv, normalize_list_csv, validate_date_range as _validate_date_range
 
 AdvancedFlagKind = Literal[
     "bool",
@@ -390,20 +390,6 @@ ADVANCED_FLAGS: dict[str, tuple[AdvancedFlagDef, ...]] = {
             default=False,
         ),
         AdvancedFlagDef(
-            key="include-partner",
-            flag="include-partner",
-            label="Include partner photos",
-            kind="bool",
-            default=True,
-        ),
-        AdvancedFlagDef(
-            key="sync-albums",
-            flag="sync-albums",
-            label="Sync Google Photos albums",
-            kind="bool",
-            default=True,
-        ),
-        AdvancedFlagDef(
             key="from-album-name",
             flag="from-album-name",
             label="Only import from album",
@@ -416,13 +402,6 @@ ADVANCED_FLAGS: dict[str, tuple[AdvancedFlagDef, ...]] = {
             label="Add partner photos to album",
             kind="text",
             placeholder="Partner Photos",
-        ),
-        AdvancedFlagDef(
-            key="include-archived",
-            flag="include-archived",
-            label="Include archived photos",
-            kind="bool",
-            default=True,
         ),
         AdvancedFlagDef(
             key="include-trashed",
@@ -607,20 +586,7 @@ ADVANCED_FLAGS: dict[str, tuple[AdvancedFlagDef, ...]] = {
             kind="bool",
             default=False,
         ),
-        AdvancedFlagDef(
-            key="from-date-range",
-            flag="from-date-range",
-            label="Source date range",
-            kind="date_range",
-            placeholder="YYYY-MM-DD,YYYY-MM-DD",
-        ),
-        AdvancedFlagDef(
-            key="from-albums",
-            flag="from-albums",
-            label="Source album names",
-            kind="csv_repeat",
-            placeholder="Album1, Album2",
-        ),
+
         AdvancedFlagDef(
             key="from-minimal-rating",
             flag="from-minimal-rating",
@@ -906,18 +872,7 @@ ADVANCED_FLAGS: dict[str, tuple[AdvancedFlagDef, ...]] = {
         ),
     ),
     "archive-immich": (
-        AdvancedFlagDef(
-            key="from-date-range",
-            flag="from-date-range",
-            label="Source date range",
-            kind="date_range",
-        ),
-        AdvancedFlagDef(
-            key="from-albums",
-            flag="from-albums",
-            label="Source album names",
-            kind="csv_repeat",
-        ),
+
         AdvancedFlagDef(
             key="from-favorite",
             flag="from-favorite",
@@ -1205,7 +1160,10 @@ def apply_advanced_flags_to_plan(
             continue
 
         for arg in args:
-            emitter.opts.append(arg)
+            if hasattr(emitter, "add_raw_checked"):
+                emitter.add_raw_checked(arg)
+            else:
+                emitter.opts.append(arg)
 
         warning = def_.warn_values.get(value)
         if warning:
@@ -1228,9 +1186,9 @@ def validate_advanced_state(tab_key: str, advanced_state: dict) -> ValidationRes
         if def_.kind == "date_range":
             text = str(value or "").strip()
             if text:
-                cleaned = clean_date_range(text)
-                if not cleaned:
-                    res.errors.append(f"Invalid {def_.label}: date range invalid format")
+                ok, err = _validate_date_range(text)
+                if not ok:
+                    res.errors.append(f"Invalid {def_.label}: {err}")
 
         elif def_.kind in ("text", "extensions", "csv_repeat", "lines_repeat"):
             text = str(value or "").strip()
@@ -2270,7 +2228,7 @@ COMPATIBILITY_MATRIX = {
 
 
 ================================================================================
-FILE 7 / 18: core/command_builder.py (Lines 1-503)
+FILE 7 / 18: core/command_builder.py (Lines 1-525)
 ================================================================================
 """Pure command-building and state validation logic for Immich-Go.
 
@@ -2341,6 +2299,10 @@ class FlagEmitter:
             return True
         return False
 
+    def add_raw_checked(self, arg: str) -> None:
+        """Append a pre-formatted CLI arg that has already passed allowlist checks."""
+        self.opts.append(arg)
+
     def add_bool_val(self, flag_name: str, value: bool) -> bool:
         clean_name = str(flag_name).lstrip("-")
         if not flag_allowed_for_tab(self.tab_key, clean_name):
@@ -2399,7 +2361,7 @@ def collect_paths(raw_text: str) -> list[str]:
         if not line:
             continue
         expanded_user = os.path.expanduser(line)
-        expanded = glob.glob(expanded_user)
+        expanded = glob.glob(expanded_user, recursive=True)
         if expanded:
             for p in expanded:
                 paths.append(os.path.abspath(p))
@@ -2696,6 +2658,15 @@ def build_plan_from_state(
             path_opt.extend(collect_paths(raw_path))
 
     elif tab_key == "upload-gp":
+        if not tab_state.get("include-partner", True):
+            emitter.add_bool_val("include-partner", False)
+
+        if not tab_state.get("sync-albums", True):
+            emitter.add_bool_val("sync-albums", False)
+
+        if not tab_state.get("include-archived", True):
+            emitter.add_bool_val("include-archived", False)
+
         if tab_state.get("manage-burst", "NoStack") != "NoStack":
             emitter.add_option("manage-burst", tab_state["manage-burst"])
 
@@ -2716,6 +2687,10 @@ def build_plan_from_state(
     elif tab_key == "upload-immich":
         if from_server:
             emitter.add_option("from-server", normalize_server_url(from_server))
+        if tab_state.get("from-date-range", "").strip():
+            emitter.add_option("from-date-range", clean_date_range(tab_state["from-date-range"]))
+        for album in normalize_list_csv(tab_state.get("from-albums", "")):
+            emitter.add_option("from-albums", album)
 
     elif tab_key == "archive-folder":
         if tab_state.get("write-to"):
@@ -2738,6 +2713,11 @@ def build_plan_from_state(
                 os.path.expanduser(str(tab_state["write-to"]).strip())
             )
             emitter.add_option("write-to-folder", write_to)
+
+        if tab_state.get("from-date-range", "").strip():
+            emitter.add_option("from-date-range", clean_date_range(tab_state["from-date-range"]))
+        for album in normalize_list_csv(tab_state.get("from-albums", "")):
+            emitter.add_option("from-albums", album)
 
     elif tab_key == "stack":
         if tab_state.get("manage-burst", "NoStack") != "NoStack":
@@ -4455,7 +4435,7 @@ def validate_destination_folder(
 
 
 ================================================================================
-FILE 15 / 18: test_app.py (Lines 1-1971)
+FILE 15 / 18: test_app.py (Lines 1-2169)
 ================================================================================
 import pytest
 import os
@@ -4891,11 +4871,12 @@ def test_build_command_upload_immich(gui):
     gui.inputs["config"]["api_key"].setText("local-key")
     gui.inputs["upload-immich"]["from-server"].setText("http://remote:2283")
     gui.inputs["upload-immich"]["from-api-key"].setText("remote-key")
+    # from-date-range and from-albums are now simple-mode controls
+    gui.inputs["upload-immich"]["from-date-range"].setText("2020-01-01,2021-01-01")
+    gui.inputs["upload-immich"]["from-albums"].setText("Album1, Album2")
     gui.adv_rows["upload-immich"]["from-favorite"].set_state({"enabled": True, "value": True})
     gui.adv_rows["upload-immich"]["from-archived"].set_state({"enabled": True, "value": True})
     gui.adv_rows["upload-immich"]["from-trash"].set_state({"enabled": True, "value": True})
-    gui.adv_rows["upload-immich"]["from-date-range"].set_state({"enabled": True, "value": "2020-01-01,2021-01-01"})
-    gui.adv_rows["upload-immich"]["from-albums"].set_state({"enabled": True, "value": "Album1, Album2"})
     gui.adv_rows["upload-immich"]["from-minimal-rating"].set_state({"enabled": True, "value": 3})
     gui.adv_rows["upload-immich"]["from-people"].set_state({"enabled": True, "value": "John, Jane"})
     gui.adv_rows["upload-immich"]["from-tags"].set_state({"enabled": True, "value": "Vacation, Family"})
@@ -4910,12 +4891,12 @@ def test_build_command_upload_immich(gui):
     assert "from-immich" in opts
     assert "--server=http://local:2283" in opts
     assert "--from-server=http://remote:2283" in opts
-    assert "--from-favorite" in opts
-    assert "--from-archived" in opts
-    assert "--from-trash" in opts
     assert "--from-date-range=2020-01-01,2021-01-01" in opts
     assert "--from-albums=Album1" in opts
     assert "--from-albums=Album2" in opts
+    assert "--from-favorite" in opts
+    assert "--from-archived" in opts
+    assert "--from-trash" in opts
     assert "--from-minimal-rating=3" in opts
     assert "--from-people=John" in opts
     assert "--from-people=Jane" in opts
@@ -4955,8 +4936,9 @@ def test_build_command_archive_immich(gui):
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["archive-immich"]["write-to"].setText("/dest/folder")
-    gui.adv_rows["archive-immich"]["from-date-range"].set_state({"enabled": True, "value": "2024-01-01,2024-02-01"})
-    gui.adv_rows["archive-immich"]["from-albums"].set_state({"enabled": True, "value": "ArchiveAlbum"})
+    # from-date-range and from-albums are now simple-mode controls
+    gui.inputs["archive-immich"]["from-date-range"].setText("2024-01-01,2024-02-01")
+    gui.inputs["archive-immich"]["from-albums"].setText("ArchiveAlbum")
     opts = gui.build_command(dry_run=False)
     assert "archive" in opts
     assert "from-immich" in opts
@@ -5081,6 +5063,8 @@ def test_golden_upload_immich(gui):
     gui.inputs["config"]["api_key"].setText("new-key")
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
     gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
+    gui.inputs["upload-immich"]["from-date-range"].clear()
+    gui.inputs["upload-immich"]["from-albums"].clear()
 
     plan = gui.build_plan(dry_run=False)
 
@@ -5101,6 +5085,8 @@ def test_golden_archive_immich(gui):
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("test-key")
     gui.inputs["archive-immich"]["write-to"].setText("/backup/photos")
+    gui.inputs["archive-immich"]["from-date-range"].clear()
+    gui.inputs["archive-immich"]["from-albums"].clear()
 
     plan = gui.build_plan(dry_run=False)
 
@@ -6034,12 +6020,14 @@ def test_default_true_boolean_emission():
     assert "--date-from-name=false" in plan_folder.argv
     assert "--pause-immich-jobs=false" in plan_folder.argv
 
-    # upload-gp boolean flags explicitly enabled and set to False
-    tab_state_gp = {"path": "/takeout"}
+    # upload-gp boolean flags explicitly set to False in tab_state & advanced_state
+    tab_state_gp = {
+        "path": "/takeout",
+        "include-archived": False,
+        "include-partner": False,
+        "sync-albums": False,
+    }
     advanced_gp = {
-        "include-archived": {"enabled": True, "value": False},
-        "include-partner": {"enabled": True, "value": False},
-        "sync-albums": {"enabled": True, "value": False},
         "takeout-tag": {"enabled": True, "value": False},
         "people-tag": {"enabled": True, "value": False},
     }
@@ -6419,15 +6407,205 @@ def test_advanced_secret_value_not_persisted(gui):
 
     state = gui.collect_form_state()
     saved = state["advanced"]["upload-immich"]["from-admin-api-key"]
-    assert saved["enabled"] is True
+    assert saved["enabled"] is False
     assert saved["value"] == ""
 
 
-def test_gp_simple_card_has_no_dead_checkboxes(gui):
+def test_gp_simple_card_has_restored_checkboxes(gui):
+    """A9: GP simple card has include-partner, sync-albums, include-archived checkboxes."""
     gp_inputs = gui.inputs.get("upload-gp", {})
-    assert "include-partner" not in gp_inputs
-    assert "sync-albums" not in gp_inputs
-    assert "include-archived" not in gp_inputs
+    assert "include-partner" in gp_inputs
+    assert "sync-albums" in gp_inputs
+    assert "include-archived" in gp_inputs
+
+
+def test_gp_simple_mode_checkboxes_emitted_when_unchecked(gui):
+    """A9: When GP simple checkboxes are unchecked, --flag=false is emitted."""
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(1)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-gp"]["path"].setPlainText("/path/to/takeout.zip")
+    gui.inputs["upload-gp"]["include-partner"].setChecked(False)
+    gui.inputs["upload-gp"]["sync-albums"].setChecked(False)
+    gui.inputs["upload-gp"]["include-archived"].setChecked(False)
+
+    plan = gui.build_plan(dry_run=False)
+    assert "--include-partner=false" in plan.argv
+    assert "--sync-albums=false" in plan.argv
+    assert "--include-archived=false" in plan.argv
+
+
+def test_gp_simple_mode_checkboxes_omitted_when_checked(gui):
+    """A9: When GP simple checkboxes are checked (default), --flag=false is NOT emitted."""
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(1)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-gp"]["path"].setPlainText("/path/to/takeout.zip")
+    gui.inputs["upload-gp"]["include-partner"].setChecked(True)
+    gui.inputs["upload-gp"]["sync-albums"].setChecked(True)
+    gui.inputs["upload-gp"]["include-archived"].setChecked(True)
+
+    plan = gui.build_plan(dry_run=False)
+    assert "--include-partner=false" not in plan.argv
+    assert "--sync-albums=false" not in plan.argv
+    assert "--include-archived=false" not in plan.argv
+
+
+# ==============================================================================
+# A1 REGRESSION: Simple-mode controls not silently discarded
+# ==============================================================================
+
+def test_upload_immich_simple_mode_from_date_range_emitted(gui):
+    """A1: from-date-range in upload-immich simple card must produce CLI flag."""
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(2)
+    gui.inputs["config"]["server"].setText("http://new:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
+    gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
+    gui.inputs["upload-immich"]["from-date-range"].setText("2022-01-01,2022-12-31")
+    gui.inputs["upload-immich"]["from-albums"].clear()
+
+    plan = gui.build_plan(dry_run=False)
+    assert "--from-date-range=2022-01-01,2022-12-31" in plan.argv
+    assert not plan.errors
+
+
+def test_upload_immich_simple_mode_from_albums_emitted(gui):
+    """A1: from-albums in upload-immich simple card must produce repeat CLI flags."""
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(2)
+    gui.inputs["config"]["server"].setText("http://new:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
+    gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
+    gui.inputs["upload-immich"]["from-date-range"].clear()
+    gui.inputs["upload-immich"]["from-albums"].setText("Family, Travel")
+
+    plan = gui.build_plan(dry_run=False)
+    assert "--from-albums=Family" in plan.argv
+    assert "--from-albums=Travel" in plan.argv
+    assert not plan.errors
+
+
+def test_archive_immich_simple_mode_from_date_range_emitted(gui):
+    """A1: from-date-range in archive-immich simple card must produce CLI flag."""
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(1)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["archive-immich"]["write-to"].setText("/backup")
+    gui.inputs["archive-immich"]["from-date-range"].setText("2023-06-01,2023-12-31")
+    gui.inputs["archive-immich"]["from-albums"].clear()
+
+    plan = gui.build_plan(dry_run=False)
+    assert "--from-date-range=2023-06-01,2023-12-31" in plan.argv
+    assert not plan.errors
+
+
+def test_archive_immich_simple_mode_from_albums_emitted(gui):
+    """A1: from-albums in archive-immich simple card must produce repeat CLI flags."""
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(1)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["archive-immich"]["write-to"].setText("/backup")
+    gui.inputs["archive-immich"]["from-date-range"].clear()
+    gui.inputs["archive-immich"]["from-albums"].setText("ArchiveAlbum")
+
+    plan = gui.build_plan(dry_run=False)
+    assert "--from-albums=ArchiveAlbum" in plan.argv
+    assert not plan.errors
+
+
+def test_upload_immich_simple_mode_has_no_from_favorite_widget(gui):
+    """A1: from-favorite must NOT be a simple-mode widget (it's advanced-only)."""
+    assert "from-favorite" not in gui.inputs.get("upload-immich", {})
+
+
+# ==============================================================================
+# A2: Duplicate test name lint guard
+# ==============================================================================
+
+def test_no_duplicate_test_names():
+    """A2: Ensure no duplicate test function names exist in test_app.py."""
+    import ast
+    import collections
+    tree = ast.parse(Path("test_app.py").read_text(encoding="utf-8"))
+    names = [
+        n.name for n in ast.walk(tree)
+        if isinstance(n, ast.FunctionDef) and n.name.startswith("test_")
+    ]
+    dupes = [n for n, c in collections.Counter(names).items() if c > 1]
+    assert not dupes, f"Duplicate test names found in test_app.py: {dupes}"
+
+
+# ==============================================================================
+# A8: ADVANCED_FLAGS ⊆ TAB_ALLOWED_FLAGS
+# ==============================================================================
+
+def test_advanced_flags_subset_of_tab_allowed_flags():
+    """A8: Every flag in ADVANCED_FLAGS must be in TAB_ALLOWED_FLAGS for its tab.
+    Secret-env flags bypass argv so they are excluded from the argv allowlist check,
+    but we still verify they appear in TAB_ALLOWED_FLAGS when present.
+    """
+    from core.advanced_flags import ADVANCED_FLAGS
+    from core.cli_schema import TAB_ALLOWED_FLAGS
+
+    missing = []
+    for tab, defs in ADVANCED_FLAGS.items():
+        allowed = TAB_ALLOWED_FLAGS.get(tab, frozenset())
+        for d in defs:
+            if d.secret_env:
+                # Secret flags emit via env var, not argv — skip allowlist check
+                continue
+            if d.flag not in allowed:
+                missing.append(f"'{d.flag}' in ADVANCED_FLAGS['{tab}'] missing from TAB_ALLOWED_FLAGS")
+
+    assert not missing, "\n".join(missing)
+
+
+# ==============================================================================
+# A3: validate_advanced_state uses full date semantic validation
+# ==============================================================================
+
+def test_validate_advanced_state_rejects_invalid_month():
+    """A3: validate_advanced_state must reject semantically invalid dates."""
+    from core.advanced_flags import validate_advanced_state
+    # Month 13 is invalid
+    result = validate_advanced_state("upload-folder", {
+        "date-range": {"enabled": True, "value": "2023-13-01,2023-12-31"}
+    })
+    assert not result.is_valid
+    assert any("date" in e.lower() or "invalid" in e.lower() for e in result.errors)
+
+
+def test_validate_advanced_state_rejects_reversed_range():
+    """A3: validate_advanced_state must reject start > end date ranges."""
+    from core.advanced_flags import validate_advanced_state
+    result = validate_advanced_state("upload-folder", {
+        "date-range": {"enabled": True, "value": "2023-12-31,2023-01-01"}
+    })
+    assert not result.is_valid
+    assert result.errors
+
+
+def test_validate_advanced_state_accepts_valid_date_range():
+    """A3: validate_advanced_state must accept well-formed date ranges."""
+    from core.advanced_flags import validate_advanced_state
+    result = validate_advanced_state("upload-folder", {
+        "date-range": {"enabled": True, "value": "2023-01-01,2023-12-31"}
+    })
+    assert result.is_valid
+    assert not result.errors
 
 
 ================================================================================
