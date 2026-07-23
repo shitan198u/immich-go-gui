@@ -3,13 +3,15 @@ IMMICH-GO GUI - REVIEW & CHANGES BUNDLE (375cbfa..HEAD)
 ================================================================================
 
 COMMITS IN RANGE:
+d3ca800 docs: update command_binary_bugs_fix.txt to show dump starting from before 'A few fixes again. check'
 cf6da31 docs: update command_binary_bugs_fix.txt diff bundle with cleanup commit
 1f97bca fix(cleanup): derive ADVANCED_KEYS programmatically and fix from-admin-api-key flag name
 
 SUMMARY OF CHANGED FILES:
- app.py                 | 134 ++-----------------------------------------------
- core/advanced_flags.py |   2 +-
- 2 files changed, 4 insertions(+), 132 deletions(-)
+ app.py                          | 134 +---------------------------------------
+ core/advanced_flags.py          |   2 +-
+ scripts/generate_diff_bundle.py |   5 +-
+ 3 files changed, 7 insertions(+), 134 deletions(-)
 
 ================================================================================
 FULL GIT DIFF:
@@ -187,3 +189,20 @@ index 0357449..f6e1188 100644
              label="Source admin API key",
              kind="text",
              secret_env="IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY",
+diff --git a/scripts/generate_diff_bundle.py b/scripts/generate_diff_bundle.py
+index 80615b9..fb8ef82 100644
+--- a/scripts/generate_diff_bundle.py
++++ b/scripts/generate_diff_bundle.py
+@@ -22,9 +22,10 @@ def generate_diff_bundle(start_ref: str = "9dbbc54", output_path: Path = None, e
+     rev_spec = f"{start_ref}..{end_ref}"
+ 
+     try:
+-        diff = subprocess.check_output(["git", "diff", rev_spec], cwd=repo_root).decode("utf-8")
++        exclude_paths = [":!command_binary_bugs_fix.txt", ":!command_binary_bugs.md", ":!phase2_review_changes.txt"]
++        diff = subprocess.check_output(["git", "diff", rev_spec, "--", "."] + exclude_paths, cwd=repo_root).decode("utf-8")
+         log = subprocess.check_output(["git", "log", rev_spec, "--oneline"], cwd=repo_root).decode("utf-8")
+-        stat = subprocess.check_output(["git", "diff", rev_spec, "--stat"], cwd=repo_root).decode("utf-8")
++        stat = subprocess.check_output(["git", "diff", rev_spec, "--stat", "--", "."] + exclude_paths, cwd=repo_root).decode("utf-8")
+     except subprocess.CalledProcessError as e:
+         print(f"Error executing git command for {rev_spec}: {e}")
+         sys.exit(1)
