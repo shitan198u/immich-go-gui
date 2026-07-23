@@ -218,6 +218,128 @@ class SwitchButton(QWidget):
         painter.drawEllipse(circle_x, 2, 16, 16)
 
 
+class AdvancedFlagRow(QWidget):
+    def __init__(self, def_, parent=None):
+        super().__init__(parent)
+        self.def_ = def_
+
+        self.enable = QCheckBox(f"--{def_.flag}")
+        self.enable.setObjectName("AdvancedFlagEnable")
+        self.enable.setChecked(False)
+        self.enable.setToolTip(def_.label)
+
+        self.value_widget = self._create_value_widget()
+        self.value_widget.setEnabled(False)
+
+        self.enable.toggled.connect(self.value_widget.setEnabled)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(12)
+        layout.addWidget(self.enable, 0)
+        layout.addWidget(self.value_widget, 1)
+
+    def _create_value_widget(self):
+        kind = self.def_.kind
+
+        if kind == "bool":
+            w = QComboBox()
+            w.addItems(["true", "false"])
+            w.setCurrentText("true" if self.def_.default is not False else "false")
+            return w
+
+        if kind == "enum":
+            w = QComboBox()
+            w.addItems(list(self.def_.options))
+            if self.def_.default is not None:
+                w.setCurrentText(str(self.def_.default))
+            return w
+
+        if kind == "int":
+            w = QSpinBox()
+            w.setRange(0, 999999)
+            if isinstance(self.def_.default, int):
+                w.setValue(self.def_.default)
+            return w
+
+        if kind == "duration_minutes":
+            w = QSpinBox()
+            w.setRange(1, 1440)
+            w.setSuffix(" minutes")
+            if isinstance(self.def_.default, int):
+                w.setValue(self.def_.default)
+            else:
+                w.setValue(20)
+            return w
+
+        if kind == "lines_repeat":
+            w = QPlainTextEdit()
+            w.setPlaceholderText(self.def_.placeholder)
+            w.setMaximumHeight(80)
+            return w
+
+        # text, extensions, csv_repeat, date_range
+        w = QLineEdit()
+        if self.def_.secret_env:
+            w.setEchoMode(QLineEdit.EchoMode.Password)
+        w.setPlaceholderText(self.def_.placeholder)
+        return w
+
+    def get_value(self):
+        kind = self.def_.kind
+
+        if kind == "bool":
+            return self.value_widget.currentText() == "true"
+
+        if kind in ("int", "duration_minutes"):
+            return self.value_widget.value()
+
+        if kind == "lines_repeat":
+            return self.value_widget.toPlainText()
+
+        return self.value_widget.text()
+
+    def set_value(self, value):
+        kind = self.def_.kind
+
+        if kind == "bool":
+            self.value_widget.setCurrentText("true" if bool(value) else "false")
+
+        elif kind in ("int", "duration_minutes"):
+            try:
+                self.value_widget.setValue(int(value))
+            except Exception:
+                pass
+
+        elif kind == "lines_repeat":
+            self.value_widget.setPlainText(str(value or ""))
+
+        else:
+            self.value_widget.setText(str(value or ""))
+
+    def state(self) -> dict:
+        return {
+            "enabled": self.enable.isChecked(),
+            "value": self.get_value(),
+        }
+
+    def set_state(self, state: dict):
+        if not isinstance(state, dict):
+            return
+        self.enable.blockSignals(True)
+        self.value_widget.blockSignals(True)
+        try:
+            is_enabled = bool(state.get("enabled", False))
+            self.enable.setChecked(is_enabled)
+            val = state.get("value", self.def_.default)
+            if val is not None:
+                self.set_value(val)
+            self.value_widget.setEnabled(is_enabled)
+        finally:
+            self.enable.blockSignals(False)
+            self.value_widget.blockSignals(False)
+
+
 class Card(QFrame):
     def __init__(self, title, required=False, parent=None):
         super().__init__(parent)
@@ -444,6 +566,7 @@ class ImmichGoGUI(QMainWindow):
         apply_application_theme(self.theme_mode)
 
         self.is_advanced = False
+        self.adv_rows = {}
 
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -522,6 +645,41 @@ class ImmichGoGUI(QMainWindow):
         elif idx == 3:
             return "stack"
         return "config"
+
+    def _build_advanced_flags_card(self, tab_key: str):
+        from core.advanced_flags import ADVANCED_FLAGS
+
+        card = Card("Advanced Flags")
+        form = FormSection()
+
+        hint = QLabel(
+            "Advanced flags are disabled by default. "
+            "Check the box next to a flag to enable it and pass it to immich-go."
+        )
+        hint.setObjectName("Hint")
+        hint.setWordWrap(True)
+        form.addRow("", hint)
+
+        if not hasattr(self, "adv_rows"):
+            self.adv_rows = {}
+        self.adv_rows[tab_key] = {}
+
+        for def_ in ADVANCED_FLAGS.get(tab_key, ()):
+            row = AdvancedFlagRow(def_)
+            row.enable.toggled.connect(lambda _, r=row: self.update_status())
+            if hasattr(row.value_widget, "textChanged"):
+                row.value_widget.textChanged.connect(lambda _, r=row: self.update_status())
+            elif hasattr(row.value_widget, "currentIndexChanged"):
+                row.value_widget.currentIndexChanged.connect(lambda _, r=row: self.update_status())
+            elif hasattr(row.value_widget, "valueChanged"):
+                row.value_widget.valueChanged.connect(lambda _, r=row: self.update_status())
+            self.adv_rows[tab_key][def_.key] = row
+            form.addRow("", row)
+
+        card.layout.addLayout(form)
+        card.setVisible(False)
+        self.adv_frames.append(card)
+        return card
 
     # ==========================================================
     # THEME METHODS
@@ -1045,118 +1203,8 @@ class ImmichGoGUI(QMainWindow):
         card.layout.addLayout(form)
         lay.addWidget(card)
 
-        adv_card = Card("Advanced Options")
-        form = FormSection()
-
-        subhead = QLabel("Filtering & Source Behavior")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        c_type = QComboBox()
-        c_type.addItems(["all", "IMAGE", "VIDEO"])
-        self.inputs["upload-folder"]["include-type"] = c_type
-        form.add_row("Media Type", c_type)
-
-        d_range = QLineEdit()
-        d_range.setPlaceholderText("YYYY-MM-DD,YYYY-MM-DD")
-        self.inputs["upload-folder"]["date-range"] = d_range
-        form.add_row("Date range", d_range)
-
-        inc_ext = QLineEdit()
-        inc_ext.setPlaceholderText(".jpg,.heic,.mp4")
-        self.inputs["upload-folder"]["include-ext"] = inc_ext
-        form.add_row("Include extensions", inc_ext)
-
-        exc_ext = QLineEdit()
-        exc_ext.setPlaceholderText(".thm,.xmp")
-        self.inputs["upload-folder"]["exclude-ext"] = exc_ext
-        form.add_row("Exclude extensions", exc_ext)
-
-        ban_file = QPlainTextEdit()
-        ban_file.setPlaceholderText("@eaDir/\n.DS_Store")
-        self.inputs["upload-folder"]["ban-file"] = ban_file
-        form.add_row("Skip files matching patterns", ban_file)
-
-        chk_rec = QCheckBox("Scan subdirectories recursively")
-        chk_rec.setChecked(True)
-        self.inputs["upload-folder"]["recursive"] = chk_rec
-        form.addRow("", chk_rec)
-
-        chk_ignore = QCheckBox("Ignore sidecar files")
-        self.inputs["upload-folder"]["ignore-sidecar"] = chk_ignore
-        form.addRow("", chk_ignore)
-
-        chk_date_name = QCheckBox("Guess dates from filenames")
-        chk_date_name.setChecked(True)
-        self.inputs["upload-folder"]["date-from-name"] = chk_date_name
-        form.addRow("", chk_date_name)
-
-        t_joiner = QLineEdit()
-        t_joiner.setPlaceholderText(" / ")
-        self.inputs["upload-folder"]["album-path-joiner"] = t_joiner
-        form.add_row("Album path joiner", t_joiner)
-
-        subhead = QLabel("Tagging")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        t_tags = QLineEdit()
-        t_tags.setPlaceholderText("vacation, family/reunion")
-        self.inputs["upload-folder"]["tag"] = t_tags
-        form.add_row("Custom Tags (comma separated)", t_tags)
-
-        chk_sess = QCheckBox("Session Tag")
-        self.inputs["upload-folder"]["session-tag"] = chk_sess
-        form.addRow("", chk_sess)
-
-        chk_ftags = QCheckBox("Folder as Tags")
-        self.inputs["upload-folder"]["folder-tags"] = chk_ftags
-        form.addRow("", chk_ftags)
-
-        subhead = QLabel("Run Behavior")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        c_err = QComboBox()
-        c_err.addItems(["stop", "continue"])
-        self.inputs["upload-folder"]["on-errors"] = c_err
-        form.add_row("If a file fails", c_err)
-
-        chk_overwrite = QCheckBox("Overwrite Existing")
-        self.inputs["upload-folder"]["overwrite"] = chk_overwrite
-        form.addRow("", chk_overwrite)
-
-        chk_pause = QCheckBox("Pause background jobs")
-        chk_pause.setChecked(True)
-        self.inputs["upload-folder"]["pause-jobs"] = chk_pause
-        form.addRow("", chk_pause)
-
-        t_tz = QLineEdit()
-        t_tz.setPlaceholderText("UTC or America/New_York")
-        self.inputs["upload-folder"]["time-zone"] = t_tz
-        form.add_row("Time Zone Override", t_tz)
-
-        chk_epson = QCheckBox("Scan Epson FastFoto dual-side photos")
-        self.inputs["upload-folder"]["manage-epson"] = chk_epson
-        form.addRow("", chk_epson)
-
-        subhead = QLabel("Connection & Debug")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        c_log = QComboBox()
-        c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
-        self.inputs["upload-folder"]["log-level"] = c_log
-        form.add_row("Log Level", c_log)
-
-        chk_trace = QCheckBox("Enable API Trace")
-        self.inputs["upload-folder"]["api-trace"] = chk_trace
-        form.addRow("", chk_trace)
-
-        adv_card.setVisible(False)
-        adv_card.layout.addLayout(form)
+        adv_card = self._build_advanced_flags_card("upload-folder")
         lay.addWidget(adv_card)
-        self.adv_frames.append(adv_card)
 
         lay.addStretch()
         return page
@@ -1244,145 +1292,8 @@ class ImmichGoGUI(QMainWindow):
         card.layout.addLayout(form)
         lay.addWidget(card)
 
-        adv_card = Card("Advanced Options")
-        form = FormSection()
-
-        subhead = QLabel("Media & Album Controls")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        c_type = QComboBox()
-        c_type.addItems(["all", "IMAGE", "VIDEO"])
-        self.inputs["upload-gp"]["include-type"] = c_type
-        form.add_row("Media Type", c_type)
-
-        t_album = QLineEdit()
-        t_album.setPlaceholderText("e.g. Family Archive")
-        self.inputs["upload-gp"]["into-album"] = t_album
-        form.add_row("Put all into Album", t_album)
-
-        chk_unmatched = QCheckBox("Include Unmatched Files")
-        self.inputs["upload-gp"]["include-unmatched"] = chk_unmatched
-        form.addRow("", chk_unmatched)
-
-        chk_trashed = QCheckBox("Include Trashed Photos")
-        self.inputs["upload-gp"]["include-trashed"] = chk_trashed
-        form.addRow("", chk_trashed)
-
-        chk_untitled = QCheckBox("Include Untitled Albums")
-        self.inputs["upload-gp"]["include-untitled-albums"] = chk_untitled
-        form.addRow("", chk_untitled)
-
-        t_album_name = QLineEdit()
-        t_album_name.setPlaceholderText("Album Name")
-        self.inputs["upload-gp"]["from-album-name"] = t_album_name
-        form.add_row("From Specific Album", t_album_name)
-
-        t_partner_album = QLineEdit()
-        t_partner_album.setPlaceholderText("Album name for partner photos")
-        self.inputs["upload-gp"]["partner-album"] = t_partner_album
-        form.add_row("Partner Shared Album", t_partner_album)
-
-        chk_takeout_tag = QCheckBox("Takeout Tag")
-        chk_takeout_tag.setChecked(True)
-        self.inputs["upload-gp"]["takeout-tag"] = chk_takeout_tag
-        form.addRow("", chk_takeout_tag)
-
-        chk_people_tag = QCheckBox("People Tag")
-        chk_people_tag.setChecked(True)
-        self.inputs["upload-gp"]["people-tag"] = chk_people_tag
-        form.addRow("", chk_people_tag)
-
-        subhead = QLabel("Additional Pair Handling")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        c_raw = QComboBox()
-        c_raw.addItems(["NoStack", "KeepRaw", "KeepJPG", "StackCoverRaw", "StackCoverJPG"])
-        self.inputs["upload-gp"]["manage-raw-jpeg"] = c_raw
-        form.add_row("RAW + JPEG Pairs", c_raw)
-
-        chk_epson = QCheckBox("Scan Epson FastFoto dual-side photos")
-        self.inputs["upload-gp"]["manage-epson"] = chk_epson
-        form.addRow("", chk_epson)
-
-        subhead = QLabel("Filtering")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        d_range = QLineEdit()
-        d_range.setPlaceholderText("YYYY-MM-DD,YYYY-MM-DD")
-        self.inputs["upload-gp"]["date-range"] = d_range
-        form.add_row("Date range", d_range)
-
-        inc_ext = QLineEdit()
-        inc_ext.setPlaceholderText(".jpg,.heic,.mp4")
-        self.inputs["upload-gp"]["include-ext"] = inc_ext
-        form.add_row("Include extensions", inc_ext)
-
-        exc_ext = QLineEdit()
-        exc_ext.setPlaceholderText(".thm,.xmp")
-        self.inputs["upload-gp"]["exclude-ext"] = exc_ext
-        form.add_row("Exclude extensions", exc_ext)
-
-        ban_file = QPlainTextEdit()
-        ban_file.setPlaceholderText("@eaDir/\n.DS_Store")
-        self.inputs["upload-gp"]["ban-file"] = ban_file
-        form.add_row("Skip files matching patterns", ban_file)
-
-        subhead = QLabel("Tagging")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        t_tags = QLineEdit()
-        t_tags.setPlaceholderText("vacation, family/reunion")
-        self.inputs["upload-gp"]["tag"] = t_tags
-        form.add_row("Custom Tags (comma separated)", t_tags)
-
-        chk_sess = QCheckBox("Session Tag")
-        self.inputs["upload-gp"]["session-tag"] = chk_sess
-        form.addRow("", chk_sess)
-
-        subhead = QLabel("Run Behavior")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        chk_overwrite = QCheckBox("Overwrite Existing")
-        self.inputs["upload-gp"]["overwrite"] = chk_overwrite
-        form.addRow("", chk_overwrite)
-
-        c_err = QComboBox()
-        c_err.addItems(["stop", "continue"])
-        self.inputs["upload-gp"]["on-errors"] = c_err
-        form.add_row("If a file fails", c_err)
-
-        chk_pause = QCheckBox("Pause background jobs")
-        chk_pause.setChecked(True)
-        self.inputs["upload-gp"]["pause-jobs"] = chk_pause
-        form.addRow("", chk_pause)
-
-        t_tz = QLineEdit()
-        t_tz.setPlaceholderText("UTC or America/New_York")
-        self.inputs["upload-gp"]["time-zone"] = t_tz
-        form.add_row("Time Zone Override", t_tz)
-
-        subhead = QLabel("Connection & Debug")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        c_log = QComboBox()
-        c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
-        self.inputs["upload-gp"]["log-level"] = c_log
-        form.add_row("Log Level", c_log)
-
-        chk_trace = QCheckBox("Enable API Trace")
-        self.inputs["upload-gp"]["api-trace"] = chk_trace
-        form.addRow("", chk_trace)
-
-        adv_card.setVisible(False)
-        adv_card.layout.addLayout(form)
+        adv_card = self._build_advanced_flags_card("upload-gp")
         lay.addWidget(adv_card)
-        self.adv_frames.append(adv_card)
 
         lay.addStretch()
         return page
@@ -1433,186 +1344,8 @@ class ImmichGoGUI(QMainWindow):
         card.layout.addLayout(form)
         lay.addWidget(card)
 
-        adv_card = Card("Advanced Options")
-        form = FormSection()
-
-        subhead = QLabel("Source Filtering & Credentials")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        t_from_admin = QLineEdit()
-        t_from_admin.setEchoMode(QLineEdit.EchoMode.Password)
-        t_from_admin.setPlaceholderText("Optional Source Admin API Key")
-        self.inputs["upload-immich"]["from-admin-api-key"] = t_from_admin
-        form.add_row(
-            "Source Admin API Key",
-            t_from_admin,
-            "Only needed if source server requires admin-level operations."
-        )
-
-        chk_arch = QCheckBox("Include Source Archived")
-        self.inputs["upload-immich"]["from-archived"] = chk_arch
-        form.addRow("", chk_arch)
-
-        chk_trash = QCheckBox("Include Source Trashed")
-        self.inputs["upload-immich"]["from-trash"] = chk_trash
-        form.addRow("", chk_trash)
-
-        chk_partners = QCheckBox("Include Source Partner Photos")
-        self.inputs["upload-immich"]["from-partners"] = chk_partners
-        form.addRow("", chk_partners)
-
-        chk_no_album = QCheckBox("Include Source Assets Not in Albums")
-        self.inputs["upload-immich"]["from-no-album"] = chk_no_album
-        form.addRow("", chk_no_album)
-
-        s_rating = QSpinBox()
-        s_rating.setRange(0, 5)
-        self.inputs["upload-immich"]["from-minimal-rating"] = s_rating
-        form.add_row("Minimum Rating", s_rating)
-
-        t_people = QLineEdit()
-        t_people.setPlaceholderText("John, Jane")
-        self.inputs["upload-immich"]["from-people"] = t_people
-        form.add_row("Filter by People", t_people)
-
-        t_tags = QLineEdit()
-        t_tags.setPlaceholderText("vacation, work")
-        self.inputs["upload-immich"]["from-tags"] = t_tags
-        form.add_row("Filter by Tags", t_tags)
-
-        t_city = QLineEdit()
-        t_city.setPlaceholderText("New York")
-        self.inputs["upload-immich"]["from-city"] = t_city
-        form.add_row("City", t_city)
-
-        t_state = QLineEdit()
-        t_state.setPlaceholderText("NY")
-        self.inputs["upload-immich"]["from-state"] = t_state
-        form.add_row("State", t_state)
-
-        t_country = QLineEdit()
-        t_country.setPlaceholderText("USA")
-        self.inputs["upload-immich"]["from-country"] = t_country
-        form.add_row("Country", t_country)
-
-        t_make = QLineEdit()
-        t_make.setPlaceholderText("Canon")
-        self.inputs["upload-immich"]["from-make"] = t_make
-        form.add_row("Camera Make", t_make)
-
-        t_model = QLineEdit()
-        t_model.setPlaceholderText("EOS R5")
-        self.inputs["upload-immich"]["from-model"] = t_model
-        form.add_row("Camera Model", t_model)
-
-        c_from_type = QComboBox()
-        c_from_type.addItems(["all", "IMAGE", "VIDEO"])
-        self.inputs["upload-immich"]["from-include-type"] = c_from_type
-        form.add_row("Source Media Type", c_from_type)
-
-        t_from_inc_ext = QLineEdit()
-        t_from_inc_ext.setPlaceholderText(".jpg,.heic")
-        self.inputs["upload-immich"]["from-include-ext"] = t_from_inc_ext
-        form.add_row("Source Include Extensions", t_from_inc_ext)
-
-        t_from_exc_ext = QLineEdit()
-        t_from_exc_ext.setPlaceholderText(".mp4")
-        self.inputs["upload-immich"]["from-exclude-ext"] = t_from_exc_ext
-        form.add_row("Source Exclude Extensions", t_from_exc_ext)
-
-        t_from_tz = QLineEdit()
-        t_from_tz.setPlaceholderText("UTC")
-        self.inputs["upload-immich"]["from-time-zone"] = t_from_tz
-        form.add_row("Source Time Zone", t_from_tz)
-
-        t_from_dev = QLineEdit()
-        self.inputs["upload-immich"]["from-device-uuid"] = t_from_dev
-        form.add_row("Source Device UUID", t_from_dev)
-
-        from_timeout_spin = QSpinBox()
-        from_timeout_spin.setRange(1, 1440)
-        from_timeout_spin.setValue(20)
-        from_timeout_spin.setSuffix(" minutes")
-        self.inputs["upload-immich"]["from-client-timeout"] = from_timeout_spin
-        form.add_row("Source Client Timeout", from_timeout_spin)
-
-        chk_ssl_src = QCheckBox("Skip Source SSL Verification")
-        self.inputs["upload-immich"]["from-skip-ssl"] = chk_ssl_src
-        form.addRow("", chk_ssl_src)
-
-        chk_from_trace = QCheckBox("Enable Source API Trace")
-        self.inputs["upload-immich"]["from-api-trace"] = chk_from_trace
-        form.addRow("", chk_from_trace)
-
-        chk_from_pause = QCheckBox("Pause Source Immich Jobs")
-        chk_from_pause.setChecked(True)
-        self.inputs["upload-immich"]["from-pause-jobs"] = chk_from_pause
-        form.addRow("", chk_from_pause)
-
-        subhead = QLabel("Destination Settings & Pair Handling")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        t_dst_tags = QLineEdit()
-        t_dst_tags.setPlaceholderText("migration")
-        self.inputs["upload-immich"]["tag"] = t_dst_tags
-        form.add_row("Destination Custom Tags", t_dst_tags)
-
-        chk_dst_sess = QCheckBox("Destination Session Tag")
-        self.inputs["upload-immich"]["session-tag"] = chk_dst_sess
-        form.addRow("", chk_dst_sess)
-
-        chk_dst_ovw = QCheckBox("Overwrite Existing on Destination")
-        self.inputs["upload-immich"]["overwrite"] = chk_dst_ovw
-        form.addRow("", chk_dst_ovw)
-
-        t_dst_tz = QLineEdit()
-        t_dst_tz.setPlaceholderText("UTC")
-        self.inputs["upload-immich"]["time-zone"] = t_dst_tz
-        form.add_row("Destination Time Zone", t_dst_tz)
-
-        c_burst = QComboBox()
-        c_burst.addItems(["NoStack", "Stack", "StackKeepRaw", "StackKeepJPEG"])
-        self.inputs["upload-immich"]["manage-burst"] = c_burst
-        form.add_row("Destination Burst Photos", c_burst)
-
-        c_raw = QComboBox()
-        c_raw.addItems(["NoStack", "KeepRaw", "KeepJPG", "StackCoverRaw", "StackCoverJPG"])
-        self.inputs["upload-immich"]["manage-raw-jpeg"] = c_raw
-        form.add_row("Destination RAW+JPEG Pairs", c_raw)
-
-        c_heic = QComboBox()
-        c_heic.addItems(["NoStack", "KeepHeic", "KeepJPG", "StackCoverHeic", "StackCoverJPG"])
-        self.inputs["upload-immich"]["manage-heic-jpeg"] = c_heic
-        form.add_row("Destination HEIC+JPEG Pairs", c_heic)
-
-        chk_epson = QCheckBox("Scan Epson FastFoto dual-side photos")
-        self.inputs["upload-immich"]["manage-epson"] = chk_epson
-        form.addRow("", chk_epson)
-
-        subhead = QLabel("Run Behavior & Debug")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        c_err = QComboBox()
-        c_err.addItems(["stop", "continue"])
-        self.inputs["upload-immich"]["on-errors"] = c_err
-        form.add_row("If a file fails", c_err)
-
-        c_log = QComboBox()
-        c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
-        self.inputs["upload-immich"]["log-level"] = c_log
-        form.add_row("Log Level", c_log)
-
-        chk_trace = QCheckBox("Enable Destination API Trace")
-        self.inputs["upload-immich"]["api-trace"] = chk_trace
-        form.addRow("", chk_trace)
-
-        adv_card.setVisible(False)
-        adv_card.layout.addLayout(form)
+        adv_card = self._build_advanced_flags_card("upload-immich")
         lay.addWidget(adv_card)
-        self.adv_frames.append(adv_card)
 
         lay.addStretch()
         return page
@@ -1670,93 +1403,8 @@ class ImmichGoGUI(QMainWindow):
         card.layout.addLayout(form)
         lay.addWidget(card)
 
-        adv_card = Card("Advanced Options")
-        form = FormSection()
-
-        subhead = QLabel("Filtering & Source Behavior")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        d_range = QLineEdit()
-        d_range.setPlaceholderText("YYYY-MM-DD,YYYY-MM-DD")
-        self.inputs["archive-folder"]["date-range"] = d_range
-        form.add_row("Date Range", d_range)
-
-        c_type = QComboBox()
-        c_type.addItems(["all", "IMAGE", "VIDEO"])
-        self.inputs["archive-folder"]["include-type"] = c_type
-        form.add_row("Media Type", c_type)
-
-        inc_ext = QLineEdit()
-        inc_ext.setPlaceholderText(".jpg,.heic,.mp4")
-        self.inputs["archive-folder"]["include-ext"] = inc_ext
-        form.add_row("Include extensions", inc_ext)
-
-        exc_ext = QLineEdit()
-        exc_ext.setPlaceholderText(".thm,.xmp")
-        self.inputs["archive-folder"]["exclude-ext"] = exc_ext
-        form.add_row("Exclude extensions", exc_ext)
-
-        ban_file = QPlainTextEdit()
-        ban_file.setPlaceholderText("@eaDir/\n.DS_Store")
-        self.inputs["archive-folder"]["ban-file"] = ban_file
-        form.add_row("Skip files matching patterns", ban_file)
-
-        chk_rec = QCheckBox("Scan subdirectories recursively")
-        chk_rec.setChecked(True)
-        self.inputs["archive-folder"]["recursive"] = chk_rec
-        form.addRow("", chk_rec)
-
-        chk_ignore = QCheckBox("Ignore sidecar files")
-        self.inputs["archive-folder"]["ignore-sidecar"] = chk_ignore
-        form.addRow("", chk_ignore)
-
-        chk_date_name = QCheckBox("Guess dates from filenames")
-        chk_date_name.setChecked(True)
-        self.inputs["archive-folder"]["date-from-name"] = chk_date_name
-        form.addRow("", chk_date_name)
-
-        subhead = QLabel("Folder & Album Organization")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        c_album = QComboBox()
-        c_album.addItems(["NONE", "FOLDER", "PATH"])
-        self.inputs["archive-folder"]["folder-album"] = c_album
-        form.add_row("Folder as Album", c_album)
-
-        chk_ftags = QCheckBox("Folder as Tags")
-        self.inputs["archive-folder"]["folder-tags"] = chk_ftags
-        form.addRow("", chk_ftags)
-
-        t_album = QLineEdit()
-        t_album.setPlaceholderText("e.g. Backup Album")
-        self.inputs["archive-folder"]["into-album"] = t_album
-        form.add_row("Put all into Album", t_album)
-
-        t_joiner = QLineEdit()
-        t_joiner.setPlaceholderText(" / ")
-        self.inputs["archive-folder"]["album-path-joiner"] = t_joiner
-        form.add_row("Album Path Joiner", t_joiner)
-
-        subhead = QLabel("Run Behavior & Debug")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        c_err = QComboBox()
-        c_err.addItems(["stop", "continue"])
-        self.inputs["archive-folder"]["on-errors"] = c_err
-        form.add_row("If a file fails", c_err)
-
-        c_log = QComboBox()
-        c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
-        self.inputs["archive-folder"]["log-level"] = c_log
-        form.add_row("Log Level", c_log)
-
-        adv_card.setVisible(False)
-        adv_card.layout.addLayout(form)
+        adv_card = self._build_advanced_flags_card("archive-folder")
         lay.addWidget(adv_card)
-        self.adv_frames.append(adv_card)
 
         lay.addStretch()
         return page
@@ -1802,142 +1450,8 @@ class ImmichGoGUI(QMainWindow):
         card.layout.addLayout(form)
         lay.addWidget(card)
 
-        adv_card = Card("Advanced Options")
-        form = FormSection()
-
-        subhead = QLabel("Source Asset Filters")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        chk_fav = QCheckBox("Only Favorites")
-        self.inputs["archive-immich"]["from-favorite"] = chk_fav
-        form.addRow("", chk_fav)
-
-        chk_arch = QCheckBox("Include Source Archived")
-        self.inputs["archive-immich"]["from-archived"] = chk_arch
-        form.addRow("", chk_arch)
-
-        chk_trash = QCheckBox("Include Source Trashed")
-        self.inputs["archive-immich"]["from-trash"] = chk_trash
-        form.addRow("", chk_trash)
-
-        chk_no_album = QCheckBox("Include Assets Not in Albums")
-        self.inputs["archive-immich"]["from-no-album"] = chk_no_album
-        form.addRow("", chk_no_album)
-
-        chk_partners = QCheckBox("Include Partner Photos")
-        self.inputs["archive-immich"]["from-partners"] = chk_partners
-        form.addRow("", chk_partners)
-
-        s_rating = QSpinBox()
-        s_rating.setRange(0, 5)
-        self.inputs["archive-immich"]["from-minimal-rating"] = s_rating
-        form.add_row("Minimum Rating", s_rating)
-
-        subhead = QLabel("People & Tags")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        t_people = QLineEdit()
-        t_people.setPlaceholderText("John, Jane")
-        self.inputs["archive-immich"]["from-people"] = t_people
-        form.add_row("Filter by People", t_people)
-
-        t_tags = QLineEdit()
-        t_tags.setPlaceholderText("vacation, work")
-        self.inputs["archive-immich"]["from-tags"] = t_tags
-        form.add_row("Filter by Tags", t_tags)
-
-        subhead = QLabel("Location & Camera Metadata")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        t_city = QLineEdit()
-        t_city.setPlaceholderText("New York")
-        self.inputs["archive-immich"]["from-city"] = t_city
-        form.add_row("City", t_city)
-
-        t_state = QLineEdit()
-        t_state.setPlaceholderText("NY")
-        self.inputs["archive-immich"]["from-state"] = t_state
-        form.add_row("State", t_state)
-
-        t_country = QLineEdit()
-        t_country.setPlaceholderText("USA")
-        self.inputs["archive-immich"]["from-country"] = t_country
-        form.add_row("Country", t_country)
-
-        t_make = QLineEdit()
-        t_make.setPlaceholderText("Canon")
-        self.inputs["archive-immich"]["from-make"] = t_make
-        form.add_row("Camera Make", t_make)
-
-        t_model = QLineEdit()
-        t_model.setPlaceholderText("EOS R5")
-        self.inputs["archive-immich"]["from-model"] = t_model
-        form.add_row("Camera Model", t_model)
-
-        subhead = QLabel("Media & Extensions")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        c_from_type = QComboBox()
-        c_from_type.addItems(["all", "IMAGE", "VIDEO"])
-        self.inputs["archive-immich"]["from-include-type"] = c_from_type
-        form.add_row("Source Media Type", c_from_type)
-
-        t_from_inc_ext = QLineEdit()
-        t_from_inc_ext.setPlaceholderText(".jpg,.heic")
-        self.inputs["archive-immich"]["from-include-ext"] = t_from_inc_ext
-        form.add_row("Include Extensions", t_from_inc_ext)
-
-        t_from_exc_ext = QLineEdit()
-        t_from_exc_ext.setPlaceholderText(".mp4")
-        self.inputs["archive-immich"]["from-exclude-ext"] = t_from_exc_ext
-        form.add_row("Exclude Extensions", t_from_exc_ext)
-
-        subhead = QLabel("Source Connection & Debug")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        t_from_tz = QLineEdit()
-        t_from_tz.setPlaceholderText("UTC")
-        self.inputs["archive-immich"]["from-time-zone"] = t_from_tz
-        form.add_row("Source Time Zone", t_from_tz)
-
-        t_from_dev = QLineEdit()
-        self.inputs["archive-immich"]["from-device-uuid"] = t_from_dev
-        form.add_row("Source Device UUID", t_from_dev)
-
-        from_timeout_spin = QSpinBox()
-        from_timeout_spin.setRange(1, 1440)
-        from_timeout_spin.setValue(20)
-        from_timeout_spin.setSuffix(" minutes")
-        self.inputs["archive-immich"]["from-client-timeout"] = from_timeout_spin
-        form.add_row("Source Client Timeout", from_timeout_spin)
-
-        chk_ssl_src = QCheckBox("Skip Source SSL Verification")
-        self.inputs["archive-immich"]["from-skip-ssl"] = chk_ssl_src
-        form.addRow("", chk_ssl_src)
-
-        chk_from_trace = QCheckBox("Enable Source API Trace")
-        self.inputs["archive-immich"]["from-api-trace"] = chk_from_trace
-        form.addRow("", chk_from_trace)
-
-        chk_from_pause = QCheckBox("Pause Source Immich Jobs")
-        chk_from_pause.setChecked(True)
-        self.inputs["archive-immich"]["from-pause-jobs"] = chk_from_pause
-        form.addRow("", chk_from_pause)
-
-        c_log = QComboBox()
-        c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
-        self.inputs["archive-immich"]["log-level"] = c_log
-        form.add_row("Log Level", c_log)
-
-        adv_card.setVisible(False)
-        adv_card.layout.addLayout(form)
+        adv_card = self._build_advanced_flags_card("archive-immich")
         lay.addWidget(adv_card)
-        self.adv_frames.append(adv_card)
 
         lay.addStretch()
         return page
@@ -1979,49 +1493,8 @@ class ImmichGoGUI(QMainWindow):
         card.layout.addLayout(form)
         page.addWidget(card)
 
-        adv_card = Card("Advanced Options")
-        form = FormSection()
-
-        subhead = QLabel("Detection Tuning")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        d_range = QLineEdit()
-        d_range.setPlaceholderText("YYYY-MM-DD,YYYY-MM-DD")
-        self.inputs["stack"]["date-range"] = d_range
-        form.add_row("Date Range", d_range)
-
-        t_tz = QLineEdit()
-        t_tz.setPlaceholderText("America/New_York")
-        self.inputs["stack"]["time-zone"] = t_tz
-        form.add_row("Time Zone Override", t_tz)
-
-        chk_epson = QCheckBox("Manage Epson FastFoto")
-        self.inputs["stack"]["manage-epson"] = chk_epson
-        form.addRow("", chk_epson)
-
-        chk_pause = QCheckBox("Pause background jobs")
-        chk_pause.setChecked(True)
-        self.inputs["stack"]["pause-jobs"] = chk_pause
-        form.addRow("", chk_pause)
-
-        subhead = QLabel("Connection & Debug")
-        subhead.setObjectName("Subhead")
-        form.addRow(subhead)
-
-        c_log = QComboBox()
-        c_log.addItems(["INFO", "DEBUG", "WARN", "ERROR"])
-        self.inputs["stack"]["log-level"] = c_log
-        form.add_row("Log Level", c_log)
-
-        chk_trace = QCheckBox("Enable API Trace")
-        self.inputs["stack"]["api-trace"] = chk_trace
-        form.addRow("", chk_trace)
-
-        adv_card.setVisible(False)
-        adv_card.layout.addLayout(form)
+        adv_card = self._build_advanced_flags_card("stack")
         page.addWidget(adv_card)
-        self.adv_frames.append(adv_card)
 
         page.addStretch()
         return page
