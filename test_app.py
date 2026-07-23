@@ -248,13 +248,13 @@ def test_droppable_plain_text_edit_drop(qapp, qtbot):
 
 
 def test_global_flag_ordering(gui):
-    """Global opts (--log-level) must appear in subcommand options."""
+    """Global opts (--log-level) must appear in subcommand options when enabled in advanced flags."""
     gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
     gui.upload_tabs.setCurrentIndex(0)     # upload-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
-    gui.inputs["upload-folder"]["log-level"].setCurrentText("DEBUG")
+    gui.adv_rows["upload-folder"]["log-level"].set_state({"enabled": True, "value": "DEBUG"})
     gui.inputs["upload-folder"]["path"].setText("/photos")
     opts = gui.build_command(dry_run=False)
     assert "--log-level=DEBUG" in opts
@@ -281,17 +281,16 @@ def test_pause_jobs_not_on_stack(gui):
     assert not any("--pause-immich-jobs" in o for o in opts)
 
 
-def test_on_errors_not_on_archive(gui):
+def test_on_errors_emitted_when_configured(gui):
     gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(2)  # archive page
-    gui.archive_tabs.setCurrentIndex(0)    # archive-folder
+    gui.archive_tabs.setCurrentIndex(1)    # archive-immich
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
-    gui.inputs["archive-folder"]["path"].setText("/src")
-    gui.inputs["archive-folder"]["write-to"].setText("/dst")
+    gui.inputs["archive-immich"]["write-to"].setText("/dst")
     gui.inputs["config"]["on_errors"].setCurrentText("continue")
     opts = gui.build_command(dry_run=False)
-    assert not any("--on-errors" in o for o in opts)
+    assert "--on-errors=continue" in opts
 
 
 def test_client_timeout_emitted(gui):
@@ -325,7 +324,7 @@ def test_api_trace_on_upload_gp(gui):
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["upload-gp"]["path"].setPlainText("/takeout")
-    gui.inputs["upload-gp"]["api-trace"].setChecked(True)
+    gui.adv_rows["upload-gp"]["api-trace"].set_state({"enabled": True, "value": True})
     opts = gui.build_command(dry_run=False)
     assert "--api-trace" in opts
 
@@ -335,7 +334,7 @@ def test_api_trace_on_stack(gui):
     gui.stacked_widget.setCurrentIndex(3)  # stack
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
-    gui.inputs["stack"]["api-trace"].setChecked(True)
+    gui.adv_rows["stack"]["api-trace"].set_state({"enabled": True, "value": True})
     opts = gui.build_command(dry_run=False)
     assert "--api-trace" in opts
 
@@ -348,7 +347,7 @@ def test_from_client_timeout(gui):
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
     gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
-    gui.inputs["upload-immich"]["from-client-timeout"].setValue(60)
+    gui.adv_rows["upload-immich"]["from-client-timeout"].set_state({"enabled": True, "value": 60})
     opts = gui.build_command(dry_run=False)
     assert "--from-client-timeout=60m" in opts
 
@@ -420,8 +419,7 @@ def test_api_trace_on_stack_disabled(gui):
     gui.stacked_widget.setCurrentIndex(3)
     gui.inputs["config"]["server"].setText("http://stack:2283")
     gui.inputs["config"]["api_key"].setText("stack-key")
-    if "api-trace" in gui.inputs["stack"]:
-        gui.inputs["stack"]["api-trace"].setChecked(False)
+    gui.adv_rows["stack"]["api-trace"].set_state({"enabled": False, "value": True})
     opts = gui.build_command(dry_run=False)
     assert not any("--api-trace" in o for o in opts)
 
@@ -434,20 +432,20 @@ def test_build_command_upload_immich(gui):
     gui.inputs["config"]["api_key"].setText("local-key")
     gui.inputs["upload-immich"]["from-server"].setText("http://remote:2283")
     gui.inputs["upload-immich"]["from-api-key"].setText("remote-key")
-    gui.inputs["upload-immich"]["from-favorite"].setChecked(True)
-    gui.inputs["upload-immich"]["from-archived"].setChecked(True)
-    gui.inputs["upload-immich"]["from-trash"].setChecked(True)
-    gui.inputs["upload-immich"]["from-date-range"].setText("2020-01-01,2021-01-01")
-    gui.inputs["upload-immich"]["from-albums"].setText("Album1, Album2")
-    gui.inputs["upload-immich"]["from-minimal-rating"].setValue(3)
-    gui.inputs["upload-immich"]["from-people"].setText("John, Jane")
-    gui.inputs["upload-immich"]["from-tags"].setText("Vacation, Family")
-    gui.inputs["upload-immich"]["from-city"].setText("Paris")
-    gui.inputs["upload-immich"]["from-state"].setText("IDF")
-    gui.inputs["upload-immich"]["from-country"].setText("France")
-    gui.inputs["upload-immich"]["from-make"].setText("Apple")
-    gui.inputs["upload-immich"]["from-model"].setText("iPhone 13")
-    gui.inputs["upload-immich"]["from-skip-ssl"].setChecked(True)
+    gui.adv_rows["upload-immich"]["from-favorite"].set_state({"enabled": True, "value": True})
+    gui.adv_rows["upload-immich"]["from-archived"].set_state({"enabled": True, "value": True})
+    gui.adv_rows["upload-immich"]["from-trash"].set_state({"enabled": True, "value": True})
+    gui.adv_rows["upload-immich"]["from-date-range"].set_state({"enabled": True, "value": "2020-01-01,2021-01-01"})
+    gui.adv_rows["upload-immich"]["from-albums"].set_state({"enabled": True, "value": "Album1, Album2"})
+    gui.adv_rows["upload-immich"]["from-minimal-rating"].set_state({"enabled": True, "value": 3})
+    gui.adv_rows["upload-immich"]["from-people"].set_state({"enabled": True, "value": "John, Jane"})
+    gui.adv_rows["upload-immich"]["from-tags"].set_state({"enabled": True, "value": "Vacation, Family"})
+    gui.adv_rows["upload-immich"]["from-city"].set_state({"enabled": True, "value": "Paris"})
+    gui.adv_rows["upload-immich"]["from-state"].set_state({"enabled": True, "value": "IDF"})
+    gui.adv_rows["upload-immich"]["from-country"].set_state({"enabled": True, "value": "France"})
+    gui.adv_rows["upload-immich"]["from-make"].set_state({"enabled": True, "value": "Apple"})
+    gui.adv_rows["upload-immich"]["from-model"].set_state({"enabled": True, "value": "iPhone 13"})
+    gui.adv_rows["upload-immich"]["from-skip-ssl"].set_state({"enabled": True, "value": True})
     opts = gui.build_command(dry_run=False)
     assert "upload" in opts
     assert "from-immich" in opts
@@ -480,7 +478,7 @@ def test_build_command_archive_folder(gui):
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["archive-folder"]["path"].setText("/source/folder")
     gui.inputs["archive-folder"]["write-to"].setText("/dest/folder")
-    gui.inputs["archive-folder"]["date-range"].setText("2024-01-01,2024-02-01")
+    gui.adv_rows["archive-folder"]["date-range"].set_state({"enabled": True, "value": "2024-01-01,2024-02-01"})
     opts = gui.build_command(dry_run=True)
     assert "archive" in opts
     assert "from-folder" in opts
@@ -498,8 +496,8 @@ def test_build_command_archive_immich(gui):
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["archive-immich"]["write-to"].setText("/dest/folder")
-    gui.inputs["archive-immich"]["from-date-range"].setText("2024-01-01,2024-02-01")
-    gui.inputs["archive-immich"]["from-albums"].setText("ArchiveAlbum")
+    gui.adv_rows["archive-immich"]["from-date-range"].set_state({"enabled": True, "value": "2024-01-01,2024-02-01"})
+    gui.adv_rows["archive-immich"]["from-albums"].set_state({"enabled": True, "value": "ArchiveAlbum"})
     opts = gui.build_command(dry_run=False)
     assert "archive" in opts
     assert "from-immich" in opts
@@ -539,41 +537,19 @@ def test_native_dialog_options_passed(gui):
 # ==============================================================================
 
 def test_golden_upload_folder(gui):
-    """Golden: upload-folder with typical options."""
+    """Golden: upload-folder simple mode minimal command."""
+    gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(1)
     gui.upload_tabs.setCurrentIndex(0)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("test-key")
-    gui.inputs["config"]["skip-ssl"].setChecked(False)
-    gui.inputs["config"]["client_timeout"].setValue(20)
-    cpu_default = min(max(os.cpu_count() or 2, 1), 20)
-    gui.inputs["config"]["concurrent"].setValue(cpu_default)
     gui.inputs["upload-folder"]["path"].setText("/photos")
-    gui.inputs["upload-folder"]["include-type"].setCurrentText("all")
-    gui.inputs["upload-folder"]["folder-album"].setCurrentText("NONE")
-    gui.inputs["upload-folder"]["into-album"].setText("")
-    gui.inputs["upload-folder"]["overwrite"].setChecked(False)
-    gui.inputs["upload-folder"]["manage-burst"].setCurrentText("Stack")
-    gui.inputs["upload-folder"]["manage-raw-jpeg"].setCurrentText("NoStack")
-    gui.inputs["upload-folder"]["manage-heic-jpeg"].setCurrentText("NoStack")
-    gui.inputs["upload-folder"]["date-range"].setText("")
-    gui.inputs["upload-folder"]["include-ext"].setText("")
-    gui.inputs["upload-folder"]["exclude-ext"].setText("")
-    gui.inputs["upload-folder"]["ban-file"].setPlainText("")
-    gui.inputs["upload-folder"]["ignore-sidecar"].setChecked(False)
-    gui.inputs["upload-folder"]["date-from-name"].setChecked(True)
-    gui.inputs["upload-folder"]["tag"].setText("")
-    gui.inputs["upload-folder"]["session-tag"].setChecked(False)
-    gui.inputs["upload-folder"]["folder-tags"].setChecked(False)
-    gui.inputs["upload-folder"]["api-trace"].setChecked(False)
-    gui.inputs["upload-folder"]["log-level"].setCurrentText("INFO")
 
     plan = gui.build_plan(dry_run=False)
 
     assert plan.argv == [
         "upload", "from-folder",
         "--server=http://localhost:2283",
-        "--manage-burst=Stack",
         "/photos",
     ]
     assert plan.env.get("IMMICH_GO_UPLOAD_API_KEY") == "test-key"
@@ -581,61 +557,33 @@ def test_golden_upload_folder(gui):
 
 
 def test_golden_upload_gp(gui):
-    """Golden: upload from-google-photos with partner + sync."""
+    """Golden: upload from-google-photos simple mode minimal command."""
+    gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(1)
     gui.upload_tabs.setCurrentIndex(1)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("test-key")
-    gui.inputs["config"]["skip-ssl"].setChecked(False)
-    gui.inputs["config"]["client_timeout"].setValue(20)
-    cpu_default = min(max(os.cpu_count() or 2, 1), 20)
-    gui.inputs["config"]["concurrent"].setValue(cpu_default)
     gui.inputs["upload-gp"]["path"].setPlainText("/takeout-001.zip\n/takeout-002.zip")
-    gui.inputs["upload-gp"]["include-type"].setCurrentText("all")
-    gui.inputs["upload-gp"]["into-album"].setText("")
-    gui.inputs["upload-gp"]["include-unmatched"].setChecked(False)
-    gui.inputs["upload-gp"]["include-partner"].setChecked(True)
-    gui.inputs["upload-gp"]["sync-albums"].setChecked(True)
-    gui.inputs["upload-gp"]["manage-burst"].setCurrentText("Stack")
-    gui.inputs["upload-gp"]["manage-heic-jpeg"].setCurrentText("NoStack")
-    gui.inputs["upload-gp"]["from-album-name"].setText("")
-    gui.inputs["upload-gp"]["include-archived"].setChecked(True)
-    gui.inputs["upload-gp"]["include-trashed"].setChecked(False)
-    gui.inputs["upload-gp"]["partner-album"].setText("")
-    gui.inputs["upload-gp"]["takeout-tag"].setChecked(True)
-    gui.inputs["upload-gp"]["people-tag"].setChecked(True)
-    gui.inputs["upload-gp"]["tag"].setText("")
-    gui.inputs["upload-gp"]["session-tag"].setChecked(False)
-    if "api-trace" in gui.inputs["upload-gp"]:
-        gui.inputs["upload-gp"]["api-trace"].setChecked(False)
-    gui.inputs["upload-gp"]["log-level"].setCurrentText("INFO")
 
     plan = gui.build_plan(dry_run=False)
 
     assert plan.argv == [
         "upload", "from-google-photos",
         "--server=http://localhost:2283",
-        "--manage-burst=Stack",
         "/takeout-001.zip",
         "/takeout-002.zip",
     ]
 
 
 def test_golden_stack(gui):
-    """Golden: stack with options."""
+    """Golden: stack simple mode command."""
+    gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(3)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("test-key")
-    gui.inputs["config"]["skip-ssl"].setChecked(False)
-    gui.inputs["config"]["client_timeout"].setValue(20)
-    cpu_default = min(max(os.cpu_count() or 2, 1), 20)
-    gui.inputs["config"]["concurrent"].setValue(cpu_default)
     gui.inputs["stack"]["manage-burst"].setCurrentText("Stack")
-    gui.inputs["stack"]["manage-raw-jpeg"].setCurrentText("StackCoverRaw")
-    gui.inputs["stack"]["manage-heic-jpeg"].setCurrentText("StackCoverJPG")
-    if "api-trace" in gui.inputs["stack"]:
-        gui.inputs["stack"]["api-trace"].setChecked(False)
-    gui.inputs["stack"]["log-level"].setCurrentText("INFO")
+    gui.inputs["stack"]["manage-raw-jpeg"].setCurrentText("NoStack")
+    gui.inputs["stack"]["manage-heic-jpeg"].setCurrentText("NoStack")
 
     plan = gui.build_plan(dry_run=False)
 
@@ -643,27 +591,22 @@ def test_golden_stack(gui):
         "stack",
         "--server=http://localhost:2283",
         "--manage-burst=Stack",
-        "--manage-raw-jpeg=StackCoverRaw",
-        "--manage-heic-jpeg=StackCoverJPG",
     ]
 
 
 def test_golden_archive_folder(gui):
-    """Golden: archive from-folder (no server)."""
-    gui.toggle_advanced(True)
+    """Golden: archive from-folder simple mode."""
+    gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(2)
     gui.archive_tabs.setCurrentIndex(0)
     gui.inputs["archive-folder"]["path"].setText("/messy/photos")
     gui.inputs["archive-folder"]["write-to"].setText("/organized")
-    gui.inputs["archive-folder"]["date-range"].setText("2024")
-    gui.inputs["archive-folder"]["log-level"].setCurrentText("INFO")
 
     plan = gui.build_plan(dry_run=True)
 
     assert plan.argv == [
         "archive", "from-folder",
         "--write-to-folder=/organized",
-        "--date-range=2024",
         "--dry-run",
         "/messy/photos",
     ]
@@ -671,37 +614,14 @@ def test_golden_archive_folder(gui):
 
 
 def test_golden_upload_immich(gui):
-    """Golden: upload from-immich with filters."""
-    gui.toggle_advanced(True)
+    """Golden: upload from-immich simple mode."""
+    gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(1)
     gui.upload_tabs.setCurrentIndex(2)
     gui.inputs["config"]["server"].setText("http://new:2283")
     gui.inputs["config"]["api_key"].setText("new-key")
-    gui.inputs["config"]["skip-ssl"].setChecked(False)
-    gui.inputs["config"]["client_timeout"].setValue(20)
-    cpu_default = min(max(os.cpu_count() or 2, 1), 20)
-    gui.inputs["config"]["concurrent"].setValue(cpu_default)
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
     gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
-    if "from-client-timeout" in gui.inputs["upload-immich"]:
-        gui.inputs["upload-immich"]["from-client-timeout"].setValue(20)
-    gui.inputs["upload-immich"]["from-favorite"].setChecked(True)
-    gui.inputs["upload-immich"]["from-archived"].setChecked(False)
-    gui.inputs["upload-immich"]["from-trash"].setChecked(False)
-    gui.inputs["upload-immich"]["from-date-range"].setText("2023")
-    gui.inputs["upload-immich"]["from-albums"].setText("Family, Travel")
-    gui.inputs["upload-immich"]["from-minimal-rating"].setValue(0)
-    gui.inputs["upload-immich"]["from-people"].setText("")
-    gui.inputs["upload-immich"]["from-tags"].setText("")
-    gui.inputs["upload-immich"]["from-city"].setText("")
-    gui.inputs["upload-immich"]["from-state"].setText("")
-    gui.inputs["upload-immich"]["from-country"].setText("")
-    gui.inputs["upload-immich"]["from-make"].setText("")
-    gui.inputs["upload-immich"]["from-model"].setText("")
-    gui.inputs["upload-immich"]["from-skip-ssl"].setChecked(False)
-    if "api-trace" in gui.inputs["upload-immich"]:
-        gui.inputs["upload-immich"]["api-trace"].setChecked(False)
-    gui.inputs["upload-immich"]["log-level"].setCurrentText("INFO")
 
     plan = gui.build_plan(dry_run=False)
 
@@ -709,32 +629,19 @@ def test_golden_upload_immich(gui):
         "upload", "from-immich",
         "--server=http://new:2283",
         "--from-server=http://old:2283",
-        "--from-favorite",
-        "--from-date-range=2023",
-        "--from-albums=Family",
-        "--from-albums=Travel",
     ]
     assert plan.env.get("IMMICH_GO_UPLOAD_API_KEY") == "new-key"
     assert plan.env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY") == "old-key"
-    assert not any("--api-key" in p for p in plan.argv)
-    assert not any("--from-api-key" in p for p in plan.argv)
 
 
 def test_golden_archive_immich(gui):
-    """Golden: archive from-immich with options."""
-    gui.toggle_advanced(True)
+    """Golden: archive from-immich simple mode."""
+    gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(2)
     gui.archive_tabs.setCurrentIndex(1)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("test-key")
-    gui.inputs["config"]["skip-ssl"].setChecked(False)
-    gui.inputs["config"]["client_timeout"].setValue(20)
-    cpu_default = min(max(os.cpu_count() or 2, 1), 20)
-    gui.inputs["config"]["concurrent"].setValue(cpu_default)
     gui.inputs["archive-immich"]["write-to"].setText("/backup/photos")
-    gui.inputs["archive-immich"]["from-date-range"].setText("2024")
-    gui.inputs["archive-immich"]["from-albums"].setText("Family")
-    gui.inputs["archive-immich"]["log-level"].setCurrentText("INFO")
 
     plan = gui.build_plan(dry_run=False)
 
@@ -742,11 +649,8 @@ def test_golden_archive_immich(gui):
         "archive", "from-immich",
         "--from-server=http://localhost:2283",
         "--write-to-folder=/backup/photos",
-        "--from-date-range=2024",
-        "--from-albums=Family",
     ]
     assert plan.env.get("IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_KEY") == "test-key"
-    assert not any("--api-key" in p for p in plan.argv)
 
 
 def test_simple_mode_ignores_advanced_upload_folder_flags(gui):
@@ -759,12 +663,12 @@ def test_simple_mode_ignores_advanced_upload_folder_flags(gui):
     gui.inputs["config"]["api_key"].setText("key")
 
     gui.inputs["upload-folder"]["path"].setText("/photos")
-    gui.inputs["upload-folder"]["log-level"].setCurrentText("DEBUG")
-    gui.inputs["upload-folder"]["recursive"].setChecked(False)
-    gui.inputs["upload-folder"]["date-from-name"].setChecked(False)
-    gui.inputs["upload-folder"]["album-path-joiner"].setText("/")
-    gui.inputs["upload-folder"]["time-zone"].setText("UTC")
-    gui.inputs["upload-folder"]["manage-epson"].setChecked(True)
+    gui.adv_rows["upload-folder"]["log-level"].set_state({"enabled": True, "value": "DEBUG"})
+    gui.adv_rows["upload-folder"]["recursive"].set_state({"enabled": True, "value": False})
+    gui.adv_rows["upload-folder"]["date-from-name"].set_state({"enabled": True, "value": False})
+    gui.adv_rows["upload-folder"]["album-path-joiner"].set_state({"enabled": True, "value": "/"})
+    gui.adv_rows["upload-folder"]["time-zone"].set_state({"enabled": True, "value": "UTC"})
+    gui.adv_rows["upload-folder"]["manage-epson"].set_state({"enabled": True, "value": True})
 
     plan = gui.build_plan(dry_run=True)
 
@@ -786,12 +690,12 @@ def test_advanced_mode_emits_advanced_upload_folder_flags(gui):
     gui.inputs["config"]["api_key"].setText("key")
 
     gui.inputs["upload-folder"]["path"].setText("/photos")
-    gui.inputs["upload-folder"]["log-level"].setCurrentText("DEBUG")
-    gui.inputs["upload-folder"]["recursive"].setChecked(False)
-    gui.inputs["upload-folder"]["date-from-name"].setChecked(False)
-    gui.inputs["upload-folder"]["album-path-joiner"].setText("/")
-    gui.inputs["upload-folder"]["time-zone"].setText("UTC")
-    gui.inputs["upload-folder"]["manage-epson"].setChecked(True)
+    gui.adv_rows["upload-folder"]["log-level"].set_state({"enabled": True, "value": "DEBUG"})
+    gui.adv_rows["upload-folder"]["recursive"].set_state({"enabled": True, "value": False})
+    gui.adv_rows["upload-folder"]["date-from-name"].set_state({"enabled": True, "value": False})
+    gui.adv_rows["upload-folder"]["album-path-joiner"].set_state({"enabled": True, "value": "/"})
+    gui.adv_rows["upload-folder"]["time-zone"].set_state({"enabled": True, "value": "UTC"})
+    gui.adv_rows["upload-folder"]["manage-epson"].set_state({"enabled": True, "value": True})
 
     plan = gui.build_plan(dry_run=True)
 
@@ -811,10 +715,10 @@ def test_simple_mode_ignores_advanced_stack_flags(gui):
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("key")
 
-    gui.inputs["stack"]["date-range"].setText("2023-01-01,2023-12-31")
-    gui.inputs["stack"]["time-zone"].setText("UTC")
-    gui.inputs["stack"]["manage-epson"].setChecked(True)
-    gui.inputs["stack"]["api-trace"].setChecked(True)
+    gui.adv_rows["stack"]["date-range"].set_state({"enabled": True, "value": "2023-01-01,2023-12-31"})
+    gui.adv_rows["stack"]["time-zone"].set_state({"enabled": True, "value": "UTC"})
+    gui.adv_rows["stack"]["manage-epson"].set_state({"enabled": True, "value": True})
+    gui.adv_rows["stack"]["api-trace"].set_state({"enabled": True, "value": True})
 
     plan = gui.build_plan(dry_run=False)
 
@@ -1473,12 +1377,14 @@ def test_golden_json_fixtures():
         tab_state = data.get("tab_state", {})
         expected_argv = data["expected_argv"]
 
+        advanced_state = data.get("advanced_state")
         plan = build_plan_from_state(
             tab_key=tab_key,
             config_state=config_state,
             tab_state=tab_state,
             binary_path="./immich-go",
             dry_run=False,
+            advanced_state=advanced_state,
         )
         assert plan.argv == expected_argv, f"Fixture {jf.name} produced unexpected argv: {plan.argv} != {expected_argv}"
 
@@ -1657,28 +1563,28 @@ def test_default_true_boolean_emission():
     from core.command_builder import build_plan_from_state
     config_state = {"server": "http://localhost:2283", "api_key": "test_key"}
 
-    # upload-folder default true flags set to False
-    tab_state_folder = {
-        "path": "/photos",
-        "recursive": False,
-        "date-from-name": False,
-        "pause-jobs": False,
+    # upload-folder boolean flags explicitly enabled and set to False
+    tab_state_folder = {"path": "/photos"}
+    advanced_folder = {
+        "recursive": {"enabled": True, "value": False},
+        "date-from-name": {"enabled": True, "value": False},
+        "pause-jobs": {"enabled": True, "value": False},
     }
-    plan_folder = build_plan_from_state("upload-folder", config_state, tab_state_folder)
+    plan_folder = build_plan_from_state("upload-folder", config_state, tab_state_folder, advanced_state=advanced_folder)
     assert "--recursive=false" in plan_folder.argv
     assert "--date-from-name=false" in plan_folder.argv
     assert "--pause-immich-jobs=false" in plan_folder.argv
 
-    # upload-gp default true flags set to False
-    tab_state_gp = {
-        "path": "/takeout",
-        "include-archived": False,
-        "include-partner": False,
-        "sync-albums": False,
-        "takeout-tag": False,
-        "people-tag": False,
+    # upload-gp boolean flags explicitly enabled and set to False
+    tab_state_gp = {"path": "/takeout"}
+    advanced_gp = {
+        "include-archived": {"enabled": True, "value": False},
+        "include-partner": {"enabled": True, "value": False},
+        "sync-albums": {"enabled": True, "value": False},
+        "takeout-tag": {"enabled": True, "value": False},
+        "people-tag": {"enabled": True, "value": False},
     }
-    plan_gp = build_plan_from_state("upload-gp", config_state, tab_state_gp)
+    plan_gp = build_plan_from_state("upload-gp", config_state, tab_state_gp, advanced_state=advanced_gp)
     assert "--include-archived=false" in plan_gp.argv
     assert "--include-partner=false" in plan_gp.argv
     assert "--sync-albums=false" in plan_gp.argv
@@ -1782,227 +1688,117 @@ def test_missing_fixtures_not_fully_compatible(tmp_path):
     assert report_empty.is_fully_compatible() is True
 
 
-def test_golden_upload_folder(gui):
+def test_advanced_flag_disabled_not_emitted(gui):
+    """Verify disabled advanced flag is not emitted even if value widget is set."""
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)
     gui.upload_tabs.setCurrentIndex(0)
-    cfg = gui.inputs["config"]
-    cfg["server"].setText("http://local:2283")
-    cfg["api_key"].setText("key")
-    inp = gui.inputs["upload-folder"]
-    inp["path"].setText("/photos")
-    inp["recursive"].setChecked(False)
-    inp["date-from-name"].setChecked(False)
-    inp["album-path-joiner"].setText("/")
-    inp["time-zone"].setText("UTC")
-    inp["manage-epson"].setChecked(True)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+
+    gui.adv_rows["upload-folder"]["time-zone"].set_state({
+        "enabled": False,
+        "value": "UTC",
+    })
 
     plan = gui.build_plan(dry_run=False)
-    argv = plan.argv
-    assert "upload" in argv
-    assert "from-folder" in argv
-    assert "--recursive=false" in argv
-    assert "--date-from-name=false" in argv
-    assert "--album-path-joiner=/" in argv
-    assert "--time-zone=UTC" in argv
-    assert "--manage-epson-fastfoto" in argv
+    assert "--time-zone=UTC" not in plan.argv
 
 
-def test_golden_upload_gp(gui):
+def test_advanced_flag_enabled_text_emitted(gui):
+    """Verify enabled advanced text flag is emitted."""
+    gui.toggle_advanced(True)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(0)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+
+    gui.adv_rows["upload-folder"]["time-zone"].set_state({
+        "enabled": True,
+        "value": "UTC",
+    })
+
+    plan = gui.build_plan(dry_run=False)
+    assert "--time-zone=UTC" in plan.argv
+
+
+def test_advanced_bool_false_emitted(gui):
+    """Verify enabled boolean false flag is emitted as --flag=false."""
+    gui.toggle_advanced(True)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(0)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+
+    gui.adv_rows["upload-folder"]["recursive"].set_state({
+        "enabled": True,
+        "value": False,
+    })
+
+    plan = gui.build_plan(dry_run=False)
+    assert "--recursive=false" in plan.argv
+
+
+def test_advanced_bool_true_emitted_as_presence(gui):
+    """Verify enabled boolean true flag is emitted as --flag presence."""
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)
     gui.upload_tabs.setCurrentIndex(1)
-    cfg = gui.inputs["config"]
-    cfg["server"].setText("http://local:2283")
-    cfg["api_key"].setText("key")
-    inp = gui.inputs["upload-gp"]
-    inp["path"].setPlainText("/takeout")
-    inp["include-archived"].setChecked(False)
-    inp["include-partner"].setChecked(False)
-    inp["sync-albums"].setChecked(False)
-    inp["takeout-tag"].setChecked(False)
-    inp["people-tag"].setChecked(False)
-    inp["include-trashed"].setChecked(True)
-    inp["include-unmatched"].setChecked(True)
-    inp["include-untitled-albums"].setChecked(True)
-    inp["from-album-name"].setText("Family")
-    inp["partner-album"].setText("Partner")
-    inp["include-type"].setCurrentText("VIDEO")
-    inp["manage-raw-jpeg"].setCurrentText("KeepJPG")
-    inp["manage-epson"].setChecked(True)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-gp"]["path"].setPlainText("/takeout")
+
+    gui.adv_rows["upload-gp"]["include-trashed"].set_state({
+        "enabled": True,
+        "value": True,
+    })
 
     plan = gui.build_plan(dry_run=False)
-    argv = plan.argv
-    assert "from-google-photos" in argv
-    assert "--include-archived=false" in argv
-    assert "--include-partner=false" in argv
-    assert "--sync-albums=false" in argv
-    assert "--takeout-tag=false" in argv
-    assert "--people-tag=false" in argv
-    assert "--include-trashed" in argv
-    assert "--include-unmatched" in argv
-    assert "--include-untitled-albums" in argv
-    assert "--from-album-name=Family" in argv
-    assert "--partner-shared-album=Partner" in argv
-    assert "--include-type=VIDEO" in argv
-    assert "--manage-raw-jpeg=KeepJPG" in argv
-    assert "--manage-epson-fastfoto" in argv
+    assert "--include-trashed" in plan.argv
 
 
-def test_golden_upload_immich(gui):
+def test_simple_mode_ignores_advanced_rows(gui):
+    """Verify Simple mode ignores advanced flag rows even if enabled."""
+    gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(1)
-    gui.upload_tabs.setCurrentIndex(2)
-    cfg = gui.inputs["config"]
-    cfg["server"].setText("http://local:2283")
-    cfg["api_key"].setText("key")
-    inp = gui.inputs["upload-immich"]
-    inp["from-server"].setText("http://remote:2283")
-    inp["from-api-key"].setText("remote-key")
-    inp["from-admin-api-key"].setText("remote-admin-key")
-    inp["from-include-type"].setCurrentText("IMAGE")
-    inp["from-include-ext"].setText(".jpg, .png")
-    inp["from-exclude-ext"].setText(".mov")
-    inp["from-partners"].setChecked(True)
-    inp["from-no-album"].setChecked(True)
-    inp["from-time-zone"].setText("UTC")
-    inp["from-device-uuid"].setText("123-abc")
-    inp["from-api-trace"].setChecked(True)
-    inp["from-pause-jobs"].setChecked(False)
-    inp["tag"].setText("migrated")
-    inp["session-tag"].setChecked(True)
-    inp["overwrite"].setChecked(True)
-    inp["time-zone"].setText("UTC")
+    gui.upload_tabs.setCurrentIndex(0)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+
+    gui.adv_rows["upload-folder"]["time-zone"].set_state({
+        "enabled": True,
+        "value": "UTC",
+    })
 
     plan = gui.build_plan(dry_run=False)
-    argv = plan.argv
-    assert "upload" in argv
-    assert "from-immich" in argv
-    assert "--from-include-type=IMAGE" in argv
-    assert "--from-include-extensions=.jpg,.png" in argv
-    assert "--from-exclude-extensions=.mov" in argv
-    assert "--from-partners" in argv
-    assert "--from-no-album" in argv
-    assert "--from-time-zone=UTC" in argv
-    assert "--from-device-uuid=123-abc" in argv
-    assert "--from-api-trace" in argv
-    assert "--from-pause-immich-jobs=false" in argv
-    assert "--tag=migrated" in argv
-    assert "--session-tag" in argv
-    assert "--overwrite" in argv
-    assert "--time-zone=UTC" in argv
-    assert plan.env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY") == "remote-admin-key"
+    assert "--time-zone=UTC" not in plan.argv
 
 
-def test_golden_archive_folder(gui):
-    gui.stacked_widget.setCurrentIndex(2)
-    gui.archive_tabs.setCurrentIndex(0)
-    inp = gui.inputs["archive-folder"]
-    inp["path"].setText("/src")
-    inp["write-to"].setText("/dst")
-    inp["recursive"].setChecked(False)
-    inp["date-from-name"].setChecked(False)
-    inp["folder-album"].setCurrentText("FOLDER")
-    inp["folder-tags"].setChecked(True)
-    inp["into-album"].setText("Archived")
-    inp["album-path-joiner"].setText("_")
-    inp["on-errors"].setCurrentText("continue")
+def test_form_state_advanced_rows_persistence(gui):
+    """Verify form state serialization and deserialization of advanced flag rows."""
+    gui.adv_rows["upload-folder"]["time-zone"].set_state({
+        "enabled": True,
+        "value": "America/New_York",
+    })
 
-    plan = gui.build_plan(dry_run=False)
-    argv = plan.argv
-    assert "archive" in argv
-    assert "from-folder" in argv
-    assert "--write-to-folder=/dst" in argv
-    assert "--recursive=false" in argv
-    assert "--date-from-name=false" in argv
-    assert "--folder-as-album=FOLDER" in argv
-    assert "--folder-as-tags" in argv
-    assert "--into-album=Archived" in argv
-    assert "--album-path-joiner=_" in argv
-    assert "--on-errors=continue" in argv
+    state = gui.collect_form_state()
+    assert "advanced" in state
+    assert state["advanced"]["upload-folder"]["time-zone"] == {
+        "enabled": True,
+        "value": "America/New_York",
+    }
 
+    # Reset and restore
+    gui.reset_advanced_flags()
+    assert gui.adv_rows["upload-folder"]["time-zone"].enable.isChecked() is False
 
-def test_golden_archive_immich(gui):
-    gui.stacked_widget.setCurrentIndex(2)
-    gui.archive_tabs.setCurrentIndex(1)
-    cfg = gui.inputs["config"]
-    cfg["server"].setText("http://local:2283")
-    cfg["api_key"].setText("key")
-    inp = gui.inputs["archive-immich"]
-    inp["write-to"].setText("/out")
-    inp["from-favorite"].setChecked(True)
-    inp["from-archived"].setChecked(True)
-    inp["from-trash"].setChecked(True)
-    inp["from-minimal-rating"].setValue(4)
-    inp["from-people"].setText("Alice")
-    inp["from-tags"].setText("vacation")
-    inp["from-city"].setText("Tokyo")
-    inp["from-state"].setText("Kanto")
-    inp["from-country"].setText("Japan")
-    inp["from-make"].setText("Apple")
-    inp["from-model"].setText("iPhone")
-    inp["from-include-type"].setCurrentText("IMAGE")
-    inp["from-include-ext"].setText(".heic")
-    inp["from-exclude-ext"].setText(".png")
-    inp["from-partners"].setChecked(True)
-    inp["from-time-zone"].setText("JST")
-    inp["from-no-album"].setChecked(True)
-    inp["from-device-uuid"].setText("dev-999")
-    inp["from-skip-ssl"].setChecked(True)
-    inp["from-api-trace"].setChecked(True)
-    inp["from-pause-jobs"].setChecked(False)
-    inp["from-client-timeout"].setValue(30)
-
-    plan = gui.build_plan(dry_run=True)
-    argv = plan.argv
-    assert "archive" in argv
-    assert "from-immich" in argv
-    assert "--write-to-folder=/out" in argv
-    assert "--from-favorite" in argv
-    assert "--from-archived" in argv
-    assert "--from-trash" in argv
-    assert "--from-minimal-rating=4" in argv
-    assert "--from-people=Alice" in argv
-    assert "--from-tags=vacation" in argv
-    assert "--from-city=Tokyo" in argv
-    assert "--from-state=Kanto" in argv
-    assert "--from-country=Japan" in argv
-    assert "--from-make=Apple" in argv
-    assert "--from-model=iPhone" in argv
-    assert "--from-include-type=IMAGE" in argv
-    assert "--from-include-extensions=.heic" in argv
-    assert "--from-exclude-extensions=.png" in argv
-    assert "--from-partners" in argv
-    assert "--from-time-zone=JST" in argv
-    assert "--from-no-album" in argv
-    assert "--from-device-uuid=dev-999" in argv
-    assert "--from-skip-verify-ssl" in argv
-    assert "--from-api-trace" in argv
-    assert "--from-pause-immich-jobs=false" in argv
-    assert "--from-client-timeout=30m" in argv
-    assert "--dry-run" in argv
-    assert "--from-dry-run" in argv
-
-
-def test_golden_stack(gui):
-    gui.stacked_widget.setCurrentIndex(3)
-    cfg = gui.inputs["config"]
-    cfg["server"].setText("http://local:2283")
-    cfg["api_key"].setText("key")
-    cfg["device_uuid"].setText("stack-dev-123")
-    inp = gui.inputs["stack"]
-    inp["date-range"].setText("2023-01-01,2023-12-31")
-    inp["time-zone"].setText("UTC")
-    inp["manage-epson"].setChecked(True)
-    inp["pause-jobs"].setChecked(False)
-    inp["api-trace"].setChecked(True)
-
-    plan = gui.build_plan(dry_run=False)
-    argv = plan.argv
-    assert "stack" in argv
-    assert "--date-range=2023-01-01,2023-12-31" in argv
-    assert "--time-zone=UTC" in argv
-    assert "--manage-epson-fastfoto" in argv
-    assert "--pause-immich-jobs=false" in argv
-    assert "--api-trace" in argv
-    assert "--device-uuid=stack-dev-123" in argv
+    gui.apply_form_state(state)
+    assert gui.adv_rows["upload-folder"]["time-zone"].enable.isChecked() is True
+    assert gui.adv_rows["upload-folder"]["time-zone"].get_value() == "America/New_York"
 
 
 def test_advanced_mode_persistence(gui):

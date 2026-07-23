@@ -1,0 +1,559 @@
+================================================================================
+IMMICH-GO GUI - REVIEW & CHANGES BUNDLE (8085747..HEAD)
+================================================================================
+
+COMMITS IN RANGE:
+f882e81 docs/ui: add simple-mode hint and verify CLI command generation
+1ebc627 fix: run terminal in safe working directory to prevent POSIX cwd deletion errors
+b13b78e fix: absolutize archive destination paths in command builder
+54e5b33 feat: suppress advanced options and configuration in Simple mode
+
+SUMMARY OF CHANGED FILES:
+ app.py                    | 155 +++++++++++++++++++++++++++++++++++++++++++++-
+ core/command_builder.py   |  10 ++-
+ core/terminal_launcher.py |  61 +++++++++++-------
+ test_app.py               | 127 ++++++++++++++++++++++++++++++++++---
+ 4 files changed, 318 insertions(+), 35 deletions(-)
+
+================================================================================
+FULL GIT DIFF:
+================================================================================
+
+diff --git a/app.py b/app.py
+index b672fda..5880ecc 100644
+--- a/app.py
++++ b/app.py
+@@ -742,8 +742,10 @@ class ImmichGoGUI(QMainWindow):
+         adv_box = QHBoxLayout()
+         self.lbl_mode = QLabel("Simple")
+         self.lbl_mode.setObjectName("ModeLabel")
++        self.lbl_mode.setToolTip("Simple mode hides advanced options and excludes them from the generated command.")
+         adv_box.addWidget(self.lbl_mode)
+         self.switch_advanced = SwitchButton()
++        self.switch_advanced.setToolTip("Simple mode hides advanced options and excludes them from the generated command.")
+         self.switch_advanced.toggled.connect(self.toggle_advanced)
+         adv_box.addWidget(self.switch_advanced)
+         header_layout.addLayout(adv_box)
+@@ -2436,10 +2438,144 @@ class ImmichGoGUI(QMainWindow):
+     def browse_local_folder(self):
+         self.browse_folder_upload()
+ 
++    ADVANCED_KEYS = {
++        "upload-folder": {
++            "include-type",
++            "date-range",
++            "include-ext",
++            "exclude-ext",
++            "ban-file",
++            "recursive",
++            "ignore-sidecar",
++            "date-from-name",
++            "album-path-joiner",
++            "tag",
++            "session-tag",
++            "folder-tags",
++            "on-errors",
++            "overwrite",
++            "pause-jobs",
++            "time-zone",
++            "manage-epson",
++            "log-level",
++            "api-trace",
++        },
++        "upload-gp": {
++            "include-type",
++            "into-album",
++            "include-unmatched",
++            "include-trashed",
++            "include-untitled-albums",
++            "from-album-name",
++            "partner-album",
++            "takeout-tag",
++            "people-tag",
++            "manage-raw-jpeg",
++            "manage-epson",
++            "date-range",
++            "include-ext",
++            "exclude-ext",
++            "ban-file",
++            "tag",
++            "session-tag",
++            "overwrite",
++            "on-errors",
++            "pause-jobs",
++            "time-zone",
++            "log-level",
++            "api-trace",
++        },
++        "upload-immich": {
++            "from-admin-api-key",
++            "from-archived",
++            "from-trash",
++            "from-partners",
++            "from-no-album",
++            "from-minimal-rating",
++            "from-people",
++            "from-tags",
++            "from-city",
++            "from-state",
++            "from-country",
++            "from-make",
++            "from-model",
++            "from-include-type",
++            "from-include-ext",
++            "from-exclude-ext",
++            "from-time-zone",
++            "from-device-uuid",
++            "from-client-timeout",
++            "from-skip-ssl",
++            "from-api-trace",
++            "from-pause-jobs",
++            "tag",
++            "session-tag",
++            "overwrite",
++            "time-zone",
++            "manage-burst",
++            "manage-raw-jpeg",
++            "manage-heic-jpeg",
++            "manage-epson",
++            "on-errors",
++            "log-level",
++            "api-trace",
++        },
++        "archive-folder": {
++            "date-range",
++            "include-type",
++            "include-ext",
++            "exclude-ext",
++            "ban-file",
++            "recursive",
++            "ignore-sidecar",
++            "date-from-name",
++            "folder-album",
++            "folder-tags",
++            "into-album",
++            "album-path-joiner",
++            "on-errors",
++            "log-level",
++        },
++        "archive-immich": {
++            "from-favorite",
++            "from-archived",
++            "from-trash",
++            "from-no-album",
++            "from-partners",
++            "from-minimal-rating",
++            "from-people",
++            "from-tags",
++            "from-city",
++            "from-state",
++            "from-country",
++            "from-make",
++            "from-model",
++            "from-include-type",
++            "from-include-ext",
++            "from-exclude-ext",
++            "from-time-zone",
++            "from-device-uuid",
++            "from-client-timeout",
++            "from-skip-ssl",
++            "from-api-trace",
++            "from-pause-jobs",
++            "log-level",
++        },
++        "stack": {
++            "date-range",
++            "time-zone",
++            "manage-epson",
++            "pause-jobs",
++            "log-level",
++            "api-trace",
++        },
++    }
++
++
+     def _collect_config_state(self) -> dict:
+         cpu_default = min(max(os.cpu_count() or 2, 1), 20)
+         c = self.inputs.get("config", {})
+-        return {
++        state = {
+             "server": c.get("server").text() if c.get("server") else "",
+             "api_key": c.get("api_key").text().strip() if c.get("api_key") else "",
+             "admin_api_key": c.get("admin_api_key").text().strip() if c.get("admin_api_key") else "",
+@@ -2454,7 +2590,24 @@ class ImmichGoGUI(QMainWindow):
+             "pause_jobs": c.get("pause_jobs").isChecked() if c.get("pause_jobs") else True,
+         }
+ 
++        if not getattr(self, "is_advanced", False):
++            state["client_timeout"] = 20
++            state["concurrent"] = cpu_default
++            state["device_uuid"] = ""
++            state["on_errors"] = "stop"
++            state["on_errors_tolerance"] = 10
++            state["pause_jobs"] = True
++
++        return state
++
+     def _collect_tab_state(self, tab_key: str) -> dict:
++        state = self._raw_tab_state(tab_key)
++        if not getattr(self, "is_advanced", False):
++            for key in self.ADVANCED_KEYS.get(tab_key, set()):
++                state.pop(key, None)
++        return state
++
++    def _raw_tab_state(self, tab_key: str) -> dict:
+         if tab_key not in self.inputs:
+             return {}
+         c = self.inputs[tab_key]
+diff --git a/core/command_builder.py b/core/command_builder.py
+index c013fdf..4a90071 100644
+--- a/core/command_builder.py
++++ b/core/command_builder.py
+@@ -674,7 +674,10 @@ def build_plan_from_state(
+ 
+     elif tab_key == "archive-folder":
+         if tab_state.get("write-to"):
+-            emitter.add_option("write-to-folder", tab_state["write-to"])
++            write_to = os.path.abspath(
++                os.path.expanduser(str(tab_state["write-to"]).strip())
++            )
++            emitter.add_option("write-to-folder", write_to)
+ 
+         dr = clean_date_range(str(tab_state.get("date-range", "")))
+         if dr:
+@@ -724,7 +727,10 @@ def build_plan_from_state(
+             emitter.add_option("from-server", normalize_server_url(from_srv))
+ 
+         if tab_state.get("write-to"):
+-            emitter.add_option("write-to-folder", tab_state["write-to"])
++            write_to = os.path.abspath(
++                os.path.expanduser(str(tab_state["write-to"]).strip())
++            )
++            emitter.add_option("write-to-folder", write_to)
+ 
+         if tab_state.get("from-date-range"):
+             emitter.add_option("from-date-range", tab_state["from-date-range"])
+diff --git a/core/terminal_launcher.py b/core/terminal_launcher.py
+index a68a120..964cda9 100644
+--- a/core/terminal_launcher.py
++++ b/core/terminal_launcher.py
+@@ -122,31 +122,44 @@ def launch_external_terminal(
+         cmd_quoted = " ".join(shlex.quote(c) for c in command)
+         run_sh_content = (
+             "#!/usr/bin/env bash\n"
+-            f"echo $$ > {shlex.quote(str(pid_file_path))}\n"
+-            f"(\n"
+-            f"  while true; do\n"
+-            f"    touch {shlex.quote(str(hb_file_path))} 2>/dev/null\n"
+-            f"    sleep 10\n"
+-            f"  done\n"
+-            f") &\n"
+-            f"HB_PID=$!\n\n"
+-            f"set -a\n"
+-            f"source {shlex.quote(str(env_sh_path))}\n"
+-            f"set +a\n\n"
+-            f"cd {shlex.quote(str(temp_dir))}\n\n"
+-            f"cleanup() {{\n"
+-            f"  kill $HB_PID 2>/dev/null\n"
+-            f"  rm -f {shlex.quote(str(pid_file_path))} {shlex.quote(str(hb_file_path))} {shlex.quote(str(l_path))}\n"
+-            f"  rm -rf {shlex.quote(str(temp_dir))}\n"
+-            f"}}\n\n"
+-            f"trap cleanup EXIT INT TERM\n\n"
++            f"PID_FILE={shlex.quote(str(pid_file_path))}\n"
++            f"HB_FILE={shlex.quote(str(hb_file_path))}\n"
++            f"LOCK_FILE={shlex.quote(str(l_path))}\n"
++            f"ENV_FILE={shlex.quote(str(env_sh_path))}\n"
++            f"TEMP_DIR={shlex.quote(str(temp_dir))}\n"
++            "\n"
++            'echo $$ > "$PID_FILE"\n'
++            "(\n"
++            "  while true; do\n"
++            '    touch "$HB_FILE" 2>/dev/null\n'
++            "    sleep 10\n"
++            "  done\n"
++            ") &\n"
++            "HB_PID=$!\n"
++            "\n"
++            'SAFE_DIR="$HOME"\n'
++            '[ -d "$SAFE_DIR" ] || SAFE_DIR=/\n'
++            'cd "$SAFE_DIR"\n'
++            "\n"
++            "set -a\n"
++            'source "$ENV_FILE"\n'
++            "set +a\n"
++            "\n"
++            "cleanup() {\n"
++            '  kill "$HB_PID" 2>/dev/null\n'
++            '  rm -f "$PID_FILE" "$HB_FILE" "$LOCK_FILE" "$ENV_FILE"\n'
++            "}\n"
++            "\n"
++            "trap cleanup EXIT INT TERM\n"
+             f"{cmd_quoted}\n"
+-            f"code=$?\n\n"
+-            f"trap - EXIT INT TERM\n"
+-            f"cleanup\n\n"
+-            f'echo ""\n'
+-            f'echo "immich-go exited with code $code"\n'
+-            f"exec bash\n"
++            "code=$?\n"
++            "\n"
++            "trap - EXIT INT TERM\n"
++            "cleanup\n"
++            "\n"
++            'echo ""\n'
++            'echo "immich-go exited with code $code"\n'
++            "exec bash\n"
+         )
+ 
+         run_sh_path.write_text(run_sh_content, encoding="utf-8")
+diff --git a/test_app.py b/test_app.py
+index a617adb..21e9026 100644
+--- a/test_app.py
++++ b/test_app.py
+@@ -249,6 +249,7 @@ def test_droppable_plain_text_edit_drop(qapp, qtbot):
+ 
+ def test_global_flag_ordering(gui):
+     """Global opts (--log-level) must appear in subcommand options."""
++    gui.toggle_advanced(True)
+     gui.stacked_widget.setCurrentIndex(1)  # upload page
+     gui.upload_tabs.setCurrentIndex(0)     # upload-folder
+     gui.inputs["config"]["server"].setText("http://local:2283")
+@@ -260,6 +261,7 @@ def test_global_flag_ordering(gui):
+ 
+ 
+ def test_pause_jobs_not_on_archive(gui):
++    gui.toggle_advanced(True)
+     gui.stacked_widget.setCurrentIndex(2)  # archive page
+     gui.archive_tabs.setCurrentIndex(0)    # archive-folder
+     gui.inputs["config"]["server"].setText("http://local:2283")
+@@ -271,6 +273,7 @@ def test_pause_jobs_not_on_archive(gui):
+ 
+ 
+ def test_pause_jobs_not_on_stack(gui):
++    gui.toggle_advanced(True)
+     gui.stacked_widget.setCurrentIndex(3)  # stack
+     gui.inputs["config"]["server"].setText("http://local:2283")
+     gui.inputs["config"]["api_key"].setText("key")
+@@ -279,6 +282,7 @@ def test_pause_jobs_not_on_stack(gui):
+ 
+ 
+ def test_on_errors_not_on_archive(gui):
++    gui.toggle_advanced(True)
+     gui.stacked_widget.setCurrentIndex(2)  # archive page
+     gui.archive_tabs.setCurrentIndex(0)    # archive-folder
+     gui.inputs["config"]["server"].setText("http://local:2283")
+@@ -291,6 +295,7 @@ def test_on_errors_not_on_archive(gui):
+ 
+ 
+ def test_client_timeout_emitted(gui):
++    gui.toggle_advanced(True)
+     gui.stacked_widget.setCurrentIndex(1)  # upload page
+     gui.upload_tabs.setCurrentIndex(0)     # upload-folder
+     gui.inputs["config"]["server"].setText("http://local:2283")
+@@ -302,6 +307,7 @@ def test_client_timeout_emitted(gui):
+ 
+ 
+ def test_device_uuid_emitted(gui):
++    gui.toggle_advanced(True)
+     gui.stacked_widget.setCurrentIndex(1)  # upload page
+     gui.upload_tabs.setCurrentIndex(0)     # upload-folder
+     gui.inputs["config"]["server"].setText("http://local:2283")
+@@ -313,6 +319,7 @@ def test_device_uuid_emitted(gui):
+ 
+ 
+ def test_api_trace_on_upload_gp(gui):
++    gui.toggle_advanced(True)
+     gui.stacked_widget.setCurrentIndex(1)  # upload page
+     gui.upload_tabs.setCurrentIndex(1)     # upload-gp
+     gui.inputs["config"]["server"].setText("http://local:2283")
+@@ -324,6 +331,7 @@ def test_api_trace_on_upload_gp(gui):
+ 
+ 
+ def test_api_trace_on_stack(gui):
++    gui.toggle_advanced(True)
+     gui.stacked_widget.setCurrentIndex(3)  # stack
+     gui.inputs["config"]["server"].setText("http://local:2283")
+     gui.inputs["config"]["api_key"].setText("key")
+@@ -333,6 +341,7 @@ def test_api_trace_on_stack(gui):
+ 
+ 
+ def test_from_client_timeout(gui):
++    gui.toggle_advanced(True)
+     gui.stacked_widget.setCurrentIndex(1)  # upload page
+     gui.upload_tabs.setCurrentIndex(2)     # upload-immich
+     gui.inputs["config"]["server"].setText("http://local:2283")
+@@ -418,6 +427,7 @@ def test_api_trace_on_stack_disabled(gui):
+ 
+ 
+ def test_build_command_upload_immich(gui):
++    gui.toggle_advanced(True)
+     gui.stacked_widget.setCurrentIndex(1)  # upload page
+     gui.upload_tabs.setCurrentIndex(2)     # upload-immich sub-tab
+     gui.inputs["config"]["server"].setText("http://local:2283")
+@@ -464,6 +474,7 @@ def test_build_command_upload_immich(gui):
+ 
+ 
+ def test_build_command_archive_folder(gui):
++    gui.toggle_advanced(True)
+     gui.stacked_widget.setCurrentIndex(2)  # archive page
+     gui.archive_tabs.setCurrentIndex(0)    # archive-folder sub-tab
+     gui.inputs["config"]["server"].setText("http://local:2283")
+@@ -481,6 +492,7 @@ def test_build_command_archive_folder(gui):
+ 
+ 
+ def test_build_command_archive_immich(gui):
++    gui.toggle_advanced(True)
+     gui.stacked_widget.setCurrentIndex(2)  # archive page
+     gui.archive_tabs.setCurrentIndex(1)    # archive-immich sub-tab
+     gui.inputs["config"]["server"].setText("http://local:2283")
+@@ -638,6 +650,7 @@ def test_golden_stack(gui):
+ 
+ def test_golden_archive_folder(gui):
+     """Golden: archive from-folder (no server)."""
++    gui.toggle_advanced(True)
+     gui.stacked_widget.setCurrentIndex(2)
+     gui.archive_tabs.setCurrentIndex(0)
+     gui.inputs["archive-folder"]["path"].setText("/messy/photos")
+@@ -659,6 +672,7 @@ def test_golden_archive_folder(gui):
+ 
+ def test_golden_upload_immich(gui):
+     """Golden: upload from-immich with filters."""
++    gui.toggle_advanced(True)
+     gui.stacked_widget.setCurrentIndex(1)
+     gui.upload_tabs.setCurrentIndex(2)
+     gui.inputs["config"]["server"].setText("http://new:2283")
+@@ -708,6 +722,7 @@ def test_golden_upload_immich(gui):
+ 
+ def test_golden_archive_immich(gui):
+     """Golden: archive from-immich with options."""
++    gui.toggle_advanced(True)
+     gui.stacked_widget.setCurrentIndex(2)
+     gui.archive_tabs.setCurrentIndex(1)
+     gui.inputs["config"]["server"].setText("http://localhost:2283")
+@@ -734,6 +749,98 @@ def test_golden_archive_immich(gui):
+     assert not any("--api-key" in p for p in plan.argv)
+ 
+ 
++def test_simple_mode_ignores_advanced_upload_folder_flags(gui):
++    gui.toggle_advanced(False)
++
++    gui.stacked_widget.setCurrentIndex(1)
++    gui.upload_tabs.setCurrentIndex(0)
++
++    gui.inputs["config"]["server"].setText("http://localhost:2283")
++    gui.inputs["config"]["api_key"].setText("key")
++
++    gui.inputs["upload-folder"]["path"].setText("/photos")
++    gui.inputs["upload-folder"]["log-level"].setCurrentText("DEBUG")
++    gui.inputs["upload-folder"]["recursive"].setChecked(False)
++    gui.inputs["upload-folder"]["date-from-name"].setChecked(False)
++    gui.inputs["upload-folder"]["album-path-joiner"].setText("/")
++    gui.inputs["upload-folder"]["time-zone"].setText("UTC")
++    gui.inputs["upload-folder"]["manage-epson"].setChecked(True)
++
++    plan = gui.build_plan(dry_run=True)
++
++    assert "--log-level=DEBUG" not in plan.argv
++    assert "--recursive=false" not in plan.argv
++    assert "--date-from-name=false" not in plan.argv
++    assert "--album-path-joiner=/" not in plan.argv
++    assert "--time-zone=UTC" not in plan.argv
++    assert "--manage-epson-fastfoto" not in plan.argv
++
++
++def test_advanced_mode_emits_advanced_upload_folder_flags(gui):
++    gui.toggle_advanced(True)
++
++    gui.stacked_widget.setCurrentIndex(1)
++    gui.upload_tabs.setCurrentIndex(0)
++
++    gui.inputs["config"]["server"].setText("http://localhost:2283")
++    gui.inputs["config"]["api_key"].setText("key")
++
++    gui.inputs["upload-folder"]["path"].setText("/photos")
++    gui.inputs["upload-folder"]["log-level"].setCurrentText("DEBUG")
++    gui.inputs["upload-folder"]["recursive"].setChecked(False)
++    gui.inputs["upload-folder"]["date-from-name"].setChecked(False)
++    gui.inputs["upload-folder"]["album-path-joiner"].setText("/")
++    gui.inputs["upload-folder"]["time-zone"].setText("UTC")
++    gui.inputs["upload-folder"]["manage-epson"].setChecked(True)
++
++    plan = gui.build_plan(dry_run=True)
++
++    assert "--log-level=DEBUG" in plan.argv
++    assert "--recursive=false" in plan.argv
++    assert "--date-from-name=false" in plan.argv
++    assert "--album-path-joiner=/" in plan.argv
++    assert "--time-zone=UTC" in plan.argv
++    assert "--manage-epson-fastfoto" in plan.argv
++
++
++def test_simple_mode_ignores_advanced_stack_flags(gui):
++    gui.toggle_advanced(False)
++
++    gui.stacked_widget.setCurrentIndex(3)
++
++    gui.inputs["config"]["server"].setText("http://localhost:2283")
++    gui.inputs["config"]["api_key"].setText("key")
++
++    gui.inputs["stack"]["date-range"].setText("2023-01-01,2023-12-31")
++    gui.inputs["stack"]["time-zone"].setText("UTC")
++    gui.inputs["stack"]["manage-epson"].setChecked(True)
++    gui.inputs["stack"]["api-trace"].setChecked(True)
++
++    plan = gui.build_plan(dry_run=False)
++
++    assert "--date-range=2023-01-01,2023-12-31" not in plan.argv
++    assert "--time-zone=UTC" not in plan.argv
++    assert "--manage-epson-fastfoto" not in plan.argv
++    assert "--api-trace" not in plan.argv
++
++
++def test_archive_folder_destination_is_absolutized(gui):
++    gui.toggle_advanced(False)
++    gui.stacked_widget.setCurrentIndex(2)
++    gui.archive_tabs.setCurrentIndex(0)
++
++    gui.inputs["archive-folder"]["path"].setText("/src")
++    gui.inputs["archive-folder"]["write-to"].setText("relative/dest")
++
++    plan = gui.build_plan(dry_run=False)
++
++    assert any(arg.startswith("--write-to-folder=") for arg in plan.argv)
++
++    write_arg = next(arg for arg in plan.argv if arg.startswith("--write-to-folder="))
++    write_path = write_arg.split("=", 1)[1]
++    assert os.path.isabs(write_path)
++
++
+ # ==========================================================
+ # PURE CORE MODULE UNIT TESTS (NO QT REQUIRED)
+ # ==========================================================
+@@ -1331,15 +1438,19 @@ def test_terminal_launcher_working_directory_isolation(tmp_path, monkeypatch):
+         res = launch_external_terminal(cmd, env, lock_path, preferred_terminal="auto")
+         assert res.ok is True
+ 
+-    # Find created run.sh and check for cd
+-    locks_dir = tmp_path / "locks"
+     temp_dirs = list(Path("/tmp").glob("immich-go-run-*"))
+-    if temp_dirs:
+-        latest_temp = max(temp_dirs, key=lambda d: d.stat().st_mtime)
+-        run_sh = latest_temp / "run.sh"
+-        if run_sh.exists():
+-            content = run_sh.read_text(encoding="utf-8")
+-            assert f"cd '{latest_temp}'" in content or "cd " in content
++    assert temp_dirs, "Expected POSIX launcher to create a temp run directory"
++
++    latest_temp = max(temp_dirs, key=lambda d: d.stat().st_mtime)
++    run_sh = latest_temp / "run.sh"
++    assert run_sh.exists()
++
++    content = run_sh.read_text(encoding="utf-8")
++
++    assert 'SAFE_DIR="$HOME"' in content
++    assert 'cd "$SAFE_DIR"' in content
++    assert f"cd '{latest_temp}'" not in content
++    assert f"rm -rf '{latest_temp}'" not in content
+ 
+ 
+ # ==============================================================================

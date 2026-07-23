@@ -202,4 +202,8 @@ You can aggregate the project's core Python modules (`core/*.py`, `app.py`, `tes
 ```bash
 uv run python scripts/bundle_codebase.py immichgo_modules_bundle.txt
 ```
+## Git Diff generator.
 
+```bash
+uv run python scripts/generate_diff_bundle.py [start_ref] [output_path] [end_ref]
+```

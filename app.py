@@ -291,6 +291,9 @@ class AdvancedFlagRow(QWidget):
         if kind == "bool":
             return self.value_widget.currentText() == "true"
 
+        if kind == "enum":
+            return self.value_widget.currentText()
+
         if kind in ("int", "duration_minutes"):
             return self.value_widget.value()
 
@@ -304,6 +307,9 @@ class AdvancedFlagRow(QWidget):
 
         if kind == "bool":
             self.value_widget.setCurrentText("true" if bool(value) else "false")
+
+        elif kind == "enum":
+            self.value_widget.setCurrentText(str(value or ""))
 
         elif kind in ("int", "duration_minutes"):
             try:

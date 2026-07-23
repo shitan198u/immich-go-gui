@@ -9,16 +9,18 @@
   },
   "tab_state": {
     "path": "/data/photos",
-    "include-type": "image",
     "folder-album": "RELATIVE",
-    "overwrite": true,
-    "manage-burst": "Stack",
-    "date-range": "2023-01-01,2023-12-31",
-    "include-ext": ".jpg,.png",
-    "exclude-ext": ".tmp",
-    "ignore-sidecar": true,
-    "tag": "Imported, 2023",
-    "session-tag": true
+    "manage-burst": "Stack"
+  },
+  "advanced_state": {
+    "include-type": { "enabled": true, "value": "image" },
+    "overwrite": { "enabled": true, "value": true },
+    "date-range": { "enabled": true, "value": "2023-01-01,2023-12-31" },
+    "include-ext": { "enabled": true, "value": ".jpg,.png" },
+    "exclude-ext": { "enabled": true, "value": ".tmp" },
+    "ignore-sidecar": { "enabled": true, "value": true },
+    "tag": { "enabled": true, "value": "Imported, 2023" },
+    "session-tag": { "enabled": true, "value": true }
   },
   "expected_argv": [
     "upload",
@@ -26,17 +28,17 @@
     "--server=http://localhost:2283",
     "--client-timeout=30m",
     "--concurrent-tasks=4",
-    "--include-type=image",
     "--folder-as-album=RELATIVE",
-    "--overwrite",
     "--manage-burst=Stack",
+    "--ignore-sidecar-files",
     "--date-range=2023-01-01,2023-12-31",
     "--include-extensions=.jpg,.png",
     "--exclude-extensions=.tmp",
-    "--ignore-sidecar-files",
     "--tag=Imported",
     "--tag=2023",
     "--session-tag",
+    "--overwrite",
+    "--include-type=image",
     "/data/photos"
   ]
 }

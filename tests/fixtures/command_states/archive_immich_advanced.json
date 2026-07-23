@@ -5,9 +5,11 @@
     "api_key": "secret_key"
   },
   "tab_state": {
-    "write-to": "/backup/zip",
-    "from-date-range": "2023",
-    "from-albums": "ArchiveAlbum"
+    "write-to": "/backup/zip"
+  },
+  "advanced_state": {
+    "from-date-range": { "enabled": true, "value": "2023" },
+    "from-albums": { "enabled": true, "value": "ArchiveAlbum" }
   },
   "expected_argv": [
     "archive",

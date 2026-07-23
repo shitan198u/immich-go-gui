@@ -3,9 +3,11 @@
   "config_state": {},
   "tab_state": {
     "path": "/source/photos",
-    "write-to": "/backup/dest",
-    "date-range": "2024",
-    "include-type": "image"
+    "write-to": "/backup/dest"
+  },
+  "advanced_state": {
+    "date-range": { "enabled": true, "value": "2024" },
+    "include-type": { "enabled": true, "value": "image" }
   },
   "expected_argv": [
     "archive",

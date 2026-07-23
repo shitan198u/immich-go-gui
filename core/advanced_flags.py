@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from .models import CommandPlan, ValidationResult
-from .utils import clean_date_range, normalize_extensions_csv, normalize_list_csv
+from .validation import clean_date_range, normalize_extensions_csv, normalize_list_csv
 
 AdvancedFlagKind = Literal[
     "bool",
