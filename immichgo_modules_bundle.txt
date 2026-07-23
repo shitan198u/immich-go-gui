@@ -5,7 +5,7 @@ Generated for LLM Review & Prompting
 Files Included:
    1. core/__init__.py (159 lines)
    2. core/advanced_flags.py (1004 lines)
-   3. core/binary_manager.py (609 lines)
+   3. core/binary_manager.py (696 lines)
    4. core/cli_contract.py (96 lines)
    5. core/cli_help.py (56 lines)
    6. core/cli_schema.py (243 lines)
@@ -15,9 +15,9 @@ Files Included:
   10. core/network.py (115 lines)
   11. core/process_tracker.py (238 lines)
   12. core/profile_manager.py (340 lines)
-  13. core/terminal_launcher.py (229 lines)
+  13. core/terminal_launcher.py (237 lines)
   14. core/validation.py (237 lines)
-  15. test_app.py (2169 lines)
+  15. test_app.py (2294 lines)
   16. scripts/capture_cli_help.py (84 lines)
   17. scripts/convert_markdown.py (564 lines)
   18. scripts/generate_diff_bundle.py (55 lines)
@@ -1200,7 +1200,7 @@ def validate_advanced_state(tab_key: str, advanced_state: dict) -> ValidationRes
 
 
 ================================================================================
-FILE 3 / 18: core/binary_manager.py (Lines 1-609)
+FILE 3 / 18: core/binary_manager.py (Lines 1-696)
 ================================================================================
 """Binary management, version detection, tested version policies, and extraction logic.
 
@@ -1715,6 +1715,93 @@ class BinaryManager:
             return bool(v_text)
         except Exception:
             return False
+
+    def download_and_install(
+        self,
+        version: str,
+        progress_cb: Optional[Callable[[int], None]] = None,
+        cancel_check: Optional[Callable[[], bool]] = None,
+    ) -> tuple[bool, str]:
+        """Downloads, extracts, verifies, and selects an immich-go binary version.
+
+        Uses temporary files for download and extraction, running verify_extracted_binary()
+        before performing an atomic replacement. Returns (success, message).
+        """
+        clean_v = clean_version(version)
+        if not clean_v:
+            return False, "Invalid version tag"
+
+        version_dir = os.path.join(self.base_dir, clean_v)
+        os.makedirs(version_dir, exist_ok=True)
+
+        binary_filename = "immich-go.exe" if self.os_name.startswith("win") else "immich-go"
+        binary_path = os.path.join(version_dir, binary_filename)
+        temp_archive = os.path.join(version_dir, "download.tmp")
+        temp_bin = binary_path + ".tmp"
+
+        try:
+            url = self.get_release_asset_url(clean_v)
+            if not url:
+                return False, f"Could not determine download URL for v{clean_v}"
+
+            with requests.get(url, stream=True, timeout=60) as res:
+                res.raise_for_status()
+                total = int(res.headers.get("content-length", 0))
+                downloaded = 0
+                with open(temp_archive, "wb") as f:
+                    for chunk in res.iter_content(chunk_size=1024 * 1024):
+                        if cancel_check and cancel_check():
+                            return False, "Download cancelled by user"
+                        downloaded += len(chunk)
+                        f.write(chunk)
+                        if total > 0 and progress_cb:
+                            progress_cb(int(downloaded * 100 / total))
+
+            if url.endswith(".zip"):
+                with zipfile.ZipFile(temp_archive) as z:
+                    found = False
+                    for filename in z.namelist():
+                        base = os.path.basename(filename)
+                        if base in ("immich-go", "immich-go.exe"):
+                            with z.open(filename) as source, open(temp_bin, "wb") as target:
+                                target.write(source.read())
+                            found = True
+                            break
+                    if not found:
+                        return False, "Binary executable not found inside zip archive"
+            elif url.endswith(".tar.gz") or url.endswith(".tgz"):
+                with tarfile.open(name=temp_archive, mode="r:gz") as tar:
+                    found = False
+                    for member in tar.getmembers():
+                        base = os.path.basename(member.name)
+                        if base in ("immich-go", "immich-go.exe"):
+                            source = tar.extractfile(member)
+                            if source:
+                                with open(temp_bin, "wb") as target:
+                                    target.write(source.read())
+                                found = True
+                            break
+                    if not found:
+                        return False, "Binary executable not found inside tar archive"
+            else:
+                return False, f"Unsupported archive format: {url}"
+
+            if not self.verify_extracted_binary(temp_bin):
+                return False, "Extracted binary failed post-install verification check."
+
+            os.replace(temp_bin, binary_path)
+            self.select_version(clean_v, binary_path, release_url=url)
+            return True, f"Successfully installed immich-go v{clean_v}"
+
+        except Exception as e:
+            return False, str(e)
+        finally:
+            for tmp_f in (temp_archive, temp_bin):
+                if os.path.exists(tmp_f):
+                    try:
+                        os.remove(tmp_f)
+                    except OSError:
+                        pass
 
     def download_archive(
         self,
@@ -3957,7 +4044,7 @@ def delete_profile(name: str) -> None:
 
 
 ================================================================================
-FILE 13 / 18: core/terminal_launcher.py (Lines 1-229)
+FILE 13 / 18: core/terminal_launcher.py (Lines 1-237)
 ================================================================================
 """External terminal launching logic for Immich-Go GUI.
 
@@ -4029,15 +4116,23 @@ def launch_external_terminal(
         try:
             cmd_str = subprocess.list2cmdline(command)
             bat_path = l_path.with_suffix(".bat")
+            hb_path = l_path.with_suffix(".heartbeat")
             bat_content = (
-                f"@echo off\n"
-                f'cd /d "%~dp0"\n'
-                f"{cmd_str}\n"
-                f"set ERR=%ERRORLEVEL%\n"
-                f'del /f "{l_path}" 2>nul\n'
-                f'del /f "{l_path.with_suffix(".bat")}" 2>nul\n'
-                f"echo.\n"
-                f"echo immich-go exited with code %ERR%\n"
+                f"@echo off\r\n"
+                f'cd /d "%~dp0"\r\n'
+                f'set "LOCK_FILE={l_path}"\r\n'
+                f'set "HB_FILE={hb_path}"\r\n'
+                f'start /b cmd /c "for /L %%i in (1,1,999999) do ('
+                f'type nul > "%HB_FILE%" 2>nul & '
+                f'timeout /t 10 /nobreak >nul & '
+                f'if not exist "%LOCK_FILE%" exit)"\r\n'
+                f"{cmd_str}\r\n"
+                f"set ERR=%ERRORLEVEL%\r\n"
+                f'del /f "%LOCK_FILE%" 2>nul\r\n'
+                f'del /f "%HB_FILE%" 2>nul\r\n'
+                f'del /f "{bat_path}" 2>nul\r\n'
+                f"echo.\r\n"
+                f"echo immich-go exited with code %ERR%\r\n"
             )
             bat_path.write_text(bat_content, encoding="utf-8")
 
@@ -4435,7 +4530,7 @@ def validate_destination_folder(
 
 
 ================================================================================
-FILE 15 / 18: test_app.py (Lines 1-2169)
+FILE 15 / 18: test_app.py (Lines 1-2294)
 ================================================================================
 import pytest
 import os
@@ -5032,6 +5127,25 @@ def test_golden_stack(gui):
         "stack",
         "--server=http://localhost:2283",
         "--manage-burst=Stack",
+    ]
+
+
+def test_golden_stack_advanced_with_date_range(gui):
+    """Golden: stack advanced mode command with date-range flag."""
+    gui.toggle_advanced(True)
+    gui.stacked_widget.setCurrentIndex(3)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("test-key")
+    gui.inputs["stack"]["manage-burst"].setCurrentText("Stack")
+    gui.adv_rows["stack"]["date-range"].set_state({"enabled": True, "value": "2023-01-01,2023-12-31"})
+
+    plan = gui.build_plan(dry_run=False)
+
+    assert plan.argv == [
+        "stack",
+        "--server=http://localhost:2283",
+        "--manage-burst=Stack",
+        "--date-range=2023-01-01,2023-12-31",
     ]
 
 
@@ -6606,6 +6720,112 @@ def test_validate_advanced_state_accepts_valid_date_range():
     })
     assert result.is_valid
     assert not result.errors
+
+
+# ==============================================================================
+# Fix 1.2: Env-Var Secret Contract Verification via Stub Executable
+# ==============================================================================
+
+def test_env_var_secret_contract_with_stub(gui):
+    """Fix 1.2: Verify subprocess receives secrets via env vars and never in argv."""
+    import json
+    import subprocess
+    from pathlib import Path
+
+    stub_path = str(Path(__file__).parent / "tests" / "stub_immich_go.py")
+
+    gui.toggle_advanced(True)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(2)  # upload-immich tab
+
+    gui.inputs["config"]["server"].setText("http://target:2283")
+    gui.inputs["config"]["api_key"].setText("target-secret-key-123")
+    gui.inputs["upload-immich"]["from-server"].setText("http://source:2283")
+    gui.inputs["upload-immich"]["from-api-key"].setText("source-secret-key-456")
+    gui.adv_rows["upload-immich"]["from-admin-api-key"].set_state({
+        "enabled": True,
+        "value": "source-admin-secret-789",
+    })
+
+    plan = gui.build_plan(dry_run=False)
+
+    # 1. Assert secret values NEVER appear in plan.argv
+    for secret in ("target-secret-key-123", "source-secret-key-456", "source-admin-secret-789"):
+        assert not any(secret in arg for arg in plan.argv), f"Secret '{secret}' leaked into argv!"
+
+    # 2. Run the stub process using plan.argv and plan.env
+    cmd = [sys.executable, stub_path] + plan.argv
+    full_env = {**os.environ, **plan.env}
+
+    res = subprocess.run(cmd, capture_output=True, text=True, env=full_env)
+    assert res.returncode == 0, f"Stub failed: {res.stderr}"
+
+    output = json.loads(res.stdout)
+    received_env = output["env"]
+    received_argv = output["argv"]
+
+    # 3. Assert secrets were delivered via env vars
+    assert received_env.get("IMMICH_GO_UPLOAD_SERVER") == "http://target:2283"
+    assert received_env.get("IMMICH_GO_UPLOAD_API_KEY") == "target-secret-key-123"
+    assert received_env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER") == "http://source:2283"
+    assert received_env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY") == "source-secret-key-456"
+    assert received_env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY") == "source-admin-secret-789"
+
+    # 4. Assert secrets are not in received argv
+    for secret in ("target-secret-key-123", "source-secret-key-456", "source-admin-secret-789"):
+        assert not any(secret in arg for arg in received_argv)
+
+
+def test_binary_manager_download_and_install_cancellation(tmp_path):
+    """Fix 1.3: download_and_install respects cancellation and cleans up temp files."""
+    from core.binary_manager import BinaryManager
+
+    bm = BinaryManager(base_dir=str(tmp_path))
+
+    # Mock get_release_asset_url to return a dummy URL
+    with patch.object(bm, "get_release_asset_url", return_value="https://example.com/immich-go.tar.gz"):
+        # Mock requests.get to return a streaming dummy response
+        mock_res = MagicMock()
+        mock_res.headers = {"content-length": "100"}
+        mock_res.iter_content.return_value = [b"dummy data chunk"]
+        mock_res.__enter__.return_value = mock_res
+
+        with patch("requests.get", return_value=mock_res):
+            success, msg = bm.download_and_install(
+                version="0.32.0",
+                cancel_check=lambda: True,  # cancel immediately
+            )
+            assert success is False
+            assert "cancelled" in msg.lower()
+
+    # Ensure no leftover temp archive or binary exists
+    v_dir = tmp_path / "0.32.0"
+    assert not (v_dir / "download.tmp").exists()
+    assert not (v_dir / "immich-go.tmp").exists()
+
+
+def test_windows_bat_heartbeat_generation(tmp_path, monkeypatch):
+    """Fix 1.4: Windows terminal launch generates a .bat file with background heartbeat loop."""
+    from core.terminal_launcher import launch_external_terminal
+
+    monkeypatch.setattr("sys.platform", "win32")
+
+    lock_file = tmp_path / "run_test.lock"
+    lock_file.write_text('{"run_id": "test"}', encoding="utf-8")
+
+    with patch("subprocess.Popen") as mock_popen:
+        mock_popen.return_value.pid = 1234
+        res = launch_external_terminal(["immich-go", "stack"], {}, lock_file)
+        assert res.ok
+
+    bat_file = lock_file.with_suffix(".bat")
+    assert bat_file.exists()
+    bat_content = bat_file.read_text(encoding="utf-8")
+
+    assert "HB_FILE=" in bat_content
+    assert ".heartbeat" in bat_content
+    assert "start /b cmd /c" in bat_content
+    assert 'del /f "%HB_FILE%"' in bat_content
 
 
 ================================================================================

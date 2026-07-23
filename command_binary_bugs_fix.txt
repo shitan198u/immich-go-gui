@@ -3,6 +3,11 @@ IMMICH-GO GUI - REVIEW & CHANGES BUNDLE (375cbfa..HEAD)
 ================================================================================
 
 COMMITS IN RANGE:
+becb81b fix(launcher/Fix 1.4): harden Windows lock lifecycle with heartbeat background loop in bat files
+ffe8c8d refactor(binary/Fix 1.3): centralize binary download and installation in BinaryManager
+9beef45 test(Fix 1.2): add stub_immich_go.py and env-var secret contract test
+63cd986 test(Fix 1.1): add test_golden_stack_advanced_with_date_range contract test
+98cb629 docs: regenerate diff and codebase bundles for Phase 3 completion
 4de37b3 feat(ui/B8-B9): add reset_advanced_flags confirmation dialog and stop persisting secret enabled state
 5549887 refactor(advanced/A10): route apply_advanced_flags_to_plan through FlagEmitter
 01ce622 feat(ui/A9): restore include-partner, sync-albums, include-archived as GP simple controls
@@ -23,23 +28,26 @@ cf6da31 docs: update command_binary_bugs_fix.txt diff bundle with cleanup commit
 1f97bca fix(cleanup): derive ADVANCED_KEYS programmatically and fix from-admin-api-key flag name
 
 SUMMARY OF CHANGED FILES:
- app.py                                             |  175 +-
+ app.py                                             |  341 +--
  core/advanced_flags.py                             |   64 +-
+ core/binary_manager.py                             |   87 +
  core/cli_schema.py                                 |    2 +-
  core/command_builder.py                            |   24 +-
- immichgo_modules_bundle.txt                        | 2299 +++++++++++++-------
+ core/terminal_launcher.py                          |   24 +-
+ immichgo_modules_bundle.txt                        | 2465 ++++++++++++++------
  scripts/generate_diff_bundle.py                    |    5 +-
- test_app.py                                        |  283 ++-
+ test_app.py                                        |  408 +++-
  .../command_states/archive_immich_advanced.json    |    9 +-
  .../command_states/upload_immich_advanced.json     |   14 +-
- 9 files changed, 1882 insertions(+), 993 deletions(-)
+ tests/stub_immich_go.py                            |   17 +
+ 12 files changed, 2344 insertions(+), 1116 deletions(-)
 
 ================================================================================
 FULL GIT DIFF:
 ================================================================================
 
 diff --git a/app.py b/app.py
-index f7a65d9..48cd40d 100644
+index f7a65d9..9451476 100644
 --- a/app.py
 +++ b/app.py
 @@ -76,6 +76,7 @@ from core.process_tracker import (
@@ -288,6 +296,203 @@ index f7a65d9..48cd40d 100644
              self.status_card.set_server("ok", "Server: Ready")
              if not is_running:
                  self.btn_run.setEnabled(True)
+@@ -2601,25 +2504,14 @@ class ImmichGoGUI(QMainWindow):
+                 return False
+ 
+         clean_v = version.lstrip("v")
+-        version_dir = os.path.join(BINARY_BASE_DIR, clean_v)
+-        os.makedirs(version_dir, exist_ok=True)
+-
+         binary_filename = "immich-go.exe" if sys.platform.startswith("win") else "immich-go"
+-        binary_path = os.path.join(version_dir, binary_filename)
++        binary_path = os.path.join(BINARY_BASE_DIR, clean_v, binary_filename)
+ 
+         if os.path.exists(binary_path) and not force_download:
+             if self.binary_manager.verify_extracted_binary(binary_path):
+                 self._select_version(clean_v, binary_path)
+                 return True
+ 
+-        download_url = self.binary_manager.get_release_asset_url(version=clean_v)
+-        if not download_url:
+-            QMessageBox.critical(
+-                self, "Error",
+-                f"Could not determine download URL for version {clean_v} on this platform."
+-            )
+-            return False
+-
+         progress_dialog = QDialog(self)
+         progress_dialog.setWindowTitle("Downloading Immich-Go")
+         progress_dialog.setFixedWidth(400)
+@@ -2635,125 +2527,60 @@ class ImmichGoGUI(QMainWindow):
+             progress_dialog.windowFlags() & ~Qt.WindowType.WindowCloseButtonHint
+         )
+ 
+-        class DownloadThread(QThread):
+-            download_progress = Signal(int)
+-            download_complete = Signal(str)
+-            download_error = Signal(str)
++        cancelled = False
++
++        def on_cancel():
++            nonlocal cancelled
++            cancelled = True
++            progress_dialog.reject()
++
++        cancel_button.clicked.connect(on_cancel)
+ 
+-            def __init__(self, url, dest_path):
++        result_box = {"success": False, "message": ""}
++
++        class InstallWorker(QThread):
++            progress = Signal(int)
++            finished = Signal(bool, str)
++
++            def __init__(self, manager, ver, cancel_fn):
+                 super().__init__()
+-                self.url = url
+-                self.dest_path = dest_path
+-                self.cancelled = False
++                self.manager = manager
++                self.ver = ver
++                self.cancel_fn = cancel_fn
+ 
+             def run(self):
+-                try:
+-                    with requests.get(self.url, stream=True, timeout=60) as response:
+-                        response.raise_for_status()
+-                        total = int(response.headers.get("content-length", 0))
+-                        downloaded = 0
+-                        with open(self.dest_path, "wb") as f:
+-                            for chunk in response.iter_content(chunk_size=1024 * 1024):
+-                                if self.cancelled:
+-                                    self.download_error.emit("Download cancelled")
+-                                    return
+-                                downloaded += len(chunk)
+-                                f.write(chunk)
+-                                if total > 0:
+-                                    self.download_progress.emit(int(downloaded * 100 / total))
+-                    self.download_complete.emit(self.dest_path)
+-                except Exception as e:
+-                    self.download_error.emit(str(e))
+-
+-        temp_archive_path = os.path.join(version_dir, "download.tmp")
+-        download_success = False
++                ok, msg = self.manager.download_and_install(
++                    version=self.ver,
++                    progress_cb=self.progress.emit,
++                    cancel_check=self.cancel_fn,
++                )
++                self.finished.emit(ok, msg)
+ 
+-        try:
+-            download_thread = DownloadThread(download_url, temp_archive_path)
+-
+-            def handle_download_complete(tmp_archive):
+-                nonlocal download_success
+-                progress_dialog.accept()
+-                temp_bin = binary_path + ".tmp"
+-                try:
+-                    if download_url.endswith(".zip"):
+-                        with zipfile.ZipFile(tmp_archive) as z:
+-                            for filename in z.namelist():
+-                                base = os.path.basename(filename)
+-                                if base in ("immich-go", "immich-go.exe"):
+-                                    with z.open(filename) as source, open(temp_bin, "wb") as target:
+-                                        target.write(source.read())
+-                                    break
+-                    elif download_url.endswith(".tar.gz") or download_url.endswith(".tgz"):
+-                        with tarfile.open(name=tmp_archive, mode="r:gz") as tar:
+-                            for member in tar.getmembers():
+-                                base = os.path.basename(member.name)
+-                                if base in ("immich-go", "immich-go.exe"):
+-                                    source = tar.extractfile(member)
+-                                    if source:
+-                                        with open(temp_bin, "wb") as target:
+-                                            target.write(source.read())
+-                                    break
+-                    else:
+-                        raise ValueError("Unsupported archive type")
+-
+-                    if not self.binary_manager.verify_extracted_binary(temp_bin):
+-                        raise RuntimeError("Extracted binary failed post-install verification check.")
+-
+-                    os.replace(temp_bin, binary_path)
+-                    self._select_version(clean_v, binary_path)
+-                    download_success = True
+-                except Exception as extraction_error:
+-                    if os.path.exists(temp_bin):
+-                        try:
+-                            os.remove(temp_bin)
+-                        except OSError:
+-                            pass
+-                    QMessageBox.critical(
+-                        self, "Extraction Error",
+-                        f"Failed to extract or verify binary: {str(extraction_error)}\n\n"
+-                        "Please download manually from GitHub."
+-                    )
+-
+-                if os.path.exists(tmp_archive):
+-                    try:
+-                        os.remove(tmp_archive)
+-                    except OSError:
+-                        pass
++        worker = InstallWorker(self.binary_manager, clean_v, lambda: cancelled)
++        worker.progress.connect(progress_bar.setValue)
+ 
+-            def handle_download_error(error):
+-                progress_dialog.reject()
+-                if os.path.exists(temp_archive_path):
+-                    try:
+-                        os.remove(temp_archive_path)
+-                    except OSError:
+-                        pass
+-                QMessageBox.critical(self, "Download Error", f"Failed to download: {error}")
++        def on_finished(ok, msg):
++            result_box["success"] = ok
++            result_box["message"] = msg
++            progress_dialog.accept()
+ 
+-            download_thread.download_progress.connect(progress_bar.setValue)
+-            download_thread.download_complete.connect(handle_download_complete)
+-            download_thread.download_error.connect(handle_download_error)
++        worker.finished.connect(on_finished)
++        worker.start()
++        progress_dialog.exec()
++        worker.wait()
+ 
+-            def cancel_download():
+-                download_thread.cancelled = True
+-                progress_dialog.reject()
++        success = result_box["success"]
++        message = result_box["message"]
+ 
+-            cancel_button.clicked.connect(cancel_download)
+-            progress_dialog.show()
+-            download_thread.start()
+-            progress_dialog.exec()
++        if success:
++            self.binary_path = self.binary_manager.resolve_binary_path()
++            self.check_binary_version()
++        elif cancelled:
++            QMessageBox.information(self, "Cancelled", "Download was cancelled.")
++        else:
++            QMessageBox.critical(self, "Update Failed", message or "Download/installation failed.")
+ 
+-        except Exception as e:
+-            if os.path.exists(temp_archive_path):
+-                try:
+-                    os.remove(temp_archive_path)
+-                except OSError:
+-                    pass
+-            QMessageBox.critical(
+-                self, "Download Error",
+-                f"Failed to initiate download: {str(e)}"
+-            )
+-            return False
++        return success
+ 
+         return download_success
+ 
 diff --git a/core/advanced_flags.py b/core/advanced_flags.py
 index 0357449..3f90983 100644
 --- a/core/advanced_flags.py
@@ -412,6 +617,104 @@ index 0357449..3f90983 100644
  
          elif def_.kind in ("text", "extensions", "csv_repeat", "lines_repeat"):
              text = str(value or "").strip()
+diff --git a/core/binary_manager.py b/core/binary_manager.py
+index e551392..74e02c0 100644
+--- a/core/binary_manager.py
++++ b/core/binary_manager.py
+@@ -512,6 +512,93 @@ class BinaryManager:
+         except Exception:
+             return False
+ 
++    def download_and_install(
++        self,
++        version: str,
++        progress_cb: Optional[Callable[[int], None]] = None,
++        cancel_check: Optional[Callable[[], bool]] = None,
++    ) -> tuple[bool, str]:
++        """Downloads, extracts, verifies, and selects an immich-go binary version.
++
++        Uses temporary files for download and extraction, running verify_extracted_binary()
++        before performing an atomic replacement. Returns (success, message).
++        """
++        clean_v = clean_version(version)
++        if not clean_v:
++            return False, "Invalid version tag"
++
++        version_dir = os.path.join(self.base_dir, clean_v)
++        os.makedirs(version_dir, exist_ok=True)
++
++        binary_filename = "immich-go.exe" if self.os_name.startswith("win") else "immich-go"
++        binary_path = os.path.join(version_dir, binary_filename)
++        temp_archive = os.path.join(version_dir, "download.tmp")
++        temp_bin = binary_path + ".tmp"
++
++        try:
++            url = self.get_release_asset_url(clean_v)
++            if not url:
++                return False, f"Could not determine download URL for v{clean_v}"
++
++            with requests.get(url, stream=True, timeout=60) as res:
++                res.raise_for_status()
++                total = int(res.headers.get("content-length", 0))
++                downloaded = 0
++                with open(temp_archive, "wb") as f:
++                    for chunk in res.iter_content(chunk_size=1024 * 1024):
++                        if cancel_check and cancel_check():
++                            return False, "Download cancelled by user"
++                        downloaded += len(chunk)
++                        f.write(chunk)
++                        if total > 0 and progress_cb:
++                            progress_cb(int(downloaded * 100 / total))
++
++            if url.endswith(".zip"):
++                with zipfile.ZipFile(temp_archive) as z:
++                    found = False
++                    for filename in z.namelist():
++                        base = os.path.basename(filename)
++                        if base in ("immich-go", "immich-go.exe"):
++                            with z.open(filename) as source, open(temp_bin, "wb") as target:
++                                target.write(source.read())
++                            found = True
++                            break
++                    if not found:
++                        return False, "Binary executable not found inside zip archive"
++            elif url.endswith(".tar.gz") or url.endswith(".tgz"):
++                with tarfile.open(name=temp_archive, mode="r:gz") as tar:
++                    found = False
++                    for member in tar.getmembers():
++                        base = os.path.basename(member.name)
++                        if base in ("immich-go", "immich-go.exe"):
++                            source = tar.extractfile(member)
++                            if source:
++                                with open(temp_bin, "wb") as target:
++                                    target.write(source.read())
++                                found = True
++                            break
++                    if not found:
++                        return False, "Binary executable not found inside tar archive"
++            else:
++                return False, f"Unsupported archive format: {url}"
++
++            if not self.verify_extracted_binary(temp_bin):
++                return False, "Extracted binary failed post-install verification check."
++
++            os.replace(temp_bin, binary_path)
++            self.select_version(clean_v, binary_path, release_url=url)
++            return True, f"Successfully installed immich-go v{clean_v}"
++
++        except Exception as e:
++            return False, str(e)
++        finally:
++            for tmp_f in (temp_archive, temp_bin):
++                if os.path.exists(tmp_f):
++                    try:
++                        os.remove(tmp_f)
++                    except OSError:
++                        pass
++
+     def download_archive(
+         self,
+         url: str,
 diff --git a/core/cli_schema.py b/core/cli_schema.py
 index afd9522..5e166d2 100644
 --- a/core/cli_schema.py
@@ -488,8 +791,44 @@ index 209a3a4..896575d 100644
      elif tab_key == "stack":
          if tab_state.get("manage-burst", "NoStack") != "NoStack":
              emitter.add_option("manage-burst", tab_state["manage-burst"])
+diff --git a/core/terminal_launcher.py b/core/terminal_launcher.py
+index 964cda9..908c572 100644
+--- a/core/terminal_launcher.py
++++ b/core/terminal_launcher.py
+@@ -68,15 +68,23 @@ def launch_external_terminal(
+         try:
+             cmd_str = subprocess.list2cmdline(command)
+             bat_path = l_path.with_suffix(".bat")
++            hb_path = l_path.with_suffix(".heartbeat")
+             bat_content = (
+-                f"@echo off\n"
+-                f'cd /d "%~dp0"\n'
+-                f"{cmd_str}\n"
+-                f"set ERR=%ERRORLEVEL%\n"
+-                f'del /f "{l_path}" 2>nul\n'
+-                f'del /f "{l_path.with_suffix(".bat")}" 2>nul\n'
+-                f"echo.\n"
+-                f"echo immich-go exited with code %ERR%\n"
++                f"@echo off\r\n"
++                f'cd /d "%~dp0"\r\n'
++                f'set "LOCK_FILE={l_path}"\r\n'
++                f'set "HB_FILE={hb_path}"\r\n'
++                f'start /b cmd /c "for /L %%i in (1,1,999999) do ('
++                f'type nul > "%HB_FILE%" 2>nul & '
++                f'timeout /t 10 /nobreak >nul & '
++                f'if not exist "%LOCK_FILE%" exit)"\r\n'
++                f"{cmd_str}\r\n"
++                f"set ERR=%ERRORLEVEL%\r\n"
++                f'del /f "%LOCK_FILE%" 2>nul\r\n'
++                f'del /f "%HB_FILE%" 2>nul\r\n'
++                f'del /f "{bat_path}" 2>nul\r\n'
++                f"echo.\r\n"
++                f"echo immich-go exited with code %ERR%\r\n"
+             )
+             bat_path.write_text(bat_content, encoding="utf-8")
+ 
 diff --git a/immichgo_modules_bundle.txt b/immichgo_modules_bundle.txt
-index 3193919..29e209b 100644
+index 3193919..6eeb524 100644
 --- a/immichgo_modules_bundle.txt
 +++ b/immichgo_modules_bundle.txt
 @@ -4,26 +4,28 @@ IMMICH-GO GUI - PYTHON BACKEND, CORE & HELPERS BUNDLE
@@ -511,12 +850,12 @@ index 3193919..29e209b 100644
 -  14. test_app.py (2005 lines)
 -  15. scripts/capture_cli_help.py (84 lines)
 -  16. scripts/convert_markdown.py (564 lines)
-+   2. core/advanced_flags.py (1046 lines)
++   2. core/advanced_flags.py (1004 lines)
 +   3. core/binary_manager.py (609 lines)
 +   4. core/cli_contract.py (96 lines)
 +   5. core/cli_help.py (56 lines)
 +   6. core/cli_schema.py (243 lines)
-+   7. core/command_builder.py (503 lines)
++   7. core/command_builder.py (525 lines)
 +   8. core/config_manager.py (381 lines)
 +   9. core/models.py (94 lines)
 +  10. core/network.py (115 lines)
@@ -524,7 +863,7 @@ index 3193919..29e209b 100644
 +  12. core/profile_manager.py (340 lines)
 +  13. core/terminal_launcher.py (229 lines)
 +  14. core/validation.py (237 lines)
-+  15. test_app.py (1971 lines)
++  15. test_app.py (2169 lines)
 +  16. scripts/capture_cli_help.py (84 lines)
 +  17. scripts/convert_markdown.py (564 lines)
 +  18. scripts/generate_diff_bundle.py (55 lines)
@@ -537,12 +876,12 @@ index 3193919..29e209b 100644
  ================================================================================
  """Core backend business logic for Immich-Go GUI.
  
-@@ -188,7 +190,1059 @@ __all__ = [
+@@ -188,7 +190,1017 @@ __all__ = [
  
  
  ================================================================================
 -FILE 2 / 16: core/binary_manager.py (Lines 1-609)
-+FILE 2 / 18: core/advanced_flags.py (Lines 1-1046)
++FILE 2 / 18: core/advanced_flags.py (Lines 1-1004)
 +================================================================================
 +"""Pure-Python registry and helper functions for schema-driven opt-in advanced flags.
 +
@@ -553,7 +892,7 @@ index 3193919..29e209b 100644
 +from typing import Any, Literal
 +
 +from .models import CommandPlan, ValidationResult
-+from .validation import clean_date_range, normalize_extensions_csv, normalize_list_csv
++from .validation import clean_date_range, normalize_extensions_csv, normalize_list_csv, validate_date_range as _validate_date_range
 +
 +AdvancedFlagKind = Literal[
 +    "bool",
@@ -742,20 +1081,6 @@ index 3193919..29e209b 100644
 +            default=False,
 +        ),
 +        AdvancedFlagDef(
-+            key="include-partner",
-+            flag="include-partner",
-+            label="Include partner photos",
-+            kind="bool",
-+            default=True,
-+        ),
-+        AdvancedFlagDef(
-+            key="sync-albums",
-+            flag="sync-albums",
-+            label="Sync Google Photos albums",
-+            kind="bool",
-+            default=True,
-+        ),
-+        AdvancedFlagDef(
 +            key="from-album-name",
 +            flag="from-album-name",
 +            label="Only import from album",
@@ -768,13 +1093,6 @@ index 3193919..29e209b 100644
 +            label="Add partner photos to album",
 +            kind="text",
 +            placeholder="Partner Photos",
-+        ),
-+        AdvancedFlagDef(
-+            key="include-archived",
-+            flag="include-archived",
-+            label="Include archived photos",
-+            kind="bool",
-+            default=True,
 +        ),
 +        AdvancedFlagDef(
 +            key="include-trashed",
@@ -959,20 +1277,7 @@ index 3193919..29e209b 100644
 +            kind="bool",
 +            default=False,
 +        ),
-+        AdvancedFlagDef(
-+            key="from-date-range",
-+            flag="from-date-range",
-+            label="Source date range",
-+            kind="date_range",
-+            placeholder="YYYY-MM-DD,YYYY-MM-DD",
-+        ),
-+        AdvancedFlagDef(
-+            key="from-albums",
-+            flag="from-albums",
-+            label="Source album names",
-+            kind="csv_repeat",
-+            placeholder="Album1, Album2",
-+        ),
++
 +        AdvancedFlagDef(
 +            key="from-minimal-rating",
 +            flag="from-minimal-rating",
@@ -1258,18 +1563,7 @@ index 3193919..29e209b 100644
 +        ),
 +    ),
 +    "archive-immich": (
-+        AdvancedFlagDef(
-+            key="from-date-range",
-+            flag="from-date-range",
-+            label="Source date range",
-+            kind="date_range",
-+        ),
-+        AdvancedFlagDef(
-+            key="from-albums",
-+            flag="from-albums",
-+            label="Source album names",
-+            kind="csv_repeat",
-+        ),
++
 +        AdvancedFlagDef(
 +            key="from-favorite",
 +            flag="from-favorite",
@@ -1557,7 +1851,10 @@ index 3193919..29e209b 100644
 +            continue
 +
 +        for arg in args:
-+            emitter.opts.append(arg)
++            if hasattr(emitter, "add_raw_checked"):
++                emitter.add_raw_checked(arg)
++            else:
++                emitter.opts.append(arg)
 +
 +        warning = def_.warn_values.get(value)
 +        if warning:
@@ -1580,9 +1877,9 @@ index 3193919..29e209b 100644
 +        if def_.kind == "date_range":
 +            text = str(value or "").strip()
 +            if text:
-+                cleaned = clean_date_range(text)
-+                if not cleaned:
-+                    res.errors.append(f"Invalid {def_.label}: date range invalid format")
++                ok, err = _validate_date_range(text)
++                if not ok:
++                    res.errors.append(f"Invalid {def_.label}: {err}")
 +
 +        elif def_.kind in ("text", "extensions", "csv_repeat", "lines_repeat"):
 +            text = str(value or "").strip()
@@ -1598,7 +1895,7 @@ index 3193919..29e209b 100644
  ================================================================================
  """Binary management, version detection, tested version policies, and extraction logic.
  
-@@ -803,7 +1857,7 @@ class BinaryManager:
+@@ -803,7 +1815,7 @@ class BinaryManager:
  
  
  ================================================================================
@@ -1607,7 +1904,7 @@ index 3193919..29e209b 100644
  ================================================================================
  """Runtime CLI Compatibility Checker module for Immich-Go GUI.
  
-@@ -905,7 +1959,7 @@ def check_binary_help(binary_path: Path, version: str = TESTED_IMMICH_GO_VERSION
+@@ -905,7 +1917,7 @@ def check_binary_help(binary_path: Path, version: str = TESTED_IMMICH_GO_VERSION
  
  
  ================================================================================
@@ -1616,7 +1913,7 @@ index 3193919..29e209b 100644
  ================================================================================
  """CLI Help parsing and fixture loading module for Immich-Go GUI.
  
-@@ -967,7 +2021,7 @@ def load_help_fixture(version: str = "0.32.0", help_name: str = "root", raise_on
+@@ -967,7 +1979,7 @@ def load_help_fixture(version: str = "0.32.0", help_name: str = "root", raise_on
  
  
  ================================================================================
@@ -1625,7 +1922,7 @@ index 3193919..29e209b 100644
  ================================================================================
  """Stable metadata constants, mappings, and compatibility matrices.
  
-@@ -1137,7 +2191,7 @@ TAB_ALLOWED_FLAGS: dict[str, frozenset[str]] = {
+@@ -1137,7 +2149,7 @@ TAB_ALLOWED_FLAGS: dict[str, frozenset[str]] = {
          "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg",
          "manage-epson-fastfoto",
  
@@ -1634,16 +1931,36 @@ index 3193919..29e209b 100644
          "from-include-type", "from-include-extensions", "from-exclude-extensions",
          "from-partners", "from-time-zone", "from-no-album", "from-albums",
          "from-date-range", "from-device-uuid", "from-api-trace",
-@@ -1216,7 +2270,7 @@ COMPATIBILITY_MATRIX = {
+@@ -1216,7 +2228,7 @@ COMPATIBILITY_MATRIX = {
  
  
  ================================================================================
 -FILE 6 / 16: core/command_builder.py (Lines 1-848)
-+FILE 7 / 18: core/command_builder.py (Lines 1-503)
++FILE 7 / 18: core/command_builder.py (Lines 1-525)
  ================================================================================
  """Pure command-building and state validation logic for Immich-Go.
  
-@@ -1532,8 +2586,9 @@ def build_plan_from_state(
+@@ -1287,6 +2299,10 @@ class FlagEmitter:
+             return True
+         return False
+ 
++    def add_raw_checked(self, arg: str) -> None:
++        """Append a pre-formatted CLI arg that has already passed allowlist checks."""
++        self.opts.append(arg)
++
+     def add_bool_val(self, flag_name: str, value: bool) -> bool:
+         clean_name = str(flag_name).lstrip("-")
+         if not flag_allowed_for_tab(self.tab_key, clean_name):
+@@ -1345,7 +2361,7 @@ def collect_paths(raw_text: str) -> list[str]:
+         if not line:
+             continue
+         expanded_user = os.path.expanduser(line)
+-        expanded = glob.glob(expanded_user)
++        expanded = glob.glob(expanded_user, recursive=True)
+         if expanded:
+             for p in expanded:
+                 paths.append(os.path.abspath(p))
+@@ -1532,8 +2548,9 @@ def build_plan_from_state(
      dry_run: bool = False,
      base_env: dict[str, str] | None = None,
      strict_schema: bool = False,
@@ -1654,7 +1971,7 @@ index 3193919..29e209b 100644
      plan = CommandPlan()
      plan.tab_key = tab_key
      plan.dry_run = dry_run
-@@ -1618,19 +2673,9 @@ def build_plan_from_state(
+@@ -1618,19 +2635,9 @@ def build_plan_from_state(
  
      # Tab-specific options
      if tab_key == "upload-folder":
@@ -1674,7 +1991,7 @@ index 3193919..29e209b 100644
          if tab_state.get("manage-burst", "NoStack") != "NoStack":
              emitter.add_option("manage-burst", tab_state["manage-burst"])
              mb = tab_state["manage-burst"]
-@@ -1646,52 +2691,6 @@ def build_plan_from_state(
+@@ -1646,57 +2653,20 @@ def build_plan_from_state(
          if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
              emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
  
@@ -1727,7 +2044,21 @@ index 3193919..29e209b 100644
          raw_path = str(tab_state.get("path", "")).strip()
          if raw_path:
              path_opt.extend(collect_paths(raw_path))
-@@ -1710,65 +2709,6 @@ def build_plan_from_state(
+ 
+     elif tab_key == "upload-gp":
++        if not tab_state.get("include-partner", True):
++            emitter.add_bool_val("include-partner", False)
++
++        if not tab_state.get("sync-albums", True):
++            emitter.add_bool_val("sync-albums", False)
++
++        if not tab_state.get("include-archived", True):
++            emitter.add_bool_val("include-archived", False)
++
+         if tab_state.get("manage-burst", "NoStack") != "NoStack":
+             emitter.add_option("manage-burst", tab_state["manage-burst"])
+ 
+@@ -1710,65 +2680,6 @@ def build_plan_from_state(
          if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
              emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
  
@@ -1793,10 +2124,11 @@ index 3193919..29e209b 100644
          raw_paths = str(tab_state.get("path", "")).strip()
          if raw_paths:
              path_opt.extend(collect_paths(raw_paths))
-@@ -1777,162 +2717,12 @@ def build_plan_from_state(
+@@ -1776,163 +2687,17 @@ def build_plan_from_state(
+     elif tab_key == "upload-immich":
          if from_server:
              emitter.add_option("from-server", normalize_server_url(from_server))
- 
+-
 -        from_ct = tab_state.get("from-client-timeout")
 -        if from_ct is not None and int(from_ct) != 20 and int(from_ct) > 0:
 -            emitter.add_option("from-client-timeout", f"{from_ct}m")
@@ -1911,7 +2243,11 @@ index 3193919..29e209b 100644
 -
 -        if tab_state.get("api-trace"):
 -            emitter.add_flag("api-trace")
--
++        if tab_state.get("from-date-range", "").strip():
++            emitter.add_option("from-date-range", clean_date_range(tab_state["from-date-range"]))
++        for album in normalize_list_csv(tab_state.get("from-albums", "")):
++            emitter.add_option("from-albums", album)
+ 
      elif tab_key == "archive-folder":
          if tab_state.get("write-to"):
 -            emitter.add_option("write-to-folder", tab_state["write-to"])
@@ -1960,7 +2296,7 @@ index 3193919..29e209b 100644
  
          raw_path = str(tab_state.get("path", "")).strip()
          if raw_path:
-@@ -1944,88 +2734,10 @@ def build_plan_from_state(
+@@ -1944,88 +2709,15 @@ def build_plan_from_state(
              emitter.add_option("from-server", normalize_server_url(from_srv))
  
          if tab_state.get("write-to"):
@@ -2042,18 +2378,22 @@ index 3193919..29e209b 100644
 -
 -        if "from-pause-jobs" in tab_state and not tab_state["from-pause-jobs"]:
 -            emitter.add_bool_val("from-pause-immich-jobs", False)
--
--        from_ct = tab_state.get("from-client-timeout")
--        if from_ct is not None and int(from_ct) != 20 and int(from_ct) > 0:
--            emitter.add_option("from-client-timeout", f"{from_ct}m")
 +            write_to = os.path.abspath(
 +                os.path.expanduser(str(tab_state["write-to"]).strip())
 +            )
 +            emitter.add_option("write-to-folder", write_to)
  
+-        from_ct = tab_state.get("from-client-timeout")
+-        if from_ct is not None and int(from_ct) != 20 and int(from_ct) > 0:
+-            emitter.add_option("from-client-timeout", f"{from_ct}m")
++        if tab_state.get("from-date-range", "").strip():
++            emitter.add_option("from-date-range", clean_date_range(tab_state["from-date-range"]))
++        for album in normalize_list_csv(tab_state.get("from-albums", "")):
++            emitter.add_option("from-albums", album)
+ 
      elif tab_key == "stack":
          if tab_state.get("manage-burst", "NoStack") != "NoStack":
-@@ -2041,18 +2753,15 @@ def build_plan_from_state(
+@@ -2041,18 +2733,15 @@ def build_plan_from_state(
          if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
              emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
  
@@ -2081,7 +2421,7 @@ index 3193919..29e209b 100644
  
      # Dry-run handling
      if dry_run:
-@@ -2070,7 +2779,7 @@ def build_plan_from_state(
+@@ -2070,7 +2759,7 @@ def build_plan_from_state(
  
  
  ================================================================================
@@ -2090,7 +2430,7 @@ index 3193919..29e209b 100644
  ================================================================================
  """TOML configuration loading, saving, and secret management logic.
  
-@@ -2457,7 +3166,7 @@ def set_api_key(value: str, config: AppConfig) -> SecretSaveResult:
+@@ -2457,7 +3146,7 @@ def set_api_key(value: str, config: AppConfig) -> SecretSaveResult:
  
  
  ================================================================================
@@ -2099,7 +2439,7 @@ index 3193919..29e209b 100644
  ================================================================================
  """Pure data structures and dataclasses for Immich-Go GUI core logic.
  
-@@ -2557,7 +3266,7 @@ class AppConfig:
+@@ -2557,7 +3246,7 @@ class AppConfig:
  
  
  ================================================================================
@@ -2108,7 +2448,7 @@ index 3193919..29e209b 100644
  ================================================================================
  """Network diagnostic helpers for Immich-Go GUI.
  
-@@ -2678,7 +3387,7 @@ def test_immich_connection(
+@@ -2678,7 +3367,7 @@ def test_immich_connection(
  
  
  ================================================================================
@@ -2117,7 +2457,7 @@ index 3193919..29e209b 100644
  ================================================================================
  """Process lock tracking logic for Immich-Go GUI.
  
-@@ -2922,7 +3631,7 @@ def reset_all_locks() -> int:
+@@ -2922,7 +3611,7 @@ def reset_all_locks() -> int:
  
  
  ================================================================================
@@ -2126,7 +2466,7 @@ index 3193919..29e209b 100644
  ================================================================================
  """Profile management logic for Immich-Go GUI.
  
-@@ -3268,7 +3977,7 @@ def delete_profile(name: str) -> None:
+@@ -3268,7 +3957,7 @@ def delete_profile(name: str) -> None:
  
  
  ================================================================================
@@ -2135,7 +2475,7 @@ index 3193919..29e209b 100644
  ================================================================================
  """External terminal launching logic for Immich-Go GUI.
  
-@@ -3394,31 +4103,44 @@ def launch_external_terminal(
+@@ -3394,31 +4083,44 @@ def launch_external_terminal(
          cmd_quoted = " ".join(shlex.quote(c) for c in command)
          run_sh_content = (
              "#!/usr/bin/env bash\n"
@@ -2204,7 +2544,7 @@ index 3193919..29e209b 100644
          )
  
          run_sh_path.write_text(run_sh_content, encoding="utf-8")
-@@ -3490,7 +4212,7 @@ def launch_external_terminal(
+@@ -3490,7 +4192,7 @@ def launch_external_terminal(
  
  
  ================================================================================
@@ -2213,16 +2553,16 @@ index 3193919..29e209b 100644
  ================================================================================
  """Validation and input normalization helpers for Immich-Go GUI.
  
-@@ -3733,7 +4455,7 @@ def validate_destination_folder(
+@@ -3733,7 +4435,7 @@ def validate_destination_folder(
  
  
  ================================================================================
 -FILE 14 / 16: test_app.py (Lines 1-2005)
-+FILE 15 / 18: test_app.py (Lines 1-1971)
++FILE 15 / 18: test_app.py (Lines 1-2169)
  ================================================================================
  import pytest
  import os
-@@ -3985,18 +4707,20 @@ def test_droppable_plain_text_edit_drop(qapp, qtbot):
+@@ -3985,18 +4687,20 @@ def test_droppable_plain_text_edit_drop(qapp, qtbot):
  
  
  def test_global_flag_ordering(gui):
@@ -2245,7 +2585,7 @@ index 3193919..29e209b 100644
      gui.stacked_widget.setCurrentIndex(2)  # archive page
      gui.archive_tabs.setCurrentIndex(0)    # archive-folder
      gui.inputs["config"]["server"].setText("http://local:2283")
-@@ -4008,6 +4732,7 @@ def test_pause_jobs_not_on_archive(gui):
+@@ -4008,6 +4712,7 @@ def test_pause_jobs_not_on_archive(gui):
  
  
  def test_pause_jobs_not_on_stack(gui):
@@ -2253,7 +2593,7 @@ index 3193919..29e209b 100644
      gui.stacked_widget.setCurrentIndex(3)  # stack
      gui.inputs["config"]["server"].setText("http://local:2283")
      gui.inputs["config"]["api_key"].setText("key")
-@@ -4015,19 +4740,20 @@ def test_pause_jobs_not_on_stack(gui):
+@@ -4015,19 +4720,20 @@ def test_pause_jobs_not_on_stack(gui):
      assert not any("--pause-immich-jobs" in o for o in opts)
  
  
@@ -2279,7 +2619,7 @@ index 3193919..29e209b 100644
      gui.stacked_widget.setCurrentIndex(1)  # upload page
      gui.upload_tabs.setCurrentIndex(0)     # upload-folder
      gui.inputs["config"]["server"].setText("http://local:2283")
-@@ -4039,6 +4765,7 @@ def test_client_timeout_emitted(gui):
+@@ -4039,6 +4745,7 @@ def test_client_timeout_emitted(gui):
  
  
  def test_device_uuid_emitted(gui):
@@ -2287,7 +2627,7 @@ index 3193919..29e209b 100644
      gui.stacked_widget.setCurrentIndex(1)  # upload page
      gui.upload_tabs.setCurrentIndex(0)     # upload-folder
      gui.inputs["config"]["server"].setText("http://local:2283")
-@@ -4050,33 +4777,36 @@ def test_device_uuid_emitted(gui):
+@@ -4050,33 +4757,36 @@ def test_device_uuid_emitted(gui):
  
  
  def test_api_trace_on_upload_gp(gui):
@@ -2327,7 +2667,7 @@ index 3193919..29e209b 100644
      opts = gui.build_command(dry_run=False)
      assert "--from-client-timeout=60m" in opts
  
-@@ -4148,33 +4878,33 @@ def test_api_trace_on_stack_disabled(gui):
+@@ -4148,44 +4858,45 @@ def test_api_trace_on_stack_disabled(gui):
      gui.stacked_widget.setCurrentIndex(3)
      gui.inputs["config"]["server"].setText("http://stack:2283")
      gui.inputs["config"]["api_key"].setText("stack-key")
@@ -2349,8 +2689,9 @@ index 3193919..29e209b 100644
 -    gui.inputs["upload-immich"]["from-favorite"].setChecked(True)
 -    gui.inputs["upload-immich"]["from-archived"].setChecked(True)
 -    gui.inputs["upload-immich"]["from-trash"].setChecked(True)
--    gui.inputs["upload-immich"]["from-date-range"].setText("2020-01-01,2021-01-01")
--    gui.inputs["upload-immich"]["from-albums"].setText("Album1, Album2")
++    # from-date-range and from-albums are now simple-mode controls
+     gui.inputs["upload-immich"]["from-date-range"].setText("2020-01-01,2021-01-01")
+     gui.inputs["upload-immich"]["from-albums"].setText("Album1, Album2")
 -    gui.inputs["upload-immich"]["from-minimal-rating"].setValue(3)
 -    gui.inputs["upload-immich"]["from-people"].setText("John, Jane")
 -    gui.inputs["upload-immich"]["from-tags"].setText("Vacation, Family")
@@ -2363,8 +2704,6 @@ index 3193919..29e209b 100644
 +    gui.adv_rows["upload-immich"]["from-favorite"].set_state({"enabled": True, "value": True})
 +    gui.adv_rows["upload-immich"]["from-archived"].set_state({"enabled": True, "value": True})
 +    gui.adv_rows["upload-immich"]["from-trash"].set_state({"enabled": True, "value": True})
-+    gui.adv_rows["upload-immich"]["from-date-range"].set_state({"enabled": True, "value": "2020-01-01,2021-01-01"})
-+    gui.adv_rows["upload-immich"]["from-albums"].set_state({"enabled": True, "value": "Album1, Album2"})
 +    gui.adv_rows["upload-immich"]["from-minimal-rating"].set_state({"enabled": True, "value": 3})
 +    gui.adv_rows["upload-immich"]["from-people"].set_state({"enabled": True, "value": "John, Jane"})
 +    gui.adv_rows["upload-immich"]["from-tags"].set_state({"enabled": True, "value": "Vacation, Family"})
@@ -2377,7 +2716,21 @@ index 3193919..29e209b 100644
      opts = gui.build_command(dry_run=False)
      assert "upload" in opts
      assert "from-immich" in opts
-@@ -4201,12 +4931,13 @@ def test_build_command_upload_immich(gui):
+     assert "--server=http://local:2283" in opts
+     assert "--from-server=http://remote:2283" in opts
+-    assert "--from-favorite" in opts
+-    assert "--from-archived" in opts
+-    assert "--from-trash" in opts
+     assert "--from-date-range=2020-01-01,2021-01-01" in opts
+     assert "--from-albums=Album1" in opts
+     assert "--from-albums=Album2" in opts
++    assert "--from-favorite" in opts
++    assert "--from-archived" in opts
++    assert "--from-trash" in opts
+     assert "--from-minimal-rating=3" in opts
+     assert "--from-people=John" in opts
+     assert "--from-people=Jane" in opts
+@@ -4201,12 +4912,13 @@ def test_build_command_upload_immich(gui):
  
  
  def test_build_command_archive_folder(gui):
@@ -2392,7 +2745,7 @@ index 3193919..29e209b 100644
      opts = gui.build_command(dry_run=True)
      assert "archive" in opts
      assert "from-folder" in opts
-@@ -4218,13 +4949,14 @@ def test_build_command_archive_folder(gui):
+@@ -4218,11 +4930,13 @@ def test_build_command_archive_folder(gui):
  
  
  def test_build_command_archive_immich(gui):
@@ -2402,14 +2755,11 @@ index 3193919..29e209b 100644
      gui.inputs["config"]["server"].setText("http://local:2283")
      gui.inputs["config"]["api_key"].setText("key")
      gui.inputs["archive-immich"]["write-to"].setText("/dest/folder")
--    gui.inputs["archive-immich"]["from-date-range"].setText("2024-01-01,2024-02-01")
--    gui.inputs["archive-immich"]["from-albums"].setText("ArchiveAlbum")
-+    gui.adv_rows["archive-immich"]["from-date-range"].set_state({"enabled": True, "value": "2024-01-01,2024-02-01"})
-+    gui.adv_rows["archive-immich"]["from-albums"].set_state({"enabled": True, "value": "ArchiveAlbum"})
++    # from-date-range and from-albums are now simple-mode controls
+     gui.inputs["archive-immich"]["from-date-range"].setText("2024-01-01,2024-02-01")
+     gui.inputs["archive-immich"]["from-albums"].setText("ArchiveAlbum")
      opts = gui.build_command(dry_run=False)
-     assert "archive" in opts
-     assert "from-immich" in opts
-@@ -4264,41 +4996,19 @@ def test_native_dialog_options_passed(gui):
+@@ -4264,41 +4978,19 @@ def test_native_dialog_options_passed(gui):
  # ==============================================================================
  
  def test_golden_upload_folder(gui):
@@ -2453,7 +2803,7 @@ index 3193919..29e209b 100644
          "/photos",
      ]
      assert plan.env.get("IMMICH_GO_UPLOAD_API_KEY") == "test-key"
-@@ -4306,61 +5016,33 @@ def test_golden_upload_folder(gui):
+@@ -4306,61 +4998,33 @@ def test_golden_upload_folder(gui):
  
  
  def test_golden_upload_gp(gui):
@@ -2521,7 +2871,7 @@ index 3193919..29e209b 100644
  
      plan = gui.build_plan(dry_run=False)
  
-@@ -4368,26 +5050,22 @@ def test_golden_stack(gui):
+@@ -4368,26 +5032,22 @@ def test_golden_stack(gui):
          "stack",
          "--server=http://localhost:2283",
          "--manage-burst=Stack",
@@ -2550,7 +2900,7 @@ index 3193919..29e209b 100644
          "--dry-run",
          "/messy/photos",
      ]
-@@ -4395,36 +5073,14 @@ def test_golden_archive_folder(gui):
+@@ -4395,36 +5055,16 @@ def test_golden_archive_folder(gui):
  
  
  def test_golden_upload_immich(gui):
@@ -2586,10 +2936,12 @@ index 3193919..29e209b 100644
 -    if "api-trace" in gui.inputs["upload-immich"]:
 -        gui.inputs["upload-immich"]["api-trace"].setChecked(False)
 -    gui.inputs["upload-immich"]["log-level"].setCurrentText("INFO")
++    gui.inputs["upload-immich"]["from-date-range"].clear()
++    gui.inputs["upload-immich"]["from-albums"].clear()
  
      plan = gui.build_plan(dry_run=False)
  
-@@ -4432,31 +5088,19 @@ def test_golden_upload_immich(gui):
+@@ -4432,31 +5072,21 @@ def test_golden_upload_immich(gui):
          "upload", "from-immich",
          "--server=http://new:2283",
          "--from-server=http://old:2283",
@@ -2620,10 +2972,12 @@ index 3193919..29e209b 100644
 -    gui.inputs["archive-immich"]["from-date-range"].setText("2024")
 -    gui.inputs["archive-immich"]["from-albums"].setText("Family")
 -    gui.inputs["archive-immich"]["log-level"].setCurrentText("INFO")
++    gui.inputs["archive-immich"]["from-date-range"].clear()
++    gui.inputs["archive-immich"]["from-albums"].clear()
  
      plan = gui.build_plan(dry_run=False)
  
-@@ -4464,11 +5108,100 @@ def test_golden_archive_immich(gui):
+@@ -4464,11 +5094,100 @@ def test_golden_archive_immich(gui):
          "archive", "from-immich",
          "--from-server=http://localhost:2283",
          "--write-to-folder=/backup/photos",
@@ -2727,7 +3081,7 @@ index 3193919..29e209b 100644
  
  
  # ==========================================================
-@@ -5068,15 +5801,19 @@ def test_terminal_launcher_working_directory_isolation(tmp_path, monkeypatch):
+@@ -5068,15 +5787,19 @@ def test_terminal_launcher_working_directory_isolation(tmp_path, monkeypatch):
          res = launch_external_terminal(cmd, env, lock_path, preferred_terminal="auto")
          assert res.ok is True
  
@@ -2755,7 +3109,7 @@ index 3193919..29e209b 100644
  
  
  # ==============================================================================
-@@ -5099,12 +5836,14 @@ def test_golden_json_fixtures():
+@@ -5099,12 +5822,14 @@ def test_golden_json_fixtures():
          tab_state = data.get("tab_state", {})
          expected_argv = data["expected_argv"]
  
@@ -2770,7 +3124,7 @@ index 3193919..29e209b 100644
          )
          assert plan.argv == expected_argv, f"Fixture {jf.name} produced unexpected argv: {plan.argv} != {expected_argv}"
  
-@@ -5283,28 +6022,28 @@ def test_default_true_boolean_emission():
+@@ -5283,28 +6008,30 @@ def test_default_true_boolean_emission():
      from core.command_builder import build_plan_from_state
      config_state = {"server": "http://localhost:2283", "api_key": "test_key"}
  
@@ -2794,28 +3148,25 @@ index 3193919..29e209b 100644
      assert "--pause-immich-jobs=false" in plan_folder.argv
  
 -    # upload-gp default true flags set to False
--    tab_state_gp = {
--        "path": "/takeout",
--        "include-archived": False,
--        "include-partner": False,
--        "sync-albums": False,
++    # upload-gp boolean flags explicitly set to False in tab_state & advanced_state
+     tab_state_gp = {
+         "path": "/takeout",
+         "include-archived": False,
+         "include-partner": False,
+         "sync-albums": False,
 -        "takeout-tag": False,
 -        "people-tag": False,
-+    # upload-gp boolean flags explicitly enabled and set to False
-+    tab_state_gp = {"path": "/takeout"}
-+    advanced_gp = {
-+        "include-archived": {"enabled": True, "value": False},
-+        "include-partner": {"enabled": True, "value": False},
-+        "sync-albums": {"enabled": True, "value": False},
-+        "takeout-tag": {"enabled": True, "value": False},
-+        "people-tag": {"enabled": True, "value": False},
      }
 -    plan_gp = build_plan_from_state("upload-gp", config_state, tab_state_gp)
++    advanced_gp = {
++        "takeout-tag": {"enabled": True, "value": False},
++        "people-tag": {"enabled": True, "value": False},
++    }
 +    plan_gp = build_plan_from_state("upload-gp", config_state, tab_state_gp, advanced_state=advanced_gp)
      assert "--include-archived=false" in plan_gp.argv
      assert "--include-partner=false" in plan_gp.argv
      assert "--sync-albums=false" in plan_gp.argv
-@@ -5408,227 +6147,117 @@ def test_missing_fixtures_not_fully_compatible(tmp_path):
+@@ -5408,227 +6135,117 @@ def test_missing_fixtures_not_fully_compatible(tmp_path):
      assert report_empty.is_fully_compatible() is True
  
  
@@ -3130,7 +3481,7 @@ index 3193919..29e209b 100644
  
  
  def test_advanced_mode_persistence(gui):
-@@ -5742,8 +6371,67 @@ def test_cleanup_stale_temp_dirs(tmp_path, monkeypatch):
+@@ -5742,8 +6359,257 @@ def test_cleanup_stale_temp_dirs(tmp_path, monkeypatch):
      assert not dummy_dir.exists()
  
  
@@ -3182,15 +3533,205 @@ index 3193919..29e209b 100644
 +
 +    state = gui.collect_form_state()
 +    saved = state["advanced"]["upload-immich"]["from-admin-api-key"]
-+    assert saved["enabled"] is True
++    assert saved["enabled"] is False
 +    assert saved["value"] == ""
 +
 +
-+def test_gp_simple_card_has_no_dead_checkboxes(gui):
++def test_gp_simple_card_has_restored_checkboxes(gui):
++    """A9: GP simple card has include-partner, sync-albums, include-archived checkboxes."""
 +    gp_inputs = gui.inputs.get("upload-gp", {})
-+    assert "include-partner" not in gp_inputs
-+    assert "sync-albums" not in gp_inputs
-+    assert "include-archived" not in gp_inputs
++    assert "include-partner" in gp_inputs
++    assert "sync-albums" in gp_inputs
++    assert "include-archived" in gp_inputs
++
++
++def test_gp_simple_mode_checkboxes_emitted_when_unchecked(gui):
++    """A9: When GP simple checkboxes are unchecked, --flag=false is emitted."""
++    gui.toggle_advanced(False)
++    gui.stacked_widget.setCurrentIndex(1)
++    gui.upload_tabs.setCurrentIndex(1)
++    gui.inputs["config"]["server"].setText("http://localhost:2283")
++    gui.inputs["config"]["api_key"].setText("key")
++    gui.inputs["upload-gp"]["path"].setPlainText("/path/to/takeout.zip")
++    gui.inputs["upload-gp"]["include-partner"].setChecked(False)
++    gui.inputs["upload-gp"]["sync-albums"].setChecked(False)
++    gui.inputs["upload-gp"]["include-archived"].setChecked(False)
++
++    plan = gui.build_plan(dry_run=False)
++    assert "--include-partner=false" in plan.argv
++    assert "--sync-albums=false" in plan.argv
++    assert "--include-archived=false" in plan.argv
++
++
++def test_gp_simple_mode_checkboxes_omitted_when_checked(gui):
++    """A9: When GP simple checkboxes are checked (default), --flag=false is NOT emitted."""
++    gui.toggle_advanced(False)
++    gui.stacked_widget.setCurrentIndex(1)
++    gui.upload_tabs.setCurrentIndex(1)
++    gui.inputs["config"]["server"].setText("http://localhost:2283")
++    gui.inputs["config"]["api_key"].setText("key")
++    gui.inputs["upload-gp"]["path"].setPlainText("/path/to/takeout.zip")
++    gui.inputs["upload-gp"]["include-partner"].setChecked(True)
++    gui.inputs["upload-gp"]["sync-albums"].setChecked(True)
++    gui.inputs["upload-gp"]["include-archived"].setChecked(True)
++
++    plan = gui.build_plan(dry_run=False)
++    assert "--include-partner=false" not in plan.argv
++    assert "--sync-albums=false" not in plan.argv
++    assert "--include-archived=false" not in plan.argv
++
++
++# ==============================================================================
++# A1 REGRESSION: Simple-mode controls not silently discarded
++# ==============================================================================
++
++def test_upload_immich_simple_mode_from_date_range_emitted(gui):
++    """A1: from-date-range in upload-immich simple card must produce CLI flag."""
++    gui.toggle_advanced(False)
++    gui.stacked_widget.setCurrentIndex(1)
++    gui.upload_tabs.setCurrentIndex(2)
++    gui.inputs["config"]["server"].setText("http://new:2283")
++    gui.inputs["config"]["api_key"].setText("key")
++    gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
++    gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
++    gui.inputs["upload-immich"]["from-date-range"].setText("2022-01-01,2022-12-31")
++    gui.inputs["upload-immich"]["from-albums"].clear()
++
++    plan = gui.build_plan(dry_run=False)
++    assert "--from-date-range=2022-01-01,2022-12-31" in plan.argv
++    assert not plan.errors
++
++
++def test_upload_immich_simple_mode_from_albums_emitted(gui):
++    """A1: from-albums in upload-immich simple card must produce repeat CLI flags."""
++    gui.toggle_advanced(False)
++    gui.stacked_widget.setCurrentIndex(1)
++    gui.upload_tabs.setCurrentIndex(2)
++    gui.inputs["config"]["server"].setText("http://new:2283")
++    gui.inputs["config"]["api_key"].setText("key")
++    gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
++    gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
++    gui.inputs["upload-immich"]["from-date-range"].clear()
++    gui.inputs["upload-immich"]["from-albums"].setText("Family, Travel")
++
++    plan = gui.build_plan(dry_run=False)
++    assert "--from-albums=Family" in plan.argv
++    assert "--from-albums=Travel" in plan.argv
++    assert not plan.errors
++
++
++def test_archive_immich_simple_mode_from_date_range_emitted(gui):
++    """A1: from-date-range in archive-immich simple card must produce CLI flag."""
++    gui.toggle_advanced(False)
++    gui.stacked_widget.setCurrentIndex(2)
++    gui.archive_tabs.setCurrentIndex(1)
++    gui.inputs["config"]["server"].setText("http://localhost:2283")
++    gui.inputs["config"]["api_key"].setText("key")
++    gui.inputs["archive-immich"]["write-to"].setText("/backup")
++    gui.inputs["archive-immich"]["from-date-range"].setText("2023-06-01,2023-12-31")
++    gui.inputs["archive-immich"]["from-albums"].clear()
++
++    plan = gui.build_plan(dry_run=False)
++    assert "--from-date-range=2023-06-01,2023-12-31" in plan.argv
++    assert not plan.errors
++
++
++def test_archive_immich_simple_mode_from_albums_emitted(gui):
++    """A1: from-albums in archive-immich simple card must produce repeat CLI flags."""
++    gui.toggle_advanced(False)
++    gui.stacked_widget.setCurrentIndex(2)
++    gui.archive_tabs.setCurrentIndex(1)
++    gui.inputs["config"]["server"].setText("http://localhost:2283")
++    gui.inputs["config"]["api_key"].setText("key")
++    gui.inputs["archive-immich"]["write-to"].setText("/backup")
++    gui.inputs["archive-immich"]["from-date-range"].clear()
++    gui.inputs["archive-immich"]["from-albums"].setText("ArchiveAlbum")
++
++    plan = gui.build_plan(dry_run=False)
++    assert "--from-albums=ArchiveAlbum" in plan.argv
++    assert not plan.errors
++
++
++def test_upload_immich_simple_mode_has_no_from_favorite_widget(gui):
++    """A1: from-favorite must NOT be a simple-mode widget (it's advanced-only)."""
++    assert "from-favorite" not in gui.inputs.get("upload-immich", {})
++
++
++# ==============================================================================
++# A2: Duplicate test name lint guard
++# ==============================================================================
++
++def test_no_duplicate_test_names():
++    """A2: Ensure no duplicate test function names exist in test_app.py."""
++    import ast
++    import collections
++    tree = ast.parse(Path("test_app.py").read_text(encoding="utf-8"))
++    names = [
++        n.name for n in ast.walk(tree)
++        if isinstance(n, ast.FunctionDef) and n.name.startswith("test_")
++    ]
++    dupes = [n for n, c in collections.Counter(names).items() if c > 1]
++    assert not dupes, f"Duplicate test names found in test_app.py: {dupes}"
++
++
++# ==============================================================================
++# A8: ADVANCED_FLAGS ⊆ TAB_ALLOWED_FLAGS
++# ==============================================================================
++
++def test_advanced_flags_subset_of_tab_allowed_flags():
++    """A8: Every flag in ADVANCED_FLAGS must be in TAB_ALLOWED_FLAGS for its tab.
++    Secret-env flags bypass argv so they are excluded from the argv allowlist check,
++    but we still verify they appear in TAB_ALLOWED_FLAGS when present.
++    """
++    from core.advanced_flags import ADVANCED_FLAGS
++    from core.cli_schema import TAB_ALLOWED_FLAGS
++
++    missing = []
++    for tab, defs in ADVANCED_FLAGS.items():
++        allowed = TAB_ALLOWED_FLAGS.get(tab, frozenset())
++        for d in defs:
++            if d.secret_env:
++                # Secret flags emit via env var, not argv — skip allowlist check
++                continue
++            if d.flag not in allowed:
++                missing.append(f"'{d.flag}' in ADVANCED_FLAGS['{tab}'] missing from TAB_ALLOWED_FLAGS")
++
++    assert not missing, "\n".join(missing)
++
++
++# ==============================================================================
++# A3: validate_advanced_state uses full date semantic validation
++# ==============================================================================
++
++def test_validate_advanced_state_rejects_invalid_month():
++    """A3: validate_advanced_state must reject semantically invalid dates."""
++    from core.advanced_flags import validate_advanced_state
++    # Month 13 is invalid
++    result = validate_advanced_state("upload-folder", {
++        "date-range": {"enabled": True, "value": "2023-13-01,2023-12-31"}
++    })
++    assert not result.is_valid
++    assert any("date" in e.lower() or "invalid" in e.lower() for e in result.errors)
++
++
++def test_validate_advanced_state_rejects_reversed_range():
++    """A3: validate_advanced_state must reject start > end date ranges."""
++    from core.advanced_flags import validate_advanced_state
++    result = validate_advanced_state("upload-folder", {
++        "date-range": {"enabled": True, "value": "2023-12-31,2023-01-01"}
++    })
++    assert not result.is_valid
++    assert result.errors
++
++
++def test_validate_advanced_state_accepts_valid_date_range():
++    """A3: validate_advanced_state must accept well-formed date ranges."""
++    from core.advanced_flags import validate_advanced_state
++    result = validate_advanced_state("upload-folder", {
++        "date-range": {"enabled": True, "value": "2023-01-01,2023-12-31"}
++    })
++    assert result.is_valid
++    assert not result.errors
 +
 +
  ================================================================================
@@ -3199,7 +3740,7 @@ index 3193919..29e209b 100644
  ================================================================================
  #!/usr/bin/env python3
  """Script to capture immich-go CLI help outputs into versioned test fixtures.
-@@ -5833,7 +6521,7 @@ if __name__ == "__main__":
+@@ -5833,7 +6699,7 @@ if __name__ == "__main__":
  
  
  ================================================================================
@@ -3208,7 +3749,7 @@ index 3193919..29e209b 100644
  ================================================================================
  """Helper script to convert Markdown files to interactive, collapsible HTML pages.
  
-@@ -6401,3 +7089,64 @@ if __name__ == "__main__":
+@@ -6401,3 +7267,64 @@ if __name__ == "__main__":
      convert_md_to_html(in_file, out_file, title=doc_title)
  
  
@@ -3291,7 +3832,7 @@ index 80615b9..fb8ef82 100644
          print(f"Error executing git command for {rev_spec}: {e}")
          sys.exit(1)
 diff --git a/test_app.py b/test_app.py
-index 72720fe..bbe9232 100644
+index 72720fe..71dfe71 100644
 --- a/test_app.py
 +++ b/test_app.py
 @@ -432,11 +432,12 @@ def test_build_command_upload_immich(gui):
@@ -3337,7 +3878,33 @@ index 72720fe..bbe9232 100644
      opts = gui.build_command(dry_run=False)
      assert "archive" in opts
      assert "from-immich" in opts
-@@ -622,6 +624,8 @@ def test_golden_upload_immich(gui):
+@@ -594,6 +596,25 @@ def test_golden_stack(gui):
+     ]
+ 
+ 
++def test_golden_stack_advanced_with_date_range(gui):
++    """Golden: stack advanced mode command with date-range flag."""
++    gui.toggle_advanced(True)
++    gui.stacked_widget.setCurrentIndex(3)
++    gui.inputs["config"]["server"].setText("http://localhost:2283")
++    gui.inputs["config"]["api_key"].setText("test-key")
++    gui.inputs["stack"]["manage-burst"].setCurrentText("Stack")
++    gui.adv_rows["stack"]["date-range"].set_state({"enabled": True, "value": "2023-01-01,2023-12-31"})
++
++    plan = gui.build_plan(dry_run=False)
++
++    assert plan.argv == [
++        "stack",
++        "--server=http://localhost:2283",
++        "--manage-burst=Stack",
++        "--date-range=2023-01-01,2023-12-31",
++    ]
++
++
+ def test_golden_archive_folder(gui):
+     """Golden: archive from-folder simple mode."""
+     gui.toggle_advanced(False)
+@@ -622,6 +643,8 @@ def test_golden_upload_immich(gui):
      gui.inputs["config"]["api_key"].setText("new-key")
      gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
      gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
@@ -3346,7 +3913,7 @@ index 72720fe..bbe9232 100644
  
      plan = gui.build_plan(dry_run=False)
  
-@@ -642,6 +646,8 @@ def test_golden_archive_immich(gui):
+@@ -642,6 +665,8 @@ def test_golden_archive_immich(gui):
      gui.inputs["config"]["server"].setText("http://localhost:2283")
      gui.inputs["config"]["api_key"].setText("test-key")
      gui.inputs["archive-immich"]["write-to"].setText("/backup/photos")
@@ -3355,7 +3922,7 @@ index 72720fe..bbe9232 100644
  
      plan = gui.build_plan(dry_run=False)
  
-@@ -1575,12 +1581,14 @@ def test_default_true_boolean_emission():
+@@ -1575,12 +1600,14 @@ def test_default_true_boolean_emission():
      assert "--date-from-name=false" in plan_folder.argv
      assert "--pause-immich-jobs=false" in plan_folder.argv
  
@@ -3375,7 +3942,7 @@ index 72720fe..bbe9232 100644
          "takeout-tag": {"enabled": True, "value": False},
          "people-tag": {"enabled": True, "value": False},
      }
-@@ -1909,4 +1917,253 @@ def test_cleanup_stale_temp_dirs(tmp_path, monkeypatch):
+@@ -1909,4 +1936,359 @@ def test_cleanup_stale_temp_dirs(tmp_path, monkeypatch):
  
      cleaned = cleanup_stale_temp_dirs(max_age_hours=24)
      assert cleaned == 1
@@ -3631,6 +4198,112 @@ index 72720fe..bbe9232 100644
 +    })
 +    assert result.is_valid
 +    assert not result.errors
++
++
++# ==============================================================================
++# Fix 1.2: Env-Var Secret Contract Verification via Stub Executable
++# ==============================================================================
++
++def test_env_var_secret_contract_with_stub(gui):
++    """Fix 1.2: Verify subprocess receives secrets via env vars and never in argv."""
++    import json
++    import subprocess
++    from pathlib import Path
++
++    stub_path = str(Path(__file__).parent / "tests" / "stub_immich_go.py")
++
++    gui.toggle_advanced(True)
++    gui.stacked_widget.setCurrentIndex(1)
++    gui.upload_tabs.setCurrentIndex(2)  # upload-immich tab
++
++    gui.inputs["config"]["server"].setText("http://target:2283")
++    gui.inputs["config"]["api_key"].setText("target-secret-key-123")
++    gui.inputs["upload-immich"]["from-server"].setText("http://source:2283")
++    gui.inputs["upload-immich"]["from-api-key"].setText("source-secret-key-456")
++    gui.adv_rows["upload-immich"]["from-admin-api-key"].set_state({
++        "enabled": True,
++        "value": "source-admin-secret-789",
++    })
++
++    plan = gui.build_plan(dry_run=False)
++
++    # 1. Assert secret values NEVER appear in plan.argv
++    for secret in ("target-secret-key-123", "source-secret-key-456", "source-admin-secret-789"):
++        assert not any(secret in arg for arg in plan.argv), f"Secret '{secret}' leaked into argv!"
++
++    # 2. Run the stub process using plan.argv and plan.env
++    cmd = [sys.executable, stub_path] + plan.argv
++    full_env = {**os.environ, **plan.env}
++
++    res = subprocess.run(cmd, capture_output=True, text=True, env=full_env)
++    assert res.returncode == 0, f"Stub failed: {res.stderr}"
++
++    output = json.loads(res.stdout)
++    received_env = output["env"]
++    received_argv = output["argv"]
++
++    # 3. Assert secrets were delivered via env vars
++    assert received_env.get("IMMICH_GO_UPLOAD_SERVER") == "http://target:2283"
++    assert received_env.get("IMMICH_GO_UPLOAD_API_KEY") == "target-secret-key-123"
++    assert received_env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER") == "http://source:2283"
++    assert received_env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY") == "source-secret-key-456"
++    assert received_env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY") == "source-admin-secret-789"
++
++    # 4. Assert secrets are not in received argv
++    for secret in ("target-secret-key-123", "source-secret-key-456", "source-admin-secret-789"):
++        assert not any(secret in arg for arg in received_argv)
++
++
++def test_binary_manager_download_and_install_cancellation(tmp_path):
++    """Fix 1.3: download_and_install respects cancellation and cleans up temp files."""
++    from core.binary_manager import BinaryManager
++
++    bm = BinaryManager(base_dir=str(tmp_path))
++
++    # Mock get_release_asset_url to return a dummy URL
++    with patch.object(bm, "get_release_asset_url", return_value="https://example.com/immich-go.tar.gz"):
++        # Mock requests.get to return a streaming dummy response
++        mock_res = MagicMock()
++        mock_res.headers = {"content-length": "100"}
++        mock_res.iter_content.return_value = [b"dummy data chunk"]
++        mock_res.__enter__.return_value = mock_res
++
++        with patch("requests.get", return_value=mock_res):
++            success, msg = bm.download_and_install(
++                version="0.32.0",
++                cancel_check=lambda: True,  # cancel immediately
++            )
++            assert success is False
++            assert "cancelled" in msg.lower()
++
++    # Ensure no leftover temp archive or binary exists
++    v_dir = tmp_path / "0.32.0"
++    assert not (v_dir / "download.tmp").exists()
++    assert not (v_dir / "immich-go.tmp").exists()
++
++
++def test_windows_bat_heartbeat_generation(tmp_path, monkeypatch):
++    """Fix 1.4: Windows terminal launch generates a .bat file with background heartbeat loop."""
++    from core.terminal_launcher import launch_external_terminal
++
++    monkeypatch.setattr("sys.platform", "win32")
++
++    lock_file = tmp_path / "run_test.lock"
++    lock_file.write_text('{"run_id": "test"}', encoding="utf-8")
++
++    with patch("subprocess.Popen") as mock_popen:
++        mock_popen.return_value.pid = 1234
++        res = launch_external_terminal(["immich-go", "stack"], {}, lock_file)
++        assert res.ok
++
++    bat_file = lock_file.with_suffix(".bat")
++    assert bat_file.exists()
++    bat_content = bat_file.read_text(encoding="utf-8")
++
++    assert "HB_FILE=" in bat_content
++    assert ".heartbeat" in bat_content
++    assert "start /b cmd /c" in bat_content
++    assert 'del /f "%HB_FILE%"' in bat_content
 \ No newline at end of file
 diff --git a/tests/fixtures/command_states/archive_immich_advanced.json b/tests/fixtures/command_states/archive_immich_advanced.json
 index 7105e98..f1295ab 100644
@@ -3688,3 +4361,26 @@ index e45c728..e63bd0c 100644
 +    "--from-archived"
    ]
  }
+diff --git a/tests/stub_immich_go.py b/tests/stub_immich_go.py
+new file mode 100755
+index 0000000..84a96f5
+--- /dev/null
++++ b/tests/stub_immich_go.py
+@@ -0,0 +1,17 @@
++#!/usr/bin/env python3
++"""Stub immich-go CLI executable for testing environment variable and argv delivery."""
++import json
++import os
++import sys
++
++
++def main():
++    result = {
++        "argv": sys.argv[1:],
++        "env": {k: v for k, v in os.environ.items() if k.startswith("IMMICH_GO_")},
++    }
++    print(json.dumps(result))
++
++
++if __name__ == "__main__":
++    main()
