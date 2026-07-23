@@ -2268,3 +2268,27 @@ def test_binary_manager_download_and_install_cancellation(tmp_path):
     v_dir = tmp_path / "0.32.0"
     assert not (v_dir / "download.tmp").exists()
     assert not (v_dir / "immich-go.tmp").exists()
+
+
+def test_windows_bat_heartbeat_generation(tmp_path, monkeypatch):
+    """Fix 1.4: Windows terminal launch generates a .bat file with background heartbeat loop."""
+    from core.terminal_launcher import launch_external_terminal
+
+    monkeypatch.setattr("sys.platform", "win32")
+
+    lock_file = tmp_path / "run_test.lock"
+    lock_file.write_text('{"run_id": "test"}', encoding="utf-8")
+
+    with patch("subprocess.Popen") as mock_popen:
+        mock_popen.return_value.pid = 1234
+        res = launch_external_terminal(["immich-go", "stack"], {}, lock_file)
+        assert res.ok
+
+    bat_file = lock_file.with_suffix(".bat")
+    assert bat_file.exists()
+    bat_content = bat_file.read_text(encoding="utf-8")
+
+    assert "HB_FILE=" in bat_content
+    assert ".heartbeat" in bat_content
+    assert "start /b cmd /c" in bat_content
+    assert 'del /f "%HB_FILE%"' in bat_content

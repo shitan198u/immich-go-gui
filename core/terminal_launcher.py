@@ -68,15 +68,23 @@ def launch_external_terminal(
         try:
             cmd_str = subprocess.list2cmdline(command)
             bat_path = l_path.with_suffix(".bat")
+            hb_path = l_path.with_suffix(".heartbeat")
             bat_content = (
-                f"@echo off\n"
-                f'cd /d "%~dp0"\n'
-                f"{cmd_str}\n"
-                f"set ERR=%ERRORLEVEL%\n"
-                f'del /f "{l_path}" 2>nul\n'
-                f'del /f "{l_path.with_suffix(".bat")}" 2>nul\n'
-                f"echo.\n"
-                f"echo immich-go exited with code %ERR%\n"
+                f"@echo off\r\n"
+                f'cd /d "%~dp0"\r\n'
+                f'set "LOCK_FILE={l_path}"\r\n'
+                f'set "HB_FILE={hb_path}"\r\n'
+                f'start /b cmd /c "for /L %%i in (1,1,999999) do ('
+                f'type nul > "%HB_FILE%" 2>nul & '
+                f'timeout /t 10 /nobreak >nul & '
+                f'if not exist "%LOCK_FILE%" exit)"\r\n'
+                f"{cmd_str}\r\n"
+                f"set ERR=%ERRORLEVEL%\r\n"
+                f'del /f "%LOCK_FILE%" 2>nul\r\n'
+                f'del /f "%HB_FILE%" 2>nul\r\n'
+                f'del /f "{bat_path}" 2>nul\r\n'
+                f"echo.\r\n"
+                f"echo immich-go exited with code %ERR%\r\n"
             )
             bat_path.write_text(bat_content, encoding="utf-8")
 
