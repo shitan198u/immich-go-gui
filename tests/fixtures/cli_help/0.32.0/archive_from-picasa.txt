@@ -1,0 +1,31 @@
+Upload photos from a Picasa folder or zip file
+
+Usage:
+  immich-go archive from-picasa [flags] <path>...
+
+Flags:
+      --album-path-joiner string           Specify a string to use when joining multiple folder names to create an album name (e.g. ' ',' - ') (default " / ")
+      --album-picasa                       Use Picasa album name found in .picasa.ini file (default true)
+      --ban-file FileList                  Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. (default '@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store', '/._*', '.Spotlight-V100/', '.photostructure/', 'Recently Deleted/')
+      --date-from-name                     Use the date from the filename if the date isn't available in the metadata (Only for jpg, mp4, heic, dng, cr2, cr3, arw, raf, nef, mov) (default true)
+      --date-range date-range              Only import photos taken within the specified date range (default unset)
+      --exclude-extensions ExtensionList   Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none)
+      --folder-as-album folderMode         Import all files in albums defined by the folder structure. Can be set to 'FOLDER' to use the folder name as the album name, or 'PATH' to use the full path as the album name (default NONE)
+      --folder-as-tags                     Use the folder structure as tags, (ex: the file  holiday/summer 2024/file.jpg will have the tag holiday/summer 2024)
+  -h, --help                               help for from-picasa
+      --ignore-sidecar-files               Don't upload sidecar with the photo.
+      --include-extensions ExtensionList   Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all)
+      --include-type IncludeType           Single file type to include. (VIDEO or IMAGE) (default: all)
+      --into-album string                  Specify an album to import all files into
+      --recursive                          Explore the folder and all its sub-folders (default true)
+
+Global Flags:
+      --concurrent-tasks int     Number of concurrent tasks (1-20) (default 16)
+      --config string            config file (default is ./immich-go.yaml)
+      --dry-run                  dry run
+  -l, --log-file string          Write log messages into the file
+      --log-level string         Log level (DEBUG|INFO|WARN|ERROR), default INFO (default "INFO")
+      --log-type string          Log formatted  as text of JSON file (default "text")
+      --on-errors OnErrorsFlag   What to do when an error occurs (stop, continue, accept N errors at max) (default stop)
+      --save-config              Save the configuration to immich-go.yaml
+  -w, --write-to-folder string   Path where to write the archive

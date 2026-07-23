@@ -1,0 +1,33 @@
+Upload photos either from a zipped Google Photos takeout or decompressed archive
+
+Usage:
+  immich-go archive from-google-photos [flags] <takeout-*.zip> | <takeout-folder>
+
+Flags:
+      --ban-file FileList                  Exclude a file based on a pattern (case-insensitive). Can be specified multiple times. (default '@eaDir/', '@__thumb/', 'SYNOFILE_THUMB_*.*', 'Lightroom Catalog/', 'thumbnails/', '.DS_Store', '/._*', '.Spotlight-V100/', '.photostructure/', 'Recently Deleted/')
+      --date-range date-range              Only import photos taken within the specified date range (default unset)
+      --exclude-extensions ExtensionList   Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none)
+      --from-album-name string             Only import photos from the specified Google Photos album
+  -h, --help                               help for from-google-photos
+  -a, --include-archived                   Import archived Google Photos (default true)
+      --include-extensions ExtensionList   Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all)
+  -p, --include-partner                    Import photos from your partner's Google Photos account (default true)
+  -t, --include-trashed                    Import photos that are marked as trashed in Google Photos
+      --include-type IncludeType           Single file type to include. (VIDEO or IMAGE) (default: all)
+  -u, --include-unmatched                  Import photos that do not have a matching JSON file in the takeout
+      --include-untitled-albums            Include photos from albums without a title in the import process
+      --partner-shared-album string        Add partner's photo to the specified album name
+      --people-tag                         Tag uploaded photos with tags "people/name" found in the JSON file (default true)
+      --sync-albums                        Automatically create albums in Immich that match the albums in your Google Photos takeout (default true)
+      --takeout-tag                        Tag uploaded photos with a tag "{takeout}/takeout-YYYYMMDDTHHMMSSZ" (default true)
+
+Global Flags:
+      --concurrent-tasks int     Number of concurrent tasks (1-20) (default 16)
+      --config string            config file (default is ./immich-go.yaml)
+      --dry-run                  dry run
+  -l, --log-file string          Write log messages into the file
+      --log-level string         Log level (DEBUG|INFO|WARN|ERROR), default INFO (default "INFO")
+      --log-type string          Log formatted  as text of JSON file (default "text")
+      --on-errors OnErrorsFlag   What to do when an error occurs (stop, continue, accept N errors at max) (default stop)
+      --save-config              Save the configuration to immich-go.yaml
+  -w, --write-to-folder string   Path where to write the archive

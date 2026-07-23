@@ -29,8 +29,13 @@ def help_name_for_tab(tab_key: str) -> str:
     mapping = {
         "upload-folder": "upload_from-folder",
         "upload-gp": "upload_from-google-photos",
+        "upload-icloud": "upload_from-icloud",
+        "upload-picasa": "upload_from-picasa",
         "upload-immich": "upload_from-immich",
         "archive-folder": "archive_from-folder",
+        "archive-gp": "archive_from-google-photos",
+        "archive-icloud": "archive_from-icloud",
+        "archive-picasa": "archive_from-picasa",
         "archive-immich": "archive_from-immich",
         "stack": "stack",
     }
