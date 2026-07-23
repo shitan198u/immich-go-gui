@@ -2051,3 +2051,45 @@ def test_archive_immich_simple_mode_from_albums_emitted(gui):
 def test_upload_immich_simple_mode_has_no_from_favorite_widget(gui):
     """A1: from-favorite must NOT be a simple-mode widget (it's advanced-only)."""
     assert "from-favorite" not in gui.inputs.get("upload-immich", {})
+
+
+# ==============================================================================
+# A2: Duplicate test name lint guard
+# ==============================================================================
+
+def test_no_duplicate_test_names():
+    """A2: Ensure no duplicate test function names exist in test_app.py."""
+    import ast
+    import collections
+    tree = ast.parse(Path("test_app.py").read_text(encoding="utf-8"))
+    names = [
+        n.name for n in ast.walk(tree)
+        if isinstance(n, ast.FunctionDef) and n.name.startswith("test_")
+    ]
+    dupes = [n for n, c in collections.Counter(names).items() if c > 1]
+    assert not dupes, f"Duplicate test names found in test_app.py: {dupes}"
+
+
+# ==============================================================================
+# A8: ADVANCED_FLAGS ⊆ TAB_ALLOWED_FLAGS
+# ==============================================================================
+
+def test_advanced_flags_subset_of_tab_allowed_flags():
+    """A8: Every flag in ADVANCED_FLAGS must be in TAB_ALLOWED_FLAGS for its tab.
+    Secret-env flags bypass argv so they are excluded from the argv allowlist check,
+    but we still verify they appear in TAB_ALLOWED_FLAGS when present.
+    """
+    from core.advanced_flags import ADVANCED_FLAGS
+    from core.cli_schema import TAB_ALLOWED_FLAGS
+
+    missing = []
+    for tab, defs in ADVANCED_FLAGS.items():
+        allowed = TAB_ALLOWED_FLAGS.get(tab, frozenset())
+        for d in defs:
+            if d.secret_env:
+                # Secret flags emit via env var, not argv — skip allowlist check
+                continue
+            if d.flag not in allowed:
+                missing.append(f"'{d.flag}' in ADVANCED_FLAGS['{tab}'] missing from TAB_ALLOWED_FLAGS")
+
+    assert not missing, "\n".join(missing)
