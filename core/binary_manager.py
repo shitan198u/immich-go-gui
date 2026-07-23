@@ -383,6 +383,19 @@ class BinaryManager:
         latest_clean = clean_version(latest_version)
         current_clean = clean_version(current_version)
 
+        try:
+            if current_clean and latest_clean and Version(current_clean) > Version(latest_clean):
+                return UpdateDecision(
+                    allowed=False,
+                    requires_confirmation=False,
+                    severity=UpdateSeverity.INFO,
+                    message=f"You are already using a newer version ({current_clean}) than the latest checked release ({latest_clean}).",
+                    latest_version=latest_clean,
+                    current_version=current_clean,
+                )
+        except InvalidVersion:
+            pass
+
         # 1. If latest_version is explicitly tested
         if latest_clean in TESTED_IMMICH_GO_VERSIONS:
             return UpdateDecision(
@@ -430,6 +443,74 @@ class BinaryManager:
             latest_version=latest_clean,
             current_version=current_clean,
         )
+
+    def get_release_asset_url(self, version: str) -> str | None:
+        """Fetch release metadata from GitHub API and discover asset URL for current OS/arch."""
+        clean_v = clean_version(version)
+        if not clean_v:
+            return None
+
+        urls = [
+            f"https://api.github.com/repos/simulot/immich-go/releases/tags/v{clean_v}",
+            f"https://api.github.com/repos/simulot/immich-go/releases/tags/{clean_v}",
+        ]
+
+        if self.os_name.startswith("win"):
+            target_os = "windows"
+            ext = ".zip"
+        elif self.os_name.startswith("darwin"):
+            target_os = "darwin"
+            ext = ".tar.gz"
+        else:
+            target_os = "linux"
+            ext = ".tar.gz"
+
+        arch_map = {
+            "x86_64": "x86_64",
+            "amd64": "x86_64",
+            "aarch64": "arm64",
+            "arm64": "arm64",
+            "i386": "i386",
+            "i686": "i386",
+        }
+        target_arch = arch_map.get(self.arch, "x86_64")
+
+        for u in urls:
+            try:
+                res = requests.get(u, timeout=10)
+                if res.status_code == 200:
+                    data = res.json()
+                    assets = data.get("assets", [])
+                    for asset in assets:
+                        name = asset.get("name", "").lower()
+                        download_url = asset.get("browser_download_url", "")
+                        if target_os in name and target_arch in name and name.endswith(ext) and download_url:
+                            return download_url
+            except Exception:
+                pass
+
+        return self.get_download_url(version)
+
+    def verify_extracted_binary(self, binary_path: str) -> bool:
+        """Verify extracted binary by setting execution permissions and running version command."""
+        if not os.path.exists(binary_path):
+            return False
+        if not self.os_name.startswith("win"):
+            try:
+                os.chmod(binary_path, 0o755)
+            except OSError:
+                return False
+        try:
+            res = subprocess.run(
+                [binary_path, "version"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            v_text = parse_version_output(res.stdout or res.stderr)
+            return bool(v_text)
+        except Exception:
+            return False
 
     def download_archive(
         self,

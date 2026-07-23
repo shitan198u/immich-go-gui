@@ -1950,3 +1950,39 @@ def test_secret_copy_success_verification(monkeypatch):
     res = SecretStore.copy_secrets("src", "dst")
     assert res is True
     assert secrets_db.get(("dst", "api_key")) == "my-secret-key"
+
+
+def test_binary_manager_downgrade_prevention():
+    from core.binary_manager import BinaryManager
+    bm = BinaryManager()
+    decision = bm.evaluate_update(current_version="0.33.0", latest_version="0.32.0")
+    assert decision.allowed is False
+    assert "newer version" in decision.message
+
+
+def test_binary_manager_get_release_asset_url(monkeypatch):
+    from core.binary_manager import BinaryManager
+    bm = BinaryManager(os_name="linux", arch="x86_64")
+
+    class MockResponse:
+        status_code = 200
+        def json(self):
+            return {
+                "assets": [
+                    {
+                        "name": "immich-go_0.32.0_linux_x86_64.tar.gz",
+                        "browser_download_url": "https://github.com/simulot/immich-go/releases/download/v0.32.0/immich-go_0.32.0_linux_x86_64.tar.gz"
+                    }
+                ]
+            }
+
+    monkeypatch.setattr("requests.get", lambda url, timeout=10: MockResponse())
+    url = bm.get_release_asset_url("0.32.0")
+    assert "immich-go_0.32.0_linux_x86_64.tar.gz" in url
+
+
+def test_binary_manager_verify_extracted_binary(tmp_path):
+    from core.binary_manager import BinaryManager
+    bm = BinaryManager()
+    # Nonexistent file
+    assert bm.verify_extracted_binary(str(tmp_path / "nonexistent")) is False

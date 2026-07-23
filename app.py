@@ -3017,29 +3017,30 @@ class ImmichGoGUI(QMainWindow):
         self.binary_path = binary_path
         self.check_binary_version()
 
-    def update_binary(self, version: str | None = None, force_download: bool = False):
+    def update_binary(self, version: str | None = None, force_download: bool = False) -> bool:
         if version is None:
             version = self.get_latest_release_info()
             if not version:
                 QMessageBox.critical(self, "Error", "Could not determine latest version.")
                 return False
 
-        clean_version = version.lstrip("v")
-        version_dir = os.path.join(BINARY_BASE_DIR, clean_version)
+        clean_v = version.lstrip("v")
+        version_dir = os.path.join(BINARY_BASE_DIR, clean_v)
         os.makedirs(version_dir, exist_ok=True)
 
         binary_filename = "immich-go.exe" if sys.platform.startswith("win") else "immich-go"
         binary_path = os.path.join(version_dir, binary_filename)
 
         if os.path.exists(binary_path) and not force_download:
-            self._select_version(clean_version, binary_path)
-            return True
+            if self.binary_manager.verify_extracted_binary(binary_path):
+                self._select_version(clean_v, binary_path)
+                return True
 
-        download_url = self.get_download_url(version=clean_version)
+        download_url = self.binary_manager.get_release_asset_url(version=clean_v)
         if not download_url:
             QMessageBox.critical(
                 self, "Error",
-                f"Could not determine download URL for version {clean_version} on this platform."
+                f"Could not determine download URL for version {clean_v} on this platform."
             )
             return False
 
@@ -3047,7 +3048,7 @@ class ImmichGoGUI(QMainWindow):
         progress_dialog.setWindowTitle("Downloading Immich-Go")
         progress_dialog.setFixedWidth(400)
         layout = QVBoxLayout(progress_dialog)
-        status_label = QLabel(f"Downloading Immich-Go v{clean_version}...")
+        status_label = QLabel(f"Downloading Immich-Go v{clean_v}...")
         layout.addWidget(status_label)
         progress_bar = QProgressBar()
         progress_bar.setRange(0, 100)
@@ -3060,70 +3061,97 @@ class ImmichGoGUI(QMainWindow):
 
         class DownloadThread(QThread):
             download_progress = Signal(int)
-            download_complete = Signal(bytes)
+            download_complete = Signal(str)
             download_error = Signal(str)
 
-            def __init__(self, download_url):
+            def __init__(self, url, dest_path):
                 super().__init__()
-                self.download_url = download_url
+                self.url = url
+                self.dest_path = dest_path
+                self.cancelled = False
 
             def run(self):
                 try:
-                    response = requests.get(self.download_url, stream=True, timeout=60)
-                    response.raise_for_status()
-                    total_size = int(response.headers.get("content-length", 0))
-                    block_size = 1024
-                    downloaded_size = 0
-                    content = io.BytesIO()
-                    for data in response.iter_content(block_size):
-                        downloaded_size += len(data)
-                        content.write(data)
-                        if total_size > 0:
-                            progress = int((downloaded_size / total_size) * 100)
-                            self.download_progress.emit(progress)
-                    self.download_complete.emit(content.getvalue())
+                    with requests.get(self.url, stream=True, timeout=60) as response:
+                        response.raise_for_status()
+                        total = int(response.headers.get("content-length", 0))
+                        downloaded = 0
+                        with open(self.dest_path, "wb") as f:
+                            for chunk in response.iter_content(chunk_size=1024 * 1024):
+                                if self.cancelled:
+                                    self.download_error.emit("Download cancelled")
+                                    return
+                                downloaded += len(chunk)
+                                f.write(chunk)
+                                if total > 0:
+                                    self.download_progress.emit(int(downloaded * 100 / total))
+                    self.download_complete.emit(self.dest_path)
                 except Exception as e:
                     self.download_error.emit(str(e))
 
-        try:
-            download_thread = DownloadThread(download_url)
+        temp_archive_path = os.path.join(version_dir, "download.tmp")
+        download_success = False
 
-            def handle_download_complete(content):
+        try:
+            download_thread = DownloadThread(download_url, temp_archive_path)
+
+            def handle_download_complete(tmp_archive):
+                nonlocal download_success
                 progress_dialog.accept()
+                temp_bin = binary_path + ".tmp"
                 try:
                     if download_url.endswith(".zip"):
-                        with zipfile.ZipFile(io.BytesIO(content)) as z:
+                        with zipfile.ZipFile(tmp_archive) as z:
                             for filename in z.namelist():
                                 base = os.path.basename(filename)
                                 if base in ("immich-go", "immich-go.exe"):
-                                    with z.open(filename) as source, open(binary_path, "wb") as target:
+                                    with z.open(filename) as source, open(temp_bin, "wb") as target:
                                         target.write(source.read())
                                     break
-                    elif download_url.endswith(".tar.gz"):
-                        with tarfile.open(fileobj=io.BytesIO(content), mode="r:gz") as tar:
+                    elif download_url.endswith(".tar.gz") or download_url.endswith(".tgz"):
+                        with tarfile.open(name=tmp_archive, mode="r:gz") as tar:
                             for member in tar.getmembers():
                                 base = os.path.basename(member.name)
                                 if base in ("immich-go", "immich-go.exe"):
                                     source = tar.extractfile(member)
                                     if source:
-                                        with open(binary_path, "wb") as target:
+                                        with open(temp_bin, "wb") as target:
                                             target.write(source.read())
                                     break
                     else:
                         raise ValueError("Unsupported archive type")
-                    if not sys.platform.startswith("win"):
-                        os.chmod(binary_path, 0o755)
 
-                    self._select_version(clean_version, binary_path)
+                    if not self.binary_manager.verify_extracted_binary(temp_bin):
+                        raise RuntimeError("Extracted binary failed post-install verification check.")
+
+                    os.replace(temp_bin, binary_path)
+                    self._select_version(clean_v, binary_path)
+                    download_success = True
                 except Exception as extraction_error:
+                    if os.path.exists(temp_bin):
+                        try:
+                            os.remove(temp_bin)
+                        except OSError:
+                            pass
                     QMessageBox.critical(
                         self, "Extraction Error",
-                        f"Failed to extract binary: {str(extraction_error)}\n\n"
+                        f"Failed to extract or verify binary: {str(extraction_error)}\n\n"
                         "Please download manually from GitHub."
                     )
 
+                if os.path.exists(tmp_archive):
+                    try:
+                        os.remove(tmp_archive)
+                    except OSError:
+                        pass
+
             def handle_download_error(error):
                 progress_dialog.reject()
+                if os.path.exists(temp_archive_path):
+                    try:
+                        os.remove(temp_archive_path)
+                    except OSError:
+                        pass
                 QMessageBox.critical(self, "Download Error", f"Failed to download: {error}")
 
             download_thread.download_progress.connect(progress_bar.setValue)
@@ -3131,7 +3159,7 @@ class ImmichGoGUI(QMainWindow):
             download_thread.download_error.connect(handle_download_error)
 
             def cancel_download():
-                download_thread.terminate()
+                download_thread.cancelled = True
                 progress_dialog.reject()
 
             cancel_button.clicked.connect(cancel_download)
@@ -3140,12 +3168,18 @@ class ImmichGoGUI(QMainWindow):
             progress_dialog.exec()
 
         except Exception as e:
+            if os.path.exists(temp_archive_path):
+                try:
+                    os.remove(temp_archive_path)
+                except OSError:
+                    pass
             QMessageBox.critical(
                 self, "Download Error",
                 f"Failed to initiate download: {str(e)}"
             )
             return False
-        return True
+
+        return download_success
 
     def build_environment(self, tab_key: str = None) -> dict:
         if tab_key is None:
