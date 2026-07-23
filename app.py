@@ -1329,9 +1329,7 @@ class ImmichGoGUI(QMainWindow):
         self.inputs["upload-immich"]["from-albums"] = t_albums
         form.add_row("Filter by Albums", t_albums)
 
-        chk_fav = QCheckBox("Only Favorites")
-        self.inputs["upload-immich"]["from-favorite"] = chk_fav
-        form.addRow("", chk_fav)
+        # Note: from-favorite is advanced-only (see Advanced Flags card below)
 
         card.layout.addLayout(form)
         lay.addWidget(card)
@@ -2052,6 +2050,8 @@ class ImmichGoGUI(QMainWindow):
             return {
                 "from-server": get_text("from-server"),
                 "from-api-key": get_text("from-api-key"),
+                "from-date-range": get_text("from-date-range"),
+                "from-albums": get_text("from-albums"),
             }
 
         elif tab_key == "archive-folder":
@@ -2063,6 +2063,8 @@ class ImmichGoGUI(QMainWindow):
         elif tab_key == "archive-immich":
             return {
                 "write-to": get_text("write-to"),
+                "from-date-range": get_text("from-date-range"),
+                "from-albums": get_text("from-albums"),
             }
 
         elif tab_key == "stack":

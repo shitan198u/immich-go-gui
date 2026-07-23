@@ -442,6 +442,10 @@ def build_plan_from_state(
     elif tab_key == "upload-immich":
         if from_server:
             emitter.add_option("from-server", normalize_server_url(from_server))
+        if tab_state.get("from-date-range", "").strip():
+            emitter.add_option("from-date-range", clean_date_range(tab_state["from-date-range"]))
+        for album in normalize_list_csv(tab_state.get("from-albums", "")):
+            emitter.add_option("from-albums", album)
 
     elif tab_key == "archive-folder":
         if tab_state.get("write-to"):
@@ -464,6 +468,11 @@ def build_plan_from_state(
                 os.path.expanduser(str(tab_state["write-to"]).strip())
             )
             emitter.add_option("write-to-folder", write_to)
+
+        if tab_state.get("from-date-range", "").strip():
+            emitter.add_option("from-date-range", clean_date_range(tab_state["from-date-range"]))
+        for album in normalize_list_csv(tab_state.get("from-albums", "")):
+            emitter.add_option("from-albums", album)
 
     elif tab_key == "stack":
         if tab_state.get("manage-burst", "NoStack") != "NoStack":

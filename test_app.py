@@ -432,11 +432,12 @@ def test_build_command_upload_immich(gui):
     gui.inputs["config"]["api_key"].setText("local-key")
     gui.inputs["upload-immich"]["from-server"].setText("http://remote:2283")
     gui.inputs["upload-immich"]["from-api-key"].setText("remote-key")
+    # from-date-range and from-albums are now simple-mode controls
+    gui.inputs["upload-immich"]["from-date-range"].setText("2020-01-01,2021-01-01")
+    gui.inputs["upload-immich"]["from-albums"].setText("Album1, Album2")
     gui.adv_rows["upload-immich"]["from-favorite"].set_state({"enabled": True, "value": True})
     gui.adv_rows["upload-immich"]["from-archived"].set_state({"enabled": True, "value": True})
     gui.adv_rows["upload-immich"]["from-trash"].set_state({"enabled": True, "value": True})
-    gui.adv_rows["upload-immich"]["from-date-range"].set_state({"enabled": True, "value": "2020-01-01,2021-01-01"})
-    gui.adv_rows["upload-immich"]["from-albums"].set_state({"enabled": True, "value": "Album1, Album2"})
     gui.adv_rows["upload-immich"]["from-minimal-rating"].set_state({"enabled": True, "value": 3})
     gui.adv_rows["upload-immich"]["from-people"].set_state({"enabled": True, "value": "John, Jane"})
     gui.adv_rows["upload-immich"]["from-tags"].set_state({"enabled": True, "value": "Vacation, Family"})
@@ -451,12 +452,12 @@ def test_build_command_upload_immich(gui):
     assert "from-immich" in opts
     assert "--server=http://local:2283" in opts
     assert "--from-server=http://remote:2283" in opts
-    assert "--from-favorite" in opts
-    assert "--from-archived" in opts
-    assert "--from-trash" in opts
     assert "--from-date-range=2020-01-01,2021-01-01" in opts
     assert "--from-albums=Album1" in opts
     assert "--from-albums=Album2" in opts
+    assert "--from-favorite" in opts
+    assert "--from-archived" in opts
+    assert "--from-trash" in opts
     assert "--from-minimal-rating=3" in opts
     assert "--from-people=John" in opts
     assert "--from-people=Jane" in opts
@@ -496,8 +497,9 @@ def test_build_command_archive_immich(gui):
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["archive-immich"]["write-to"].setText("/dest/folder")
-    gui.adv_rows["archive-immich"]["from-date-range"].set_state({"enabled": True, "value": "2024-01-01,2024-02-01"})
-    gui.adv_rows["archive-immich"]["from-albums"].set_state({"enabled": True, "value": "ArchiveAlbum"})
+    # from-date-range and from-albums are now simple-mode controls
+    gui.inputs["archive-immich"]["from-date-range"].setText("2024-01-01,2024-02-01")
+    gui.inputs["archive-immich"]["from-albums"].setText("ArchiveAlbum")
     opts = gui.build_command(dry_run=False)
     assert "archive" in opts
     assert "from-immich" in opts
@@ -622,6 +624,8 @@ def test_golden_upload_immich(gui):
     gui.inputs["config"]["api_key"].setText("new-key")
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
     gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
+    gui.inputs["upload-immich"]["from-date-range"].clear()
+    gui.inputs["upload-immich"]["from-albums"].clear()
 
     plan = gui.build_plan(dry_run=False)
 
@@ -642,6 +646,8 @@ def test_golden_archive_immich(gui):
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("test-key")
     gui.inputs["archive-immich"]["write-to"].setText("/backup/photos")
+    gui.inputs["archive-immich"]["from-date-range"].clear()
+    gui.inputs["archive-immich"]["from-albums"].clear()
 
     plan = gui.build_plan(dry_run=False)
 
@@ -1969,3 +1975,79 @@ def test_gp_simple_card_has_no_dead_checkboxes(gui):
     assert "include-partner" not in gp_inputs
     assert "sync-albums" not in gp_inputs
     assert "include-archived" not in gp_inputs
+
+
+# ==============================================================================
+# A1 REGRESSION: Simple-mode controls not silently discarded
+# ==============================================================================
+
+def test_upload_immich_simple_mode_from_date_range_emitted(gui):
+    """A1: from-date-range in upload-immich simple card must produce CLI flag."""
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(2)
+    gui.inputs["config"]["server"].setText("http://new:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
+    gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
+    gui.inputs["upload-immich"]["from-date-range"].setText("2022-01-01,2022-12-31")
+    gui.inputs["upload-immich"]["from-albums"].clear()
+
+    plan = gui.build_plan(dry_run=False)
+    assert "--from-date-range=2022-01-01,2022-12-31" in plan.argv
+    assert not plan.errors
+
+
+def test_upload_immich_simple_mode_from_albums_emitted(gui):
+    """A1: from-albums in upload-immich simple card must produce repeat CLI flags."""
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(2)
+    gui.inputs["config"]["server"].setText("http://new:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
+    gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
+    gui.inputs["upload-immich"]["from-date-range"].clear()
+    gui.inputs["upload-immich"]["from-albums"].setText("Family, Travel")
+
+    plan = gui.build_plan(dry_run=False)
+    assert "--from-albums=Family" in plan.argv
+    assert "--from-albums=Travel" in plan.argv
+    assert not plan.errors
+
+
+def test_archive_immich_simple_mode_from_date_range_emitted(gui):
+    """A1: from-date-range in archive-immich simple card must produce CLI flag."""
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(1)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["archive-immich"]["write-to"].setText("/backup")
+    gui.inputs["archive-immich"]["from-date-range"].setText("2023-06-01,2023-12-31")
+    gui.inputs["archive-immich"]["from-albums"].clear()
+
+    plan = gui.build_plan(dry_run=False)
+    assert "--from-date-range=2023-06-01,2023-12-31" in plan.argv
+    assert not plan.errors
+
+
+def test_archive_immich_simple_mode_from_albums_emitted(gui):
+    """A1: from-albums in archive-immich simple card must produce repeat CLI flags."""
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(1)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["archive-immich"]["write-to"].setText("/backup")
+    gui.inputs["archive-immich"]["from-date-range"].clear()
+    gui.inputs["archive-immich"]["from-albums"].setText("ArchiveAlbum")
+
+    plan = gui.build_plan(dry_run=False)
+    assert "--from-albums=ArchiveAlbum" in plan.argv
+    assert not plan.errors
+
+
+def test_upload_immich_simple_mode_has_no_from_favorite_widget(gui):
+    """A1: from-favorite must NOT be a simple-mode widget (it's advanced-only)."""
+    assert "from-favorite" not in gui.inputs.get("upload-immich", {})

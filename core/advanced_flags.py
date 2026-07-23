@@ -413,20 +413,7 @@ ADVANCED_FLAGS: dict[str, tuple[AdvancedFlagDef, ...]] = {
             kind="bool",
             default=False,
         ),
-        AdvancedFlagDef(
-            key="from-date-range",
-            flag="from-date-range",
-            label="Source date range",
-            kind="date_range",
-            placeholder="YYYY-MM-DD,YYYY-MM-DD",
-        ),
-        AdvancedFlagDef(
-            key="from-albums",
-            flag="from-albums",
-            label="Source album names",
-            kind="csv_repeat",
-            placeholder="Album1, Album2",
-        ),
+
         AdvancedFlagDef(
             key="from-minimal-rating",
             flag="from-minimal-rating",
@@ -712,18 +699,7 @@ ADVANCED_FLAGS: dict[str, tuple[AdvancedFlagDef, ...]] = {
         ),
     ),
     "archive-immich": (
-        AdvancedFlagDef(
-            key="from-date-range",
-            flag="from-date-range",
-            label="Source date range",
-            kind="date_range",
-        ),
-        AdvancedFlagDef(
-            key="from-albums",
-            flag="from-albums",
-            label="Source album names",
-            kind="csv_repeat",
-        ),
+
         AdvancedFlagDef(
             key="from-favorite",
             flag="from-favorite",
