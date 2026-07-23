@@ -113,3 +113,43 @@ def test_immich_connection(
             ok=False,
             message=f"Unexpected connection error: {str(e)}",
         )
+
+
+def check_preflight_server_connection(
+    tab_key: str,
+    config_state: dict,
+    tab_state: dict | None = None,
+    timeout: float = 3.0,
+) -> ConnectionTestResult:
+    """Pre-flight check for server connectivity before execution.
+
+    Only runs if tab_key is in SERVER_REQUIRED_TABS.
+    """
+    from core.cli_schema import SERVER_REQUIRED_TABS
+
+    if tab_key not in SERVER_REQUIRED_TABS:
+        return ConnectionTestResult(ok=True, message="Serverless command — no server required.")
+
+    srv_url = config_state.get("server", "")
+    api_key = config_state.get("api_key", "")
+    skip_ssl = bool(config_state.get("skip-ssl", False))
+
+    res = test_immich_connection(srv_url, api_key, skip_ssl=skip_ssl, timeout=timeout)
+    if not res.ok:
+        return res
+
+    if tab_key == "upload-immich" and tab_state:
+        from_srv = tab_state.get("from-server", "")
+        from_key = tab_state.get("from-api-key", "")
+        from_ssl = bool(tab_state.get("from-skip-ssl", False))
+        if from_srv and from_key:
+            from_res = test_immich_connection(from_srv, from_key, skip_ssl=from_ssl, timeout=timeout)
+            if not from_res.ok:
+                return ConnectionTestResult(
+                    ok=False,
+                    message=f"Source server ('{from_srv}') connection failed: {from_res.message}",
+                    status_code=from_res.status_code,
+                )
+
+    return res
+

@@ -59,7 +59,7 @@ from theme import (
     apply_application_theme, connect_system_theme_changes,
     load_themed_icon
 )
-from core.network import test_immich_connection, ConnectionTestResult
+from core.network import test_immich_connection, check_preflight_server_connection, ConnectionTestResult
 from core.validation import (
     clean_date_range, normalize_extensions_csv, normalize_list_csv,
     expand_source_paths, validate_destination_folder
@@ -2756,6 +2756,24 @@ class ImmichGoGUI(QMainWindow):
                 "\n".join(f"• {e}" for e in plan.errors)
             )
             return
+
+        if plan.tab_key in SERVER_REQUIRED_TABS:
+            config_state = self._collect_config_state()
+            tab_state = self._collect_tab_state(plan.tab_key)
+            conn_res = check_preflight_server_connection(plan.tab_key, config_state, tab_state, timeout=3.0)
+            if not conn_res.ok:
+                reply = QMessageBox.warning(
+                    self,
+                    "Server Unreachable",
+                    f"Immich server connection check failed:\n\n{conn_res.message}\n\n"
+                    f"Running immich-go will likely fail because the server cannot be reached.\n\n"
+                    f"Do you want to proceed anyway?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
+                )
+                if reply != QMessageBox.StandardButton.Yes:
+                    return
+                plan.warnings.insert(0, f"Server pre-flight check failed: {conn_res.message}")
 
         if validation.warnings:
             for w in validation.warnings:

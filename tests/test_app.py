@@ -1038,6 +1038,33 @@ def test_network_connection_timeout():
         assert "timed out" in res.message
 
 
+def test_check_preflight_server_connection_serverless():
+    from core.network import check_preflight_server_connection
+    res = check_preflight_server_connection("archive-folder", {"server": "http://localhost:2283"})
+    assert res.ok is True
+    assert "Serverless" in res.message
+
+
+def test_check_preflight_server_connection_success():
+    from core.network import check_preflight_server_connection
+    with patch("requests.get") as mock_get:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"version": "v1.100.0"}
+        mock_get.return_value = mock_resp
+
+        res = check_preflight_server_connection("upload-folder", {"server": "http://localhost:2283", "api_key": "key"})
+        assert res.ok is True
+
+
+def test_check_preflight_server_connection_unreachable():
+    from core.network import check_preflight_server_connection
+    with patch("requests.get", side_effect=requests.exceptions.ConnectionError):
+        res = check_preflight_server_connection("upload-folder", {"server": "http://localhost:2283", "api_key": "key"})
+        assert res.ok is False
+        assert "Failed to connect to server" in res.message
+
+
 def test_command_builder_destructive_warnings():
     from core.command_builder import build_plan_from_state
 
