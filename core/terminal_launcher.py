@@ -101,6 +101,9 @@ def launch_external_terminal(
 
     # Linux / macOS POSIX execution
     try:
+        posix_env = os.environ.copy()
+        posix_env.update(env)
+
         temp_dir = Path(tempfile.mkdtemp(prefix="immich-go-run-"))
         if os.name == "posix":
             try:
@@ -108,21 +111,7 @@ def launch_external_terminal(
             except OSError:
                 pass
 
-        env_sh_path = temp_dir / "env.sh"
         run_sh_path = temp_dir / "run.sh"
-
-        # Export all IMMICH_GO_* environment variables to env.sh
-        env_lines = []
-        for k, v in sorted(env.items()):
-            if k.startswith("IMMICH_GO_"):
-                env_lines.append(f"export {k}={_quote_sh_env_val(v)}")
-
-        env_sh_path.write_text("\n".join(env_lines) + "\n", encoding="utf-8")
-        if os.name == "posix":
-            try:
-                os.chmod(env_sh_path, 0o600)
-            except OSError:
-                pass
 
         pid_file_path = l_path.with_suffix(".pid")
         hb_file_path = l_path.with_suffix(".heartbeat")
@@ -133,7 +122,6 @@ def launch_external_terminal(
             f"PID_FILE={shlex.quote(str(pid_file_path))}\n"
             f"HB_FILE={shlex.quote(str(hb_file_path))}\n"
             f"LOCK_FILE={shlex.quote(str(l_path))}\n"
-            f"ENV_FILE={shlex.quote(str(env_sh_path))}\n"
             f"TEMP_DIR={shlex.quote(str(temp_dir))}\n"
             "\n"
             'echo $$ > "$PID_FILE"\n'
@@ -149,13 +137,9 @@ def launch_external_terminal(
             '[ -d "$SAFE_DIR" ] || SAFE_DIR=/\n'
             'cd "$SAFE_DIR"\n'
             "\n"
-            "set -a\n"
-            'source "$ENV_FILE"\n'
-            "set +a\n"
-            "\n"
             "cleanup() {\n"
             '  kill "$HB_PID" 2>/dev/null\n'
-            '  rm -f "$PID_FILE" "$HB_FILE" "$LOCK_FILE" "$ENV_FILE"\n'
+            '  rm -f "$PID_FILE" "$HB_FILE" "$LOCK_FILE"\n'
             "}\n"
             "\n"
             "trap cleanup EXIT INT TERM\n"
@@ -170,6 +154,7 @@ def launch_external_terminal(
             "exec bash\n"
         )
 
+        run_sh_content = run_sh_content.rstrip() + "\n"
         run_sh_path.write_text(run_sh_content, encoding="utf-8")
         if os.name == "posix":
             try:
@@ -179,13 +164,16 @@ def launch_external_terminal(
 
         # macOS execution via osascript
         if sys.platform == "darwin":
-            proc = subprocess.Popen([
-                "osascript",
-                "-e", "on run argv",
-                "-e", 'tell application "Terminal" to do script (item 1 of argv)',
-                "-e", "end run",
-                str(run_sh_path),
-            ])
+            proc = subprocess.Popen(
+                [
+                    "osascript",
+                    "-e", "on run argv",
+                    "-e", 'tell application "Terminal" to do script (item 1 of argv)',
+                    "-e", "end run",
+                    str(run_sh_path),
+                ],
+                env=posix_env,
+            )
             update_lock(l_path, terminal_pid=proc.pid)
             return LaunchResult(ok=True, message="Terminal launched on macOS.")
 
@@ -207,11 +195,11 @@ def launch_external_terminal(
             if shutil.which(term):
                 try:
                     if term == "gnome-terminal":
-                        launched_proc = subprocess.Popen([term, "--", str(run_sh_path)])
+                        launched_proc = subprocess.Popen([term, "--", str(run_sh_path)], env=posix_env)
                     elif term == "xterm":
-                        launched_proc = subprocess.Popen([term, "-hold", "-e", str(run_sh_path)])
+                        launched_proc = subprocess.Popen([term, "-hold", "-e", str(run_sh_path)], env=posix_env)
                     else:
-                        launched_proc = subprocess.Popen([term, "-e", str(run_sh_path)])
+                        launched_proc = subprocess.Popen([term, "-e", str(run_sh_path)], env=posix_env)
                     break
                 except Exception:
                     continue
