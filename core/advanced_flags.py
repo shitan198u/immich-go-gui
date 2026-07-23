@@ -366,7 +366,7 @@ ADVANCED_FLAGS: dict[str, tuple[AdvancedFlagDef, ...]] = {
     "upload-immich": (
         AdvancedFlagDef(
             key="from-admin-api-key",
-            flag="admin-api-key",
+            flag="from-admin-api-key",
             label="Source admin API key",
             kind="text",
             secret_env="IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY",
