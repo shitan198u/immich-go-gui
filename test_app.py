@@ -2186,3 +2186,57 @@ def test_validate_advanced_state_accepts_valid_date_range():
     })
     assert result.is_valid
     assert not result.errors
+
+
+# ==============================================================================
+# Fix 1.2: Env-Var Secret Contract Verification via Stub Executable
+# ==============================================================================
+
+def test_env_var_secret_contract_with_stub(gui):
+    """Fix 1.2: Verify subprocess receives secrets via env vars and never in argv."""
+    import json
+    import subprocess
+    from pathlib import Path
+
+    stub_path = str(Path(__file__).parent / "tests" / "stub_immich_go.py")
+
+    gui.toggle_advanced(True)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(2)  # upload-immich tab
+
+    gui.inputs["config"]["server"].setText("http://target:2283")
+    gui.inputs["config"]["api_key"].setText("target-secret-key-123")
+    gui.inputs["upload-immich"]["from-server"].setText("http://source:2283")
+    gui.inputs["upload-immich"]["from-api-key"].setText("source-secret-key-456")
+    gui.adv_rows["upload-immich"]["from-admin-api-key"].set_state({
+        "enabled": True,
+        "value": "source-admin-secret-789",
+    })
+
+    plan = gui.build_plan(dry_run=False)
+
+    # 1. Assert secret values NEVER appear in plan.argv
+    for secret in ("target-secret-key-123", "source-secret-key-456", "source-admin-secret-789"):
+        assert not any(secret in arg for arg in plan.argv), f"Secret '{secret}' leaked into argv!"
+
+    # 2. Run the stub process using plan.argv and plan.env
+    cmd = [sys.executable, stub_path] + plan.argv
+    full_env = {**os.environ, **plan.env}
+
+    res = subprocess.run(cmd, capture_output=True, text=True, env=full_env)
+    assert res.returncode == 0, f"Stub failed: {res.stderr}"
+
+    output = json.loads(res.stdout)
+    received_env = output["env"]
+    received_argv = output["argv"]
+
+    # 3. Assert secrets were delivered via env vars
+    assert received_env.get("IMMICH_GO_UPLOAD_SERVER") == "http://target:2283"
+    assert received_env.get("IMMICH_GO_UPLOAD_API_KEY") == "target-secret-key-123"
+    assert received_env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER") == "http://source:2283"
+    assert received_env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY") == "source-secret-key-456"
+    assert received_env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY") == "source-admin-secret-789"
+
+    # 4. Assert secrets are not in received argv
+    for secret in ("target-secret-key-123", "source-secret-key-456", "source-admin-secret-789"):
+        assert not any(secret in arg for arg in received_argv)
