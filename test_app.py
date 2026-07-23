@@ -1962,3 +1962,10 @@ def test_advanced_secret_value_not_persisted(gui):
     saved = state["advanced"]["upload-immich"]["from-admin-api-key"]
     assert saved["enabled"] is True
     assert saved["value"] == ""
+
+
+def test_gp_simple_card_has_no_dead_checkboxes(gui):
+    gp_inputs = gui.inputs.get("upload-gp", {})
+    assert "include-partner" not in gp_inputs
+    assert "sync-albums" not in gp_inputs
+    assert "include-archived" not in gp_inputs

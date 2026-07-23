@@ -1836,7 +1836,7 @@ class ImmichGoGUI(QMainWindow):
             tab_adv = {}
             for k, row in rows.items():
                 st = row.state()
-                if getattr(row, "def_", None) and row.def_.secret_env or k in secret_keys:
+                if (getattr(row, "def_", None) and row.def_.secret_env) or (k in secret_keys):
                     st = {"enabled": st.get("enabled", False), "value": ""}
                 tab_adv[k] = st
             if tab_adv:
