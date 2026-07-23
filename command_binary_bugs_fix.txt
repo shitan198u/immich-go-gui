@@ -3,6 +3,7 @@ IMMICH-GO GUI - REVIEW & CHANGES BUNDLE (375cbfa..HEAD)
 ================================================================================
 
 COMMITS IN RANGE:
+bcd0c8b docs: update command_binary_bugs_fix.txt with secret masking and GP cleanup diff
 c45a851 fix(security): prevent secret advanced values from being persisted in form_state and remove dead GP checkboxes
 ce678dc docs: generate clean diff bundle for changes made during 'A few fixes again. check'
 d3ca800 docs: update command_binary_bugs_fix.txt to show dump starting from before 'A few fixes again. check'
