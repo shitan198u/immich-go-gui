@@ -1568,6 +1568,10 @@ class ImmichGoGUI(QMainWindow):
         reset_action.triggered.connect(self.on_reset_run_state_clicked)
         file_menu.addAction(reset_action)
 
+        reset_adv_action = QAction("Reset Advanced Flags", self)
+        reset_adv_action.triggered.connect(lambda: self.reset_advanced_flags())
+        file_menu.addAction(reset_adv_action)
+
         exit_action = QAction("Exit", self)
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
@@ -1816,7 +1820,7 @@ class ImmichGoGUI(QMainWindow):
 
     def collect_form_state(self) -> dict:
         secret_keys = {"api_key", "from-api-key", "admin_api_key", "from-admin-api-key", "target-server"}
-        state = {}
+        fields = {}
         for tab_key, widgets in self.inputs.items():
             tab_dict = {}
             for k, widget in widgets.items():
@@ -1833,14 +1837,34 @@ class ImmichGoGUI(QMainWindow):
                 elif isinstance(widget, QSpinBox):
                     tab_dict[k] = widget.value()
             if tab_dict:
-                state[tab_key] = tab_dict
-        return state
+                fields[tab_key] = tab_dict
+
+        adv_state = {}
+        for tab_key, rows in getattr(self, "adv_rows", {}).items():
+            tab_adv = {}
+            for k, row in rows.items():
+                tab_adv[k] = row.state()
+            if tab_adv:
+                adv_state[tab_key] = tab_adv
+
+        return {
+            "fields": fields,
+            "advanced": adv_state,
+        }
 
     def apply_form_state(self, state: dict) -> None:
         if not isinstance(state, dict):
             return
+
+        if "fields" in state or "advanced" in state:
+            fields_state = state.get("fields", {})
+            advanced_state = state.get("advanced", {})
+        else:
+            fields_state = state
+            advanced_state = {}
+
         secret_keys = {"api_key", "from-api-key", "admin_api_key", "from-admin-api-key", "target-server"}
-        for tab_key, tab_dict in state.items():
+        for tab_key, tab_dict in fields_state.items():
             if tab_key in self.inputs and isinstance(tab_dict, dict):
                 for k, val in tab_dict.items():
                     if k in secret_keys:
@@ -1862,6 +1886,28 @@ class ImmichGoGUI(QMainWindow):
                             widget.setValue(int(val))
                     finally:
                         widget.blockSignals(False)
+
+        if isinstance(advanced_state, dict):
+            for tab_key, tab_adv in advanced_state.items():
+                rows = getattr(self, "adv_rows", {}).get(tab_key, {})
+                if isinstance(tab_adv, dict):
+                    for k, row_state in tab_adv.items():
+                        row = rows.get(k)
+                        if row is not None and isinstance(row_state, dict):
+                            row.set_state(row_state)
+
+    def reset_advanced_flags(self, tab_key: str | None = None):
+        """Resets advanced flag enable checkboxes to False and values to defaults."""
+        tabs = [tab_key] if tab_key else list(getattr(self, "adv_rows", {}).keys())
+
+        for t in tabs:
+            for row in getattr(self, "adv_rows", {}).get(t, {}).values():
+                row.set_state({
+                    "enabled": False,
+                    "value": row.def_.default,
+                })
+
+        self.update_status()
 
     def browse_folder_upload(self):
         folder = QFileDialog.getExistingDirectory(
