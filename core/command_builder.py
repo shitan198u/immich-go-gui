@@ -67,6 +67,10 @@ class FlagEmitter:
             return True
         return False
 
+    def add_raw_checked(self, arg: str) -> None:
+        """Append a pre-formatted CLI arg that has already passed allowlist checks."""
+        self.opts.append(arg)
+
     def add_bool_val(self, flag_name: str, value: bool) -> bool:
         clean_name = str(flag_name).lstrip("-")
         if not flag_allowed_for_tab(self.tab_key, clean_name):

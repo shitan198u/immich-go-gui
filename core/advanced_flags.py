@@ -966,7 +966,10 @@ def apply_advanced_flags_to_plan(
             continue
 
         for arg in args:
-            emitter.opts.append(arg)
+            if hasattr(emitter, "add_raw_checked"):
+                emitter.add_raw_checked(arg)
+            else:
+                emitter.opts.append(arg)
 
         warning = def_.warn_values.get(value)
         if warning:
