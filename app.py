@@ -2436,10 +2436,144 @@ class ImmichGoGUI(QMainWindow):
     def browse_local_folder(self):
         self.browse_folder_upload()
 
+    ADVANCED_KEYS = {
+        "upload-folder": {
+            "include-type",
+            "date-range",
+            "include-ext",
+            "exclude-ext",
+            "ban-file",
+            "recursive",
+            "ignore-sidecar",
+            "date-from-name",
+            "album-path-joiner",
+            "tag",
+            "session-tag",
+            "folder-tags",
+            "on-errors",
+            "overwrite",
+            "pause-jobs",
+            "time-zone",
+            "manage-epson",
+            "log-level",
+            "api-trace",
+        },
+        "upload-gp": {
+            "include-type",
+            "into-album",
+            "include-unmatched",
+            "include-trashed",
+            "include-untitled-albums",
+            "from-album-name",
+            "partner-album",
+            "takeout-tag",
+            "people-tag",
+            "manage-raw-jpeg",
+            "manage-epson",
+            "date-range",
+            "include-ext",
+            "exclude-ext",
+            "ban-file",
+            "tag",
+            "session-tag",
+            "overwrite",
+            "on-errors",
+            "pause-jobs",
+            "time-zone",
+            "log-level",
+            "api-trace",
+        },
+        "upload-immich": {
+            "from-admin-api-key",
+            "from-archived",
+            "from-trash",
+            "from-partners",
+            "from-no-album",
+            "from-minimal-rating",
+            "from-people",
+            "from-tags",
+            "from-city",
+            "from-state",
+            "from-country",
+            "from-make",
+            "from-model",
+            "from-include-type",
+            "from-include-ext",
+            "from-exclude-ext",
+            "from-time-zone",
+            "from-device-uuid",
+            "from-client-timeout",
+            "from-skip-ssl",
+            "from-api-trace",
+            "from-pause-jobs",
+            "tag",
+            "session-tag",
+            "overwrite",
+            "time-zone",
+            "manage-burst",
+            "manage-raw-jpeg",
+            "manage-heic-jpeg",
+            "manage-epson",
+            "on-errors",
+            "log-level",
+            "api-trace",
+        },
+        "archive-folder": {
+            "date-range",
+            "include-type",
+            "include-ext",
+            "exclude-ext",
+            "ban-file",
+            "recursive",
+            "ignore-sidecar",
+            "date-from-name",
+            "folder-album",
+            "folder-tags",
+            "into-album",
+            "album-path-joiner",
+            "on-errors",
+            "log-level",
+        },
+        "archive-immich": {
+            "from-favorite",
+            "from-archived",
+            "from-trash",
+            "from-no-album",
+            "from-partners",
+            "from-minimal-rating",
+            "from-people",
+            "from-tags",
+            "from-city",
+            "from-state",
+            "from-country",
+            "from-make",
+            "from-model",
+            "from-include-type",
+            "from-include-ext",
+            "from-exclude-ext",
+            "from-time-zone",
+            "from-device-uuid",
+            "from-client-timeout",
+            "from-skip-ssl",
+            "from-api-trace",
+            "from-pause-jobs",
+            "log-level",
+        },
+        "stack": {
+            "date-range",
+            "time-zone",
+            "manage-epson",
+            "pause-jobs",
+            "log-level",
+            "api-trace",
+        },
+    }
+
+
     def _collect_config_state(self) -> dict:
         cpu_default = min(max(os.cpu_count() or 2, 1), 20)
         c = self.inputs.get("config", {})
-        return {
+        state = {
             "server": c.get("server").text() if c.get("server") else "",
             "api_key": c.get("api_key").text().strip() if c.get("api_key") else "",
             "admin_api_key": c.get("admin_api_key").text().strip() if c.get("admin_api_key") else "",
@@ -2454,7 +2588,24 @@ class ImmichGoGUI(QMainWindow):
             "pause_jobs": c.get("pause_jobs").isChecked() if c.get("pause_jobs") else True,
         }
 
+        if not getattr(self, "is_advanced", False):
+            state["client_timeout"] = 20
+            state["concurrent"] = cpu_default
+            state["device_uuid"] = ""
+            state["on_errors"] = "stop"
+            state["on_errors_tolerance"] = 10
+            state["pause_jobs"] = True
+
+        return state
+
     def _collect_tab_state(self, tab_key: str) -> dict:
+        state = self._raw_tab_state(tab_key)
+        if not getattr(self, "is_advanced", False):
+            for key in self.ADVANCED_KEYS.get(tab_key, set()):
+                state.pop(key, None)
+        return state
+
+    def _raw_tab_state(self, tab_key: str) -> dict:
         if tab_key not in self.inputs:
             return {}
         c = self.inputs[tab_key]

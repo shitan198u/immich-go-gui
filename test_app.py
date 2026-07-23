@@ -249,6 +249,7 @@ def test_droppable_plain_text_edit_drop(qapp, qtbot):
 
 def test_global_flag_ordering(gui):
     """Global opts (--log-level) must appear in subcommand options."""
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
     gui.upload_tabs.setCurrentIndex(0)     # upload-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
@@ -260,6 +261,7 @@ def test_global_flag_ordering(gui):
 
 
 def test_pause_jobs_not_on_archive(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(2)  # archive page
     gui.archive_tabs.setCurrentIndex(0)    # archive-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
@@ -271,6 +273,7 @@ def test_pause_jobs_not_on_archive(gui):
 
 
 def test_pause_jobs_not_on_stack(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(3)  # stack
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
@@ -279,6 +282,7 @@ def test_pause_jobs_not_on_stack(gui):
 
 
 def test_on_errors_not_on_archive(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(2)  # archive page
     gui.archive_tabs.setCurrentIndex(0)    # archive-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
@@ -291,6 +295,7 @@ def test_on_errors_not_on_archive(gui):
 
 
 def test_client_timeout_emitted(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
     gui.upload_tabs.setCurrentIndex(0)     # upload-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
@@ -302,6 +307,7 @@ def test_client_timeout_emitted(gui):
 
 
 def test_device_uuid_emitted(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
     gui.upload_tabs.setCurrentIndex(0)     # upload-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
@@ -313,6 +319,7 @@ def test_device_uuid_emitted(gui):
 
 
 def test_api_trace_on_upload_gp(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
     gui.upload_tabs.setCurrentIndex(1)     # upload-gp
     gui.inputs["config"]["server"].setText("http://local:2283")
@@ -324,6 +331,7 @@ def test_api_trace_on_upload_gp(gui):
 
 
 def test_api_trace_on_stack(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(3)  # stack
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
@@ -333,6 +341,7 @@ def test_api_trace_on_stack(gui):
 
 
 def test_from_client_timeout(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
     gui.upload_tabs.setCurrentIndex(2)     # upload-immich
     gui.inputs["config"]["server"].setText("http://local:2283")
@@ -418,6 +427,7 @@ def test_api_trace_on_stack_disabled(gui):
 
 
 def test_build_command_upload_immich(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
     gui.upload_tabs.setCurrentIndex(2)     # upload-immich sub-tab
     gui.inputs["config"]["server"].setText("http://local:2283")
@@ -464,6 +474,7 @@ def test_build_command_upload_immich(gui):
 
 
 def test_build_command_archive_folder(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(2)  # archive page
     gui.archive_tabs.setCurrentIndex(0)    # archive-folder sub-tab
     gui.inputs["config"]["server"].setText("http://local:2283")
@@ -481,6 +492,7 @@ def test_build_command_archive_folder(gui):
 
 
 def test_build_command_archive_immich(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(2)  # archive page
     gui.archive_tabs.setCurrentIndex(1)    # archive-immich sub-tab
     gui.inputs["config"]["server"].setText("http://local:2283")
@@ -638,6 +650,7 @@ def test_golden_stack(gui):
 
 def test_golden_archive_folder(gui):
     """Golden: archive from-folder (no server)."""
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(2)
     gui.archive_tabs.setCurrentIndex(0)
     gui.inputs["archive-folder"]["path"].setText("/messy/photos")
@@ -659,6 +672,7 @@ def test_golden_archive_folder(gui):
 
 def test_golden_upload_immich(gui):
     """Golden: upload from-immich with filters."""
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)
     gui.upload_tabs.setCurrentIndex(2)
     gui.inputs["config"]["server"].setText("http://new:2283")
@@ -708,6 +722,7 @@ def test_golden_upload_immich(gui):
 
 def test_golden_archive_immich(gui):
     """Golden: archive from-immich with options."""
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(2)
     gui.archive_tabs.setCurrentIndex(1)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
@@ -732,6 +747,81 @@ def test_golden_archive_immich(gui):
     ]
     assert plan.env.get("IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_KEY") == "test-key"
     assert not any("--api-key" in p for p in plan.argv)
+
+
+def test_simple_mode_ignores_advanced_upload_folder_flags(gui):
+    gui.toggle_advanced(False)
+
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(0)
+
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+    gui.inputs["upload-folder"]["log-level"].setCurrentText("DEBUG")
+    gui.inputs["upload-folder"]["recursive"].setChecked(False)
+    gui.inputs["upload-folder"]["date-from-name"].setChecked(False)
+    gui.inputs["upload-folder"]["album-path-joiner"].setText("/")
+    gui.inputs["upload-folder"]["time-zone"].setText("UTC")
+    gui.inputs["upload-folder"]["manage-epson"].setChecked(True)
+
+    plan = gui.build_plan(dry_run=True)
+
+    assert "--log-level=DEBUG" not in plan.argv
+    assert "--recursive=false" not in plan.argv
+    assert "--date-from-name=false" not in plan.argv
+    assert "--album-path-joiner=/" not in plan.argv
+    assert "--time-zone=UTC" not in plan.argv
+    assert "--manage-epson-fastfoto" not in plan.argv
+
+
+def test_advanced_mode_emits_advanced_upload_folder_flags(gui):
+    gui.toggle_advanced(True)
+
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(0)
+
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+    gui.inputs["upload-folder"]["log-level"].setCurrentText("DEBUG")
+    gui.inputs["upload-folder"]["recursive"].setChecked(False)
+    gui.inputs["upload-folder"]["date-from-name"].setChecked(False)
+    gui.inputs["upload-folder"]["album-path-joiner"].setText("/")
+    gui.inputs["upload-folder"]["time-zone"].setText("UTC")
+    gui.inputs["upload-folder"]["manage-epson"].setChecked(True)
+
+    plan = gui.build_plan(dry_run=True)
+
+    assert "--log-level=DEBUG" in plan.argv
+    assert "--recursive=false" in plan.argv
+    assert "--date-from-name=false" in plan.argv
+    assert "--album-path-joiner=/" in plan.argv
+    assert "--time-zone=UTC" in plan.argv
+    assert "--manage-epson-fastfoto" in plan.argv
+
+
+def test_simple_mode_ignores_advanced_stack_flags(gui):
+    gui.toggle_advanced(False)
+
+    gui.stacked_widget.setCurrentIndex(3)
+
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+
+    gui.inputs["stack"]["date-range"].setText("2023-01-01,2023-12-31")
+    gui.inputs["stack"]["time-zone"].setText("UTC")
+    gui.inputs["stack"]["manage-epson"].setChecked(True)
+    gui.inputs["stack"]["api-trace"].setChecked(True)
+
+    plan = gui.build_plan(dry_run=False)
+
+    assert "--date-range=2023-01-01,2023-12-31" not in plan.argv
+    assert "--time-zone=UTC" not in plan.argv
+    assert "--manage-epson-fastfoto" not in plan.argv
+    assert "--api-trace" not in plan.argv
 
 
 # ==========================================================
