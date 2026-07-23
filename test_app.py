@@ -1986,3 +1986,20 @@ def test_binary_manager_verify_extracted_binary(tmp_path):
     bm = BinaryManager()
     # Nonexistent file
     assert bm.verify_extracted_binary(str(tmp_path / "nonexistent")) is False
+
+
+def test_cleanup_stale_temp_dirs(tmp_path, monkeypatch):
+    import tempfile, time
+    from core.terminal_launcher import cleanup_stale_temp_dirs
+
+    dummy_dir = tmp_path / "immich-go-run-test"
+    dummy_dir.mkdir()
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+
+    # Set mtime to 30 hours ago
+    past_mtime = time.time() - (30 * 3600)
+    os.utime(dummy_dir, (past_mtime, past_mtime))
+
+    cleaned = cleanup_stale_temp_dirs(max_age_hours=24)
+    assert cleaned == 1
+    assert not dummy_dir.exists()

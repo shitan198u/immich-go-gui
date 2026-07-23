@@ -435,6 +435,9 @@ class ImmichGoGUI(QMainWindow):
         # FIX Phase 1 #6: migrate old plain-text API key to keychain
         SecretStore.migrate_from_qsettings(self.settings)
 
+        from core.terminal_launcher import cleanup_stale_temp_dirs
+        cleanup_stale_temp_dirs()
+
         self.theme_mode = normalize_theme_mode(
             self.settings.value("theme_mode", THEME_SYSTEM)
         )

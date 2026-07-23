@@ -15,10 +15,35 @@ import tempfile
 from .process_tracker import update_lock
 
 
+from datetime import datetime, timezone
+
 @dataclass
 class LaunchResult:
     ok: bool
     message: str = ""
+
+
+def cleanup_stale_temp_dirs(max_age_hours: int = 24) -> int:
+    """Removes abandoned temporary run directories older than max_age_hours."""
+    temp_root = Path(tempfile.gettempdir())
+    now = datetime.now(timezone.utc).timestamp()
+    threshold = now - (max_age_hours * 3600)
+    cleaned_count = 0
+
+    try:
+        for item in temp_root.glob("immich-go-run-*"):
+            if item.is_dir():
+                try:
+                    mtime = item.stat().st_mtime
+                    if mtime < threshold:
+                        shutil.rmtree(item, ignore_errors=True)
+                        cleaned_count += 1
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    return cleaned_count
 
 
 def _quote_sh_env_val(val: str) -> str:
