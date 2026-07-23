@@ -125,7 +125,7 @@ def collect_paths(raw_text: str) -> list[str]:
         if not line:
             continue
         expanded_user = os.path.expanduser(line)
-        expanded = glob.glob(expanded_user)
+        expanded = glob.glob(expanded_user, recursive=True)
         if expanded:
             for p in expanded:
                 paths.append(os.path.abspath(p))
