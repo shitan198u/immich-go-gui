@@ -1910,3 +1910,55 @@ def test_cleanup_stale_temp_dirs(tmp_path, monkeypatch):
     cleaned = cleanup_stale_temp_dirs(max_age_hours=24)
     assert cleaned == 1
     assert not dummy_dir.exists()
+
+
+def test_advanced_keys_derived_from_advanced_flags():
+    from app import ImmichGoGUI
+    from core.advanced_flags import ADVANCED_FLAGS
+
+    expected = {
+        tab: {def_.key for def_ in defs}
+        for tab, defs in ADVANCED_FLAGS.items()
+    }
+    assert ImmichGoGUI.ADVANCED_KEYS == expected
+
+
+def test_upload_gp_does_not_include_into_album_advanced_key():
+    from app import ImmichGoGUI
+
+    assert "into-album" not in ImmichGoGUI.ADVANCED_KEYS.get("upload-gp", set())
+
+
+def test_from_admin_api_key_advanced_secret_env(gui):
+    gui.toggle_advanced(True)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(2)
+
+    gui.inputs["config"]["server"].setText("http://new:2283")
+    gui.inputs["config"]["api_key"].setText("new-key")
+    gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
+    gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
+
+    gui.adv_rows["upload-immich"]["from-admin-api-key"].set_state({
+        "enabled": True,
+        "value": "old-admin-secret",
+    })
+
+    plan = gui.build_plan(False)
+
+    assert "--from-admin-api-key" not in " ".join(plan.argv)
+    assert "old-admin-secret" not in " ".join(plan.argv)
+    assert plan.env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY") == "old-admin-secret"
+
+
+def test_advanced_secret_value_not_persisted(gui):
+    gui.toggle_advanced(True)
+    gui.adv_rows["upload-immich"]["from-admin-api-key"].set_state({
+        "enabled": True,
+        "value": "super-secret-admin-key",
+    })
+
+    state = gui.collect_form_state()
+    saved = state["advanced"]["upload-immich"]["from-admin-api-key"]
+    assert saved["enabled"] is True
+    assert saved["value"] == ""

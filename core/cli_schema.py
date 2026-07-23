@@ -166,7 +166,7 @@ TAB_ALLOWED_FLAGS: dict[str, frozenset[str]] = {
         "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg",
         "manage-epson-fastfoto",
 
-        "from-server", "from-skip-verify-ssl", "from-client-timeout",
+        "from-server", "from-admin-api-key", "from-skip-verify-ssl", "from-client-timeout",
         "from-include-type", "from-include-extensions", "from-exclude-extensions",
         "from-partners", "from-time-zone", "from-no-album", "from-albums",
         "from-date-range", "from-device-uuid", "from-api-trace",

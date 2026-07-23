@@ -1,210 +1,28 @@
-# Review of the Opt-In Advanced Flags Implementation
+Yes — this cleanup is **mostly correct**, and it fixes two real maintenance/correctness annoyances from the earlier opt-in advanced-flags work.
 
-This is a substantial and well-structured implementation. Let me break down what was done across the 9 commits and assess correctness.
-
----
-
-## Commits Overview
-
-| Commit | Purpose |
-|--------|---------|
-| `54e5b33` | Simple mode suppression of advanced options |
-| `b13b78e` | Absolutize archive destination paths |
-| `1ebc627` | Fix POSIX terminal cwd deletion |
-| `f882e81` | Simple-mode hint tooltips |
-| `0bc3ebe` | **Core**: schema-driven `advanced_flags.py` registry |
-| `24ec63f` | **UI**: `AdvancedFlagRow` widget + dynamic card generation |
-| `5e60606` | **Builder**: integrate advanced state, remove hardcoded emissions |
-| `420bda4` | **Persistence**: save/load advanced flag state, reset action |
-| `4905475` | **Tests**: update suite + golden fixtures for opt-in model |
+But I would **not** call the whole advanced-flags area fully closed yet, because this diff does not address one important secret-handling gap introduced by the opt-in advanced rows.
 
 ---
 
-## What Was Done Correctly
+# Short verdict
 
-### 1. `core/advanced_flags.py` — Schema-Driven Registry ✅
+## What this diff gets right
 
-This is the architectural centerpiece and it's well done:
+### 1. Deriving `ADVANCED_KEYS` from `ADVANCED_FLAGS` is correct
+This is a good cleanup.
 
-- `AdvancedFlagDef` dataclass with `key`, `flag`, `label`, `kind`, `default`, `options`, `placeholder`, `secret_env`, `warn_values`
-- `ADVANCED_FLAGS` registry covers all 6 tabs
-- `advanced_flag_args()` handles all kinds: `bool`, `text`, `enum`, `int`, `duration_minutes`, `extensions`, `csv_repeat`, `lines_repeat`, `date_range`
-- `apply_advanced_flags_to_plan()` checks `flag_allowed_for_tab()` before emitting
-- `validate_advanced_state()` only validates **enabled** flags
-- Secret flags (`from-admin-api-key`) go to `plan.env`, not `argv`
-- Boolean true → `--flag`, Boolean false → `--flag=false`
+Before:
 
-### 2. `AdvancedFlagRow` Widget ✅
-
-- `[checkbox] [--flag-name] [value widget]` layout exactly as requested
-- Checkbox unchecked → value widget disabled → flag not passed
-- Supports all widget types: `QComboBox` (bool/enum), `QSpinBox` (int/duration), `QLineEdit` (text/extensions/csv/date_range), `QPlainTextEdit` (lines_repeat)
-- Password echo mode for secret fields
-- `state()` / `set_state()` for serialization
-- Signal blocking during `set_state()` to avoid cascading updates
-
-### 3. Command Builder Integration ✅
-
-- `build_plan_from_state()` now accepts `advanced_state: dict | None = None`
-- All hardcoded advanced flag emissions **removed** from builder
-- Single call to `apply_advanced_flags_to_plan()` at the end
-- Simple/curated options (manage-burst, manage-raw-jpeg, manage-heic-jpeg, folder-album, path) remain in builder
-- Archive destination paths absolutized
-
-### 4. Simple Mode Suppression ✅
-
-- `ADVANCED_KEYS` registry in `app.py` lists all advanced keys per tab
-- `_collect_tab_state()` pops advanced keys when `is_advanced == False`
-- `_collect_config_state()` resets config advanced values in Simple mode
-- `_collect_advanced_state()` returns `{}` when not advanced
-- Tooltips explain the behavior
-
-### 5. Persistence ✅
-
-- `collect_form_state()` now returns `{"fields": {...}, "advanced": {...}}`
-- `apply_form_state()` handles both old flat format and new structured format
-- Advanced state persists enabled/disabled + value
-- `reset_advanced_flags()` menu action resets all rows to disabled + defaults
-
-### 6. Terminal Launcher Fix ✅
-
-- `cd "$SAFE_DIR"` (HOME or /) instead of `cd <temp_dir>`
-- Cleanup removes PID/heartbeat/lock/env files but **not** temp dir
-- No more `getcwd` errors after `exec bash`
-- Variables properly quoted with `"$PID_FILE"` etc.
-
-### 7. Tests Updated ✅
-
-- Golden tests updated to use `gui.adv_rows[tab][key].set_state(...)` 
-- Simple mode tests verify advanced flags are NOT emitted
-- Advanced mode tests verify enabled flags ARE emitted
-- `test_archive_folder_destination_is_absolutized` added
-- Terminal launcher test verifies safe cwd pattern
-- Golden JSON fixtures updated with `advanced_state` field
-
----
-
-## Issues / Concerns Remaining
-
-### 🔴 Critical: GP `into-album` Still in `ADVANCED_KEYS` but Not in Registry
-
-In `app.py`, `ADVANCED_KEYS["upload-gp"]` includes `"into-album"`, but the `ADVANCED_FLAGS["upload-gp"]` registry in `advanced_flags.py` does **not** define an `into-album` flag.
-
-This means:
-- Simple mode will try to pop `"into-album"` from tab state (harmless since it's not collected anymore)
-- But the old `_raw_tab_state()` for `upload-gp` no longer collects `into-album` (it was removed from the GP simple card)
-- **However**, the GP simple Options card in the old code had `into-album` — was it removed? Looking at the diff, the GP simple card still has `manage-burst`, `manage-raw-jpeg`, `manage-heic-jpeg` but the `into-album` field was in the **advanced** card which was replaced.
-
-**Verdict**: The `into-album` entry in `ADVANCED_KEYS["upload-gp"]` is dead code now. Not harmful, but should be cleaned up.
-
-### 🟡 Medium: `upload-gp` Simple Card Still Has `manage-raw-jpeg`
-
-Looking at `_raw_tab_state("upload-gp")`:
 ```python
-return {
-    "path": get_text("path"),
-    "manage-burst": get_combo("manage-burst", "NoStack"),
-    "manage-raw-jpeg": get_combo("manage-raw-jpeg", "NoStack"),
-    "manage-heic-jpeg": get_combo("manage-heic-jpeg", "NoStack"),
+ADVANCED_KEYS = {
+    "upload-folder": { ... },
+    "upload-gp": { ... },
+    ...
 }
 ```
 
-But the GP simple Options card in the UI only shows `manage-burst` and `manage-heic-jpeg`. The `manage-raw-jpeg` combo was in the **old advanced card** which was replaced.
+After:
 
-**Question**: Is there still a `manage-raw-jpeg` widget in `self.inputs["upload-gp"]`? If not, `get_combo("manage-raw-jpeg", "NoStack")` will always return `"NoStack"` (the default), which means it will never emit. That's fine functionally, but it's dead code in `_raw_tab_state`.
-
-Actually wait — looking more carefully at the GP simple card builder, it has:
-- `manage-burst` ✅
-- `manage-heic-jpeg` ✅
-
-But `manage-raw-jpeg` was moved to the advanced registry as `AdvancedFlagDef(key="manage-raw-jpeg", ...)`. So the simple card no longer has it. The `_raw_tab_state` still tries to read it but will get the default. **Not a bug, but dead code.**
-
-### 🟡 Medium: `upload-immich` Simple Card Still Collects `from-server` and `from-api-key`
-
-```python
-elif tab_key == "upload-immich":
-    return {
-        "from-server": get_text("from-server"),
-        "from-api-key": get_text("from-api-key"),
-    }
-```
-
-These are **required** fields, not advanced. They're in the simple Source Configuration card. The builder still handles them:
-```python
-if from_server:
-    emitter.add_option("from-server", normalize_server_url(from_server))
-```
-
-This is correct — they're required connection fields, not opt-in advanced flags.
-
-### 🟡 Medium: `from-admin-api-key` in Advanced Registry Uses Wrong Flag Name
-
-In `advanced_flags.py`:
-```python
-AdvancedFlagDef(
-    key="from-admin-api-key",
-    flag="admin-api-key",  # ← This is the CLI flag name
-    label="Source admin API key",
-    kind="text",
-    secret_env="IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY",
-)
-```
-
-The `flag` is `"admin-api-key"` but since it has `secret_env`, it will **never** be emitted as `--admin-api-key` in argv. It goes to env only. So the `flag` name is irrelevant for emission, but it's used for:
-1. The checkbox label: `--admin-api-key` (slightly misleading since it's actually `--from-admin-api-key` in CLI)
-2. The `flag_allowed_for_tab()` check (which would check for `admin-api-key` in the allowlist)
-
-Looking at `TAB_ALLOWED_FLAGS["upload-immich"]`, it does NOT include `admin-api-key` or `from-admin-api-key`. But since `secret_env` is set, the code path skips the allowlist check entirely:
-```python
-if def_.secret_env:
-    if value:
-        plan.env[def_.secret_env] = str(value).strip()
-    continue  # ← skips flag_allowed_for_tab check
-```
-
-**Verdict**: Functionally correct (secret goes to env, not argv), but the checkbox will show `--admin-api-key` which is slightly confusing. Should probably show `--from-admin-api-key` or just "Source Admin API Key".
-
-### 🟡 Medium: `archive-immich` Missing `from-server` Emission for Simple Mode
-
-In the builder, `archive-immich` still has:
-```python
-from_srv = tab_state.get("from-server", "") or config_state.get("server", "")
-if from_srv:
-    emitter.add_option("from-server", normalize_server_url(from_srv))
-```
-
-But `_raw_tab_state("archive-immich")` only returns:
-```python
-return {
-    "write-to": get_text("write-to"),
-}
-```
-
-So `tab_state.get("from-server", "")` will always be `""`, and it falls back to `config_state.get("server", "")`. This is correct behavior — archive-immich uses the main configured server as source.
-
-### 🟡 Medium: Stack `date-range` Still in Registry Without Verification
-
-The `ADVANCED_FLAGS["stack"]` includes:
-```python
-AdvancedFlagDef(
-    key="date-range",
-    flag="date-range",
-    label="Date range",
-    kind="date_range",
-)
-```
-
-From `review2.md`, this was flagged as uncertain. The CLI doc doesn't clearly show `--date-range` for `stack`. However, `TAB_ALLOWED_FLAGS["stack"]` includes `"date-range"`, and the compatibility fixture test (`test_all_tab_allowed_flags_exist_in_help_fixtures`) would catch this if the fixture doesn't have it.
-
-**Verdict**: If the fixture test passes, it's verified. If not, it needs removal.
-
-### 🟢 Minor: `ADVANCED_KEYS` in `app.py` is Redundant with `ADVANCED_FLAGS`
-
-The `ADVANCED_KEYS` dict in `app.py` and the `ADVANCED_FLAGS` dict in `core/advanced_flags.py` serve overlapping purposes. `ADVANCED_KEYS` is used for Simple mode suppression of `_raw_tab_state()`, while `ADVANCED_FLAGS` drives the actual opt-in rows.
-
-Since `_raw_tab_state()` no longer collects most advanced fields (they were removed from `self.inputs`), the `ADVANCED_KEYS` suppression is mostly a safety net. It's not harmful, but it's redundant maintenance burden.
-
-**Recommendation**: Eventually derive `ADVANCED_KEYS` from `ADVANCED_FLAGS` programmatically:
 ```python
 ADVANCED_KEYS = {
     tab: {def_.key for def_ in defs}
@@ -212,47 +30,446 @@ ADVANCED_KEYS = {
 }
 ```
 
-### 🟢 Minor: `_collect_config_state()` Still Resets Config Advanced in Simple Mode
+This removes a duplicated source of truth.
 
-This is the belt-and-suspenders approach from the earlier fix. Since config advanced fields (client_timeout, concurrent, device_uuid, on_errors, pause_jobs) are still in `self.inputs["config"]` and still collected by `_collect_config_state()`, the Simple mode reset is still needed.
+That matters because earlier there was drift risk:
 
-This is correct but means config advanced fields are NOT using the opt-in row pattern. They're still old-style widgets that get suppressed in Simple mode.
+- `ADVANCED_FLAGS` defined the actual advanced rows
+- `ADVANCED_KEYS` manually listed which keys were “advanced”
+- the two could disagree
 
-**Future improvement**: Convert config advanced fields to opt-in rows too, or at minimum add enable checkboxes.
+Now they cannot drift apart.
 
-### 🟢 Minor: Test `test_on_errors_not_on_archive` Was Renamed/Changed
+This also has a nice hidden benefit:
 
-The old test verified `--on-errors` was NOT emitted for archive-folder. The new test `test_on_errors_emitted_when_configured` verifies it IS emitted for archive-immich when configured. This is a semantic change — the old test was checking that archive-folder doesn't get `--on-errors` from config (because it's serverless). The new test checks archive-immich does get it.
+- the old hardcoded `ADVANCED_KEYS["upload-gp"]` still contained `"into-album"`
+- the generated advanced registry for `upload-gp` does **not** contain `into-album`
+- so this cleanup also removes that stale entry automatically
 
-Looking at `TAB_ALLOWED_FLAGS["archive-folder"]`, it includes `"on-errors"`. And the advanced registry for `archive-folder` includes an `on-errors` flag. So if a user enables it in advanced mode, it WILL be emitted for archive-folder too. This is correct per the CLI.
-
----
-
-## Summary Assessment
-
-| Area | Status |
-|------|--------|
-| Opt-in advanced flag model | ✅ Correctly implemented |
-| Schema-driven registry | ✅ Clean, extensible |
-| UI row widget | ✅ Matches requested `[checkbox] [flag] [options]` |
-| Builder integration | ✅ Old hardcoded emissions removed |
-| Simple mode suppression | ✅ Works (belt + suspenders) |
-| Persistence | ✅ Save/load/reset all work |
-| Terminal cwd fix | ✅ Correct |
-| Archive path absolutization | ✅ Correct |
-| Secret handling | ✅ Env-only for secret flags |
-| Tests | ✅ Updated, new tests added |
-| GP `into-album` | 🟡 Dead code in ADVANCED_KEYS |
-| Config advanced fields | 🟡 Still old-style, not opt-in rows |
-| Stack `date-range` | 🟡 Needs fixture verification |
-| `from-admin-api-key` label | 🟡 Shows `--admin-api-key` instead of `--from-admin-api-key` |
+That is a good thing.
 
 ---
 
-## Bottom Line
+### 2. Fixing `from-admin-api-key` flag name is correct
+This change is also correct:
 
-**This is a correct and complete implementation of the opt-in advanced flags model.** The core architecture is sound, the UI matches your requested pattern, the builder is clean, and the tests cover the new behavior.
+```python
+AdvancedFlagDef(
+    key="from-admin-api-key",
+    flag="from-admin-api-key",
+    ...
+)
+```
 
-The remaining items are minor cleanup and future improvements, not correctness bugs. The two immediate issues from the original report (unexpected flags + terminal cwd) are both resolved.
+Previously it was:
 
-If you want, I can produce a short cleanup patch list for the minor items, or we can move on to the next phase.
+```python
+flag="admin-api-key"
+```
+
+That was misleading because the CLI flag for `upload from-immich` is:
+
+```bash
+--from-admin-api-key
+```
+
+Even though this flag is currently secret-env-only and not emitted in `argv`, correcting the flag name is still right because:
+
+- the UI checkbox label now makes sense
+- the definition now matches the real CLI flag
+- future allowlist/validation work will be cleaner
+
+So this is a good fix.
+
+---
+
+### 3. Removing `manage-raw-jpeg` from `_raw_tab_state("upload-gp")` is correct
+This is also correct.
+
+For `upload-gp`, `manage-raw-jpeg` is now part of the advanced registry, not the simple/raw state.
+
+So removing this:
+
+```python
+"manage-raw-jpeg": get_combo("manage-raw-jpeg", "NoStack"),
+```
+
+from `_raw_tab_state("upload-gp")` is the right move.
+
+It prevents duplicate/conflicting state handling.
+
+---
+
+### 4. The diff script change is fine
+Excluding generated/large documentation bundles from the diff output is reasonable:
+
+```python
+exclude_paths = [
+    ":!command_binary_bugs_fix.txt",
+    ":!command_binary_bugs.md",
+    ":!phase2_review_changes.txt",
+]
+```
+
+That is not a functional app change, just tooling cleanup.
+
+---
+
+# What is still not fully correct
+
+## Critical remaining issue: advanced secret values can still be persisted in plaintext
+
+This is the biggest problem still present.
+
+The advanced row for `from-admin-api-key` is a secret field:
+
+```python
+AdvancedFlagDef(
+    key="from-admin-api-key",
+    flag="from-admin-api-key",
+    label="Source admin API key",
+    kind="text",
+    secret_env="IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY",
+)
+```
+
+And the UI correctly makes it a password-style field.
+
+But the persistence logic currently saves **all advanced row state**, including values.
+
+In `collect_form_state()` you currently do something like:
+
+```python
+for tab_key, rows in getattr(self, "adv_rows", {}).items():
+    tab_adv = {}
+    for k, row in rows.items():
+        tab_adv[k] = row.state()
+```
+
+And `row.state()` returns:
+
+```python
+{
+    "enabled": ...,
+    "value": ...,
+}
+```
+
+That means if a user enters a source admin API key in the advanced row, it can be written into:
+
+```toml
+form_state.advanced.upload-immich.from-admin-api-key.value
+```
+
+in the profile config file.
+
+That is not acceptable for a secret.
+
+---
+
+## Why this matters
+
+You already correctly avoid putting normal API keys into `form_state`.
+
+For simple fields, you exclude:
+
+```python
+secret_keys = {
+    "api_key",
+    "from-api-key",
+    "admin_api_key",
+    "from-admin-api-key",
+    "target-server",
+}
+```
+
+But that exclusion only applies to the old `self.inputs` fields.
+
+It does **not** apply to advanced rows.
+
+So the advanced secret field bypasses the secret-exclusion logic.
+
+---
+
+## Recommended fix
+
+Do not persist secret values from advanced rows.
+
+You have two good options.
+
+---
+
+### Option A — simplest and safest: persist only `enabled`, not secret value
+
+When collecting advanced state, blank out values for secret rows.
+
+Example:
+
+```python
+from core.advanced_flags import ADVANCED_FLAGS
+
+ADVANCED_SECRET_KEYS = {
+    tab: {def_.key for def_ in defs if def_.secret_env}
+    for tab, defs in ADVANCED_FLAGS.items()
+}
+```
+
+Then in `collect_form_state()`:
+
+```python
+adv_state = {}
+for tab_key, rows in getattr(self, "adv_rows", {}).items():
+    tab_adv = {}
+    secret_keys = ADVANCED_SECRET_KEYS.get(tab_key, set())
+
+    for k, row in rows.items():
+        state = row.state()
+
+        if k in secret_keys:
+            # Do not persist secret values
+            state = {
+                "enabled": state.get("enabled", False),
+                "value": "",
+            }
+
+        tab_adv[k] = state
+
+    if tab_adv:
+        adv_state[tab_key] = tab_adv
+```
+
+This means:
+
+- the app remembers that the row was enabled
+- but it does not remember the secret value
+- after restart, the user must re-enter the secret
+
+That is a reasonable security tradeoff.
+
+---
+
+### Option B — better UX but more work: store advanced secrets in `SecretStore`
+
+If you want to persist advanced secrets securely, store them in the OS keyring via `SecretStore`, not in `config.toml`.
+
+For example:
+
+- key name: `advanced:upload-immich:from-admin-api-key`
+- save using `SecretStore.set_secret(...)`
+- load separately during `load_configuration()`
+
+This is better UX, but more implementation work.
+
+For now, I would use **Option A**.
+
+---
+
+# Other remaining concerns
+
+## 1. Verify that no dead GP simple controls remain
+
+This diff itself is clean, but it makes me re-check one thing:
+
+For `upload-gp`, the simple/raw state is now only:
+
+```python
+{
+    "path": ...,
+    "manage-burst": ...,
+    "manage-heic-jpeg": ...,
+}
+```
+
+That is fine **if** the GP simple UI no longer contains controls for:
+
+- `include-partner`
+- `sync-albums`
+- `include-archived`
+
+If those checkboxes are still visible in Simple mode but are no longer collected anywhere, then they are dead controls.
+
+That would be a false affordance.
+
+So you should verify one of the following:
+
+### Either:
+- those GP checkboxes were removed from the simple card
+
+### Or:
+- they are still collected and emitted somehow
+
+If they are visible but ignored, remove them.
+
+This is not caused by this cleanup commit, but this commit makes the state boundary clearer, so it is worth checking now.
+
+---
+
+## 2. `TAB_ALLOWED_FLAGS` still does not include `from-admin-api-key`
+
+This is not necessarily a bug right now, because:
+
+- `from-admin-api-key` is secret-env-only
+- `apply_advanced_flags_to_plan()` puts it into `plan.env`
+- it does not go through the normal `flag_allowed_for_tab()` argv check
+
+So functionally it can still work.
+
+But there is a small contract cleanliness issue:
+
+- the real CLI help includes `--from-admin-api-key`
+- your compatibility fixture may include it
+- your `TAB_ALLOWED_FLAGS["upload-immich"]` does not include it
+
+That may show up as an “unknown upstream flag” in compatibility reporting.
+
+You have two reasonable choices:
+
+### Choice A — leave it out
+Keep `TAB_ALLOWED_FLAGS` strictly for flags you emit in argv.
+
+Since `from-admin-api-key` is env-only, leaving it out is defensible.
+
+### Choice B — add it for compatibility cleanliness
+Add it to:
+
+```python
+TAB_ALLOWED_FLAGS["upload-immich"]
+```
+
+even though you do not emit it in argv.
+
+That would make help-fixture comparison cleaner.
+
+I would probably choose **B** if your compatibility report is meant to compare against full CLI help output.
+
+But this is not urgent.
+
+---
+
+## 3. No tests were added for these cleanup changes
+
+This cleanup is small, but it is still worth adding a couple of regression tests.
+
+At minimum, I would add:
+
+### Test A — `ADVANCED_KEYS` is derived from `ADVANCED_FLAGS`
+```python
+def test_advanced_keys_derived_from_advanced_flags():
+    from app import ImmichGoGUI
+    from core.advanced_flags import ADVANCED_FLAGS
+
+    expected = {
+        tab: {def_.key for def_ in defs}
+        for tab, defs in ADVANCED_FLAGS.items()
+    }
+
+    assert ImmichGoGUI.ADVANCED_KEYS == expected
+```
+
+---
+
+### Test B — GP `into-album` is not an advanced key
+```python
+def test_upload_gp_does_not_include_into_album_advanced_key():
+    from app import ImmichGoGUI
+
+    assert "into-album" not in ImmichGoGUI.ADVANCED_KEYS.get("upload-gp", set())
+```
+
+---
+
+### Test C — `from-admin-api-key` advanced secret goes to env, not argv
+```python
+def test_from_admin_api_key_advanced_secret_env(gui):
+    gui.toggle_advanced(True)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(2)
+
+    gui.inputs["config"]["server"].setText("http://new:2283")
+    gui.inputs["config"]["api_key"].setText("new-key")
+    gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
+    gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
+
+    gui.adv_rows["upload-immich"]["from-admin-api-key"].set_state({
+        "enabled": True,
+        "value": "old-admin-secret",
+    })
+
+    plan = gui.build_plan(False)
+
+    assert "--from-admin-api-key" not in " ".join(plan.argv)
+    assert "old-admin-secret" not in " ".join(plan.argv)
+    assert plan.env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY") == "old-admin-secret"
+```
+
+---
+
+### Test D — advanced secret value should not be persisted
+This test will fail until you add the persistence fix:
+
+```python
+def test_advanced_secret_value_not_persisted(gui):
+    gui.toggle_advanced(True)
+
+    gui.adv_rows["upload-immich"]["from-admin-api-key"].set_state({
+        "enabled": True,
+        "value": "super-secret-admin-key",
+    })
+
+    state = gui.collect_form_state()
+
+    saved = state["advanced"]["upload-immich"]["from-admin-api-key"]
+    assert saved["enabled"] is True
+    assert saved["value"] == ""
+```
+
+---
+
+# Final assessment of this diff
+
+## Is this cleanup correct?
+### Yes, mostly.
+
+The changes in this diff are good and safe:
+
+- `ADVANCED_KEYS` is now derived from the real registry
+- stale manual maintenance is removed
+- `from-admin-api-key` flag name is corrected
+- GP `manage-raw-jpeg` is correctly treated as advanced-only
+- diff tooling cleanup is fine
+
+---
+
+## Is the advanced-flags feature fully closed now?
+### Not yet.
+
+The biggest remaining issue is:
+
+> **Advanced secret fields can still be persisted in plaintext via `form_state`.**
+
+That should be fixed before release.
+
+---
+
+# Recommended next patch
+
+If you want the smallest correct follow-up, do this:
+
+1. Add `ADVANCED_SECRET_KEYS`
+2. In `collect_form_state()`, blank out secret advanced values
+3. Add tests for:
+   - derived `ADVANCED_KEYS`
+   - `from-admin-api-key` env-only behavior
+   - secret advanced value not persisted
+4. Verify GP simple controls are not dead UI
+5. Optionally add `from-admin-api-key` to `TAB_ALLOWED_FLAGS["upload-immich"]` for compatibility cleanliness
+
+---
+
+# Bottom line
+
+This cleanup commit is a **good and correct incremental fix**.
+
+But I would still keep the advanced-flags work marked as **not fully complete** until the advanced secret persistence issue is fixed.
+
+If you want, I can give you the **exact follow-up patch** for the secret persistence fix only.

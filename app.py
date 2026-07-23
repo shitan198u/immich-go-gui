@@ -1271,21 +1271,6 @@ class ImmichGoGUI(QMainWindow):
         card = Card("Options")
         form = FormSection()
 
-        chk_partner = QCheckBox("Include Partner Photos")
-        chk_partner.setChecked(True)
-        self.inputs["upload-gp"]["include-partner"] = chk_partner
-        form.addRow("", chk_partner)
-
-        chk_sync = QCheckBox("Sync Google Albums")
-        chk_sync.setChecked(True)
-        self.inputs["upload-gp"]["sync-albums"] = chk_sync
-        form.addRow("", chk_sync)
-
-        chk_archived = QCheckBox("Include Archived Photos")
-        chk_archived.setChecked(True)
-        self.inputs["upload-gp"]["include-archived"] = chk_archived
-        form.addRow("", chk_archived)
-
         c_burst = QComboBox()
         c_burst.addItems(["NoStack", "Stack", "StackKeepRaw", "StackKeepJPEG"])
         self.inputs["upload-gp"]["manage-burst"] = c_burst
@@ -1850,7 +1835,10 @@ class ImmichGoGUI(QMainWindow):
         for tab_key, rows in getattr(self, "adv_rows", {}).items():
             tab_adv = {}
             for k, row in rows.items():
-                tab_adv[k] = row.state()
+                st = row.state()
+                if getattr(row, "def_", None) and row.def_.secret_env or k in secret_keys:
+                    st = {"enabled": st.get("enabled", False), "value": ""}
+                tab_adv[k] = st
             if tab_adv:
                 adv_state[tab_key] = tab_adv
 
