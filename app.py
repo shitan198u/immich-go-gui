@@ -2154,6 +2154,18 @@ class ImmichGoGUI(QMainWindow):
             else:
                 self.status_card.set_server("err", "Server: Not Set")
         elif validation.is_valid:
+            # Secondary check: build the plan to surface emitter-level errors
+            # (e.g. a flag in ADVANCED_FLAGS but not in TAB_ALLOWED_FLAGS)
+            try:
+                plan = self.build_plan(dry_run=False)
+                if plan.errors:
+                    self.status_card.set_server("err", plan.errors[0])
+                    if not is_running:
+                        self.btn_run.setEnabled(False)
+                        self.btn_dry_run.setEnabled(False)
+                    return
+            except Exception:
+                pass
             self.status_card.set_server("ok", "Server: Ready")
             if not is_running:
                 self.btn_run.setEnabled(True)
