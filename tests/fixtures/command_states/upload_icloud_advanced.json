@@ -1,0 +1,20 @@
+{
+  "tab_key": "upload-icloud",
+  "config_state": {
+    "server": "http://localhost:2283",
+    "api_key": "secret_key_123"
+  },
+  "tab_state": {
+    "path": "/data/icloud"
+  },
+  "advanced_state": {
+    "memories": { "enabled": true, "value": true }
+  },
+  "expected_argv": [
+    "upload",
+    "from-icloud",
+    "--server=http://localhost:2283",
+    "--memories",
+    "/data/icloud"
+  ]
+}

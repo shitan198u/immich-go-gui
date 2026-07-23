@@ -641,12 +641,22 @@ class ImmichGoGUI(QMainWindow):
                 return "upload-folder"
             elif u_idx == 1:
                 return "upload-gp"
+            elif u_idx == 2:
+                return "upload-icloud"
+            elif u_idx == 3:
+                return "upload-picasa"
             else:
                 return "upload-immich"
         elif idx == 2:
             a_idx = self.archive_tabs.currentIndex() if hasattr(self, "archive_tabs") else 0
             if a_idx == 0:
                 return "archive-folder"
+            elif a_idx == 1:
+                return "archive-gp"
+            elif a_idx == 2:
+                return "archive-icloud"
+            elif a_idx == 3:
+                return "archive-picasa"
             else:
                 return "archive-immich"
         elif idx == 3:
@@ -795,10 +805,14 @@ class ImmichGoGUI(QMainWindow):
 
         self.upload_folder_tab = self._build_upload_folder_tab()
         self.upload_gp_tab = self._build_upload_gp_tab()
+        self.upload_icloud_tab = self._build_upload_icloud_tab()
+        self.upload_picasa_tab = self._build_upload_picasa_tab()
         self.upload_immich_tab = self._build_upload_immich_tab()
 
         self.upload_tabs.addTab(self.upload_folder_tab, "From Folder")
         self.upload_tabs.addTab(self.upload_gp_tab, "Google Takeout")
+        self.upload_tabs.addTab(self.upload_icloud_tab, "iCloud")
+        self.upload_tabs.addTab(self.upload_picasa_tab, "Picasa")
         self.upload_tabs.addTab(self.upload_immich_tab, "From Immich")
 
         page.addWidget(self.upload_tabs)
@@ -810,7 +824,9 @@ class ImmichGoGUI(QMainWindow):
         crumbs = {
             0: "upload · from-folder",
             1: "upload · from-google-photos",
-            2: "upload · from-immich",
+            2: "upload · from-icloud",
+            3: "upload · from-picasa",
+            4: "upload · from-immich",
         }
         self.update_header_crumb(crumbs.get(index, "upload"))
         self.update_status()
@@ -821,9 +837,15 @@ class ImmichGoGUI(QMainWindow):
         self.archive_tabs.setDocumentMode(True)
 
         self.archive_folder_tab = self._build_archive_folder_tab()
+        self.archive_gp_tab = self._build_archive_gp_tab()
+        self.archive_icloud_tab = self._build_archive_icloud_tab()
+        self.archive_picasa_tab = self._build_archive_picasa_tab()
         self.archive_immich_tab = self._build_archive_immich_tab()
 
         self.archive_tabs.addTab(self.archive_folder_tab, "From Folder")
+        self.archive_tabs.addTab(self.archive_gp_tab, "Google Takeout")
+        self.archive_tabs.addTab(self.archive_icloud_tab, "iCloud")
+        self.archive_tabs.addTab(self.archive_picasa_tab, "Picasa")
         self.archive_tabs.addTab(self.archive_immich_tab, "From Immich")
 
         page.addWidget(self.archive_tabs)
@@ -834,7 +856,10 @@ class ImmichGoGUI(QMainWindow):
     def _on_archive_tab_changed(self, index: int):
         crumbs = {
             0: "archive · from-folder",
-            1: "archive · from-immich",
+            1: "archive · from-google-photos",
+            2: "archive · from-icloud",
+            3: "archive · from-picasa",
+            4: "archive · from-immich",
         }
         self.update_header_crumb(crumbs.get(index, "archive"))
         self.update_status()
@@ -1355,6 +1380,152 @@ class ImmichGoGUI(QMainWindow):
         lay.addStretch()
         return page
 
+    def _build_upload_icloud_tab(self):
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 16, 0, 0)
+        lay.setSpacing(24)
+        self.inputs["upload-icloud"] = {}
+
+        card = Card("Source Configuration", required=True)
+        form = FormSection()
+
+        p_edit = DroppableLineEdit()
+        p_edit.setPlaceholderText("/path/to/icloud-export or /path/to/icloud.zip")
+        self.inputs["upload-icloud"]["path"] = p_edit
+
+        btn_folder = QPushButton("Select Folder…")
+        btn_folder.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_folder.clicked.connect(self.browse_folder_upload_icloud)
+
+        btn_zip = QPushButton("Select ZIP Archive…")
+        btn_zip.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_zip.clicked.connect(self.browse_zip_upload_icloud)
+
+        btn_box = QHBoxLayout()
+        btn_box.setContentsMargins(0, 4, 0, 0)
+        btn_box.setSpacing(10)
+        btn_box.addWidget(btn_folder)
+        btn_box.addWidget(btn_zip)
+        btn_box.addStretch()
+
+        p_container = QWidget()
+        p_layout = QVBoxLayout(p_container)
+        p_layout.setContentsMargins(0, 0, 0, 0)
+        p_layout.setSpacing(6)
+        p_layout.addWidget(p_edit)
+        p_layout.addLayout(btn_box)
+
+        form.add_row("iCloud Export Path", p_container)
+
+        card.layout.addLayout(form)
+        lay.addWidget(card)
+
+        card = Card("Options")
+        form = FormSection()
+
+        c_burst = QComboBox()
+        c_burst.addItems(["NoStack", "Stack", "StackKeepRaw", "StackKeepJPEG"])
+        self.inputs["upload-icloud"]["manage-burst"] = c_burst
+        form.add_row("Burst Photos", c_burst)
+
+        c_raw = QComboBox()
+        c_raw.addItems(["NoStack", "KeepRaw", "KeepJPG", "StackCoverRaw", "StackCoverJPG"])
+        self.inputs["upload-icloud"]["manage-raw-jpeg"] = c_raw
+        form.add_row("RAW + JPEG Pairs", c_raw)
+
+        c_heic = QComboBox()
+        c_heic.addItems(["NoStack", "KeepHeic", "KeepJPG", "StackCoverHeic", "StackCoverJPG"])
+        self.inputs["upload-icloud"]["manage-heic-jpeg"] = c_heic
+        form.add_row("HEIC + JPEG Pairs", c_heic)
+
+        card.layout.addLayout(form)
+        lay.addWidget(card)
+
+        adv_card = self._build_advanced_flags_card("upload-icloud")
+        lay.addWidget(adv_card)
+
+        lay.addStretch()
+        return page
+
+    def _build_upload_picasa_tab(self):
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 16, 0, 0)
+        lay.setSpacing(24)
+        self.inputs["upload-picasa"] = {}
+
+        card = Card("Source Configuration", required=True)
+        form = FormSection()
+
+        p_edit = DroppableLineEdit()
+        p_edit.setPlaceholderText("/path/to/picasa-photos or /path/to/picasa.zip")
+        self.inputs["upload-picasa"]["path"] = p_edit
+
+        btn_folder = QPushButton("Select Folder…")
+        btn_folder.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_folder.clicked.connect(self.browse_folder_upload_picasa)
+
+        btn_zip = QPushButton("Select ZIP Archive…")
+        btn_zip.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_zip.clicked.connect(self.browse_zip_upload_picasa)
+
+        btn_box = QHBoxLayout()
+        btn_box.setContentsMargins(0, 4, 0, 0)
+        btn_box.setSpacing(10)
+        btn_box.addWidget(btn_folder)
+        btn_box.addWidget(btn_zip)
+        btn_box.addStretch()
+
+        p_container = QWidget()
+        p_layout = QVBoxLayout(p_container)
+        p_layout.setContentsMargins(0, 0, 0, 0)
+        p_layout.setSpacing(6)
+        p_layout.addWidget(p_edit)
+        p_layout.addLayout(btn_box)
+
+        form.add_row("Picasa Collection Path", p_container)
+
+        card.layout.addLayout(form)
+        lay.addWidget(card)
+
+        card = Card("Options")
+        form = FormSection()
+
+        c_album = QComboBox()
+        c_album.addItems(["NONE", "FOLDER", "PATH"])
+        self.inputs["upload-picasa"]["folder-album"] = c_album
+        form.add_row("Album Organization", c_album)
+
+        t_album = QLineEdit()
+        t_album.setPlaceholderText("e.g. Picasa Archive")
+        self.inputs["upload-picasa"]["into-album"] = t_album
+        form.add_row("Put all into Album", t_album)
+
+        c_burst = QComboBox()
+        c_burst.addItems(["NoStack", "Stack", "StackKeepRaw", "StackKeepJPEG"])
+        self.inputs["upload-picasa"]["manage-burst"] = c_burst
+        form.add_row("Burst Photos", c_burst)
+
+        c_raw = QComboBox()
+        c_raw.addItems(["NoStack", "KeepRaw", "KeepJPG", "StackCoverRaw", "StackCoverJPG"])
+        self.inputs["upload-picasa"]["manage-raw-jpeg"] = c_raw
+        form.add_row("RAW + JPEG Pairs", c_raw)
+
+        c_heic = QComboBox()
+        c_heic.addItems(["NoStack", "KeepHeic", "KeepJPG", "StackCoverHeic", "StackCoverJPG"])
+        self.inputs["upload-picasa"]["manage-heic-jpeg"] = c_heic
+        form.add_row("HEIC + JPEG Pairs", c_heic)
+
+        card.layout.addLayout(form)
+        lay.addWidget(card)
+
+        adv_card = self._build_advanced_flags_card("upload-picasa")
+        lay.addWidget(adv_card)
+
+        lay.addStretch()
+        return page
+
     def _build_archive_folder_tab(self):
         page = QWidget()
         lay = QVBoxLayout(page)
@@ -1409,6 +1580,203 @@ class ImmichGoGUI(QMainWindow):
         lay.addWidget(card)
 
         adv_card = self._build_advanced_flags_card("archive-folder")
+        lay.addWidget(adv_card)
+
+        lay.addStretch()
+        return page
+
+    def _build_archive_gp_tab(self):
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 16, 0, 0)
+        lay.setSpacing(24)
+        self.inputs["archive-gp"] = {}
+
+        card = Card("Source Configuration", required=True)
+        form = FormSection()
+
+        self.archive_gp_path_edit = DroppablePlainTextEdit()
+        self.archive_gp_path_edit.setPlaceholderText(
+            "/path/to/takeout-*.zip\n"
+            "/path/to/takeout-001.zip\n"
+            "…or an extracted folder path"
+        )
+        self.archive_gp_path_edit.setMaximumHeight(100)
+        self.inputs["archive-gp"]["path"] = self.archive_gp_path_edit
+
+        btn_zips = QPushButton("Select ZIP Files…")
+        btn_zips.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_zips.clicked.connect(self.browse_archive_gp_zips)
+
+        btn_folder = QPushButton("Select Extracted Folder…")
+        btn_folder.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_folder.clicked.connect(self.browse_archive_gp_folder)
+
+        gp_btn_box = QHBoxLayout()
+        gp_btn_box.setContentsMargins(0, 4, 0, 0)
+        gp_btn_box.setSpacing(10)
+        gp_btn_box.addWidget(btn_zips)
+        gp_btn_box.addWidget(btn_folder)
+        gp_btn_box.addStretch()
+
+        gp_container = QWidget()
+        gp_layout = QVBoxLayout(gp_container)
+        gp_layout.setContentsMargins(0, 0, 0, 0)
+        gp_layout.setSpacing(6)
+        gp_layout.addWidget(self.archive_gp_path_edit)
+        gp_layout.addLayout(gp_btn_box)
+
+        form.add_row("Takeout Source", gp_container)
+
+        card.layout.addLayout(form)
+        lay.addWidget(card)
+
+        card = Card("Options")
+        form = FormSection()
+
+        t_write = DroppableLineEdit()
+        t_write.setPlaceholderText("/organized-takeout")
+        self.inputs["archive-gp"]["write-to"] = t_write
+        self._add_browse_action(t_write, "Select Archive Destination")
+        form.add_row("Destination Folder", t_write)
+
+        chk_partner = QCheckBox("Include Partner Photos")
+        chk_partner.setChecked(True)
+        self.inputs["archive-gp"]["include-partner"] = chk_partner
+        form.addRow("", chk_partner)
+
+        chk_sync = QCheckBox("Sync Google Albums")
+        chk_sync.setChecked(True)
+        self.inputs["archive-gp"]["sync-albums"] = chk_sync
+        form.addRow("", chk_sync)
+
+        chk_archived = QCheckBox("Include Archived Photos")
+        chk_archived.setChecked(True)
+        self.inputs["archive-gp"]["include-archived"] = chk_archived
+        form.addRow("", chk_archived)
+
+        card.layout.addLayout(form)
+        lay.addWidget(card)
+
+        adv_card = self._build_advanced_flags_card("archive-gp")
+        lay.addWidget(adv_card)
+
+        lay.addStretch()
+        return page
+
+    def _build_archive_icloud_tab(self):
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 16, 0, 0)
+        lay.setSpacing(24)
+        self.inputs["archive-icloud"] = {}
+
+        card = Card("Source Configuration", required=True)
+        form = FormSection()
+
+        p_edit = DroppableLineEdit()
+        p_edit.setPlaceholderText("/path/to/icloud-export or /path/to/icloud.zip")
+        self.inputs["archive-icloud"]["path"] = p_edit
+
+        btn_folder = QPushButton("Select Folder…")
+        btn_folder.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_folder.clicked.connect(self.browse_folder_archive_icloud)
+
+        btn_zip = QPushButton("Select ZIP Archive…")
+        btn_zip.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_zip.clicked.connect(self.browse_zip_archive_icloud)
+
+        btn_box = QHBoxLayout()
+        btn_box.setContentsMargins(0, 4, 0, 0)
+        btn_box.setSpacing(10)
+        btn_box.addWidget(btn_folder)
+        btn_box.addWidget(btn_zip)
+        btn_box.addStretch()
+
+        p_container = QWidget()
+        p_layout = QVBoxLayout(p_container)
+        p_layout.setContentsMargins(0, 0, 0, 0)
+        p_layout.setSpacing(6)
+        p_layout.addWidget(p_edit)
+        p_layout.addLayout(btn_box)
+
+        form.add_row("iCloud Export Path", p_container)
+
+        card.layout.addLayout(form)
+        lay.addWidget(card)
+
+        card = Card("Options")
+        form = FormSection()
+
+        t_write = DroppableLineEdit()
+        t_write.setPlaceholderText("/organized-icloud")
+        self.inputs["archive-icloud"]["write-to"] = t_write
+        self._add_browse_action(t_write, "Select Archive Destination")
+        form.add_row("Destination Folder", t_write)
+
+        card.layout.addLayout(form)
+        lay.addWidget(card)
+
+        adv_card = self._build_advanced_flags_card("archive-icloud")
+        lay.addWidget(adv_card)
+
+        lay.addStretch()
+        return page
+
+    def _build_archive_picasa_tab(self):
+        page = QWidget()
+        lay = QVBoxLayout(page)
+        lay.setContentsMargins(0, 16, 0, 0)
+        lay.setSpacing(24)
+        self.inputs["archive-picasa"] = {}
+
+        card = Card("Source Configuration", required=True)
+        form = FormSection()
+
+        p_edit = DroppableLineEdit()
+        p_edit.setPlaceholderText("/path/to/picasa-photos or /path/to/picasa.zip")
+        self.inputs["archive-picasa"]["path"] = p_edit
+
+        btn_folder = QPushButton("Select Folder…")
+        btn_folder.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_folder.clicked.connect(self.browse_folder_archive_picasa)
+
+        btn_zip = QPushButton("Select ZIP Archive…")
+        btn_zip.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_zip.clicked.connect(self.browse_zip_archive_picasa)
+
+        btn_box = QHBoxLayout()
+        btn_box.setContentsMargins(0, 4, 0, 0)
+        btn_box.setSpacing(10)
+        btn_box.addWidget(btn_folder)
+        btn_box.addWidget(btn_zip)
+        btn_box.addStretch()
+
+        p_container = QWidget()
+        p_layout = QVBoxLayout(p_container)
+        p_layout.setContentsMargins(0, 0, 0, 0)
+        p_layout.setSpacing(6)
+        p_layout.addWidget(p_edit)
+        p_layout.addLayout(btn_box)
+
+        form.add_row("Picasa Collection Path", p_container)
+
+        card.layout.addLayout(form)
+        lay.addWidget(card)
+
+        card = Card("Options")
+        form = FormSection()
+
+        t_write = DroppableLineEdit()
+        t_write.setPlaceholderText("/organized-picasa")
+        self.inputs["archive-picasa"]["write-to"] = t_write
+        self._add_browse_action(t_write, "Select Archive Destination")
+        form.add_row("Destination Folder", t_write)
+
+        card.layout.addLayout(form)
+        lay.addWidget(card)
+
+        adv_card = self._build_advanced_flags_card("archive-picasa")
         lay.addWidget(adv_card)
 
         lay.addStretch()
@@ -1527,13 +1895,18 @@ class ImmichGoGUI(QMainWindow):
             u_crumbs = {
                 0: "upload · from-folder",
                 1: "upload · from-google-photos",
-                2: "upload · from-immich",
+                2: "upload · from-icloud",
+                3: "upload · from-picasa",
+                4: "upload · from-immich",
             }
             crumb = u_crumbs.get(self.upload_tabs.currentIndex(), "upload")
         elif index == 2 and hasattr(self, "archive_tabs"):
             a_crumbs = {
                 0: "archive · from-folder",
-                1: "archive · from-immich",
+                1: "archive · from-google-photos",
+                2: "archive · from-icloud",
+                3: "archive · from-picasa",
+                4: "archive · from-immich",
             }
             crumb = a_crumbs.get(self.archive_tabs.currentIndex(), "archive")
         self.update_header_crumb(crumb)
@@ -1970,6 +2343,76 @@ class ImmichGoGUI(QMainWindow):
         if file_path:
             self.inputs["archive-folder"]["path"].setText(file_path)
 
+    def browse_folder_upload_icloud(self):
+        folder = QFileDialog.getExistingDirectory(
+            self, "Select iCloud Export Folder", "", QFileDialog.Option.ShowDirsOnly
+        )
+        if folder:
+            self.inputs["upload-icloud"]["path"].setText(folder)
+
+    def browse_zip_upload_icloud(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select iCloud ZIP Archive", "", "ZIP archives (*.zip *.ZIP);;All Files (*)", options=QFileDialog.Option(0)
+        )
+        if file_path:
+            self.inputs["upload-icloud"]["path"].setText(file_path)
+
+    def browse_folder_upload_picasa(self):
+        folder = QFileDialog.getExistingDirectory(
+            self, "Select Picasa Folder", "", QFileDialog.Option.ShowDirsOnly
+        )
+        if folder:
+            self.inputs["upload-picasa"]["path"].setText(folder)
+
+    def browse_zip_upload_picasa(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select Picasa ZIP Archive", "", "ZIP archives (*.zip *.ZIP);;All Files (*)", options=QFileDialog.Option(0)
+        )
+        if file_path:
+            self.inputs["upload-picasa"]["path"].setText(file_path)
+
+    def browse_archive_gp_zips(self):
+        files, _ = QFileDialog.getOpenFileNames(
+            self, "Select Takeout ZIP parts", "", "ZIP archives (*.zip *.ZIP);;All Files (*)", options=QFileDialog.Option(0)
+        )
+        if files:
+            self.inputs["archive-gp"]["path"].setPlainText("\n".join(files))
+
+    def browse_archive_gp_folder(self):
+        folder = QFileDialog.getExistingDirectory(
+            self, "Select Extracted Folder", "", QFileDialog.Option.ShowDirsOnly
+        )
+        if folder:
+            self.inputs["archive-gp"]["path"].setPlainText(folder)
+
+    def browse_folder_archive_icloud(self):
+        folder = QFileDialog.getExistingDirectory(
+            self, "Select iCloud Export Folder", "", QFileDialog.Option.ShowDirsOnly
+        )
+        if folder:
+            self.inputs["archive-icloud"]["path"].setText(folder)
+
+    def browse_zip_archive_icloud(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select iCloud ZIP Archive", "", "ZIP archives (*.zip *.ZIP);;All Files (*)", options=QFileDialog.Option(0)
+        )
+        if file_path:
+            self.inputs["archive-icloud"]["path"].setText(file_path)
+
+    def browse_folder_archive_picasa(self):
+        folder = QFileDialog.getExistingDirectory(
+            self, "Select Picasa Folder", "", QFileDialog.Option.ShowDirsOnly
+        )
+        if folder:
+            self.inputs["archive-picasa"]["path"].setText(folder)
+
+    def browse_zip_archive_picasa(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "Select Picasa ZIP Archive", "", "ZIP archives (*.zip *.ZIP);;All Files (*)", options=QFileDialog.Option(0)
+        )
+        if file_path:
+            self.inputs["archive-picasa"]["path"].setText(file_path)
+
     def browse_takeout_source(self):
         self.browse_takeout_zips()
 
@@ -2075,6 +2518,24 @@ class ImmichGoGUI(QMainWindow):
                 "manage-heic-jpeg": get_combo("manage-heic-jpeg", "NoStack"),
             }
 
+        elif tab_key == "upload-icloud":
+            return {
+                "path": get_text("path"),
+                "manage-burst": get_combo("manage-burst", "NoStack"),
+                "manage-raw-jpeg": get_combo("manage-raw-jpeg", "NoStack"),
+                "manage-heic-jpeg": get_combo("manage-heic-jpeg", "NoStack"),
+            }
+
+        elif tab_key == "upload-picasa":
+            return {
+                "path": get_text("path"),
+                "folder-album": get_combo("folder-album", "NONE"),
+                "into-album": get_text("into-album"),
+                "manage-burst": get_combo("manage-burst", "NoStack"),
+                "manage-raw-jpeg": get_combo("manage-raw-jpeg", "NoStack"),
+                "manage-heic-jpeg": get_combo("manage-heic-jpeg", "NoStack"),
+            }
+
         elif tab_key == "upload-immich":
             return {
                 "from-server": get_text("from-server"),
@@ -2084,6 +2545,27 @@ class ImmichGoGUI(QMainWindow):
             }
 
         elif tab_key == "archive-folder":
+            return {
+                "path": get_text("path"),
+                "write-to": get_text("write-to"),
+            }
+
+        elif tab_key == "archive-gp":
+            return {
+                "path": get_text("path"),
+                "write-to": get_text("write-to"),
+                "include-partner": get_bool("include-partner", True),
+                "sync-albums": get_bool("sync-albums", True),
+                "include-archived": get_bool("include-archived", True),
+            }
+
+        elif tab_key == "archive-icloud":
+            return {
+                "path": get_text("path"),
+                "write-to": get_text("write-to"),
+            }
+
+        elif tab_key == "archive-picasa":
             return {
                 "path": get_text("path"),
                 "write-to": get_text("write-to"),

@@ -128,7 +128,7 @@ def test_api_key_never_in_argv(gui):
 
 def test_from_api_key_never_in_argv(gui):
     gui.stacked_widget.setCurrentIndex(1)
-    gui.upload_tabs.setCurrentIndex(2)
+    gui.upload_tabs.setCurrentIndex(4)
     gui.inputs["config"]["server"].setText("http://new:2283")
     gui.inputs["config"]["api_key"].setText("new_key")
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
@@ -226,11 +226,11 @@ def test_tab_switching_updates_crumb(gui):
     gui.upload_tabs.setCurrentIndex(1)    # Google Takeout sub-tab
     assert gui.lbl_crumb.text() == "upload · from-google-photos"
 
-    gui.upload_tabs.setCurrentIndex(2)    # From Immich sub-tab
+    gui.upload_tabs.setCurrentIndex(4)    # From Immich sub-tab
     assert gui.lbl_crumb.text() == "upload · from-immich"
 
     gui.stacked_widget.setCurrentIndex(2)  # Archive page
-    gui.archive_tabs.setCurrentIndex(1)    # Archive Server sub-tab
+    gui.archive_tabs.setCurrentIndex(4)    # Archive Server sub-tab
     assert gui.lbl_crumb.text() == "archive · from-immich"
 
 
@@ -284,7 +284,7 @@ def test_pause_jobs_not_on_stack(gui):
 def test_on_errors_emitted_when_configured(gui):
     gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(2)  # archive page
-    gui.archive_tabs.setCurrentIndex(1)    # archive-immich
+    gui.archive_tabs.setCurrentIndex(4)    # archive-immich
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["archive-immich"]["write-to"].setText("/dst")
@@ -342,7 +342,7 @@ def test_api_trace_on_stack(gui):
 def test_from_client_timeout(gui):
     gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
-    gui.upload_tabs.setCurrentIndex(2)     # upload-immich
+    gui.upload_tabs.setCurrentIndex(4)     # upload-immich
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
@@ -427,7 +427,7 @@ def test_api_trace_on_stack_disabled(gui):
 def test_build_command_upload_immich(gui):
     gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
-    gui.upload_tabs.setCurrentIndex(2)     # upload-immich sub-tab
+    gui.upload_tabs.setCurrentIndex(4)     # upload-immich sub-tab
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("local-key")
     gui.inputs["upload-immich"]["from-server"].setText("http://remote:2283")
@@ -493,7 +493,7 @@ def test_build_command_archive_folder(gui):
 def test_build_command_archive_immich(gui):
     gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(2)  # archive page
-    gui.archive_tabs.setCurrentIndex(1)    # archive-immich sub-tab
+    gui.archive_tabs.setCurrentIndex(4)    # archive-immich sub-tab
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["archive-immich"]["write-to"].setText("/dest/folder")
@@ -638,7 +638,7 @@ def test_golden_upload_immich(gui):
     """Golden: upload from-immich simple mode."""
     gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(1)
-    gui.upload_tabs.setCurrentIndex(2)
+    gui.upload_tabs.setCurrentIndex(4)
     gui.inputs["config"]["server"].setText("http://new:2283")
     gui.inputs["config"]["api_key"].setText("new-key")
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
@@ -661,7 +661,7 @@ def test_golden_archive_immich(gui):
     """Golden: archive from-immich simple mode."""
     gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(2)
-    gui.archive_tabs.setCurrentIndex(1)
+    gui.archive_tabs.setCurrentIndex(4)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("test-key")
     gui.inputs["archive-immich"]["write-to"].setText("/backup/photos")
@@ -1959,7 +1959,7 @@ def test_upload_gp_does_not_include_into_album_advanced_key():
 def test_from_admin_api_key_advanced_secret_env(gui):
     gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)
-    gui.upload_tabs.setCurrentIndex(2)
+    gui.upload_tabs.setCurrentIndex(4)
 
     gui.inputs["config"]["server"].setText("http://new:2283")
     gui.inputs["config"]["api_key"].setText("new-key")
@@ -2043,7 +2043,7 @@ def test_upload_immich_simple_mode_from_date_range_emitted(gui):
     """A1: from-date-range in upload-immich simple card must produce CLI flag."""
     gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(1)
-    gui.upload_tabs.setCurrentIndex(2)
+    gui.upload_tabs.setCurrentIndex(4)
     gui.inputs["config"]["server"].setText("http://new:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
@@ -2060,7 +2060,7 @@ def test_upload_immich_simple_mode_from_albums_emitted(gui):
     """A1: from-albums in upload-immich simple card must produce repeat CLI flags."""
     gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(1)
-    gui.upload_tabs.setCurrentIndex(2)
+    gui.upload_tabs.setCurrentIndex(4)
     gui.inputs["config"]["server"].setText("http://new:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
@@ -2078,7 +2078,7 @@ def test_archive_immich_simple_mode_from_date_range_emitted(gui):
     """A1: from-date-range in archive-immich simple card must produce CLI flag."""
     gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(2)
-    gui.archive_tabs.setCurrentIndex(1)
+    gui.archive_tabs.setCurrentIndex(4)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["archive-immich"]["write-to"].setText("/backup")
@@ -2094,7 +2094,7 @@ def test_archive_immich_simple_mode_from_albums_emitted(gui):
     """A1: from-albums in archive-immich simple card must produce repeat CLI flags."""
     gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(2)
-    gui.archive_tabs.setCurrentIndex(1)
+    gui.archive_tabs.setCurrentIndex(4)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["archive-immich"]["write-to"].setText("/backup")
@@ -2202,7 +2202,7 @@ def test_env_var_secret_contract_with_stub(gui):
 
     gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)
-    gui.upload_tabs.setCurrentIndex(2)  # upload-immich tab
+    gui.upload_tabs.setCurrentIndex(4)  # upload-immich tab
 
     gui.inputs["config"]["server"].setText("http://target:2283")
     gui.inputs["config"]["api_key"].setText("target-secret-key-123")
@@ -2292,3 +2292,103 @@ def test_windows_bat_heartbeat_generation(tmp_path, monkeypatch):
     assert ".heartbeat" in bat_content
     assert "start /b cmd /c" in bat_content
     assert 'del /f "%HB_FILE%"' in bat_content
+
+
+def test_golden_upload_icloud_simple(gui):
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(2)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-icloud"]["path"].setText("/photos/icloud")
+
+    plan = gui.build_plan(dry_run=False)
+    assert plan.argv == ["upload", "from-icloud", "--server=http://localhost:2283", "/photos/icloud"]
+    assert plan.tab_key == "upload-icloud"
+
+
+def test_golden_upload_picasa_simple(gui):
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(3)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-picasa"]["path"].setText("/photos/picasa")
+
+    plan = gui.build_plan(dry_run=False)
+    assert plan.argv == ["upload", "from-picasa", "--server=http://localhost:2283", "/photos/picasa"]
+    assert plan.tab_key == "upload-picasa"
+
+
+def test_golden_archive_gp_simple(gui):
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(1)
+    gui.inputs["archive-gp"]["path"].setPlainText("/takeout/photos")
+    gui.inputs["archive-gp"]["write-to"].setText("/backup/takeout")
+
+    plan = gui.build_plan(dry_run=False)
+    assert plan.argv == ["archive", "from-google-photos", "--write-to-folder=/backup/takeout", "/takeout/photos"]
+    assert "--server" not in " ".join(plan.argv)
+    assert plan.tab_key == "archive-gp"
+
+
+def test_golden_archive_icloud_simple(gui):
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(2)
+    gui.inputs["archive-icloud"]["path"].setText("/photos/icloud")
+    gui.inputs["archive-icloud"]["write-to"].setText("/backup/icloud")
+
+    plan = gui.build_plan(dry_run=False)
+    assert plan.argv == ["archive", "from-icloud", "--write-to-folder=/backup/icloud", "/photos/icloud"]
+    assert "--server" not in " ".join(plan.argv)
+    assert plan.tab_key == "archive-icloud"
+
+
+def test_golden_archive_picasa_simple(gui):
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(3)
+    gui.inputs["archive-picasa"]["path"].setText("/photos/picasa")
+    gui.inputs["archive-picasa"]["write-to"].setText("/backup/picasa")
+
+    plan = gui.build_plan(dry_run=False)
+    assert plan.argv == ["archive", "from-picasa", "--write-to-folder=/backup/picasa", "/photos/picasa"]
+    assert "--server" not in " ".join(plan.argv)
+    assert plan.tab_key == "archive-picasa"
+
+
+def test_serverless_archive_tabs_never_emit_server(gui):
+    from core.cli_schema import SERVERLESS_TABS
+    gui.inputs["config"]["server"].setText("http://should-not-emit:2283")
+    gui.inputs["config"]["api_key"].setText("secret")
+
+    # archive-folder
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(0)
+    gui.inputs["archive-folder"]["path"].setText("/src")
+    gui.inputs["archive-folder"]["write-to"].setText("/dst")
+    plan = gui.build_plan(dry_run=False)
+    assert "--server" not in " ".join(plan.argv)
+
+    # archive-gp
+    gui.archive_tabs.setCurrentIndex(1)
+    gui.inputs["archive-gp"]["path"].setPlainText("/src")
+    gui.inputs["archive-gp"]["write-to"].setText("/dst")
+    plan = gui.build_plan(dry_run=False)
+    assert "--server" not in " ".join(plan.argv)
+
+    # archive-icloud
+    gui.archive_tabs.setCurrentIndex(2)
+    gui.inputs["archive-icloud"]["path"].setText("/src")
+    gui.inputs["archive-icloud"]["write-to"].setText("/dst")
+    plan = gui.build_plan(dry_run=False)
+    assert "--server" not in " ".join(plan.argv)
+
+    # archive-picasa
+    gui.archive_tabs.setCurrentIndex(3)
+    gui.inputs["archive-picasa"]["path"].setText("/src")
+    gui.inputs["archive-picasa"]["write-to"].setText("/dst")
+    plan = gui.build_plan(dry_run=False)
+    assert "--server" not in " ".join(plan.argv)

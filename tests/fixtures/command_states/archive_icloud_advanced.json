@@ -1,0 +1,18 @@
+{
+  "tab_key": "archive-icloud",
+  "config_state": {},
+  "tab_state": {
+    "path": "/data/icloud",
+    "write-to": "/backup/icloud"
+  },
+  "advanced_state": {
+    "memories": { "enabled": true, "value": true }
+  },
+  "expected_argv": [
+    "archive",
+    "from-icloud",
+    "--write-to-folder=/backup/icloud",
+    "--memories",
+    "/data/icloud"
+  ]
+}
