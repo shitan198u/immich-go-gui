@@ -4,26 +4,28 @@ IMMICH-GO GUI - PYTHON BACKEND, CORE & HELPERS BUNDLE
 Generated for LLM Review & Prompting
 Files Included:
    1. core/__init__.py (159 lines)
-   2. core/binary_manager.py (609 lines)
-   3. core/cli_contract.py (96 lines)
-   4. core/cli_help.py (56 lines)
-   5. core/cli_schema.py (243 lines)
-   6. core/command_builder.py (848 lines)
-   7. core/config_manager.py (381 lines)
-   8. core/models.py (94 lines)
-   9. core/network.py (115 lines)
-  10. core/process_tracker.py (238 lines)
-  11. core/profile_manager.py (340 lines)
-  12. core/terminal_launcher.py (216 lines)
-  13. core/validation.py (237 lines)
-  14. test_app.py (2005 lines)
-  15. scripts/capture_cli_help.py (84 lines)
-  16. scripts/convert_markdown.py (564 lines)
+   2. core/advanced_flags.py (1046 lines)
+   3. core/binary_manager.py (609 lines)
+   4. core/cli_contract.py (96 lines)
+   5. core/cli_help.py (56 lines)
+   6. core/cli_schema.py (243 lines)
+   7. core/command_builder.py (503 lines)
+   8. core/config_manager.py (381 lines)
+   9. core/models.py (94 lines)
+  10. core/network.py (115 lines)
+  11. core/process_tracker.py (238 lines)
+  12. core/profile_manager.py (340 lines)
+  13. core/terminal_launcher.py (229 lines)
+  14. core/validation.py (237 lines)
+  15. test_app.py (1971 lines)
+  16. scripts/capture_cli_help.py (84 lines)
+  17. scripts/convert_markdown.py (564 lines)
+  18. scripts/generate_diff_bundle.py (55 lines)
 ================================================================================
 
 
 ================================================================================
-FILE 1 / 16: core/__init__.py (Lines 1-159)
+FILE 1 / 18: core/__init__.py (Lines 1-159)
 ================================================================================
 """Core backend business logic for Immich-Go GUI.
 
@@ -188,7 +190,1059 @@ __all__ = [
 
 
 ================================================================================
-FILE 2 / 16: core/binary_manager.py (Lines 1-609)
+FILE 2 / 18: core/advanced_flags.py (Lines 1-1046)
+================================================================================
+"""Pure-Python registry and helper functions for schema-driven opt-in advanced flags.
+
+Qt-free module.
+"""
+
+from dataclasses import dataclass, field
+from typing import Any, Literal
+
+from .models import CommandPlan, ValidationResult
+from .validation import clean_date_range, normalize_extensions_csv, normalize_list_csv
+
+AdvancedFlagKind = Literal[
+    "bool",
+    "text",
+    "enum",
+    "int",
+    "duration_minutes",
+    "extensions",
+    "csv_repeat",
+    "lines_repeat",
+    "date_range",
+]
+
+
+@dataclass(frozen=True)
+class AdvancedFlagDef:
+    key: str                      # Internal state key
+    flag: str                     # CLI flag name without --
+    label: str                    # Human-readable label / tooltip
+    kind: AdvancedFlagKind
+    default: Any = None
+    options: tuple[str, ...] = ()
+    placeholder: str = ""
+    hint: str = ""
+    secret_env: str | None = None
+    allow_empty: bool = True
+    warn_values: dict[Any, str] = field(default_factory=dict)
+
+
+ADVANCED_FLAGS: dict[str, tuple[AdvancedFlagDef, ...]] = {
+    "upload-folder": (
+        AdvancedFlagDef(
+            key="recursive",
+            flag="recursive",
+            label="Scan subdirectories recursively",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="date-from-name",
+            flag="date-from-name",
+            label="Use date from filename",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="ignore-sidecar",
+            flag="ignore-sidecar-files",
+            label="Ignore sidecar files",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="time-zone",
+            flag="time-zone",
+            label="Time zone override",
+            kind="text",
+            placeholder="UTC or America/New_York",
+        ),
+        AdvancedFlagDef(
+            key="album-path-joiner",
+            flag="album-path-joiner",
+            label="Album path joiner",
+            kind="text",
+            placeholder=" / ",
+        ),
+        AdvancedFlagDef(
+            key="date-range",
+            flag="date-range",
+            label="Date range",
+            kind="date_range",
+            placeholder="YYYY-MM-DD,YYYY-MM-DD",
+        ),
+        AdvancedFlagDef(
+            key="include-ext",
+            flag="include-extensions",
+            label="Include extensions",
+            kind="extensions",
+            placeholder=".jpg,.heic,.mp4",
+        ),
+        AdvancedFlagDef(
+            key="exclude-ext",
+            flag="exclude-extensions",
+            label="Exclude extensions",
+            kind="extensions",
+            placeholder=".thm,.xmp",
+        ),
+        AdvancedFlagDef(
+            key="ban-file",
+            flag="ban-file",
+            label="Skip files matching patterns",
+            kind="lines_repeat",
+            placeholder="@eaDir/\n.DS_Store",
+        ),
+        AdvancedFlagDef(
+            key="tag",
+            flag="tag",
+            label="Custom tags",
+            kind="csv_repeat",
+            placeholder="vacation, family/reunion",
+        ),
+        AdvancedFlagDef(
+            key="session-tag",
+            flag="session-tag",
+            label="Session tag",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="folder-tags",
+            flag="folder-as-tags",
+            label="Folder as tags",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="overwrite",
+            flag="overwrite",
+            label="Overwrite existing",
+            kind="bool",
+            default=False,
+            warn_values={
+                True: "Overwrite mode will replace existing files on the server."
+            },
+        ),
+        AdvancedFlagDef(
+            key="pause-jobs",
+            flag="pause-immich-jobs",
+            label="Pause Immich background jobs",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="manage-epson",
+            flag="manage-epson-fastfoto",
+            label="Manage Epson FastFoto photos",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="include-type",
+            flag="include-type",
+            label="Media type",
+            kind="enum",
+            options=("all", "IMAGE", "VIDEO"),
+            default="all",
+        ),
+        AdvancedFlagDef(
+            key="on-errors",
+            flag="on-errors",
+            label="On errors",
+            kind="enum",
+            options=("stop", "continue"),
+            default="stop",
+        ),
+        AdvancedFlagDef(
+            key="log-level",
+            flag="log-level",
+            label="Log level",
+            kind="enum",
+            options=("INFO", "DEBUG", "WARN", "ERROR"),
+            default="INFO",
+        ),
+        AdvancedFlagDef(
+            key="api-trace",
+            flag="api-trace",
+            label="Enable API trace",
+            kind="bool",
+            default=False,
+        ),
+    ),
+    "upload-gp": (
+        AdvancedFlagDef(
+            key="include-type",
+            flag="include-type",
+            label="Media type",
+            kind="enum",
+            options=("all", "IMAGE", "VIDEO"),
+            default="all",
+        ),
+        AdvancedFlagDef(
+            key="include-unmatched",
+            flag="include-unmatched",
+            label="Include unmatched photos",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="include-partner",
+            flag="include-partner",
+            label="Include partner photos",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="sync-albums",
+            flag="sync-albums",
+            label="Sync Google Photos albums",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="from-album-name",
+            flag="from-album-name",
+            label="Only import from album",
+            kind="text",
+            placeholder="Family Album",
+        ),
+        AdvancedFlagDef(
+            key="partner-album",
+            flag="partner-shared-album",
+            label="Add partner photos to album",
+            kind="text",
+            placeholder="Partner Photos",
+        ),
+        AdvancedFlagDef(
+            key="include-archived",
+            flag="include-archived",
+            label="Include archived photos",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="include-trashed",
+            flag="include-trashed",
+            label="Include trashed photos",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="include-untitled-albums",
+            flag="include-untitled-albums",
+            label="Include untitled albums",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="takeout-tag",
+            flag="takeout-tag",
+            label="Takeout tag",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="people-tag",
+            flag="people-tag",
+            label="People tag",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="manage-raw-jpeg",
+            flag="manage-raw-jpeg",
+            label="RAW/JPEG mode",
+            kind="enum",
+            options=("NoStack", "KeepRaw", "KeepJPG", "StackCoverRaw", "StackCoverJPG"),
+            default="NoStack",
+        ),
+        AdvancedFlagDef(
+            key="manage-epson",
+            flag="manage-epson-fastfoto",
+            label="Manage Epson FastFoto photos",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="date-range",
+            flag="date-range",
+            label="Date range",
+            kind="date_range",
+            placeholder="YYYY-MM-DD,YYYY-MM-DD",
+        ),
+        AdvancedFlagDef(
+            key="include-ext",
+            flag="include-extensions",
+            label="Include extensions",
+            kind="extensions",
+            placeholder=".jpg,.heic,.mp4",
+        ),
+        AdvancedFlagDef(
+            key="exclude-ext",
+            flag="exclude-extensions",
+            label="Exclude extensions",
+            kind="extensions",
+            placeholder=".thm,.xmp",
+        ),
+        AdvancedFlagDef(
+            key="ban-file",
+            flag="ban-file",
+            label="Skip files matching patterns",
+            kind="lines_repeat",
+            placeholder="@eaDir/\n.DS_Store",
+        ),
+        AdvancedFlagDef(
+            key="tag",
+            flag="tag",
+            label="Custom tags",
+            kind="csv_repeat",
+            placeholder="vacation, family/reunion",
+        ),
+        AdvancedFlagDef(
+            key="session-tag",
+            flag="session-tag",
+            label="Session tag",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="overwrite",
+            flag="overwrite",
+            label="Overwrite existing",
+            kind="bool",
+            default=False,
+            warn_values={
+                True: "Overwrite mode will replace existing files on the server."
+            },
+        ),
+        AdvancedFlagDef(
+            key="on-errors",
+            flag="on-errors",
+            label="On errors",
+            kind="enum",
+            options=("stop", "continue"),
+            default="stop",
+        ),
+        AdvancedFlagDef(
+            key="pause-jobs",
+            flag="pause-immich-jobs",
+            label="Pause Immich background jobs",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="time-zone",
+            flag="time-zone",
+            label="Time zone override",
+            kind="text",
+            placeholder="UTC",
+        ),
+        AdvancedFlagDef(
+            key="log-level",
+            flag="log-level",
+            label="Log level",
+            kind="enum",
+            options=("INFO", "DEBUG", "WARN", "ERROR"),
+            default="INFO",
+        ),
+        AdvancedFlagDef(
+            key="api-trace",
+            flag="api-trace",
+            label="Enable API trace",
+            kind="bool",
+            default=False,
+        ),
+    ),
+    "upload-immich": (
+        AdvancedFlagDef(
+            key="from-admin-api-key",
+            flag="from-admin-api-key",
+            label="Source admin API key",
+            kind="text",
+            secret_env="IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY",
+        ),
+        AdvancedFlagDef(
+            key="from-client-timeout",
+            flag="from-client-timeout",
+            label="Source client timeout",
+            kind="duration_minutes",
+            default=20,
+        ),
+        AdvancedFlagDef(
+            key="from-favorite",
+            flag="from-favorite",
+            label="Only favorite assets",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="from-archived",
+            flag="from-archived",
+            label="Include source archived",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="from-trash",
+            flag="from-trash",
+            label="Include source trash",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="from-partners",
+            flag="from-partners",
+            label="Include source partner assets",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="from-no-album",
+            flag="from-no-album",
+            label="Only assets without album",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="from-date-range",
+            flag="from-date-range",
+            label="Source date range",
+            kind="date_range",
+            placeholder="YYYY-MM-DD,YYYY-MM-DD",
+        ),
+        AdvancedFlagDef(
+            key="from-albums",
+            flag="from-albums",
+            label="Source album names",
+            kind="csv_repeat",
+            placeholder="Album1, Album2",
+        ),
+        AdvancedFlagDef(
+            key="from-minimal-rating",
+            flag="from-minimal-rating",
+            label="Source minimal rating",
+            kind="int",
+            default=0,
+        ),
+        AdvancedFlagDef(
+            key="from-people",
+            flag="from-people",
+            label="Source people tags",
+            kind="csv_repeat",
+            placeholder="John, Jane",
+        ),
+        AdvancedFlagDef(
+            key="from-tags",
+            flag="from-tags",
+            label="Source tags",
+            kind="csv_repeat",
+            placeholder="Tag1, Tag2",
+        ),
+        AdvancedFlagDef(
+            key="from-city",
+            flag="from-city",
+            label="Source city",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="from-state",
+            flag="from-state",
+            label="Source state",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="from-country",
+            flag="from-country",
+            label="Source country",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="from-make",
+            flag="from-make",
+            label="Source camera make",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="from-model",
+            flag="from-model",
+            label="Source camera model",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="from-include-type",
+            flag="from-include-type",
+            label="Source media type",
+            kind="enum",
+            options=("all", "IMAGE", "VIDEO"),
+            default="all",
+        ),
+        AdvancedFlagDef(
+            key="from-include-ext",
+            flag="from-include-extensions",
+            label="Source include extensions",
+            kind="extensions",
+        ),
+        AdvancedFlagDef(
+            key="from-exclude-ext",
+            flag="from-exclude-extensions",
+            label="Source exclude extensions",
+            kind="extensions",
+        ),
+        AdvancedFlagDef(
+            key="from-time-zone",
+            flag="from-time-zone",
+            label="Source time zone",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="from-device-uuid",
+            flag="from-device-uuid",
+            label="Source device UUID",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="from-skip-ssl",
+            flag="from-skip-verify-ssl",
+            label="Source skip SSL verification",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="from-api-trace",
+            flag="from-api-trace",
+            label="Source API trace",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="from-pause-jobs",
+            flag="from-pause-immich-jobs",
+            label="Source pause jobs",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="tag",
+            flag="tag",
+            label="Destination tags",
+            kind="csv_repeat",
+        ),
+        AdvancedFlagDef(
+            key="session-tag",
+            flag="session-tag",
+            label="Destination session tag",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="overwrite",
+            flag="overwrite",
+            label="Destination overwrite",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="time-zone",
+            flag="time-zone",
+            label="Destination time zone",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="manage-burst",
+            flag="manage-burst",
+            label="Destination burst mode",
+            kind="enum",
+            options=("NoStack", "Stack", "StackKeepRaw", "StackKeepJPEG"),
+            default="NoStack",
+        ),
+        AdvancedFlagDef(
+            key="manage-raw-jpeg",
+            flag="manage-raw-jpeg",
+            label="Destination RAW/JPEG mode",
+            kind="enum",
+            options=("NoStack", "KeepRaw", "KeepJPG", "StackCoverRaw", "StackCoverJPG"),
+            default="NoStack",
+        ),
+        AdvancedFlagDef(
+            key="manage-heic-jpeg",
+            flag="manage-heic-jpeg",
+            label="Destination HEIC/JPEG mode",
+            kind="enum",
+            options=("NoStack", "KeepHeic", "KeepJPG", "StackCoverHeic", "StackCoverJPG"),
+            default="NoStack",
+        ),
+        AdvancedFlagDef(
+            key="manage-epson",
+            flag="manage-epson-fastfoto",
+            label="Destination Epson FastFoto",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="on-errors",
+            flag="on-errors",
+            label="On errors",
+            kind="enum",
+            options=("stop", "continue"),
+            default="stop",
+        ),
+        AdvancedFlagDef(
+            key="log-level",
+            flag="log-level",
+            label="Log level",
+            kind="enum",
+            options=("INFO", "DEBUG", "WARN", "ERROR"),
+            default="INFO",
+        ),
+        AdvancedFlagDef(
+            key="api-trace",
+            flag="api-trace",
+            label="Destination API trace",
+            kind="bool",
+            default=False,
+        ),
+    ),
+    "archive-folder": (
+        AdvancedFlagDef(
+            key="date-range",
+            flag="date-range",
+            label="Date range",
+            kind="date_range",
+            placeholder="YYYY-MM-DD,YYYY-MM-DD",
+        ),
+        AdvancedFlagDef(
+            key="include-type",
+            flag="include-type",
+            label="Media type",
+            kind="enum",
+            options=("all", "IMAGE", "VIDEO"),
+            default="all",
+        ),
+        AdvancedFlagDef(
+            key="include-ext",
+            flag="include-extensions",
+            label="Include extensions",
+            kind="extensions",
+        ),
+        AdvancedFlagDef(
+            key="exclude-ext",
+            flag="exclude-extensions",
+            label="Exclude extensions",
+            kind="extensions",
+        ),
+        AdvancedFlagDef(
+            key="ban-file",
+            flag="ban-file",
+            label="Skip files matching patterns",
+            kind="lines_repeat",
+        ),
+        AdvancedFlagDef(
+            key="recursive",
+            flag="recursive",
+            label="Scan subdirectories recursively",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="ignore-sidecar",
+            flag="ignore-sidecar-files",
+            label="Ignore sidecar files",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="date-from-name",
+            flag="date-from-name",
+            label="Use date from filename",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="folder-album",
+            flag="folder-as-album",
+            label="Folder as album mode",
+            kind="enum",
+            options=("NONE", "FOLDER", "PATH"),
+            default="NONE",
+        ),
+        AdvancedFlagDef(
+            key="folder-tags",
+            flag="folder-as-tags",
+            label="Folder as tags",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="into-album",
+            flag="into-album",
+            label="Into album",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="album-path-joiner",
+            flag="album-path-joiner",
+            label="Album path joiner",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="on-errors",
+            flag="on-errors",
+            label="On errors",
+            kind="enum",
+            options=("stop", "continue"),
+            default="stop",
+        ),
+        AdvancedFlagDef(
+            key="log-level",
+            flag="log-level",
+            label="Log level",
+            kind="enum",
+            options=("INFO", "DEBUG", "WARN", "ERROR"),
+            default="INFO",
+        ),
+    ),
+    "archive-immich": (
+        AdvancedFlagDef(
+            key="from-date-range",
+            flag="from-date-range",
+            label="Source date range",
+            kind="date_range",
+        ),
+        AdvancedFlagDef(
+            key="from-albums",
+            flag="from-albums",
+            label="Source album names",
+            kind="csv_repeat",
+        ),
+        AdvancedFlagDef(
+            key="from-favorite",
+            flag="from-favorite",
+            label="Only favorite assets",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="from-archived",
+            flag="from-archived",
+            label="Include source archived",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="from-trash",
+            flag="from-trash",
+            label="Include source trash",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="from-no-album",
+            flag="from-no-album",
+            label="Only assets without album",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="from-partners",
+            flag="from-partners",
+            label="Include source partner assets",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="from-minimal-rating",
+            flag="from-minimal-rating",
+            label="Source minimal rating",
+            kind="int",
+            default=0,
+        ),
+        AdvancedFlagDef(
+            key="from-people",
+            flag="from-people",
+            label="Source people tags",
+            kind="csv_repeat",
+        ),
+        AdvancedFlagDef(
+            key="from-tags",
+            flag="from-tags",
+            label="Source tags",
+            kind="csv_repeat",
+        ),
+        AdvancedFlagDef(
+            key="from-city",
+            flag="from-city",
+            label="Source city",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="from-state",
+            flag="from-state",
+            label="Source state",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="from-country",
+            flag="from-country",
+            label="Source country",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="from-make",
+            flag="from-make",
+            label="Source camera make",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="from-model",
+            flag="from-model",
+            label="Source camera model",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="from-include-type",
+            flag="from-include-type",
+            label="Source media type",
+            kind="enum",
+            options=("all", "IMAGE", "VIDEO"),
+            default="all",
+        ),
+        AdvancedFlagDef(
+            key="from-include-ext",
+            flag="from-include-extensions",
+            label="Source include extensions",
+            kind="extensions",
+        ),
+        AdvancedFlagDef(
+            key="from-exclude-ext",
+            flag="from-exclude-extensions",
+            label="Source exclude extensions",
+            kind="extensions",
+        ),
+        AdvancedFlagDef(
+            key="from-time-zone",
+            flag="from-time-zone",
+            label="Source time zone",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="from-device-uuid",
+            flag="from-device-uuid",
+            label="Source device UUID",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="from-client-timeout",
+            flag="from-client-timeout",
+            label="Source client timeout",
+            kind="duration_minutes",
+            default=20,
+        ),
+        AdvancedFlagDef(
+            key="from-skip-ssl",
+            flag="from-skip-verify-ssl",
+            label="Source skip SSL verification",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="from-api-trace",
+            flag="from-api-trace",
+            label="Source API trace",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="from-pause-jobs",
+            flag="from-pause-immich-jobs",
+            label="Source pause jobs",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="log-level",
+            flag="log-level",
+            label="Log level",
+            kind="enum",
+            options=("INFO", "DEBUG", "WARN", "ERROR"),
+            default="INFO",
+        ),
+    ),
+    "stack": (
+        AdvancedFlagDef(
+            key="date-range",
+            flag="date-range",
+            label="Date range",
+            kind="date_range",
+            placeholder="YYYY-MM-DD,YYYY-MM-DD",
+        ),
+        AdvancedFlagDef(
+            key="time-zone",
+            flag="time-zone",
+            label="Time zone override",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="manage-epson",
+            flag="manage-epson-fastfoto",
+            label="Manage Epson FastFoto photos",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="pause-jobs",
+            flag="pause-immich-jobs",
+            label="Pause Immich background jobs",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="log-level",
+            flag="log-level",
+            label="Log level",
+            kind="enum",
+            options=("INFO", "DEBUG", "WARN", "ERROR"),
+            default="INFO",
+        ),
+        AdvancedFlagDef(
+            key="api-trace",
+            flag="api-trace",
+            label="Enable API trace",
+            kind="bool",
+            default=False,
+        ),
+    ),
+}
+
+
+def advanced_flag_args(def_: AdvancedFlagDef, value: Any) -> list[str]:
+    """Generates CLI argument list for an enabled advanced flag definition and value."""
+    flag = def_.flag
+
+    if def_.kind == "bool":
+        if bool(value):
+            return [f"--{flag}"]
+        return [f"--{flag}=false"]
+
+    if value is None:
+        return []
+
+    if def_.kind in ("text", "enum"):
+        text = str(value).strip()
+        if not text:
+            return []
+        return [f"--{flag}={text}"]
+
+    if def_.kind == "int":
+        return [f"--{flag}={int(value)}"]
+
+    if def_.kind == "duration_minutes":
+        return [f"--{flag}={int(value)}m"]
+
+    if def_.kind == "date_range":
+        cleaned = clean_date_range(str(value))
+        if not cleaned:
+            return []
+        return [f"--{flag}={cleaned}"]
+
+    if def_.kind == "extensions":
+        normalized = normalize_extensions_csv(str(value))
+        if not normalized:
+            return []
+        return [f"--{flag}={normalized}"]
+
+    if def_.kind == "csv_repeat":
+        items = normalize_list_csv(str(value))
+        return [f"--{flag}={item}" for item in items if item]
+
+    if def_.kind == "lines_repeat":
+        args = []
+        for line in str(value).splitlines():
+            line = line.strip()
+            if line:
+                args.append(f"--{flag}={line}")
+        return args
+
+    return []
+
+
+def apply_advanced_flags_to_plan(
+    plan: CommandPlan,
+    emitter: Any,
+    tab_key: str,
+    advanced_state: dict,
+):
+    """Applies active (enabled) advanced flags to a CommandPlan and FlagEmitter."""
+    from .cli_schema import flag_allowed_for_tab
+
+    if not isinstance(advanced_state, dict):
+        return
+
+    for def_ in ADVANCED_FLAGS.get(tab_key, ()):
+        entry = advanced_state.get(def_.key)
+        if not isinstance(entry, dict) or not entry.get("enabled"):
+            continue
+
+        value = entry.get("value", def_.default)
+
+        # Secret advanced flags set env var instead of argv
+        if def_.secret_env:
+            if value:
+                plan.env[def_.secret_env] = str(value).strip()
+            continue
+
+        args = advanced_flag_args(def_, value)
+        if not args:
+            continue
+
+        if not flag_allowed_for_tab(tab_key, def_.flag):
+            emitter.errors.append(
+                f"Flag '--{def_.flag}' is not allowed for tab '{tab_key}'"
+            )
+            continue
+
+        for arg in args:
+            emitter.opts.append(arg)
+
+        warning = def_.warn_values.get(value)
+        if warning:
+            plan.warnings.append(warning)
+
+
+def validate_advanced_state(tab_key: str, advanced_state: dict) -> ValidationResult:
+    """Validates enabled advanced flags for a given tab."""
+    res = ValidationResult()
+    if not isinstance(advanced_state, dict):
+        return res
+
+    for def_ in ADVANCED_FLAGS.get(tab_key, ()):
+        entry = advanced_state.get(def_.key)
+        if not isinstance(entry, dict) or not entry.get("enabled"):
+            continue
+
+        value = entry.get("value", def_.default)
+
+        if def_.kind == "date_range":
+            text = str(value or "").strip()
+            if text:
+                cleaned = clean_date_range(text)
+                if not cleaned:
+                    res.errors.append(f"Invalid {def_.label}: date range invalid format")
+
+        elif def_.kind in ("text", "extensions", "csv_repeat", "lines_repeat"):
+            text = str(value or "").strip()
+            if not text and not def_.allow_empty:
+                res.errors.append(f"{def_.label} is enabled but empty.")
+
+    return res
+
+
+
+================================================================================
+FILE 3 / 18: core/binary_manager.py (Lines 1-609)
 ================================================================================
 """Binary management, version detection, tested version policies, and extraction logic.
 
@@ -803,7 +1857,7 @@ class BinaryManager:
 
 
 ================================================================================
-FILE 3 / 16: core/cli_contract.py (Lines 1-96)
+FILE 4 / 18: core/cli_contract.py (Lines 1-96)
 ================================================================================
 """Runtime CLI Compatibility Checker module for Immich-Go GUI.
 
@@ -905,7 +1959,7 @@ def check_binary_help(binary_path: Path, version: str = TESTED_IMMICH_GO_VERSION
 
 
 ================================================================================
-FILE 4 / 16: core/cli_help.py (Lines 1-56)
+FILE 5 / 18: core/cli_help.py (Lines 1-56)
 ================================================================================
 """CLI Help parsing and fixture loading module for Immich-Go GUI.
 
@@ -967,7 +2021,7 @@ def load_help_fixture(version: str = "0.32.0", help_name: str = "root", raise_on
 
 
 ================================================================================
-FILE 5 / 16: core/cli_schema.py (Lines 1-243)
+FILE 6 / 18: core/cli_schema.py (Lines 1-243)
 ================================================================================
 """Stable metadata constants, mappings, and compatibility matrices.
 
@@ -1137,7 +2191,7 @@ TAB_ALLOWED_FLAGS: dict[str, frozenset[str]] = {
         "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg",
         "manage-epson-fastfoto",
 
-        "from-server", "from-skip-verify-ssl", "from-client-timeout",
+        "from-server", "from-admin-api-key", "from-skip-verify-ssl", "from-client-timeout",
         "from-include-type", "from-include-extensions", "from-exclude-extensions",
         "from-partners", "from-time-zone", "from-no-album", "from-albums",
         "from-date-range", "from-device-uuid", "from-api-trace",
@@ -1216,7 +2270,7 @@ COMPATIBILITY_MATRIX = {
 
 
 ================================================================================
-FILE 6 / 16: core/command_builder.py (Lines 1-848)
+FILE 7 / 18: core/command_builder.py (Lines 1-503)
 ================================================================================
 """Pure command-building and state validation logic for Immich-Go.
 
@@ -1532,8 +2586,9 @@ def build_plan_from_state(
     dry_run: bool = False,
     base_env: dict[str, str] | None = None,
     strict_schema: bool = False,
+    advanced_state: dict | None = None,
 ) -> CommandPlan:
-    """Converts configuration state and tab input state into a CommandPlan."""
+    """Converts configuration state, tab input state, and opt-in advanced state into a CommandPlan."""
     plan = CommandPlan()
     plan.tab_key = tab_key
     plan.dry_run = dry_run
@@ -1618,18 +2673,8 @@ def build_plan_from_state(
 
     # Tab-specific options
     if tab_key == "upload-folder":
-        if tab_state.get("include-type", "all") != "all":
-            emitter.add_option("include-type", tab_state["include-type"])
-
         if tab_state.get("folder-album", "NONE") != "NONE":
             emitter.add_option("folder-as-album", tab_state["folder-album"])
-
-        if tab_state.get("into-album"):
-            emitter.add_option("into-album", tab_state["into-album"])
-
-        if tab_state.get("overwrite"):
-            emitter.add_flag("overwrite")
-            plan.warnings.append("Overwrite mode will replace existing files on the server.")
 
         if tab_state.get("manage-burst", "NoStack") != "NoStack":
             emitter.add_option("manage-burst", tab_state["manage-burst"])
@@ -1645,52 +2690,6 @@ def build_plan_from_state(
 
         if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
             emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
-
-        dr = clean_date_range(str(tab_state.get("date-range", "")))
-        if dr:
-            emitter.add_option("date-range", dr)
-
-        inc_ext = normalize_extensions_csv(str(tab_state.get("include-ext", "")))
-        if inc_ext:
-            emitter.add_option("include-extensions", inc_ext)
-
-        exc_ext = normalize_extensions_csv(str(tab_state.get("exclude-ext", "")))
-        if exc_ext:
-            emitter.add_option("exclude-extensions", exc_ext)
-
-        if tab_state.get("ban-file"):
-            for line in str(tab_state["ban-file"]).split("\n"):
-                if line.strip():
-                    emitter.add_option("ban-file", line.strip())
-
-        if tab_state.get("ignore-sidecar"):
-            emitter.add_flag("ignore-sidecar-files")
-
-        emit_bool_flag(emitter, "recursive", tab_state.get("recursive", True), default=True)
-        emit_bool_flag(emitter, "date-from-name", tab_state.get("date-from-name", True), default=True)
-
-        if tab_state.get("tag"):
-            for t in str(tab_state["tag"]).split(","):
-                if t.strip():
-                    emitter.add_option("tag", t.strip())
-
-        if tab_state.get("session-tag"):
-            emitter.add_flag("session-tag")
-
-        if tab_state.get("folder-tags"):
-            emitter.add_flag("folder-as-tags")
-
-        if tab_state.get("api-trace"):
-            emitter.add_flag("api-trace")
-
-        if tab_state.get("album-path-joiner"):
-            emitter.add_option("album-path-joiner", tab_state["album-path-joiner"])
-
-        if tab_state.get("time-zone"):
-            emitter.add_option("time-zone", tab_state["time-zone"])
-
-        if tab_state.get("manage-epson"):
-            emitter.add_flag("manage-epson-fastfoto")
 
         raw_path = str(tab_state.get("path", "")).strip()
         if raw_path:
@@ -1710,65 +2709,6 @@ def build_plan_from_state(
         if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
             emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
 
-        if tab_state.get("manage-epson"):
-            emitter.add_flag("manage-epson-fastfoto")
-
-        if tab_state.get("include-type", "all") != "all":
-            emitter.add_option("include-type", tab_state["include-type"])
-
-        if tab_state.get("into-album"):
-            emitter.add_option("into-album", tab_state["into-album"])
-
-        if tab_state.get("from-album-name"):
-            emitter.add_option("from-album-name", tab_state["from-album-name"])
-
-        if tab_state.get("partner-album"):
-            emitter.add_option("partner-shared-album", tab_state["partner-album"])
-
-        emit_bool_flag(emitter, "include-archived", tab_state.get("include-archived", True), default=True)
-        emit_bool_flag(emitter, "include-partner", tab_state.get("include-partner", True), default=True)
-        emit_bool_flag(emitter, "sync-albums", tab_state.get("sync-albums", True), default=True)
-        emit_bool_flag(emitter, "takeout-tag", tab_state.get("takeout-tag", True), default=True)
-        emit_bool_flag(emitter, "people-tag", tab_state.get("people-tag", True), default=True)
-
-        emit_bool_flag(emitter, "include-trashed", tab_state.get("include-trashed", False), default=False)
-        emit_bool_flag(emitter, "include-unmatched", tab_state.get("include-unmatched", False), default=False)
-        emit_bool_flag(emitter, "include-untitled-albums", tab_state.get("include-untitled-albums", False), default=False)
-
-        dr = clean_date_range(str(tab_state.get("date-range", "")))
-        if dr:
-            emitter.add_option("date-range", dr)
-
-        inc_ext = normalize_extensions_csv(str(tab_state.get("include-ext", "")))
-        if inc_ext:
-            emitter.add_option("include-extensions", inc_ext)
-
-        exc_ext = normalize_extensions_csv(str(tab_state.get("exclude-ext", "")))
-        if exc_ext:
-            emitter.add_option("exclude-extensions", exc_ext)
-
-        if tab_state.get("ban-file"):
-            for line in str(tab_state["ban-file"]).split("\n"):
-                if line.strip():
-                    emitter.add_option("ban-file", line.strip())
-
-        if tab_state.get("tag"):
-            for t in str(tab_state["tag"]).split(","):
-                if t.strip():
-                    emitter.add_option("tag", t.strip())
-
-        if tab_state.get("session-tag"):
-            emitter.add_flag("session-tag")
-
-        if tab_state.get("overwrite"):
-            emitter.add_flag("overwrite")
-
-        if tab_state.get("time-zone"):
-            emitter.add_option("time-zone", tab_state["time-zone"])
-
-        if tab_state.get("api-trace"):
-            emitter.add_flag("api-trace")
-
         raw_paths = str(tab_state.get("path", "")).strip()
         if raw_paths:
             path_opt.extend(collect_paths(raw_paths))
@@ -1777,162 +2717,12 @@ def build_plan_from_state(
         if from_server:
             emitter.add_option("from-server", normalize_server_url(from_server))
 
-        from_ct = tab_state.get("from-client-timeout")
-        if from_ct is not None and int(from_ct) != 20 and int(from_ct) > 0:
-            emitter.add_option("from-client-timeout", f"{from_ct}m")
-
-        if tab_state.get("from-favorite"):
-            emitter.add_flag("from-favorite")
-
-        if tab_state.get("from-archived"):
-            emitter.add_flag("from-archived")
-
-        if tab_state.get("from-trash"):
-            emitter.add_flag("from-trash")
-
-        if tab_state.get("from-date-range"):
-            emitter.add_option("from-date-range", tab_state["from-date-range"])
-
-        if tab_state.get("from-albums"):
-            for a in str(tab_state["from-albums"]).split(","):
-                if a.strip():
-                    emitter.add_option("from-albums", a.strip())
-
-        if tab_state.get("from-minimal-rating", 0) > 0:
-            emitter.add_option("from-minimal-rating", tab_state["from-minimal-rating"])
-
-        if tab_state.get("from-people"):
-            for p in str(tab_state["from-people"]).split(","):
-                if p.strip():
-                    emitter.add_option("from-people", p.strip())
-
-        if tab_state.get("from-tags"):
-            for t in str(tab_state["from-tags"]).split(","):
-                if t.strip():
-                    emitter.add_option("from-tags", t.strip())
-
-        if tab_state.get("from-city"):
-            emitter.add_option("from-city", tab_state["from-city"])
-
-        if tab_state.get("from-state"):
-            emitter.add_option("from-state", tab_state["from-state"])
-
-        if tab_state.get("from-country"):
-            emitter.add_option("from-country", tab_state["from-country"])
-
-        if tab_state.get("from-make"):
-            emitter.add_option("from-make", tab_state["from-make"])
-
-        if tab_state.get("from-model"):
-            emitter.add_option("from-model", tab_state["from-model"])
-
-        if tab_state.get("from-skip-ssl"):
-            emitter.add_flag("from-skip-verify-ssl")
-
-        if tab_state.get("from-include-type", "all") != "all":
-            emitter.add_option("from-include-type", tab_state["from-include-type"])
-
-        inc_ext = normalize_extensions_csv(str(tab_state.get("from-include-ext", "")))
-        if inc_ext:
-            emitter.add_option("from-include-extensions", inc_ext)
-
-        exc_ext = normalize_extensions_csv(str(tab_state.get("from-exclude-ext", "")))
-        if exc_ext:
-            emitter.add_option("from-exclude-extensions", exc_ext)
-
-        if tab_state.get("from-partners"):
-            emitter.add_flag("from-partners")
-
-        if tab_state.get("from-time-zone"):
-            emitter.add_option("from-time-zone", tab_state["from-time-zone"])
-
-        if tab_state.get("from-no-album"):
-            emitter.add_flag("from-no-album")
-
-        if tab_state.get("from-device-uuid"):
-            emitter.add_option("from-device-uuid", tab_state["from-device-uuid"])
-
-        if tab_state.get("from-api-trace"):
-            emitter.add_flag("from-api-trace")
-
-        if "from-pause-jobs" in tab_state and not tab_state["from-pause-jobs"]:
-            emitter.add_bool_val("from-pause-immich-jobs", False)
-
-        # Destination flags
-        if tab_state.get("tag"):
-            for t in str(tab_state["tag"]).split(","):
-                if t.strip():
-                    emitter.add_option("tag", t.strip())
-
-        if tab_state.get("session-tag"):
-            emitter.add_flag("session-tag")
-
-        if tab_state.get("overwrite"):
-            emitter.add_flag("overwrite")
-
-        if tab_state.get("time-zone"):
-            emitter.add_option("time-zone", tab_state["time-zone"])
-
-        if tab_state.get("manage-burst", "NoStack") != "NoStack":
-            emitter.add_option("manage-burst", tab_state["manage-burst"])
-
-        if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
-            emitter.add_option("manage-raw-jpeg", tab_state["manage-raw-jpeg"])
-            if tab_state["manage-raw-jpeg"] == "KeepJPG":
-                plan.warnings.append("KeepJPG may delete the RAW file when stacking pairs.")
-            elif tab_state["manage-raw-jpeg"] == "KeepRaw":
-                plan.warnings.append("KeepRaw may delete the JPEG file when stacking pairs.")
-
-        if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
-            emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
-
-        if tab_state.get("manage-epson"):
-            emitter.add_flag("manage-epson-fastfoto")
-
-        if tab_state.get("api-trace"):
-            emitter.add_flag("api-trace")
-
     elif tab_key == "archive-folder":
         if tab_state.get("write-to"):
-            emitter.add_option("write-to-folder", tab_state["write-to"])
-
-        dr = clean_date_range(str(tab_state.get("date-range", "")))
-        if dr:
-            emitter.add_option("date-range", dr)
-
-        if tab_state.get("include-type", "all") != "all":
-            emitter.add_option("include-type", tab_state["include-type"])
-
-        inc_ext = normalize_extensions_csv(str(tab_state.get("include-ext", "")))
-        if inc_ext:
-            emitter.add_option("include-extensions", inc_ext)
-
-        exc_ext = normalize_extensions_csv(str(tab_state.get("exclude-ext", "")))
-        if exc_ext:
-            emitter.add_option("exclude-extensions", exc_ext)
-
-        if tab_state.get("ban-file"):
-            for line in str(tab_state["ban-file"]).split("\n"):
-                if line.strip():
-                    emitter.add_option("ban-file", line.strip())
-
-        if tab_state.get("ignore-sidecar"):
-            emitter.add_flag("ignore-sidecar-files")
-
-        emit_bool_flag(emitter, "recursive", tab_state.get("recursive", True), default=True)
-        emit_bool_flag(emitter, "date-from-name", tab_state.get("date-from-name", True), default=True)
-
-        if tab_state.get("folder-album", "NONE") != "NONE":
-            emitter.add_option("folder-as-album", tab_state["folder-album"])
-
-        if tab_state.get("folder-tags"):
-            emitter.add_flag("folder-as-tags")
-
-        if tab_state.get("into-album"):
-            emitter.add_option("into-album", tab_state["into-album"])
-
-        if tab_state.get("album-path-joiner"):
-            emitter.add_option("album-path-joiner", tab_state["album-path-joiner"])
+            write_to = os.path.abspath(
+                os.path.expanduser(str(tab_state["write-to"]).strip())
+            )
+            emitter.add_option("write-to-folder", write_to)
 
         raw_path = str(tab_state.get("path", "")).strip()
         if raw_path:
@@ -1944,88 +2734,10 @@ def build_plan_from_state(
             emitter.add_option("from-server", normalize_server_url(from_srv))
 
         if tab_state.get("write-to"):
-            emitter.add_option("write-to-folder", tab_state["write-to"])
-
-        if tab_state.get("from-date-range"):
-            emitter.add_option("from-date-range", tab_state["from-date-range"])
-
-        if tab_state.get("from-albums"):
-            for a in str(tab_state["from-albums"]).split(","):
-                if a.strip():
-                    emitter.add_option("from-albums", a.strip())
-
-        if tab_state.get("from-favorite"):
-            emitter.add_flag("from-favorite")
-
-        if tab_state.get("from-archived"):
-            emitter.add_flag("from-archived")
-
-        if tab_state.get("from-trash"):
-            emitter.add_flag("from-trash")
-
-        if tab_state.get("from-minimal-rating", 0) > 0:
-            emitter.add_option("from-minimal-rating", tab_state["from-minimal-rating"])
-
-        if tab_state.get("from-people"):
-            for p in str(tab_state["from-people"]).split(","):
-                if p.strip():
-                    emitter.add_option("from-people", p.strip())
-
-        if tab_state.get("from-tags"):
-            for t in str(tab_state["from-tags"]).split(","):
-                if t.strip():
-                    emitter.add_option("from-tags", t.strip())
-
-        if tab_state.get("from-city"):
-            emitter.add_option("from-city", tab_state["from-city"])
-
-        if tab_state.get("from-state"):
-            emitter.add_option("from-state", tab_state["from-state"])
-
-        if tab_state.get("from-country"):
-            emitter.add_option("from-country", tab_state["from-country"])
-
-        if tab_state.get("from-make"):
-            emitter.add_option("from-make", tab_state["from-make"])
-
-        if tab_state.get("from-model"):
-            emitter.add_option("from-model", tab_state["from-model"])
-
-        if tab_state.get("from-include-type", "all") != "all":
-            emitter.add_option("from-include-type", tab_state["from-include-type"])
-
-        inc_ext = normalize_extensions_csv(str(tab_state.get("from-include-ext", "")))
-        if inc_ext:
-            emitter.add_option("from-include-extensions", inc_ext)
-
-        exc_ext = normalize_extensions_csv(str(tab_state.get("from-exclude-ext", "")))
-        if exc_ext:
-            emitter.add_option("from-exclude-extensions", exc_ext)
-
-        if tab_state.get("from-partners"):
-            emitter.add_flag("from-partners")
-
-        if tab_state.get("from-time-zone"):
-            emitter.add_option("from-time-zone", tab_state["from-time-zone"])
-
-        if tab_state.get("from-no-album"):
-            emitter.add_flag("from-no-album")
-
-        if tab_state.get("from-device-uuid"):
-            emitter.add_option("from-device-uuid", tab_state["from-device-uuid"])
-
-        if tab_state.get("from-skip-ssl"):
-            emitter.add_flag("from-skip-verify-ssl")
-
-        if tab_state.get("from-api-trace"):
-            emitter.add_flag("from-api-trace")
-
-        if "from-pause-jobs" in tab_state and not tab_state["from-pause-jobs"]:
-            emitter.add_bool_val("from-pause-immich-jobs", False)
-
-        from_ct = tab_state.get("from-client-timeout")
-        if from_ct is not None and int(from_ct) != 20 and int(from_ct) > 0:
-            emitter.add_option("from-client-timeout", f"{from_ct}m")
+            write_to = os.path.abspath(
+                os.path.expanduser(str(tab_state["write-to"]).strip())
+            )
+            emitter.add_option("write-to-folder", write_to)
 
     elif tab_key == "stack":
         if tab_state.get("manage-burst", "NoStack") != "NoStack":
@@ -2041,18 +2753,15 @@ def build_plan_from_state(
         if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
             emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
 
-        dr = clean_date_range(str(tab_state.get("date-range", "")))
-        if dr:
-            emitter.add_option("date-range", dr)
-
-        if tab_state.get("time-zone"):
-            emitter.add_option("time-zone", tab_state["time-zone"])
-
-        if tab_state.get("manage-epson"):
-            emitter.add_flag("manage-epson-fastfoto")
-
-        if tab_state.get("api-trace"):
-            emitter.add_flag("api-trace")
+    # Opt-in Advanced Flags
+    if advanced_state:
+        from .advanced_flags import apply_advanced_flags_to_plan
+        apply_advanced_flags_to_plan(
+            plan=plan,
+            emitter=emitter,
+            tab_key=tab_key,
+            advanced_state=advanced_state,
+        )
 
     # Dry-run handling
     if dry_run:
@@ -2070,7 +2779,7 @@ def build_plan_from_state(
 
 
 ================================================================================
-FILE 7 / 16: core/config_manager.py (Lines 1-381)
+FILE 8 / 18: core/config_manager.py (Lines 1-381)
 ================================================================================
 """TOML configuration loading, saving, and secret management logic.
 
@@ -2457,7 +3166,7 @@ def set_api_key(value: str, config: AppConfig) -> SecretSaveResult:
 
 
 ================================================================================
-FILE 8 / 16: core/models.py (Lines 1-94)
+FILE 9 / 18: core/models.py (Lines 1-94)
 ================================================================================
 """Pure data structures and dataclasses for Immich-Go GUI core logic.
 
@@ -2557,7 +3266,7 @@ class AppConfig:
 
 
 ================================================================================
-FILE 9 / 16: core/network.py (Lines 1-115)
+FILE 10 / 18: core/network.py (Lines 1-115)
 ================================================================================
 """Network diagnostic helpers for Immich-Go GUI.
 
@@ -2678,7 +3387,7 @@ def test_immich_connection(
 
 
 ================================================================================
-FILE 10 / 16: core/process_tracker.py (Lines 1-238)
+FILE 11 / 18: core/process_tracker.py (Lines 1-238)
 ================================================================================
 """Process lock tracking logic for Immich-Go GUI.
 
@@ -2922,7 +3631,7 @@ def reset_all_locks() -> int:
 
 
 ================================================================================
-FILE 11 / 16: core/profile_manager.py (Lines 1-340)
+FILE 12 / 18: core/profile_manager.py (Lines 1-340)
 ================================================================================
 """Profile management logic for Immich-Go GUI.
 
@@ -3268,7 +3977,7 @@ def delete_profile(name: str) -> None:
 
 
 ================================================================================
-FILE 12 / 16: core/terminal_launcher.py (Lines 1-216)
+FILE 13 / 18: core/terminal_launcher.py (Lines 1-229)
 ================================================================================
 """External terminal launching logic for Immich-Go GUI.
 
@@ -3394,31 +4103,44 @@ def launch_external_terminal(
         cmd_quoted = " ".join(shlex.quote(c) for c in command)
         run_sh_content = (
             "#!/usr/bin/env bash\n"
-            f"echo $$ > {shlex.quote(str(pid_file_path))}\n"
-            f"(\n"
-            f"  while true; do\n"
-            f"    touch {shlex.quote(str(hb_file_path))} 2>/dev/null\n"
-            f"    sleep 10\n"
-            f"  done\n"
-            f") &\n"
-            f"HB_PID=$!\n\n"
-            f"set -a\n"
-            f"source {shlex.quote(str(env_sh_path))}\n"
-            f"set +a\n\n"
-            f"cd {shlex.quote(str(temp_dir))}\n\n"
-            f"cleanup() {{\n"
-            f"  kill $HB_PID 2>/dev/null\n"
-            f"  rm -f {shlex.quote(str(pid_file_path))} {shlex.quote(str(hb_file_path))} {shlex.quote(str(l_path))}\n"
-            f"  rm -rf {shlex.quote(str(temp_dir))}\n"
-            f"}}\n\n"
-            f"trap cleanup EXIT INT TERM\n\n"
+            f"PID_FILE={shlex.quote(str(pid_file_path))}\n"
+            f"HB_FILE={shlex.quote(str(hb_file_path))}\n"
+            f"LOCK_FILE={shlex.quote(str(l_path))}\n"
+            f"ENV_FILE={shlex.quote(str(env_sh_path))}\n"
+            f"TEMP_DIR={shlex.quote(str(temp_dir))}\n"
+            "\n"
+            'echo $$ > "$PID_FILE"\n'
+            "(\n"
+            "  while true; do\n"
+            '    touch "$HB_FILE" 2>/dev/null\n'
+            "    sleep 10\n"
+            "  done\n"
+            ") &\n"
+            "HB_PID=$!\n"
+            "\n"
+            'SAFE_DIR="$HOME"\n'
+            '[ -d "$SAFE_DIR" ] || SAFE_DIR=/\n'
+            'cd "$SAFE_DIR"\n'
+            "\n"
+            "set -a\n"
+            'source "$ENV_FILE"\n'
+            "set +a\n"
+            "\n"
+            "cleanup() {\n"
+            '  kill "$HB_PID" 2>/dev/null\n'
+            '  rm -f "$PID_FILE" "$HB_FILE" "$LOCK_FILE" "$ENV_FILE"\n'
+            "}\n"
+            "\n"
+            "trap cleanup EXIT INT TERM\n"
             f"{cmd_quoted}\n"
-            f"code=$?\n\n"
-            f"trap - EXIT INT TERM\n"
-            f"cleanup\n\n"
-            f'echo ""\n'
-            f'echo "immich-go exited with code $code"\n'
-            f"exec bash\n"
+            "code=$?\n"
+            "\n"
+            "trap - EXIT INT TERM\n"
+            "cleanup\n"
+            "\n"
+            'echo ""\n'
+            'echo "immich-go exited with code $code"\n'
+            "exec bash\n"
         )
 
         run_sh_path.write_text(run_sh_content, encoding="utf-8")
@@ -3490,7 +4212,7 @@ def launch_external_terminal(
 
 
 ================================================================================
-FILE 13 / 16: core/validation.py (Lines 1-237)
+FILE 14 / 18: core/validation.py (Lines 1-237)
 ================================================================================
 """Validation and input normalization helpers for Immich-Go GUI.
 
@@ -3733,7 +4455,7 @@ def validate_destination_folder(
 
 
 ================================================================================
-FILE 14 / 16: test_app.py (Lines 1-2005)
+FILE 15 / 18: test_app.py (Lines 1-1971)
 ================================================================================
 import pytest
 import os
@@ -3985,18 +4707,20 @@ def test_droppable_plain_text_edit_drop(qapp, qtbot):
 
 
 def test_global_flag_ordering(gui):
-    """Global opts (--log-level) must appear in subcommand options."""
+    """Global opts (--log-level) must appear in subcommand options when enabled in advanced flags."""
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
     gui.upload_tabs.setCurrentIndex(0)     # upload-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
-    gui.inputs["upload-folder"]["log-level"].setCurrentText("DEBUG")
+    gui.adv_rows["upload-folder"]["log-level"].set_state({"enabled": True, "value": "DEBUG"})
     gui.inputs["upload-folder"]["path"].setText("/photos")
     opts = gui.build_command(dry_run=False)
     assert "--log-level=DEBUG" in opts
 
 
 def test_pause_jobs_not_on_archive(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(2)  # archive page
     gui.archive_tabs.setCurrentIndex(0)    # archive-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
@@ -4008,6 +4732,7 @@ def test_pause_jobs_not_on_archive(gui):
 
 
 def test_pause_jobs_not_on_stack(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(3)  # stack
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
@@ -4015,19 +4740,20 @@ def test_pause_jobs_not_on_stack(gui):
     assert not any("--pause-immich-jobs" in o for o in opts)
 
 
-def test_on_errors_not_on_archive(gui):
+def test_on_errors_emitted_when_configured(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(2)  # archive page
-    gui.archive_tabs.setCurrentIndex(0)    # archive-folder
+    gui.archive_tabs.setCurrentIndex(1)    # archive-immich
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
-    gui.inputs["archive-folder"]["path"].setText("/src")
-    gui.inputs["archive-folder"]["write-to"].setText("/dst")
+    gui.inputs["archive-immich"]["write-to"].setText("/dst")
     gui.inputs["config"]["on_errors"].setCurrentText("continue")
     opts = gui.build_command(dry_run=False)
-    assert not any("--on-errors" in o for o in opts)
+    assert "--on-errors=continue" in opts
 
 
 def test_client_timeout_emitted(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
     gui.upload_tabs.setCurrentIndex(0)     # upload-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
@@ -4039,6 +4765,7 @@ def test_client_timeout_emitted(gui):
 
 
 def test_device_uuid_emitted(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
     gui.upload_tabs.setCurrentIndex(0)     # upload-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
@@ -4050,33 +4777,36 @@ def test_device_uuid_emitted(gui):
 
 
 def test_api_trace_on_upload_gp(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
     gui.upload_tabs.setCurrentIndex(1)     # upload-gp
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["upload-gp"]["path"].setPlainText("/takeout")
-    gui.inputs["upload-gp"]["api-trace"].setChecked(True)
+    gui.adv_rows["upload-gp"]["api-trace"].set_state({"enabled": True, "value": True})
     opts = gui.build_command(dry_run=False)
     assert "--api-trace" in opts
 
 
 def test_api_trace_on_stack(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(3)  # stack
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
-    gui.inputs["stack"]["api-trace"].setChecked(True)
+    gui.adv_rows["stack"]["api-trace"].set_state({"enabled": True, "value": True})
     opts = gui.build_command(dry_run=False)
     assert "--api-trace" in opts
 
 
 def test_from_client_timeout(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
     gui.upload_tabs.setCurrentIndex(2)     # upload-immich
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
     gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
-    gui.inputs["upload-immich"]["from-client-timeout"].setValue(60)
+    gui.adv_rows["upload-immich"]["from-client-timeout"].set_state({"enabled": True, "value": 60})
     opts = gui.build_command(dry_run=False)
     assert "--from-client-timeout=60m" in opts
 
@@ -4148,33 +4878,33 @@ def test_api_trace_on_stack_disabled(gui):
     gui.stacked_widget.setCurrentIndex(3)
     gui.inputs["config"]["server"].setText("http://stack:2283")
     gui.inputs["config"]["api_key"].setText("stack-key")
-    if "api-trace" in gui.inputs["stack"]:
-        gui.inputs["stack"]["api-trace"].setChecked(False)
+    gui.adv_rows["stack"]["api-trace"].set_state({"enabled": False, "value": True})
     opts = gui.build_command(dry_run=False)
     assert not any("--api-trace" in o for o in opts)
 
 
 def test_build_command_upload_immich(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
     gui.upload_tabs.setCurrentIndex(2)     # upload-immich sub-tab
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("local-key")
     gui.inputs["upload-immich"]["from-server"].setText("http://remote:2283")
     gui.inputs["upload-immich"]["from-api-key"].setText("remote-key")
-    gui.inputs["upload-immich"]["from-favorite"].setChecked(True)
-    gui.inputs["upload-immich"]["from-archived"].setChecked(True)
-    gui.inputs["upload-immich"]["from-trash"].setChecked(True)
-    gui.inputs["upload-immich"]["from-date-range"].setText("2020-01-01,2021-01-01")
-    gui.inputs["upload-immich"]["from-albums"].setText("Album1, Album2")
-    gui.inputs["upload-immich"]["from-minimal-rating"].setValue(3)
-    gui.inputs["upload-immich"]["from-people"].setText("John, Jane")
-    gui.inputs["upload-immich"]["from-tags"].setText("Vacation, Family")
-    gui.inputs["upload-immich"]["from-city"].setText("Paris")
-    gui.inputs["upload-immich"]["from-state"].setText("IDF")
-    gui.inputs["upload-immich"]["from-country"].setText("France")
-    gui.inputs["upload-immich"]["from-make"].setText("Apple")
-    gui.inputs["upload-immich"]["from-model"].setText("iPhone 13")
-    gui.inputs["upload-immich"]["from-skip-ssl"].setChecked(True)
+    gui.adv_rows["upload-immich"]["from-favorite"].set_state({"enabled": True, "value": True})
+    gui.adv_rows["upload-immich"]["from-archived"].set_state({"enabled": True, "value": True})
+    gui.adv_rows["upload-immich"]["from-trash"].set_state({"enabled": True, "value": True})
+    gui.adv_rows["upload-immich"]["from-date-range"].set_state({"enabled": True, "value": "2020-01-01,2021-01-01"})
+    gui.adv_rows["upload-immich"]["from-albums"].set_state({"enabled": True, "value": "Album1, Album2"})
+    gui.adv_rows["upload-immich"]["from-minimal-rating"].set_state({"enabled": True, "value": 3})
+    gui.adv_rows["upload-immich"]["from-people"].set_state({"enabled": True, "value": "John, Jane"})
+    gui.adv_rows["upload-immich"]["from-tags"].set_state({"enabled": True, "value": "Vacation, Family"})
+    gui.adv_rows["upload-immich"]["from-city"].set_state({"enabled": True, "value": "Paris"})
+    gui.adv_rows["upload-immich"]["from-state"].set_state({"enabled": True, "value": "IDF"})
+    gui.adv_rows["upload-immich"]["from-country"].set_state({"enabled": True, "value": "France"})
+    gui.adv_rows["upload-immich"]["from-make"].set_state({"enabled": True, "value": "Apple"})
+    gui.adv_rows["upload-immich"]["from-model"].set_state({"enabled": True, "value": "iPhone 13"})
+    gui.adv_rows["upload-immich"]["from-skip-ssl"].set_state({"enabled": True, "value": True})
     opts = gui.build_command(dry_run=False)
     assert "upload" in opts
     assert "from-immich" in opts
@@ -4201,12 +4931,13 @@ def test_build_command_upload_immich(gui):
 
 
 def test_build_command_archive_folder(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(2)  # archive page
     gui.archive_tabs.setCurrentIndex(0)    # archive-folder sub-tab
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["archive-folder"]["path"].setText("/source/folder")
     gui.inputs["archive-folder"]["write-to"].setText("/dest/folder")
-    gui.inputs["archive-folder"]["date-range"].setText("2024-01-01,2024-02-01")
+    gui.adv_rows["archive-folder"]["date-range"].set_state({"enabled": True, "value": "2024-01-01,2024-02-01"})
     opts = gui.build_command(dry_run=True)
     assert "archive" in opts
     assert "from-folder" in opts
@@ -4218,13 +4949,14 @@ def test_build_command_archive_folder(gui):
 
 
 def test_build_command_archive_immich(gui):
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(2)  # archive page
     gui.archive_tabs.setCurrentIndex(1)    # archive-immich sub-tab
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["archive-immich"]["write-to"].setText("/dest/folder")
-    gui.inputs["archive-immich"]["from-date-range"].setText("2024-01-01,2024-02-01")
-    gui.inputs["archive-immich"]["from-albums"].setText("ArchiveAlbum")
+    gui.adv_rows["archive-immich"]["from-date-range"].set_state({"enabled": True, "value": "2024-01-01,2024-02-01"})
+    gui.adv_rows["archive-immich"]["from-albums"].set_state({"enabled": True, "value": "ArchiveAlbum"})
     opts = gui.build_command(dry_run=False)
     assert "archive" in opts
     assert "from-immich" in opts
@@ -4264,41 +4996,19 @@ def test_native_dialog_options_passed(gui):
 # ==============================================================================
 
 def test_golden_upload_folder(gui):
-    """Golden: upload-folder with typical options."""
+    """Golden: upload-folder simple mode minimal command."""
+    gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(1)
     gui.upload_tabs.setCurrentIndex(0)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("test-key")
-    gui.inputs["config"]["skip-ssl"].setChecked(False)
-    gui.inputs["config"]["client_timeout"].setValue(20)
-    cpu_default = min(max(os.cpu_count() or 2, 1), 20)
-    gui.inputs["config"]["concurrent"].setValue(cpu_default)
     gui.inputs["upload-folder"]["path"].setText("/photos")
-    gui.inputs["upload-folder"]["include-type"].setCurrentText("all")
-    gui.inputs["upload-folder"]["folder-album"].setCurrentText("NONE")
-    gui.inputs["upload-folder"]["into-album"].setText("")
-    gui.inputs["upload-folder"]["overwrite"].setChecked(False)
-    gui.inputs["upload-folder"]["manage-burst"].setCurrentText("Stack")
-    gui.inputs["upload-folder"]["manage-raw-jpeg"].setCurrentText("NoStack")
-    gui.inputs["upload-folder"]["manage-heic-jpeg"].setCurrentText("NoStack")
-    gui.inputs["upload-folder"]["date-range"].setText("")
-    gui.inputs["upload-folder"]["include-ext"].setText("")
-    gui.inputs["upload-folder"]["exclude-ext"].setText("")
-    gui.inputs["upload-folder"]["ban-file"].setPlainText("")
-    gui.inputs["upload-folder"]["ignore-sidecar"].setChecked(False)
-    gui.inputs["upload-folder"]["date-from-name"].setChecked(True)
-    gui.inputs["upload-folder"]["tag"].setText("")
-    gui.inputs["upload-folder"]["session-tag"].setChecked(False)
-    gui.inputs["upload-folder"]["folder-tags"].setChecked(False)
-    gui.inputs["upload-folder"]["api-trace"].setChecked(False)
-    gui.inputs["upload-folder"]["log-level"].setCurrentText("INFO")
 
     plan = gui.build_plan(dry_run=False)
 
     assert plan.argv == [
         "upload", "from-folder",
         "--server=http://localhost:2283",
-        "--manage-burst=Stack",
         "/photos",
     ]
     assert plan.env.get("IMMICH_GO_UPLOAD_API_KEY") == "test-key"
@@ -4306,61 +5016,33 @@ def test_golden_upload_folder(gui):
 
 
 def test_golden_upload_gp(gui):
-    """Golden: upload from-google-photos with partner + sync."""
+    """Golden: upload from-google-photos simple mode minimal command."""
+    gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(1)
     gui.upload_tabs.setCurrentIndex(1)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("test-key")
-    gui.inputs["config"]["skip-ssl"].setChecked(False)
-    gui.inputs["config"]["client_timeout"].setValue(20)
-    cpu_default = min(max(os.cpu_count() or 2, 1), 20)
-    gui.inputs["config"]["concurrent"].setValue(cpu_default)
     gui.inputs["upload-gp"]["path"].setPlainText("/takeout-001.zip\n/takeout-002.zip")
-    gui.inputs["upload-gp"]["include-type"].setCurrentText("all")
-    gui.inputs["upload-gp"]["into-album"].setText("")
-    gui.inputs["upload-gp"]["include-unmatched"].setChecked(False)
-    gui.inputs["upload-gp"]["include-partner"].setChecked(True)
-    gui.inputs["upload-gp"]["sync-albums"].setChecked(True)
-    gui.inputs["upload-gp"]["manage-burst"].setCurrentText("Stack")
-    gui.inputs["upload-gp"]["manage-heic-jpeg"].setCurrentText("NoStack")
-    gui.inputs["upload-gp"]["from-album-name"].setText("")
-    gui.inputs["upload-gp"]["include-archived"].setChecked(True)
-    gui.inputs["upload-gp"]["include-trashed"].setChecked(False)
-    gui.inputs["upload-gp"]["partner-album"].setText("")
-    gui.inputs["upload-gp"]["takeout-tag"].setChecked(True)
-    gui.inputs["upload-gp"]["people-tag"].setChecked(True)
-    gui.inputs["upload-gp"]["tag"].setText("")
-    gui.inputs["upload-gp"]["session-tag"].setChecked(False)
-    if "api-trace" in gui.inputs["upload-gp"]:
-        gui.inputs["upload-gp"]["api-trace"].setChecked(False)
-    gui.inputs["upload-gp"]["log-level"].setCurrentText("INFO")
 
     plan = gui.build_plan(dry_run=False)
 
     assert plan.argv == [
         "upload", "from-google-photos",
         "--server=http://localhost:2283",
-        "--manage-burst=Stack",
         "/takeout-001.zip",
         "/takeout-002.zip",
     ]
 
 
 def test_golden_stack(gui):
-    """Golden: stack with options."""
+    """Golden: stack simple mode command."""
+    gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(3)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("test-key")
-    gui.inputs["config"]["skip-ssl"].setChecked(False)
-    gui.inputs["config"]["client_timeout"].setValue(20)
-    cpu_default = min(max(os.cpu_count() or 2, 1), 20)
-    gui.inputs["config"]["concurrent"].setValue(cpu_default)
     gui.inputs["stack"]["manage-burst"].setCurrentText("Stack")
-    gui.inputs["stack"]["manage-raw-jpeg"].setCurrentText("StackCoverRaw")
-    gui.inputs["stack"]["manage-heic-jpeg"].setCurrentText("StackCoverJPG")
-    if "api-trace" in gui.inputs["stack"]:
-        gui.inputs["stack"]["api-trace"].setChecked(False)
-    gui.inputs["stack"]["log-level"].setCurrentText("INFO")
+    gui.inputs["stack"]["manage-raw-jpeg"].setCurrentText("NoStack")
+    gui.inputs["stack"]["manage-heic-jpeg"].setCurrentText("NoStack")
 
     plan = gui.build_plan(dry_run=False)
 
@@ -4368,26 +5050,22 @@ def test_golden_stack(gui):
         "stack",
         "--server=http://localhost:2283",
         "--manage-burst=Stack",
-        "--manage-raw-jpeg=StackCoverRaw",
-        "--manage-heic-jpeg=StackCoverJPG",
     ]
 
 
 def test_golden_archive_folder(gui):
-    """Golden: archive from-folder (no server)."""
+    """Golden: archive from-folder simple mode."""
+    gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(2)
     gui.archive_tabs.setCurrentIndex(0)
     gui.inputs["archive-folder"]["path"].setText("/messy/photos")
     gui.inputs["archive-folder"]["write-to"].setText("/organized")
-    gui.inputs["archive-folder"]["date-range"].setText("2024")
-    gui.inputs["archive-folder"]["log-level"].setCurrentText("INFO")
 
     plan = gui.build_plan(dry_run=True)
 
     assert plan.argv == [
         "archive", "from-folder",
         "--write-to-folder=/organized",
-        "--date-range=2024",
         "--dry-run",
         "/messy/photos",
     ]
@@ -4395,36 +5073,14 @@ def test_golden_archive_folder(gui):
 
 
 def test_golden_upload_immich(gui):
-    """Golden: upload from-immich with filters."""
+    """Golden: upload from-immich simple mode."""
+    gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(1)
     gui.upload_tabs.setCurrentIndex(2)
     gui.inputs["config"]["server"].setText("http://new:2283")
     gui.inputs["config"]["api_key"].setText("new-key")
-    gui.inputs["config"]["skip-ssl"].setChecked(False)
-    gui.inputs["config"]["client_timeout"].setValue(20)
-    cpu_default = min(max(os.cpu_count() or 2, 1), 20)
-    gui.inputs["config"]["concurrent"].setValue(cpu_default)
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
     gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
-    if "from-client-timeout" in gui.inputs["upload-immich"]:
-        gui.inputs["upload-immich"]["from-client-timeout"].setValue(20)
-    gui.inputs["upload-immich"]["from-favorite"].setChecked(True)
-    gui.inputs["upload-immich"]["from-archived"].setChecked(False)
-    gui.inputs["upload-immich"]["from-trash"].setChecked(False)
-    gui.inputs["upload-immich"]["from-date-range"].setText("2023")
-    gui.inputs["upload-immich"]["from-albums"].setText("Family, Travel")
-    gui.inputs["upload-immich"]["from-minimal-rating"].setValue(0)
-    gui.inputs["upload-immich"]["from-people"].setText("")
-    gui.inputs["upload-immich"]["from-tags"].setText("")
-    gui.inputs["upload-immich"]["from-city"].setText("")
-    gui.inputs["upload-immich"]["from-state"].setText("")
-    gui.inputs["upload-immich"]["from-country"].setText("")
-    gui.inputs["upload-immich"]["from-make"].setText("")
-    gui.inputs["upload-immich"]["from-model"].setText("")
-    gui.inputs["upload-immich"]["from-skip-ssl"].setChecked(False)
-    if "api-trace" in gui.inputs["upload-immich"]:
-        gui.inputs["upload-immich"]["api-trace"].setChecked(False)
-    gui.inputs["upload-immich"]["log-level"].setCurrentText("INFO")
 
     plan = gui.build_plan(dry_run=False)
 
@@ -4432,31 +5088,19 @@ def test_golden_upload_immich(gui):
         "upload", "from-immich",
         "--server=http://new:2283",
         "--from-server=http://old:2283",
-        "--from-favorite",
-        "--from-date-range=2023",
-        "--from-albums=Family",
-        "--from-albums=Travel",
     ]
     assert plan.env.get("IMMICH_GO_UPLOAD_API_KEY") == "new-key"
     assert plan.env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY") == "old-key"
-    assert not any("--api-key" in p for p in plan.argv)
-    assert not any("--from-api-key" in p for p in plan.argv)
 
 
 def test_golden_archive_immich(gui):
-    """Golden: archive from-immich with options."""
+    """Golden: archive from-immich simple mode."""
+    gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(2)
     gui.archive_tabs.setCurrentIndex(1)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("test-key")
-    gui.inputs["config"]["skip-ssl"].setChecked(False)
-    gui.inputs["config"]["client_timeout"].setValue(20)
-    cpu_default = min(max(os.cpu_count() or 2, 1), 20)
-    gui.inputs["config"]["concurrent"].setValue(cpu_default)
     gui.inputs["archive-immich"]["write-to"].setText("/backup/photos")
-    gui.inputs["archive-immich"]["from-date-range"].setText("2024")
-    gui.inputs["archive-immich"]["from-albums"].setText("Family")
-    gui.inputs["archive-immich"]["log-level"].setCurrentText("INFO")
 
     plan = gui.build_plan(dry_run=False)
 
@@ -4464,11 +5108,100 @@ def test_golden_archive_immich(gui):
         "archive", "from-immich",
         "--from-server=http://localhost:2283",
         "--write-to-folder=/backup/photos",
-        "--from-date-range=2024",
-        "--from-albums=Family",
     ]
     assert plan.env.get("IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_KEY") == "test-key"
-    assert not any("--api-key" in p for p in plan.argv)
+
+
+def test_simple_mode_ignores_advanced_upload_folder_flags(gui):
+    gui.toggle_advanced(False)
+
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(0)
+
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+    gui.adv_rows["upload-folder"]["log-level"].set_state({"enabled": True, "value": "DEBUG"})
+    gui.adv_rows["upload-folder"]["recursive"].set_state({"enabled": True, "value": False})
+    gui.adv_rows["upload-folder"]["date-from-name"].set_state({"enabled": True, "value": False})
+    gui.adv_rows["upload-folder"]["album-path-joiner"].set_state({"enabled": True, "value": "/"})
+    gui.adv_rows["upload-folder"]["time-zone"].set_state({"enabled": True, "value": "UTC"})
+    gui.adv_rows["upload-folder"]["manage-epson"].set_state({"enabled": True, "value": True})
+
+    plan = gui.build_plan(dry_run=True)
+
+    assert "--log-level=DEBUG" not in plan.argv
+    assert "--recursive=false" not in plan.argv
+    assert "--date-from-name=false" not in plan.argv
+    assert "--album-path-joiner=/" not in plan.argv
+    assert "--time-zone=UTC" not in plan.argv
+    assert "--manage-epson-fastfoto" not in plan.argv
+
+
+def test_advanced_mode_emits_advanced_upload_folder_flags(gui):
+    gui.toggle_advanced(True)
+
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(0)
+
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+    gui.adv_rows["upload-folder"]["log-level"].set_state({"enabled": True, "value": "DEBUG"})
+    gui.adv_rows["upload-folder"]["recursive"].set_state({"enabled": True, "value": False})
+    gui.adv_rows["upload-folder"]["date-from-name"].set_state({"enabled": True, "value": False})
+    gui.adv_rows["upload-folder"]["album-path-joiner"].set_state({"enabled": True, "value": "/"})
+    gui.adv_rows["upload-folder"]["time-zone"].set_state({"enabled": True, "value": "UTC"})
+    gui.adv_rows["upload-folder"]["manage-epson"].set_state({"enabled": True, "value": True})
+
+    plan = gui.build_plan(dry_run=True)
+
+    assert "--log-level=DEBUG" in plan.argv
+    assert "--recursive=false" in plan.argv
+    assert "--date-from-name=false" in plan.argv
+    assert "--album-path-joiner=/" in plan.argv
+    assert "--time-zone=UTC" in plan.argv
+    assert "--manage-epson-fastfoto" in plan.argv
+
+
+def test_simple_mode_ignores_advanced_stack_flags(gui):
+    gui.toggle_advanced(False)
+
+    gui.stacked_widget.setCurrentIndex(3)
+
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+
+    gui.adv_rows["stack"]["date-range"].set_state({"enabled": True, "value": "2023-01-01,2023-12-31"})
+    gui.adv_rows["stack"]["time-zone"].set_state({"enabled": True, "value": "UTC"})
+    gui.adv_rows["stack"]["manage-epson"].set_state({"enabled": True, "value": True})
+    gui.adv_rows["stack"]["api-trace"].set_state({"enabled": True, "value": True})
+
+    plan = gui.build_plan(dry_run=False)
+
+    assert "--date-range=2023-01-01,2023-12-31" not in plan.argv
+    assert "--time-zone=UTC" not in plan.argv
+    assert "--manage-epson-fastfoto" not in plan.argv
+    assert "--api-trace" not in plan.argv
+
+
+def test_archive_folder_destination_is_absolutized(gui):
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(0)
+
+    gui.inputs["archive-folder"]["path"].setText("/src")
+    gui.inputs["archive-folder"]["write-to"].setText("relative/dest")
+
+    plan = gui.build_plan(dry_run=False)
+
+    assert any(arg.startswith("--write-to-folder=") for arg in plan.argv)
+
+    write_arg = next(arg for arg in plan.argv if arg.startswith("--write-to-folder="))
+    write_path = write_arg.split("=", 1)[1]
+    assert os.path.isabs(write_path)
 
 
 # ==========================================================
@@ -5068,15 +5801,19 @@ def test_terminal_launcher_working_directory_isolation(tmp_path, monkeypatch):
         res = launch_external_terminal(cmd, env, lock_path, preferred_terminal="auto")
         assert res.ok is True
 
-    # Find created run.sh and check for cd
-    locks_dir = tmp_path / "locks"
     temp_dirs = list(Path("/tmp").glob("immich-go-run-*"))
-    if temp_dirs:
-        latest_temp = max(temp_dirs, key=lambda d: d.stat().st_mtime)
-        run_sh = latest_temp / "run.sh"
-        if run_sh.exists():
-            content = run_sh.read_text(encoding="utf-8")
-            assert f"cd '{latest_temp}'" in content or "cd " in content
+    assert temp_dirs, "Expected POSIX launcher to create a temp run directory"
+
+    latest_temp = max(temp_dirs, key=lambda d: d.stat().st_mtime)
+    run_sh = latest_temp / "run.sh"
+    assert run_sh.exists()
+
+    content = run_sh.read_text(encoding="utf-8")
+
+    assert 'SAFE_DIR="$HOME"' in content
+    assert 'cd "$SAFE_DIR"' in content
+    assert f"cd '{latest_temp}'" not in content
+    assert f"rm -rf '{latest_temp}'" not in content
 
 
 # ==============================================================================
@@ -5099,12 +5836,14 @@ def test_golden_json_fixtures():
         tab_state = data.get("tab_state", {})
         expected_argv = data["expected_argv"]
 
+        advanced_state = data.get("advanced_state")
         plan = build_plan_from_state(
             tab_key=tab_key,
             config_state=config_state,
             tab_state=tab_state,
             binary_path="./immich-go",
             dry_run=False,
+            advanced_state=advanced_state,
         )
         assert plan.argv == expected_argv, f"Fixture {jf.name} produced unexpected argv: {plan.argv} != {expected_argv}"
 
@@ -5283,28 +6022,28 @@ def test_default_true_boolean_emission():
     from core.command_builder import build_plan_from_state
     config_state = {"server": "http://localhost:2283", "api_key": "test_key"}
 
-    # upload-folder default true flags set to False
-    tab_state_folder = {
-        "path": "/photos",
-        "recursive": False,
-        "date-from-name": False,
-        "pause-jobs": False,
+    # upload-folder boolean flags explicitly enabled and set to False
+    tab_state_folder = {"path": "/photos"}
+    advanced_folder = {
+        "recursive": {"enabled": True, "value": False},
+        "date-from-name": {"enabled": True, "value": False},
+        "pause-jobs": {"enabled": True, "value": False},
     }
-    plan_folder = build_plan_from_state("upload-folder", config_state, tab_state_folder)
+    plan_folder = build_plan_from_state("upload-folder", config_state, tab_state_folder, advanced_state=advanced_folder)
     assert "--recursive=false" in plan_folder.argv
     assert "--date-from-name=false" in plan_folder.argv
     assert "--pause-immich-jobs=false" in plan_folder.argv
 
-    # upload-gp default true flags set to False
-    tab_state_gp = {
-        "path": "/takeout",
-        "include-archived": False,
-        "include-partner": False,
-        "sync-albums": False,
-        "takeout-tag": False,
-        "people-tag": False,
+    # upload-gp boolean flags explicitly enabled and set to False
+    tab_state_gp = {"path": "/takeout"}
+    advanced_gp = {
+        "include-archived": {"enabled": True, "value": False},
+        "include-partner": {"enabled": True, "value": False},
+        "sync-albums": {"enabled": True, "value": False},
+        "takeout-tag": {"enabled": True, "value": False},
+        "people-tag": {"enabled": True, "value": False},
     }
-    plan_gp = build_plan_from_state("upload-gp", config_state, tab_state_gp)
+    plan_gp = build_plan_from_state("upload-gp", config_state, tab_state_gp, advanced_state=advanced_gp)
     assert "--include-archived=false" in plan_gp.argv
     assert "--include-partner=false" in plan_gp.argv
     assert "--sync-albums=false" in plan_gp.argv
@@ -5408,227 +6147,117 @@ def test_missing_fixtures_not_fully_compatible(tmp_path):
     assert report_empty.is_fully_compatible() is True
 
 
-def test_golden_upload_folder(gui):
+def test_advanced_flag_disabled_not_emitted(gui):
+    """Verify disabled advanced flag is not emitted even if value widget is set."""
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)
     gui.upload_tabs.setCurrentIndex(0)
-    cfg = gui.inputs["config"]
-    cfg["server"].setText("http://local:2283")
-    cfg["api_key"].setText("key")
-    inp = gui.inputs["upload-folder"]
-    inp["path"].setText("/photos")
-    inp["recursive"].setChecked(False)
-    inp["date-from-name"].setChecked(False)
-    inp["album-path-joiner"].setText("/")
-    inp["time-zone"].setText("UTC")
-    inp["manage-epson"].setChecked(True)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+
+    gui.adv_rows["upload-folder"]["time-zone"].set_state({
+        "enabled": False,
+        "value": "UTC",
+    })
 
     plan = gui.build_plan(dry_run=False)
-    argv = plan.argv
-    assert "upload" in argv
-    assert "from-folder" in argv
-    assert "--recursive=false" in argv
-    assert "--date-from-name=false" in argv
-    assert "--album-path-joiner=/" in argv
-    assert "--time-zone=UTC" in argv
-    assert "--manage-epson-fastfoto" in argv
+    assert "--time-zone=UTC" not in plan.argv
 
 
-def test_golden_upload_gp(gui):
+def test_advanced_flag_enabled_text_emitted(gui):
+    """Verify enabled advanced text flag is emitted."""
+    gui.toggle_advanced(True)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(0)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+
+    gui.adv_rows["upload-folder"]["time-zone"].set_state({
+        "enabled": True,
+        "value": "UTC",
+    })
+
+    plan = gui.build_plan(dry_run=False)
+    assert "--time-zone=UTC" in plan.argv
+
+
+def test_advanced_bool_false_emitted(gui):
+    """Verify enabled boolean false flag is emitted as --flag=false."""
+    gui.toggle_advanced(True)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(0)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+
+    gui.adv_rows["upload-folder"]["recursive"].set_state({
+        "enabled": True,
+        "value": False,
+    })
+
+    plan = gui.build_plan(dry_run=False)
+    assert "--recursive=false" in plan.argv
+
+
+def test_advanced_bool_true_emitted_as_presence(gui):
+    """Verify enabled boolean true flag is emitted as --flag presence."""
+    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)
     gui.upload_tabs.setCurrentIndex(1)
-    cfg = gui.inputs["config"]
-    cfg["server"].setText("http://local:2283")
-    cfg["api_key"].setText("key")
-    inp = gui.inputs["upload-gp"]
-    inp["path"].setPlainText("/takeout")
-    inp["include-archived"].setChecked(False)
-    inp["include-partner"].setChecked(False)
-    inp["sync-albums"].setChecked(False)
-    inp["takeout-tag"].setChecked(False)
-    inp["people-tag"].setChecked(False)
-    inp["include-trashed"].setChecked(True)
-    inp["include-unmatched"].setChecked(True)
-    inp["include-untitled-albums"].setChecked(True)
-    inp["from-album-name"].setText("Family")
-    inp["partner-album"].setText("Partner")
-    inp["include-type"].setCurrentText("VIDEO")
-    inp["manage-raw-jpeg"].setCurrentText("KeepJPG")
-    inp["manage-epson"].setChecked(True)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-gp"]["path"].setPlainText("/takeout")
+
+    gui.adv_rows["upload-gp"]["include-trashed"].set_state({
+        "enabled": True,
+        "value": True,
+    })
 
     plan = gui.build_plan(dry_run=False)
-    argv = plan.argv
-    assert "from-google-photos" in argv
-    assert "--include-archived=false" in argv
-    assert "--include-partner=false" in argv
-    assert "--sync-albums=false" in argv
-    assert "--takeout-tag=false" in argv
-    assert "--people-tag=false" in argv
-    assert "--include-trashed" in argv
-    assert "--include-unmatched" in argv
-    assert "--include-untitled-albums" in argv
-    assert "--from-album-name=Family" in argv
-    assert "--partner-shared-album=Partner" in argv
-    assert "--include-type=VIDEO" in argv
-    assert "--manage-raw-jpeg=KeepJPG" in argv
-    assert "--manage-epson-fastfoto" in argv
+    assert "--include-trashed" in plan.argv
 
 
-def test_golden_upload_immich(gui):
+def test_simple_mode_ignores_advanced_rows(gui):
+    """Verify Simple mode ignores advanced flag rows even if enabled."""
+    gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(1)
-    gui.upload_tabs.setCurrentIndex(2)
-    cfg = gui.inputs["config"]
-    cfg["server"].setText("http://local:2283")
-    cfg["api_key"].setText("key")
-    inp = gui.inputs["upload-immich"]
-    inp["from-server"].setText("http://remote:2283")
-    inp["from-api-key"].setText("remote-key")
-    inp["from-admin-api-key"].setText("remote-admin-key")
-    inp["from-include-type"].setCurrentText("IMAGE")
-    inp["from-include-ext"].setText(".jpg, .png")
-    inp["from-exclude-ext"].setText(".mov")
-    inp["from-partners"].setChecked(True)
-    inp["from-no-album"].setChecked(True)
-    inp["from-time-zone"].setText("UTC")
-    inp["from-device-uuid"].setText("123-abc")
-    inp["from-api-trace"].setChecked(True)
-    inp["from-pause-jobs"].setChecked(False)
-    inp["tag"].setText("migrated")
-    inp["session-tag"].setChecked(True)
-    inp["overwrite"].setChecked(True)
-    inp["time-zone"].setText("UTC")
+    gui.upload_tabs.setCurrentIndex(0)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+
+    gui.adv_rows["upload-folder"]["time-zone"].set_state({
+        "enabled": True,
+        "value": "UTC",
+    })
 
     plan = gui.build_plan(dry_run=False)
-    argv = plan.argv
-    assert "upload" in argv
-    assert "from-immich" in argv
-    assert "--from-include-type=IMAGE" in argv
-    assert "--from-include-extensions=.jpg,.png" in argv
-    assert "--from-exclude-extensions=.mov" in argv
-    assert "--from-partners" in argv
-    assert "--from-no-album" in argv
-    assert "--from-time-zone=UTC" in argv
-    assert "--from-device-uuid=123-abc" in argv
-    assert "--from-api-trace" in argv
-    assert "--from-pause-immich-jobs=false" in argv
-    assert "--tag=migrated" in argv
-    assert "--session-tag" in argv
-    assert "--overwrite" in argv
-    assert "--time-zone=UTC" in argv
-    assert plan.env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY") == "remote-admin-key"
+    assert "--time-zone=UTC" not in plan.argv
 
 
-def test_golden_archive_folder(gui):
-    gui.stacked_widget.setCurrentIndex(2)
-    gui.archive_tabs.setCurrentIndex(0)
-    inp = gui.inputs["archive-folder"]
-    inp["path"].setText("/src")
-    inp["write-to"].setText("/dst")
-    inp["recursive"].setChecked(False)
-    inp["date-from-name"].setChecked(False)
-    inp["folder-album"].setCurrentText("FOLDER")
-    inp["folder-tags"].setChecked(True)
-    inp["into-album"].setText("Archived")
-    inp["album-path-joiner"].setText("_")
-    inp["on-errors"].setCurrentText("continue")
+def test_form_state_advanced_rows_persistence(gui):
+    """Verify form state serialization and deserialization of advanced flag rows."""
+    gui.adv_rows["upload-folder"]["time-zone"].set_state({
+        "enabled": True,
+        "value": "America/New_York",
+    })
 
-    plan = gui.build_plan(dry_run=False)
-    argv = plan.argv
-    assert "archive" in argv
-    assert "from-folder" in argv
-    assert "--write-to-folder=/dst" in argv
-    assert "--recursive=false" in argv
-    assert "--date-from-name=false" in argv
-    assert "--folder-as-album=FOLDER" in argv
-    assert "--folder-as-tags" in argv
-    assert "--into-album=Archived" in argv
-    assert "--album-path-joiner=_" in argv
-    assert "--on-errors=continue" in argv
+    state = gui.collect_form_state()
+    assert "advanced" in state
+    assert state["advanced"]["upload-folder"]["time-zone"] == {
+        "enabled": True,
+        "value": "America/New_York",
+    }
 
+    # Reset and restore
+    gui.reset_advanced_flags()
+    assert gui.adv_rows["upload-folder"]["time-zone"].enable.isChecked() is False
 
-def test_golden_archive_immich(gui):
-    gui.stacked_widget.setCurrentIndex(2)
-    gui.archive_tabs.setCurrentIndex(1)
-    cfg = gui.inputs["config"]
-    cfg["server"].setText("http://local:2283")
-    cfg["api_key"].setText("key")
-    inp = gui.inputs["archive-immich"]
-    inp["write-to"].setText("/out")
-    inp["from-favorite"].setChecked(True)
-    inp["from-archived"].setChecked(True)
-    inp["from-trash"].setChecked(True)
-    inp["from-minimal-rating"].setValue(4)
-    inp["from-people"].setText("Alice")
-    inp["from-tags"].setText("vacation")
-    inp["from-city"].setText("Tokyo")
-    inp["from-state"].setText("Kanto")
-    inp["from-country"].setText("Japan")
-    inp["from-make"].setText("Apple")
-    inp["from-model"].setText("iPhone")
-    inp["from-include-type"].setCurrentText("IMAGE")
-    inp["from-include-ext"].setText(".heic")
-    inp["from-exclude-ext"].setText(".png")
-    inp["from-partners"].setChecked(True)
-    inp["from-time-zone"].setText("JST")
-    inp["from-no-album"].setChecked(True)
-    inp["from-device-uuid"].setText("dev-999")
-    inp["from-skip-ssl"].setChecked(True)
-    inp["from-api-trace"].setChecked(True)
-    inp["from-pause-jobs"].setChecked(False)
-    inp["from-client-timeout"].setValue(30)
-
-    plan = gui.build_plan(dry_run=True)
-    argv = plan.argv
-    assert "archive" in argv
-    assert "from-immich" in argv
-    assert "--write-to-folder=/out" in argv
-    assert "--from-favorite" in argv
-    assert "--from-archived" in argv
-    assert "--from-trash" in argv
-    assert "--from-minimal-rating=4" in argv
-    assert "--from-people=Alice" in argv
-    assert "--from-tags=vacation" in argv
-    assert "--from-city=Tokyo" in argv
-    assert "--from-state=Kanto" in argv
-    assert "--from-country=Japan" in argv
-    assert "--from-make=Apple" in argv
-    assert "--from-model=iPhone" in argv
-    assert "--from-include-type=IMAGE" in argv
-    assert "--from-include-extensions=.heic" in argv
-    assert "--from-exclude-extensions=.png" in argv
-    assert "--from-partners" in argv
-    assert "--from-time-zone=JST" in argv
-    assert "--from-no-album" in argv
-    assert "--from-device-uuid=dev-999" in argv
-    assert "--from-skip-verify-ssl" in argv
-    assert "--from-api-trace" in argv
-    assert "--from-pause-immich-jobs=false" in argv
-    assert "--from-client-timeout=30m" in argv
-    assert "--dry-run" in argv
-    assert "--from-dry-run" in argv
-
-
-def test_golden_stack(gui):
-    gui.stacked_widget.setCurrentIndex(3)
-    cfg = gui.inputs["config"]
-    cfg["server"].setText("http://local:2283")
-    cfg["api_key"].setText("key")
-    cfg["device_uuid"].setText("stack-dev-123")
-    inp = gui.inputs["stack"]
-    inp["date-range"].setText("2023-01-01,2023-12-31")
-    inp["time-zone"].setText("UTC")
-    inp["manage-epson"].setChecked(True)
-    inp["pause-jobs"].setChecked(False)
-    inp["api-trace"].setChecked(True)
-
-    plan = gui.build_plan(dry_run=False)
-    argv = plan.argv
-    assert "stack" in argv
-    assert "--date-range=2023-01-01,2023-12-31" in argv
-    assert "--time-zone=UTC" in argv
-    assert "--manage-epson-fastfoto" in argv
-    assert "--pause-immich-jobs=false" in argv
-    assert "--api-trace" in argv
-    assert "--device-uuid=stack-dev-123" in argv
+    gui.apply_form_state(state)
+    assert gui.adv_rows["upload-folder"]["time-zone"].enable.isChecked() is True
+    assert gui.adv_rows["upload-folder"]["time-zone"].get_value() == "America/New_York"
 
 
 def test_advanced_mode_persistence(gui):
@@ -5742,8 +6371,67 @@ def test_cleanup_stale_temp_dirs(tmp_path, monkeypatch):
     assert not dummy_dir.exists()
 
 
+def test_advanced_keys_derived_from_advanced_flags():
+    from app import ImmichGoGUI
+    from core.advanced_flags import ADVANCED_FLAGS
+
+    expected = {
+        tab: {def_.key for def_ in defs}
+        for tab, defs in ADVANCED_FLAGS.items()
+    }
+    assert ImmichGoGUI.ADVANCED_KEYS == expected
+
+
+def test_upload_gp_does_not_include_into_album_advanced_key():
+    from app import ImmichGoGUI
+
+    assert "into-album" not in ImmichGoGUI.ADVANCED_KEYS.get("upload-gp", set())
+
+
+def test_from_admin_api_key_advanced_secret_env(gui):
+    gui.toggle_advanced(True)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(2)
+
+    gui.inputs["config"]["server"].setText("http://new:2283")
+    gui.inputs["config"]["api_key"].setText("new-key")
+    gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
+    gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
+
+    gui.adv_rows["upload-immich"]["from-admin-api-key"].set_state({
+        "enabled": True,
+        "value": "old-admin-secret",
+    })
+
+    plan = gui.build_plan(False)
+
+    assert "--from-admin-api-key" not in " ".join(plan.argv)
+    assert "old-admin-secret" not in " ".join(plan.argv)
+    assert plan.env.get("IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY") == "old-admin-secret"
+
+
+def test_advanced_secret_value_not_persisted(gui):
+    gui.toggle_advanced(True)
+    gui.adv_rows["upload-immich"]["from-admin-api-key"].set_state({
+        "enabled": True,
+        "value": "super-secret-admin-key",
+    })
+
+    state = gui.collect_form_state()
+    saved = state["advanced"]["upload-immich"]["from-admin-api-key"]
+    assert saved["enabled"] is True
+    assert saved["value"] == ""
+
+
+def test_gp_simple_card_has_no_dead_checkboxes(gui):
+    gp_inputs = gui.inputs.get("upload-gp", {})
+    assert "include-partner" not in gp_inputs
+    assert "sync-albums" not in gp_inputs
+    assert "include-archived" not in gp_inputs
+
+
 ================================================================================
-FILE 15 / 16: scripts/capture_cli_help.py (Lines 1-84)
+FILE 16 / 18: scripts/capture_cli_help.py (Lines 1-84)
 ================================================================================
 #!/usr/bin/env python3
 """Script to capture immich-go CLI help outputs into versioned test fixtures.
@@ -5833,7 +6521,7 @@ if __name__ == "__main__":
 
 
 ================================================================================
-FILE 16 / 16: scripts/convert_markdown.py (Lines 1-564)
+FILE 17 / 18: scripts/convert_markdown.py (Lines 1-564)
 ================================================================================
 """Helper script to convert Markdown files to interactive, collapsible HTML pages.
 
@@ -6399,5 +7087,66 @@ if __name__ == "__main__":
 
     doc_title = f"Immich-Go GUI — {in_file.stem.replace('_', ' ').replace('-', ' ').title()}"
     convert_md_to_html(in_file, out_file, title=doc_title)
+
+
+
+================================================================================
+FILE 18 / 18: scripts/generate_diff_bundle.py (Lines 1-55)
+================================================================================
+"""Helper script to generate structured git diff review bundles for code analysis.
+
+Usage:
+    uv run python scripts/generate_diff_bundle.py [start_ref] [output_path] [end_ref]
+
+Defaults:
+    start_ref: 9dbbc54
+    output_path: phase2_review_changes.txt
+    end_ref: HEAD
+"""
+
+import sys
+import subprocess
+from pathlib import Path
+
+
+def generate_diff_bundle(start_ref: str = "9dbbc54", output_path: Path = None, end_ref: str = "HEAD"):
+    repo_root = Path(__file__).resolve().parent.parent
+    if output_path is None:
+        output_path = repo_root / "phase2_review_changes.txt"
+
+    rev_spec = f"{start_ref}..{end_ref}"
+
+    try:
+        exclude_paths = [":!command_binary_bugs_fix.txt", ":!command_binary_bugs.md", ":!phase2_review_changes.txt"]
+        diff = subprocess.check_output(["git", "diff", rev_spec, "--", "."] + exclude_paths, cwd=repo_root).decode("utf-8")
+        log = subprocess.check_output(["git", "log", rev_spec, "--oneline"], cwd=repo_root).decode("utf-8")
+        stat = subprocess.check_output(["git", "diff", rev_spec, "--stat", "--", "."] + exclude_paths, cwd=repo_root).decode("utf-8")
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing git command for {rev_spec}: {e}")
+        sys.exit(1)
+
+    header = "=" * 80 + "\n"
+    header += f"IMMICH-GO GUI - REVIEW & CHANGES BUNDLE ({rev_spec})\n"
+    header += "=" * 80 + "\n\n"
+    header += "COMMITS IN RANGE:\n"
+    header += log + "\n"
+    header += "SUMMARY OF CHANGED FILES:\n"
+    header += stat + "\n"
+    header += "=" * 80 + "\n"
+    header += "FULL GIT DIFF:\n"
+    header += "=" * 80 + "\n\n"
+
+    full_content = header + diff
+    output_path.write_text(full_content, encoding="utf-8")
+    print(f"Successfully generated git diff bundle: {output_path} ({len(full_content.splitlines())} lines)")
+
+
+if __name__ == "__main__":
+    repo_root = Path(__file__).resolve().parent.parent
+    start = sys.argv[1] if len(sys.argv) > 1 else "9dbbc54"
+    out = Path(sys.argv[2]) if len(sys.argv) > 2 else repo_root / "phase2_review_changes.txt"
+    end = sys.argv[3] if len(sys.argv) > 3 else "HEAD"
+
+    generate_diff_bundle(start_ref=start, output_path=out, end_ref=end)
 
 
