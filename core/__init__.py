@@ -25,6 +25,8 @@ from .cli_schema import (
     UPLOAD_TABS,
     FlagDef,
     TAB_ALLOWED_FLAGS,
+    ON_ERRORS_CUSTOM_LABEL,
+    ON_ERRORS_CUSTOM_VALUE,
     flag_allowed_for_tab,
     assert_flag_allowed,
 )

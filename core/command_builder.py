@@ -12,6 +12,8 @@ from typing import Any
 from .models import CommandPlan, ValidationResult
 from .cli_schema import (
     ENV_KEY_MAP,
+    ON_ERRORS_CUSTOM_LABEL,
+    ON_ERRORS_CUSTOM_VALUE,
     SECRET_FLAGS,
     SERVER_REQUIRED_TABS,
     TAB_COMMANDS,
@@ -23,6 +25,7 @@ from .validation import (
     normalize_extensions_csv,
     normalize_list_csv,
     validate_date_range as validate_date_range_func,
+    validate_server_url,
     expand_source_paths,
     validate_destination_folder,
 )
@@ -236,10 +239,15 @@ def validate_state(
                 res.errors.append("Immich server URL is required. Configure it in the Configuration tab.")
             else:
                 res.errors.append("Server URL is required. Configure it in the Configuration tab.")
+        else:
+            ok, err = validate_server_url(srv)
+            if not ok and err:
+                res.errors.append(err)
+
         if not key:
             res.errors.append("API Key is required. Configure it in the Configuration tab.")
 
-    elif tab_key == "upload-folder":
+    if tab_key == "upload-folder":
         p = tab_state.get("path", "").strip()
         if not p:
             res.errors.append("Source folder path is required.")
@@ -251,12 +259,19 @@ def validate_state(
         p = tab_state.get("path", "").strip()
         if not p:
             res.errors.append("Google Photos takeout source path is required.")
+        else:
+            _, path_warns = expand_source_paths(p)
+            res.warnings.extend(path_warns)
 
     elif tab_key == "upload-immich":
         fs = tab_state.get("from-server", "").strip()
         fk = tab_state.get("from-api-key", "").strip()
         if not fs:
             res.errors.append("Source Immich Server URL is required.")
+        else:
+            ok, err = validate_server_url(fs)
+            if not ok and err:
+                res.errors.append(f"Source {err}")
         if not fk:
             res.errors.append("Source Immich API Key is required.")
 
@@ -373,7 +388,7 @@ def build_plan_from_state(
                 emitter.add_option("on-errors", tab_state["on-errors"])
         else:
             oe_config = config_state.get("on_errors", "stop")
-            if oe_config == "custom…":
+            if oe_config in (ON_ERRORS_CUSTOM_LABEL, ON_ERRORS_CUSTOM_VALUE):
                 tol = config_state.get("on_errors_tolerance", 10)
                 emitter.add_option("on-errors", tol)
             elif oe_config != "stop":

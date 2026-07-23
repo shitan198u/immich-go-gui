@@ -293,7 +293,8 @@ def rename_profile(old_name: str, new_name: str) -> None:
         old_p_dir.rename(new_p_dir)
 
     # Migrate keyring secrets
-    SecretStore.copy_secrets(clean_old, clean_new)
+    if not SecretStore.copy_secrets(clean_old, clean_new):
+        raise RuntimeError("Failed to copy secrets to renamed profile.")
     SecretStore.clear_secret(clean_old, "api_key")
     SecretStore.clear_secret(clean_old, "admin_api_key")
 

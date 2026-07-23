@@ -89,11 +89,18 @@ class SecretStore:
             pass
 
     @staticmethod
-    def copy_secrets(src_profile: str, dst_profile: str) -> None:
+    def copy_secrets(src_profile: str, dst_profile: str) -> bool:
+        ok = True
         for k in ("api_key", "admin_api_key"):
             val = SecretStore.get_secret(src_profile, k)
-            if val:
-                SecretStore.set_secret(dst_profile, k, val)
+            if not val:
+                continue
+            if not SecretStore.set_secret(dst_profile, k, val):
+                ok = False
+                continue
+            if SecretStore.get_secret(dst_profile, k) != val:
+                ok = False
+        return ok
 
     @staticmethod
     def migrate_from_qsettings(settings) -> None:

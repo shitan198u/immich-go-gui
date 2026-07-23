@@ -1902,3 +1902,51 @@ def test_advanced_mode_persistence(gui):
     gui.toggle_advanced(False)
     assert gui.is_advanced is False
     assert gui.app_config.advanced_mode is False
+
+
+def test_validate_server_url():
+    from core.validation import validate_server_url
+    ok, err = validate_server_url("http://localhost:2283")
+    assert ok is True
+    assert err is None
+
+    ok, err = validate_server_url("https://immich.example.com")
+    assert ok is True
+    assert err is None
+
+    ok, err = validate_server_url("ftp://example.com")
+    assert ok is False
+    assert "http://" in err
+
+    ok, err = validate_server_url("invalid-url")
+    assert ok is False
+
+
+def test_upload_gp_path_warnings(gui, tmp_path):
+    nonexistent = str(tmp_path / "missing_takeout")
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(1)
+    gui.inputs["upload-gp"]["path"].setPlainText(nonexistent)
+
+    val = gui.validate_inputs()
+    assert any("does not exist" in w for w in val.warnings)
+
+
+def test_secret_copy_success_verification(monkeypatch):
+    from core.config_manager import SecretStore
+    secrets_db = {}
+
+    def mock_set(profile, key, val):
+        secrets_db[(profile, key)] = val
+        return True
+
+    def mock_get(profile, key):
+        return secrets_db.get((profile, key), "")
+
+    monkeypatch.setattr(SecretStore, "set_secret", mock_set)
+    monkeypatch.setattr(SecretStore, "get_secret", mock_get)
+
+    secrets_db[("src", "api_key")] = "my-secret-key"
+    res = SecretStore.copy_secrets("src", "dst")
+    assert res is True
+    assert secrets_db.get(("dst", "api_key")) == "my-secret-key"

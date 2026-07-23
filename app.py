@@ -82,6 +82,8 @@ from core import (
     METADATA_PATH,
     TESTED_IMMICH_GO_VERSION,
     ENV_KEY_MAP,
+    ON_ERRORS_CUSTOM_LABEL,
+    ON_ERRORS_CUSTOM_VALUE,
     SECRET_FLAGS,
     SERVER_REQUIRED_TABS,
     SERVERLESS_TABS,
@@ -917,7 +919,7 @@ class ImmichGoGUI(QMainWindow):
         adv_form.add_row("Device UUID", self.device_uuid_edit)
 
         self.on_errors_combo = QComboBox()
-        self.on_errors_combo.addItems(["stop", "continue", "custom…"])
+        self.on_errors_combo.addItems(["stop", "continue", ON_ERRORS_CUSTOM_LABEL])
         self.on_errors_combo.currentTextChanged.connect(self._on_errors_changed)
         self.inputs["config"]["on_errors"] = self.on_errors_combo
         adv_form.add_row("On Errors", self.on_errors_combo)
@@ -960,7 +962,7 @@ class ImmichGoGUI(QMainWindow):
         self.check_binary_version()
 
     def _on_errors_changed(self, text):
-        self.on_errors_spin.setVisible(text == "custom…")
+        self.on_errors_spin.setVisible(text == ON_ERRORS_CUSTOM_LABEL)
 
     def _build_upload_folder_tab(self):
         page = QWidget()
@@ -3341,8 +3343,8 @@ class ImmichGoGUI(QMainWindow):
             )
 
         if "on_errors" in self.inputs["config"]:
-            if self.app_config.on_errors == "custom":
-                self.inputs["config"]["on_errors"].setCurrentText("custom…")
+            if self.app_config.on_errors == ON_ERRORS_CUSTOM_VALUE:
+                self.inputs["config"]["on_errors"].setCurrentText(ON_ERRORS_CUSTOM_LABEL)
             else:
                 self.inputs["config"]["on_errors"].setCurrentText(
                     self.app_config.on_errors
@@ -3407,8 +3409,8 @@ class ImmichGoGUI(QMainWindow):
 
         if "on_errors" in self.inputs["config"]:
             on_errors_text = self.inputs["config"]["on_errors"].currentText()
-            if on_errors_text == "custom…":
-                self.app_config.on_errors = "custom"
+            if on_errors_text == ON_ERRORS_CUSTOM_LABEL:
+                self.app_config.on_errors = ON_ERRORS_CUSTOM_VALUE
             else:
                 self.app_config.on_errors = on_errors_text
 

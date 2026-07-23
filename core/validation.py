@@ -10,6 +10,16 @@ from pathlib import Path
 import re
 
 
+def validate_server_url(url: str) -> tuple[bool, str | None]:
+    """Validate server URL format."""
+    if not url or not url.strip():
+        return False, "Server URL is empty"
+    clean = url.strip()
+    if not re.match(r"^https?://[^/\s]+", clean):
+        return False, "Server URL must start with http:// or https://"
+    return True, None
+
+
 def clean_date_range(text: str) -> str:
     """Normalize date range input.
 

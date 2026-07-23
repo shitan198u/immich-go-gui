@@ -62,6 +62,10 @@ SECRET_FLAGS = {
     "--from-admin-api-key",
 }
 
+# Constants for error handling UI and schema strings.
+ON_ERRORS_CUSTOM_LABEL = "Custom…"
+ON_ERRORS_CUSTOM_VALUE = "custom"
+
 # Environment variables used to pass secrets safely.
 ENV_KEY_MAP = {
     "upload-folder": {
