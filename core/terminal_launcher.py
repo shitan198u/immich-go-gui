@@ -122,31 +122,44 @@ def launch_external_terminal(
         cmd_quoted = " ".join(shlex.quote(c) for c in command)
         run_sh_content = (
             "#!/usr/bin/env bash\n"
-            f"echo $$ > {shlex.quote(str(pid_file_path))}\n"
-            f"(\n"
-            f"  while true; do\n"
-            f"    touch {shlex.quote(str(hb_file_path))} 2>/dev/null\n"
-            f"    sleep 10\n"
-            f"  done\n"
-            f") &\n"
-            f"HB_PID=$!\n\n"
-            f"set -a\n"
-            f"source {shlex.quote(str(env_sh_path))}\n"
-            f"set +a\n\n"
-            f"cd {shlex.quote(str(temp_dir))}\n\n"
-            f"cleanup() {{\n"
-            f"  kill $HB_PID 2>/dev/null\n"
-            f"  rm -f {shlex.quote(str(pid_file_path))} {shlex.quote(str(hb_file_path))} {shlex.quote(str(l_path))}\n"
-            f"  rm -rf {shlex.quote(str(temp_dir))}\n"
-            f"}}\n\n"
-            f"trap cleanup EXIT INT TERM\n\n"
+            f"PID_FILE={shlex.quote(str(pid_file_path))}\n"
+            f"HB_FILE={shlex.quote(str(hb_file_path))}\n"
+            f"LOCK_FILE={shlex.quote(str(l_path))}\n"
+            f"ENV_FILE={shlex.quote(str(env_sh_path))}\n"
+            f"TEMP_DIR={shlex.quote(str(temp_dir))}\n"
+            "\n"
+            'echo $$ > "$PID_FILE"\n'
+            "(\n"
+            "  while true; do\n"
+            '    touch "$HB_FILE" 2>/dev/null\n'
+            "    sleep 10\n"
+            "  done\n"
+            ") &\n"
+            "HB_PID=$!\n"
+            "\n"
+            'SAFE_DIR="$HOME"\n'
+            '[ -d "$SAFE_DIR" ] || SAFE_DIR=/\n'
+            'cd "$SAFE_DIR"\n'
+            "\n"
+            "set -a\n"
+            'source "$ENV_FILE"\n'
+            "set +a\n"
+            "\n"
+            "cleanup() {\n"
+            '  kill "$HB_PID" 2>/dev/null\n'
+            '  rm -f "$PID_FILE" "$HB_FILE" "$LOCK_FILE" "$ENV_FILE"\n'
+            "}\n"
+            "\n"
+            "trap cleanup EXIT INT TERM\n"
             f"{cmd_quoted}\n"
-            f"code=$?\n\n"
-            f"trap - EXIT INT TERM\n"
-            f"cleanup\n\n"
-            f'echo ""\n'
-            f'echo "immich-go exited with code $code"\n'
-            f"exec bash\n"
+            "code=$?\n"
+            "\n"
+            "trap - EXIT INT TERM\n"
+            "cleanup\n"
+            "\n"
+            'echo ""\n'
+            'echo "immich-go exited with code $code"\n'
+            "exec bash\n"
         )
 
         run_sh_path.write_text(run_sh_content, encoding="utf-8")

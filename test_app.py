@@ -1438,15 +1438,19 @@ def test_terminal_launcher_working_directory_isolation(tmp_path, monkeypatch):
         res = launch_external_terminal(cmd, env, lock_path, preferred_terminal="auto")
         assert res.ok is True
 
-    # Find created run.sh and check for cd
-    locks_dir = tmp_path / "locks"
     temp_dirs = list(Path("/tmp").glob("immich-go-run-*"))
-    if temp_dirs:
-        latest_temp = max(temp_dirs, key=lambda d: d.stat().st_mtime)
-        run_sh = latest_temp / "run.sh"
-        if run_sh.exists():
-            content = run_sh.read_text(encoding="utf-8")
-            assert f"cd '{latest_temp}'" in content or "cd " in content
+    assert temp_dirs, "Expected POSIX launcher to create a temp run directory"
+
+    latest_temp = max(temp_dirs, key=lambda d: d.stat().st_mtime)
+    run_sh = latest_temp / "run.sh"
+    assert run_sh.exists()
+
+    content = run_sh.read_text(encoding="utf-8")
+
+    assert 'SAFE_DIR="$HOME"' in content
+    assert 'cd "$SAFE_DIR"' in content
+    assert f"cd '{latest_temp}'" not in content
+    assert f"rm -rf '{latest_temp}'" not in content
 
 
 # ==============================================================================
