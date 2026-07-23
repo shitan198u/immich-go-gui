@@ -312,8 +312,9 @@ def build_plan_from_state(
     dry_run: bool = False,
     base_env: dict[str, str] | None = None,
     strict_schema: bool = False,
+    advanced_state: dict | None = None,
 ) -> CommandPlan:
-    """Converts configuration state and tab input state into a CommandPlan."""
+    """Converts configuration state, tab input state, and opt-in advanced state into a CommandPlan."""
     plan = CommandPlan()
     plan.tab_key = tab_key
     plan.dry_run = dry_run
@@ -398,18 +399,8 @@ def build_plan_from_state(
 
     # Tab-specific options
     if tab_key == "upload-folder":
-        if tab_state.get("include-type", "all") != "all":
-            emitter.add_option("include-type", tab_state["include-type"])
-
         if tab_state.get("folder-album", "NONE") != "NONE":
             emitter.add_option("folder-as-album", tab_state["folder-album"])
-
-        if tab_state.get("into-album"):
-            emitter.add_option("into-album", tab_state["into-album"])
-
-        if tab_state.get("overwrite"):
-            emitter.add_flag("overwrite")
-            plan.warnings.append("Overwrite mode will replace existing files on the server.")
 
         if tab_state.get("manage-burst", "NoStack") != "NoStack":
             emitter.add_option("manage-burst", tab_state["manage-burst"])
@@ -425,52 +416,6 @@ def build_plan_from_state(
 
         if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
             emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
-
-        dr = clean_date_range(str(tab_state.get("date-range", "")))
-        if dr:
-            emitter.add_option("date-range", dr)
-
-        inc_ext = normalize_extensions_csv(str(tab_state.get("include-ext", "")))
-        if inc_ext:
-            emitter.add_option("include-extensions", inc_ext)
-
-        exc_ext = normalize_extensions_csv(str(tab_state.get("exclude-ext", "")))
-        if exc_ext:
-            emitter.add_option("exclude-extensions", exc_ext)
-
-        if tab_state.get("ban-file"):
-            for line in str(tab_state["ban-file"]).split("\n"):
-                if line.strip():
-                    emitter.add_option("ban-file", line.strip())
-
-        if tab_state.get("ignore-sidecar"):
-            emitter.add_flag("ignore-sidecar-files")
-
-        emit_bool_flag(emitter, "recursive", tab_state.get("recursive", True), default=True)
-        emit_bool_flag(emitter, "date-from-name", tab_state.get("date-from-name", True), default=True)
-
-        if tab_state.get("tag"):
-            for t in str(tab_state["tag"]).split(","):
-                if t.strip():
-                    emitter.add_option("tag", t.strip())
-
-        if tab_state.get("session-tag"):
-            emitter.add_flag("session-tag")
-
-        if tab_state.get("folder-tags"):
-            emitter.add_flag("folder-as-tags")
-
-        if tab_state.get("api-trace"):
-            emitter.add_flag("api-trace")
-
-        if tab_state.get("album-path-joiner"):
-            emitter.add_option("album-path-joiner", tab_state["album-path-joiner"])
-
-        if tab_state.get("time-zone"):
-            emitter.add_option("time-zone", tab_state["time-zone"])
-
-        if tab_state.get("manage-epson"):
-            emitter.add_flag("manage-epson-fastfoto")
 
         raw_path = str(tab_state.get("path", "")).strip()
         if raw_path:
@@ -490,65 +435,6 @@ def build_plan_from_state(
         if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
             emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
 
-        if tab_state.get("manage-epson"):
-            emitter.add_flag("manage-epson-fastfoto")
-
-        if tab_state.get("include-type", "all") != "all":
-            emitter.add_option("include-type", tab_state["include-type"])
-
-        if tab_state.get("into-album"):
-            emitter.add_option("into-album", tab_state["into-album"])
-
-        if tab_state.get("from-album-name"):
-            emitter.add_option("from-album-name", tab_state["from-album-name"])
-
-        if tab_state.get("partner-album"):
-            emitter.add_option("partner-shared-album", tab_state["partner-album"])
-
-        emit_bool_flag(emitter, "include-archived", tab_state.get("include-archived", True), default=True)
-        emit_bool_flag(emitter, "include-partner", tab_state.get("include-partner", True), default=True)
-        emit_bool_flag(emitter, "sync-albums", tab_state.get("sync-albums", True), default=True)
-        emit_bool_flag(emitter, "takeout-tag", tab_state.get("takeout-tag", True), default=True)
-        emit_bool_flag(emitter, "people-tag", tab_state.get("people-tag", True), default=True)
-
-        emit_bool_flag(emitter, "include-trashed", tab_state.get("include-trashed", False), default=False)
-        emit_bool_flag(emitter, "include-unmatched", tab_state.get("include-unmatched", False), default=False)
-        emit_bool_flag(emitter, "include-untitled-albums", tab_state.get("include-untitled-albums", False), default=False)
-
-        dr = clean_date_range(str(tab_state.get("date-range", "")))
-        if dr:
-            emitter.add_option("date-range", dr)
-
-        inc_ext = normalize_extensions_csv(str(tab_state.get("include-ext", "")))
-        if inc_ext:
-            emitter.add_option("include-extensions", inc_ext)
-
-        exc_ext = normalize_extensions_csv(str(tab_state.get("exclude-ext", "")))
-        if exc_ext:
-            emitter.add_option("exclude-extensions", exc_ext)
-
-        if tab_state.get("ban-file"):
-            for line in str(tab_state["ban-file"]).split("\n"):
-                if line.strip():
-                    emitter.add_option("ban-file", line.strip())
-
-        if tab_state.get("tag"):
-            for t in str(tab_state["tag"]).split(","):
-                if t.strip():
-                    emitter.add_option("tag", t.strip())
-
-        if tab_state.get("session-tag"):
-            emitter.add_flag("session-tag")
-
-        if tab_state.get("overwrite"):
-            emitter.add_flag("overwrite")
-
-        if tab_state.get("time-zone"):
-            emitter.add_option("time-zone", tab_state["time-zone"])
-
-        if tab_state.get("api-trace"):
-            emitter.add_flag("api-trace")
-
         raw_paths = str(tab_state.get("path", "")).strip()
         if raw_paths:
             path_opt.extend(collect_paths(raw_paths))
@@ -557,165 +443,12 @@ def build_plan_from_state(
         if from_server:
             emitter.add_option("from-server", normalize_server_url(from_server))
 
-        from_ct = tab_state.get("from-client-timeout")
-        if from_ct is not None and int(from_ct) != 20 and int(from_ct) > 0:
-            emitter.add_option("from-client-timeout", f"{from_ct}m")
-
-        if tab_state.get("from-favorite"):
-            emitter.add_flag("from-favorite")
-
-        if tab_state.get("from-archived"):
-            emitter.add_flag("from-archived")
-
-        if tab_state.get("from-trash"):
-            emitter.add_flag("from-trash")
-
-        if tab_state.get("from-date-range"):
-            emitter.add_option("from-date-range", tab_state["from-date-range"])
-
-        if tab_state.get("from-albums"):
-            for a in str(tab_state["from-albums"]).split(","):
-                if a.strip():
-                    emitter.add_option("from-albums", a.strip())
-
-        if tab_state.get("from-minimal-rating", 0) > 0:
-            emitter.add_option("from-minimal-rating", tab_state["from-minimal-rating"])
-
-        if tab_state.get("from-people"):
-            for p in str(tab_state["from-people"]).split(","):
-                if p.strip():
-                    emitter.add_option("from-people", p.strip())
-
-        if tab_state.get("from-tags"):
-            for t in str(tab_state["from-tags"]).split(","):
-                if t.strip():
-                    emitter.add_option("from-tags", t.strip())
-
-        if tab_state.get("from-city"):
-            emitter.add_option("from-city", tab_state["from-city"])
-
-        if tab_state.get("from-state"):
-            emitter.add_option("from-state", tab_state["from-state"])
-
-        if tab_state.get("from-country"):
-            emitter.add_option("from-country", tab_state["from-country"])
-
-        if tab_state.get("from-make"):
-            emitter.add_option("from-make", tab_state["from-make"])
-
-        if tab_state.get("from-model"):
-            emitter.add_option("from-model", tab_state["from-model"])
-
-        if tab_state.get("from-skip-ssl"):
-            emitter.add_flag("from-skip-verify-ssl")
-
-        if tab_state.get("from-include-type", "all") != "all":
-            emitter.add_option("from-include-type", tab_state["from-include-type"])
-
-        inc_ext = normalize_extensions_csv(str(tab_state.get("from-include-ext", "")))
-        if inc_ext:
-            emitter.add_option("from-include-extensions", inc_ext)
-
-        exc_ext = normalize_extensions_csv(str(tab_state.get("from-exclude-ext", "")))
-        if exc_ext:
-            emitter.add_option("from-exclude-extensions", exc_ext)
-
-        if tab_state.get("from-partners"):
-            emitter.add_flag("from-partners")
-
-        if tab_state.get("from-time-zone"):
-            emitter.add_option("from-time-zone", tab_state["from-time-zone"])
-
-        if tab_state.get("from-no-album"):
-            emitter.add_flag("from-no-album")
-
-        if tab_state.get("from-device-uuid"):
-            emitter.add_option("from-device-uuid", tab_state["from-device-uuid"])
-
-        if tab_state.get("from-api-trace"):
-            emitter.add_flag("from-api-trace")
-
-        if "from-pause-jobs" in tab_state and not tab_state["from-pause-jobs"]:
-            emitter.add_bool_val("from-pause-immich-jobs", False)
-
-        # Destination flags
-        if tab_state.get("tag"):
-            for t in str(tab_state["tag"]).split(","):
-                if t.strip():
-                    emitter.add_option("tag", t.strip())
-
-        if tab_state.get("session-tag"):
-            emitter.add_flag("session-tag")
-
-        if tab_state.get("overwrite"):
-            emitter.add_flag("overwrite")
-
-        if tab_state.get("time-zone"):
-            emitter.add_option("time-zone", tab_state["time-zone"])
-
-        if tab_state.get("manage-burst", "NoStack") != "NoStack":
-            emitter.add_option("manage-burst", tab_state["manage-burst"])
-
-        if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
-            emitter.add_option("manage-raw-jpeg", tab_state["manage-raw-jpeg"])
-            if tab_state["manage-raw-jpeg"] == "KeepJPG":
-                plan.warnings.append("KeepJPG may delete the RAW file when stacking pairs.")
-            elif tab_state["manage-raw-jpeg"] == "KeepRaw":
-                plan.warnings.append("KeepRaw may delete the JPEG file when stacking pairs.")
-
-        if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
-            emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
-
-        if tab_state.get("manage-epson"):
-            emitter.add_flag("manage-epson-fastfoto")
-
-        if tab_state.get("api-trace"):
-            emitter.add_flag("api-trace")
-
     elif tab_key == "archive-folder":
         if tab_state.get("write-to"):
             write_to = os.path.abspath(
                 os.path.expanduser(str(tab_state["write-to"]).strip())
             )
             emitter.add_option("write-to-folder", write_to)
-
-        dr = clean_date_range(str(tab_state.get("date-range", "")))
-        if dr:
-            emitter.add_option("date-range", dr)
-
-        if tab_state.get("include-type", "all") != "all":
-            emitter.add_option("include-type", tab_state["include-type"])
-
-        inc_ext = normalize_extensions_csv(str(tab_state.get("include-ext", "")))
-        if inc_ext:
-            emitter.add_option("include-extensions", inc_ext)
-
-        exc_ext = normalize_extensions_csv(str(tab_state.get("exclude-ext", "")))
-        if exc_ext:
-            emitter.add_option("exclude-extensions", exc_ext)
-
-        if tab_state.get("ban-file"):
-            for line in str(tab_state["ban-file"]).split("\n"):
-                if line.strip():
-                    emitter.add_option("ban-file", line.strip())
-
-        if tab_state.get("ignore-sidecar"):
-            emitter.add_flag("ignore-sidecar-files")
-
-        emit_bool_flag(emitter, "recursive", tab_state.get("recursive", True), default=True)
-        emit_bool_flag(emitter, "date-from-name", tab_state.get("date-from-name", True), default=True)
-
-        if tab_state.get("folder-album", "NONE") != "NONE":
-            emitter.add_option("folder-as-album", tab_state["folder-album"])
-
-        if tab_state.get("folder-tags"):
-            emitter.add_flag("folder-as-tags")
-
-        if tab_state.get("into-album"):
-            emitter.add_option("into-album", tab_state["into-album"])
-
-        if tab_state.get("album-path-joiner"):
-            emitter.add_option("album-path-joiner", tab_state["album-path-joiner"])
 
         raw_path = str(tab_state.get("path", "")).strip()
         if raw_path:
@@ -732,87 +465,6 @@ def build_plan_from_state(
             )
             emitter.add_option("write-to-folder", write_to)
 
-        if tab_state.get("from-date-range"):
-            emitter.add_option("from-date-range", tab_state["from-date-range"])
-
-        if tab_state.get("from-albums"):
-            for a in str(tab_state["from-albums"]).split(","):
-                if a.strip():
-                    emitter.add_option("from-albums", a.strip())
-
-        if tab_state.get("from-favorite"):
-            emitter.add_flag("from-favorite")
-
-        if tab_state.get("from-archived"):
-            emitter.add_flag("from-archived")
-
-        if tab_state.get("from-trash"):
-            emitter.add_flag("from-trash")
-
-        if tab_state.get("from-minimal-rating", 0) > 0:
-            emitter.add_option("from-minimal-rating", tab_state["from-minimal-rating"])
-
-        if tab_state.get("from-people"):
-            for p in str(tab_state["from-people"]).split(","):
-                if p.strip():
-                    emitter.add_option("from-people", p.strip())
-
-        if tab_state.get("from-tags"):
-            for t in str(tab_state["from-tags"]).split(","):
-                if t.strip():
-                    emitter.add_option("from-tags", t.strip())
-
-        if tab_state.get("from-city"):
-            emitter.add_option("from-city", tab_state["from-city"])
-
-        if tab_state.get("from-state"):
-            emitter.add_option("from-state", tab_state["from-state"])
-
-        if tab_state.get("from-country"):
-            emitter.add_option("from-country", tab_state["from-country"])
-
-        if tab_state.get("from-make"):
-            emitter.add_option("from-make", tab_state["from-make"])
-
-        if tab_state.get("from-model"):
-            emitter.add_option("from-model", tab_state["from-model"])
-
-        if tab_state.get("from-include-type", "all") != "all":
-            emitter.add_option("from-include-type", tab_state["from-include-type"])
-
-        inc_ext = normalize_extensions_csv(str(tab_state.get("from-include-ext", "")))
-        if inc_ext:
-            emitter.add_option("from-include-extensions", inc_ext)
-
-        exc_ext = normalize_extensions_csv(str(tab_state.get("from-exclude-ext", "")))
-        if exc_ext:
-            emitter.add_option("from-exclude-extensions", exc_ext)
-
-        if tab_state.get("from-partners"):
-            emitter.add_flag("from-partners")
-
-        if tab_state.get("from-time-zone"):
-            emitter.add_option("from-time-zone", tab_state["from-time-zone"])
-
-        if tab_state.get("from-no-album"):
-            emitter.add_flag("from-no-album")
-
-        if tab_state.get("from-device-uuid"):
-            emitter.add_option("from-device-uuid", tab_state["from-device-uuid"])
-
-        if tab_state.get("from-skip-ssl"):
-            emitter.add_flag("from-skip-verify-ssl")
-
-        if tab_state.get("from-api-trace"):
-            emitter.add_flag("from-api-trace")
-
-        if "from-pause-jobs" in tab_state and not tab_state["from-pause-jobs"]:
-            emitter.add_bool_val("from-pause-immich-jobs", False)
-
-        from_ct = tab_state.get("from-client-timeout")
-        if from_ct is not None and int(from_ct) != 20 and int(from_ct) > 0:
-            emitter.add_option("from-client-timeout", f"{from_ct}m")
-
     elif tab_key == "stack":
         if tab_state.get("manage-burst", "NoStack") != "NoStack":
             emitter.add_option("manage-burst", tab_state["manage-burst"])
@@ -827,18 +479,15 @@ def build_plan_from_state(
         if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
             emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
 
-        dr = clean_date_range(str(tab_state.get("date-range", "")))
-        if dr:
-            emitter.add_option("date-range", dr)
-
-        if tab_state.get("time-zone"):
-            emitter.add_option("time-zone", tab_state["time-zone"])
-
-        if tab_state.get("manage-epson"):
-            emitter.add_flag("manage-epson-fastfoto")
-
-        if tab_state.get("api-trace"):
-            emitter.add_flag("api-trace")
+    # Opt-in Advanced Flags
+    if advanced_state:
+        from .advanced_flags import apply_advanced_flags_to_plan
+        apply_advanced_flags_to_plan(
+            plan=plan,
+            emitter=emitter,
+            tab_key=tab_key,
+            advanced_state=advanced_state,
+        )
 
     # Dry-run handling
     if dry_run:

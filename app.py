@@ -2122,155 +2122,35 @@ class ImmichGoGUI(QMainWindow):
         if tab_key == "upload-folder":
             return {
                 "path": get_text("path"),
-                "include-type": get_combo("include-type", "all"),
                 "folder-album": get_combo("folder-album", "NONE"),
-                "into-album": get_text("into-album"),
                 "manage-burst": get_combo("manage-burst", "NoStack"),
                 "manage-raw-jpeg": get_combo("manage-raw-jpeg", "NoStack"),
                 "manage-heic-jpeg": get_combo("manage-heic-jpeg", "NoStack"),
-                "date-range": get_text("date-range"),
-                "include-ext": get_text("include-ext"),
-                "exclude-ext": get_text("exclude-ext"),
-                "ban-file": get_text("ban-file"),
-                "recursive": get_bool("recursive", True),
-                "ignore-sidecar": get_bool("ignore-sidecar", False),
-                "date-from-name": get_bool("date-from-name", True),
-                "album-path-joiner": get_text("album-path-joiner"),
-                "tag": get_text("tag"),
-                "session-tag": get_bool("session-tag", False),
-                "folder-tags": get_bool("folder-tags", False),
-                "on-errors": get_combo("on-errors", "stop"),
-                "overwrite": get_bool("overwrite", False),
-                "pause-jobs": get_bool("pause-jobs", True),
-                "time-zone": get_text("time-zone"),
-                "manage-epson": get_bool("manage-epson", False),
-                "log-level": get_combo("log-level", "INFO"),
-                "api-trace": get_bool("api-trace", False),
             }
 
         elif tab_key == "upload-gp":
             return {
                 "path": get_text("path"),
-                "include-type": get_combo("include-type", "all"),
-                "into-album": get_text("into-album"),
-                "include-unmatched": get_bool("include-unmatched", False),
-                "include-partner": get_bool("include-partner", True),
-                "sync-albums": get_bool("sync-albums", True),
                 "manage-burst": get_combo("manage-burst", "NoStack"),
-                "manage-heic-jpeg": get_combo("manage-heic-jpeg", "NoStack"),
                 "manage-raw-jpeg": get_combo("manage-raw-jpeg", "NoStack"),
-                "manage-epson": get_bool("manage-epson", False),
-                "from-album-name": get_text("from-album-name"),
-                "include-archived": get_bool("include-archived", True),
-                "include-trashed": get_bool("include-trashed", False),
-                "include-untitled-albums": get_bool("include-untitled-albums", False),
-                "partner-album": get_text("partner-album"),
-                "takeout-tag": get_bool("takeout-tag", True),
-                "people-tag": get_bool("people-tag", True),
-                "date-range": get_text("date-range"),
-                "include-ext": get_text("include-ext"),
-                "exclude-ext": get_text("exclude-ext"),
-                "ban-file": get_text("ban-file"),
-                "tag": get_text("tag"),
-                "session-tag": get_bool("session-tag", False),
-                "overwrite": get_bool("overwrite", False),
-                "on-errors": get_combo("on-errors", "stop"),
-                "pause-jobs": get_bool("pause-jobs", True),
-                "time-zone": get_text("time-zone"),
-                "log-level": get_combo("log-level", "INFO"),
-                "api-trace": get_bool("api-trace", False),
+                "manage-heic-jpeg": get_combo("manage-heic-jpeg", "NoStack"),
             }
 
         elif tab_key == "upload-immich":
             return {
                 "from-server": get_text("from-server"),
                 "from-api-key": get_text("from-api-key"),
-                "from-admin-api-key": get_text("from-admin-api-key"),
-                "from-client-timeout": get_int("from-client-timeout", 20),
-                "from-favorite": get_bool("from-favorite", False),
-                "from-archived": get_bool("from-archived", False),
-                "from-trash": get_bool("from-trash", False),
-                "from-partners": get_bool("from-partners", False),
-                "from-no-album": get_bool("from-no-album", False),
-                "from-date-range": get_text("from-date-range"),
-                "from-albums": get_text("from-albums"),
-                "from-minimal-rating": get_int("from-minimal-rating", 0),
-                "from-people": get_text("from-people"),
-                "from-tags": get_text("from-tags"),
-                "from-city": get_text("from-city"),
-                "from-state": get_text("from-state"),
-                "from-country": get_text("from-country"),
-                "from-make": get_text("from-make"),
-                "from-model": get_text("from-model"),
-                "from-include-type": get_combo("from-include-type", "all"),
-                "from-include-ext": get_text("from-include-ext"),
-                "from-exclude-ext": get_text("from-exclude-ext"),
-                "from-time-zone": get_text("from-time-zone"),
-                "from-device-uuid": get_text("from-device-uuid"),
-                "from-skip-ssl": get_bool("from-skip-ssl", False),
-                "from-api-trace": get_bool("from-api-trace", False),
-                "from-pause-jobs": get_bool("from-pause-jobs", True),
-                "tag": get_text("tag"),
-                "session-tag": get_bool("session-tag", False),
-                "overwrite": get_bool("overwrite", False),
-                "time-zone": get_text("time-zone"),
-                "manage-burst": get_combo("manage-burst", "NoStack"),
-                "manage-raw-jpeg": get_combo("manage-raw-jpeg", "NoStack"),
-                "manage-heic-jpeg": get_combo("manage-heic-jpeg", "NoStack"),
-                "manage-epson": get_bool("manage-epson", False),
-                "on-errors": get_combo("on-errors", "stop"),
-                "log-level": get_combo("log-level", "INFO"),
-                "api-trace": get_bool("api-trace", False),
             }
 
         elif tab_key == "archive-folder":
             return {
                 "path": get_text("path"),
                 "write-to": get_text("write-to"),
-                "date-range": get_text("date-range"),
-                "include-type": get_combo("include-type", "all"),
-                "include-ext": get_text("include-ext"),
-                "exclude-ext": get_text("exclude-ext"),
-                "ban-file": get_text("ban-file"),
-                "recursive": get_bool("recursive", True),
-                "ignore-sidecar": get_bool("ignore-sidecar", False),
-                "date-from-name": get_bool("date-from-name", True),
-                "folder-album": get_combo("folder-album", "NONE"),
-                "folder-tags": get_bool("folder-tags", False),
-                "into-album": get_text("into-album"),
-                "album-path-joiner": get_text("album-path-joiner"),
-                "on-errors": get_combo("on-errors", "stop"),
-                "log-level": get_combo("log-level", "INFO"),
             }
 
         elif tab_key == "archive-immich":
             return {
                 "write-to": get_text("write-to"),
-                "from-date-range": get_text("from-date-range"),
-                "from-albums": get_text("from-albums"),
-                "from-favorite": get_bool("from-favorite", False),
-                "from-archived": get_bool("from-archived", False),
-                "from-trash": get_bool("from-trash", False),
-                "from-minimal-rating": get_int("from-minimal-rating", 0),
-                "from-no-album": get_bool("from-no-album", False),
-                "from-partners": get_bool("from-partners", False),
-                "from-people": get_text("from-people"),
-                "from-tags": get_text("from-tags"),
-                "from-city": get_text("from-city"),
-                "from-state": get_text("from-state"),
-                "from-country": get_text("from-country"),
-                "from-make": get_text("from-make"),
-                "from-model": get_text("from-model"),
-                "from-include-type": get_combo("from-include-type", "all"),
-                "from-include-ext": get_text("from-include-ext"),
-                "from-exclude-ext": get_text("from-exclude-ext"),
-                "from-time-zone": get_text("from-time-zone"),
-                "from-device-uuid": get_text("from-device-uuid"),
-                "from-client-timeout": get_int("from-client-timeout", 20),
-                "from-skip-ssl": get_bool("from-skip-ssl", False),
-                "from-api-trace": get_bool("from-api-trace", False),
-                "from-pause-jobs": get_bool("from-pause-jobs", True),
-                "log-level": get_combo("log-level", "INFO"),
             }
 
         elif tab_key == "stack":
@@ -2278,15 +2158,20 @@ class ImmichGoGUI(QMainWindow):
                 "manage-burst": get_combo("manage-burst", "NoStack"),
                 "manage-raw-jpeg": get_combo("manage-raw-jpeg", "NoStack"),
                 "manage-heic-jpeg": get_combo("manage-heic-jpeg", "NoStack"),
-                "date-range": get_text("date-range"),
-                "time-zone": get_text("time-zone"),
-                "manage-epson": get_bool("manage-epson", False),
-                "pause-jobs": get_bool("pause-jobs", True),
-                "log-level": get_combo("log-level", "INFO"),
-                "api-trace": get_bool("api-trace", False),
             }
 
         return {}
+
+    def _collect_advanced_state(self, tab_key: str | None = None) -> dict:
+        if not getattr(self, "is_advanced", False):
+            return {}
+        if tab_key is not None:
+            rows = getattr(self, "adv_rows", {}).get(tab_key, {})
+            return {key: row.state() for key, row in rows.items()}
+        return {
+            tab: {key: row.state() for key, row in rows.items()}
+            for tab, rows in getattr(self, "adv_rows", {}).items()
+        }
 
     def validate_inputs(self) -> ValidationResult:
         tab_key = self._get_active_tab_key()
@@ -2295,12 +2180,20 @@ class ImmichGoGUI(QMainWindow):
 
         config_state = self._collect_config_state()
         tab_state = self._collect_tab_state(tab_key)
+        advanced_state = self._collect_advanced_state(tab_key)
 
-        return validate_state(
+        base = validate_state(
             tab_key=tab_key,
             config_state=config_state,
             tab_state=tab_state,
         )
+
+        from core.advanced_flags import validate_advanced_state
+        adv = validate_advanced_state(tab_key, advanced_state)
+
+        base.errors.extend(adv.errors)
+        base.warnings.extend(adv.warnings)
+        return base
 
     def on_test_connection_clicked(self):
         srv_widget = self.inputs.get("config", {}).get("server")
@@ -2371,6 +2264,7 @@ class ImmichGoGUI(QMainWindow):
 
         config_state = self._collect_config_state()
         tab_state = self._collect_tab_state(tab_key)
+        advanced_state = self._collect_advanced_state(tab_key)
 
         binary_path = getattr(self, "binary_path", "")
         if not binary_path:
@@ -2382,6 +2276,7 @@ class ImmichGoGUI(QMainWindow):
             tab_state=tab_state,
             binary_path=binary_path,
             dry_run=dry_run,
+            advanced_state=advanced_state,
         )
 
     def build_command(self, dry_run: bool) -> list[str]:
