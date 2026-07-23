@@ -22,8 +22,8 @@ def bundle_codebase(output_path: Path):
     if core_dir.exists():
         files_to_bundle.extend(sorted(core_dir.glob("*.py")))
 
-    # 2. Test suite files (app.py and theme.py excluded per request)
-    for fname in ["test_app.py"]:
+    # 2. Test suite files
+    for fname in ["tests/test_app.py"]:
         p = repo_root / fname
         if p.exists():
             files_to_bundle.append(p)

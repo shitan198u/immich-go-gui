@@ -1391,7 +1391,7 @@ from core.command_builder import build_plan_from_state
 
 
 def test_golden_json_fixtures():
-    fixtures_dir = Path(__file__).resolve().parent / "tests" / "fixtures" / "command_states"
+    fixtures_dir = Path(__file__).resolve().parent / "fixtures" / "command_states"
     json_files = list(fixtures_dir.glob("*.json"))
     assert len(json_files) >= 6, "Expected at least 6 golden state fixtures"
 
@@ -2119,7 +2119,7 @@ def test_no_duplicate_test_names():
     """A2: Ensure no duplicate test function names exist in test_app.py."""
     import ast
     import collections
-    tree = ast.parse(Path("test_app.py").read_text(encoding="utf-8"))
+    tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
     names = [
         n.name for n in ast.walk(tree)
         if isinstance(n, ast.FunctionDef) and n.name.startswith("test_")
@@ -2198,7 +2198,7 @@ def test_env_var_secret_contract_with_stub(gui):
     import subprocess
     from pathlib import Path
 
-    stub_path = str(Path(__file__).parent / "tests" / "stub_immich_go.py")
+    stub_path = str(Path(__file__).parent / "stub_immich_go.py")
 
     gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)
