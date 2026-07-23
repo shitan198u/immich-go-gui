@@ -13,8 +13,13 @@ TAB_KEYS = [
     "config",
     "upload-folder",
     "upload-gp",
+    "upload-icloud",
+    "upload-picasa",
     "upload-immich",
     "archive-folder",
+    "archive-gp",
+    "archive-icloud",
+    "archive-picasa",
     "archive-immich",
     "stack",
 ]
@@ -22,11 +27,16 @@ TAB_KEYS = [
 UPLOAD_TABS = {
     "upload-folder",
     "upload-gp",
+    "upload-icloud",
+    "upload-picasa",
     "upload-immich",
 }
 
 ARCHIVE_TABS = {
     "archive-folder",
+    "archive-gp",
+    "archive-icloud",
+    "archive-picasa",
     "archive-immich",
 }
 
@@ -34,6 +44,8 @@ ARCHIVE_TABS = {
 SERVER_REQUIRED_TABS = {
     "upload-folder",
     "upload-gp",
+    "upload-icloud",
+    "upload-picasa",
     "upload-immich",
     "archive-immich",
     "stack",
@@ -42,14 +54,22 @@ SERVER_REQUIRED_TABS = {
 # Tabs that do not require the main Immich server.
 SERVERLESS_TABS = {
     "archive-folder",
+    "archive-gp",
+    "archive-icloud",
+    "archive-picasa",
 }
 
 # Mapping from internal tab key to immich-go command tokens.
 TAB_COMMANDS = {
     "upload-folder": ["upload", "from-folder"],
     "upload-gp": ["upload", "from-google-photos"],
+    "upload-icloud": ["upload", "from-icloud"],
+    "upload-picasa": ["upload", "from-picasa"],
     "upload-immich": ["upload", "from-immich"],
     "archive-folder": ["archive", "from-folder"],
+    "archive-gp": ["archive", "from-google-photos"],
+    "archive-icloud": ["archive", "from-icloud"],
+    "archive-picasa": ["archive", "from-picasa"],
     "archive-immich": ["archive", "from-immich"],
     "stack": ["stack"],
 }
@@ -74,6 +94,16 @@ ENV_KEY_MAP = {
         "admin_api_key": "IMMICH_GO_UPLOAD_ADMIN_API_KEY",
     },
     "upload-gp": {
+        "server": "IMMICH_GO_UPLOAD_SERVER",
+        "api_key": "IMMICH_GO_UPLOAD_API_KEY",
+        "admin_api_key": "IMMICH_GO_UPLOAD_ADMIN_API_KEY",
+    },
+    "upload-icloud": {
+        "server": "IMMICH_GO_UPLOAD_SERVER",
+        "api_key": "IMMICH_GO_UPLOAD_API_KEY",
+        "admin_api_key": "IMMICH_GO_UPLOAD_ADMIN_API_KEY",
+    },
+    "upload-picasa": {
         "server": "IMMICH_GO_UPLOAD_SERVER",
         "api_key": "IMMICH_GO_UPLOAD_API_KEY",
         "admin_api_key": "IMMICH_GO_UPLOAD_ADMIN_API_KEY",
@@ -158,6 +188,34 @@ TAB_ALLOWED_FLAGS: dict[str, frozenset[str]] = {
         "manage-epson-fastfoto",
     }),
 
+    "upload-icloud": frozenset({
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks",
+        "overwrite", "pause-immich-jobs", "on-errors", "session-tag", "tag",
+        "device-uuid", "api-trace", "log-level", "time-zone",
+
+        "album-path-joiner", "ban-file", "date-from-name", "date-range",
+        "exclude-extensions", "folder-as-album", "folder-as-tags",
+        "ignore-sidecar-files", "include-extensions", "include-type",
+        "into-album", "memories", "recursive",
+
+        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg",
+        "manage-epson-fastfoto",
+    }),
+
+    "upload-picasa": frozenset({
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks",
+        "overwrite", "pause-immich-jobs", "on-errors", "session-tag", "tag",
+        "device-uuid", "api-trace", "log-level", "time-zone",
+
+        "album-path-joiner", "album-picasa", "ban-file", "date-from-name",
+        "date-range", "exclude-extensions", "folder-as-album", "folder-as-tags",
+        "ignore-sidecar-files", "include-extensions", "include-type",
+        "into-album", "recursive",
+
+        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg",
+        "manage-epson-fastfoto",
+    }),
+
     "upload-immich": frozenset({
         "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks",
         "overwrite", "pause-immich-jobs", "on-errors", "session-tag", "tag",
@@ -183,6 +241,34 @@ TAB_ALLOWED_FLAGS: dict[str, frozenset[str]] = {
 
         "album-path-joiner", "ban-file", "date-from-name", "date-range",
         "exclude-extensions", "folder-as-album", "folder-as-tags",
+        "ignore-sidecar-files", "include-extensions", "include-type",
+        "into-album", "recursive",
+    }),
+
+    "archive-gp": frozenset({
+        "write-to-folder", "dry-run", "log-level", "concurrent-tasks", "on-errors",
+
+        "ban-file", "date-range", "exclude-extensions", "from-album-name",
+        "include-archived", "include-extensions", "include-partner",
+        "include-trashed", "include-type", "include-unmatched",
+        "include-untitled-albums", "partner-shared-album", "people-tag",
+        "sync-albums", "takeout-tag",
+    }),
+
+    "archive-icloud": frozenset({
+        "write-to-folder", "dry-run", "log-level", "concurrent-tasks", "on-errors",
+
+        "album-path-joiner", "ban-file", "date-from-name", "date-range",
+        "exclude-extensions", "folder-as-album", "folder-as-tags",
+        "ignore-sidecar-files", "include-extensions", "include-type",
+        "into-album", "memories", "recursive",
+    }),
+
+    "archive-picasa": frozenset({
+        "write-to-folder", "dry-run", "log-level", "concurrent-tasks", "on-errors",
+
+        "album-path-joiner", "album-picasa", "ban-file", "date-from-name",
+        "date-range", "exclude-extensions", "folder-as-album", "folder-as-tags",
         "ignore-sidecar-files", "include-extensions", "include-type",
         "into-album", "recursive",
     }),
