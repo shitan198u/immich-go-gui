@@ -570,6 +570,7 @@ ADVANCED_FLAGS: dict[str, tuple[AdvancedFlagDef, ...]] = {
             options=("INFO", "DEBUG", "WARN", "ERROR"),
             default="INFO",
         ),
+    ),
     "upload-icloud": (
         AdvancedFlagDef(
             key="memories",
@@ -1118,6 +1119,14 @@ ADVANCED_FLAGS: dict[str, tuple[AdvancedFlagDef, ...]] = {
             options=("INFO", "DEBUG", "WARN", "ERROR"),
             default="INFO",
         ),
+        AdvancedFlagDef(
+            key="api-trace",
+            flag="api-trace",
+            label="Enable API trace",
+            kind="bool",
+            default=False,
+        ),
+    ),
     "archive-gp": (
         AdvancedFlagDef(
             key="include-unmatched",
