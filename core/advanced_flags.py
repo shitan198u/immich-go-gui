@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from .models import CommandPlan, ValidationResult
-from .validation import clean_date_range, normalize_extensions_csv, normalize_list_csv
+from .validation import clean_date_range, normalize_extensions_csv, normalize_list_csv, validate_date_range as _validate_date_range
 
 AdvancedFlagKind = Literal[
     "bool",
@@ -1010,9 +1010,9 @@ def validate_advanced_state(tab_key: str, advanced_state: dict) -> ValidationRes
         if def_.kind == "date_range":
             text = str(value or "").strip()
             if text:
-                cleaned = clean_date_range(text)
-                if not cleaned:
-                    res.errors.append(f"Invalid {def_.label}: date range invalid format")
+                ok, err = _validate_date_range(text)
+                if not ok:
+                    res.errors.append(f"Invalid {def_.label}: {err}")
 
         elif def_.kind in ("text", "extensions", "csv_repeat", "lines_repeat"):
             text = str(value or "").strip()

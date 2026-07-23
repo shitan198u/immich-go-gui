@@ -2093,3 +2093,38 @@ def test_advanced_flags_subset_of_tab_allowed_flags():
                 missing.append(f"'{d.flag}' in ADVANCED_FLAGS['{tab}'] missing from TAB_ALLOWED_FLAGS")
 
     assert not missing, "\n".join(missing)
+
+
+# ==============================================================================
+# A3: validate_advanced_state uses full date semantic validation
+# ==============================================================================
+
+def test_validate_advanced_state_rejects_invalid_month():
+    """A3: validate_advanced_state must reject semantically invalid dates."""
+    from core.advanced_flags import validate_advanced_state
+    # Month 13 is invalid
+    result = validate_advanced_state("upload-folder", {
+        "date-range": {"enabled": True, "value": "2023-13-01,2023-12-31"}
+    })
+    assert not result.is_valid
+    assert any("date" in e.lower() or "invalid" in e.lower() for e in result.errors)
+
+
+def test_validate_advanced_state_rejects_reversed_range():
+    """A3: validate_advanced_state must reject start > end date ranges."""
+    from core.advanced_flags import validate_advanced_state
+    result = validate_advanced_state("upload-folder", {
+        "date-range": {"enabled": True, "value": "2023-12-31,2023-01-01"}
+    })
+    assert not result.is_valid
+    assert result.errors
+
+
+def test_validate_advanced_state_accepts_valid_date_range():
+    """A3: validate_advanced_state must accept well-formed date ranges."""
+    from core.advanced_flags import validate_advanced_state
+    result = validate_advanced_state("upload-folder", {
+        "date-range": {"enabled": True, "value": "2023-01-01,2023-12-31"}
+    })
+    assert result.is_valid
+    assert not result.errors
