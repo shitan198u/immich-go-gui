@@ -2504,24 +2504,13 @@ class ImmichGoGUI(QMainWindow):
                 return False
 
         clean_v = version.lstrip("v")
-        version_dir = os.path.join(BINARY_BASE_DIR, clean_v)
-        os.makedirs(version_dir, exist_ok=True)
-
         binary_filename = "immich-go.exe" if sys.platform.startswith("win") else "immich-go"
-        binary_path = os.path.join(version_dir, binary_filename)
+        binary_path = os.path.join(BINARY_BASE_DIR, clean_v, binary_filename)
 
         if os.path.exists(binary_path) and not force_download:
             if self.binary_manager.verify_extracted_binary(binary_path):
                 self._select_version(clean_v, binary_path)
                 return True
-
-        download_url = self.binary_manager.get_release_asset_url(version=clean_v)
-        if not download_url:
-            QMessageBox.critical(
-                self, "Error",
-                f"Could not determine download URL for version {clean_v} on this platform."
-            )
-            return False
 
         progress_dialog = QDialog(self)
         progress_dialog.setWindowTitle("Downloading Immich-Go")
@@ -2538,125 +2527,60 @@ class ImmichGoGUI(QMainWindow):
             progress_dialog.windowFlags() & ~Qt.WindowType.WindowCloseButtonHint
         )
 
-        class DownloadThread(QThread):
-            download_progress = Signal(int)
-            download_complete = Signal(str)
-            download_error = Signal(str)
+        cancelled = False
 
-            def __init__(self, url, dest_path):
+        def on_cancel():
+            nonlocal cancelled
+            cancelled = True
+            progress_dialog.reject()
+
+        cancel_button.clicked.connect(on_cancel)
+
+        result_box = {"success": False, "message": ""}
+
+        class InstallWorker(QThread):
+            progress = Signal(int)
+            finished = Signal(bool, str)
+
+            def __init__(self, manager, ver, cancel_fn):
                 super().__init__()
-                self.url = url
-                self.dest_path = dest_path
-                self.cancelled = False
+                self.manager = manager
+                self.ver = ver
+                self.cancel_fn = cancel_fn
 
             def run(self):
-                try:
-                    with requests.get(self.url, stream=True, timeout=60) as response:
-                        response.raise_for_status()
-                        total = int(response.headers.get("content-length", 0))
-                        downloaded = 0
-                        with open(self.dest_path, "wb") as f:
-                            for chunk in response.iter_content(chunk_size=1024 * 1024):
-                                if self.cancelled:
-                                    self.download_error.emit("Download cancelled")
-                                    return
-                                downloaded += len(chunk)
-                                f.write(chunk)
-                                if total > 0:
-                                    self.download_progress.emit(int(downloaded * 100 / total))
-                    self.download_complete.emit(self.dest_path)
-                except Exception as e:
-                    self.download_error.emit(str(e))
+                ok, msg = self.manager.download_and_install(
+                    version=self.ver,
+                    progress_cb=self.progress.emit,
+                    cancel_check=self.cancel_fn,
+                )
+                self.finished.emit(ok, msg)
 
-        temp_archive_path = os.path.join(version_dir, "download.tmp")
-        download_success = False
+        worker = InstallWorker(self.binary_manager, clean_v, lambda: cancelled)
+        worker.progress.connect(progress_bar.setValue)
 
-        try:
-            download_thread = DownloadThread(download_url, temp_archive_path)
+        def on_finished(ok, msg):
+            result_box["success"] = ok
+            result_box["message"] = msg
+            progress_dialog.accept()
 
-            def handle_download_complete(tmp_archive):
-                nonlocal download_success
-                progress_dialog.accept()
-                temp_bin = binary_path + ".tmp"
-                try:
-                    if download_url.endswith(".zip"):
-                        with zipfile.ZipFile(tmp_archive) as z:
-                            for filename in z.namelist():
-                                base = os.path.basename(filename)
-                                if base in ("immich-go", "immich-go.exe"):
-                                    with z.open(filename) as source, open(temp_bin, "wb") as target:
-                                        target.write(source.read())
-                                    break
-                    elif download_url.endswith(".tar.gz") or download_url.endswith(".tgz"):
-                        with tarfile.open(name=tmp_archive, mode="r:gz") as tar:
-                            for member in tar.getmembers():
-                                base = os.path.basename(member.name)
-                                if base in ("immich-go", "immich-go.exe"):
-                                    source = tar.extractfile(member)
-                                    if source:
-                                        with open(temp_bin, "wb") as target:
-                                            target.write(source.read())
-                                    break
-                    else:
-                        raise ValueError("Unsupported archive type")
+        worker.finished.connect(on_finished)
+        worker.start()
+        progress_dialog.exec()
+        worker.wait()
 
-                    if not self.binary_manager.verify_extracted_binary(temp_bin):
-                        raise RuntimeError("Extracted binary failed post-install verification check.")
+        success = result_box["success"]
+        message = result_box["message"]
 
-                    os.replace(temp_bin, binary_path)
-                    self._select_version(clean_v, binary_path)
-                    download_success = True
-                except Exception as extraction_error:
-                    if os.path.exists(temp_bin):
-                        try:
-                            os.remove(temp_bin)
-                        except OSError:
-                            pass
-                    QMessageBox.critical(
-                        self, "Extraction Error",
-                        f"Failed to extract or verify binary: {str(extraction_error)}\n\n"
-                        "Please download manually from GitHub."
-                    )
+        if success:
+            self.binary_path = self.binary_manager.resolve_binary_path()
+            self.check_binary_version()
+        elif cancelled:
+            QMessageBox.information(self, "Cancelled", "Download was cancelled.")
+        else:
+            QMessageBox.critical(self, "Update Failed", message or "Download/installation failed.")
 
-                if os.path.exists(tmp_archive):
-                    try:
-                        os.remove(tmp_archive)
-                    except OSError:
-                        pass
-
-            def handle_download_error(error):
-                progress_dialog.reject()
-                if os.path.exists(temp_archive_path):
-                    try:
-                        os.remove(temp_archive_path)
-                    except OSError:
-                        pass
-                QMessageBox.critical(self, "Download Error", f"Failed to download: {error}")
-
-            download_thread.download_progress.connect(progress_bar.setValue)
-            download_thread.download_complete.connect(handle_download_complete)
-            download_thread.download_error.connect(handle_download_error)
-
-            def cancel_download():
-                download_thread.cancelled = True
-                progress_dialog.reject()
-
-            cancel_button.clicked.connect(cancel_download)
-            progress_dialog.show()
-            download_thread.start()
-            progress_dialog.exec()
-
-        except Exception as e:
-            if os.path.exists(temp_archive_path):
-                try:
-                    os.remove(temp_archive_path)
-                except OSError:
-                    pass
-            QMessageBox.critical(
-                self, "Download Error",
-                f"Failed to initiate download: {str(e)}"
-            )
-            return False
+        return success
 
         return download_success
 

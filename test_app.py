@@ -2240,3 +2240,31 @@ def test_env_var_secret_contract_with_stub(gui):
     # 4. Assert secrets are not in received argv
     for secret in ("target-secret-key-123", "source-secret-key-456", "source-admin-secret-789"):
         assert not any(secret in arg for arg in received_argv)
+
+
+def test_binary_manager_download_and_install_cancellation(tmp_path):
+    """Fix 1.3: download_and_install respects cancellation and cleans up temp files."""
+    from core.binary_manager import BinaryManager
+
+    bm = BinaryManager(base_dir=str(tmp_path))
+
+    # Mock get_release_asset_url to return a dummy URL
+    with patch.object(bm, "get_release_asset_url", return_value="https://example.com/immich-go.tar.gz"):
+        # Mock requests.get to return a streaming dummy response
+        mock_res = MagicMock()
+        mock_res.headers = {"content-length": "100"}
+        mock_res.iter_content.return_value = [b"dummy data chunk"]
+        mock_res.__enter__.return_value = mock_res
+
+        with patch("requests.get", return_value=mock_res):
+            success, msg = bm.download_and_install(
+                version="0.32.0",
+                cancel_check=lambda: True,  # cancel immediately
+            )
+            assert success is False
+            assert "cancelled" in msg.lower()
+
+    # Ensure no leftover temp archive or binary exists
+    v_dir = tmp_path / "0.32.0"
+    assert not (v_dir / "download.tmp").exists()
+    assert not (v_dir / "immich-go.tmp").exists()

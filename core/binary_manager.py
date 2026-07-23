@@ -512,6 +512,93 @@ class BinaryManager:
         except Exception:
             return False
 
+    def download_and_install(
+        self,
+        version: str,
+        progress_cb: Optional[Callable[[int], None]] = None,
+        cancel_check: Optional[Callable[[], bool]] = None,
+    ) -> tuple[bool, str]:
+        """Downloads, extracts, verifies, and selects an immich-go binary version.
+
+        Uses temporary files for download and extraction, running verify_extracted_binary()
+        before performing an atomic replacement. Returns (success, message).
+        """
+        clean_v = clean_version(version)
+        if not clean_v:
+            return False, "Invalid version tag"
+
+        version_dir = os.path.join(self.base_dir, clean_v)
+        os.makedirs(version_dir, exist_ok=True)
+
+        binary_filename = "immich-go.exe" if self.os_name.startswith("win") else "immich-go"
+        binary_path = os.path.join(version_dir, binary_filename)
+        temp_archive = os.path.join(version_dir, "download.tmp")
+        temp_bin = binary_path + ".tmp"
+
+        try:
+            url = self.get_release_asset_url(clean_v)
+            if not url:
+                return False, f"Could not determine download URL for v{clean_v}"
+
+            with requests.get(url, stream=True, timeout=60) as res:
+                res.raise_for_status()
+                total = int(res.headers.get("content-length", 0))
+                downloaded = 0
+                with open(temp_archive, "wb") as f:
+                    for chunk in res.iter_content(chunk_size=1024 * 1024):
+                        if cancel_check and cancel_check():
+                            return False, "Download cancelled by user"
+                        downloaded += len(chunk)
+                        f.write(chunk)
+                        if total > 0 and progress_cb:
+                            progress_cb(int(downloaded * 100 / total))
+
+            if url.endswith(".zip"):
+                with zipfile.ZipFile(temp_archive) as z:
+                    found = False
+                    for filename in z.namelist():
+                        base = os.path.basename(filename)
+                        if base in ("immich-go", "immich-go.exe"):
+                            with z.open(filename) as source, open(temp_bin, "wb") as target:
+                                target.write(source.read())
+                            found = True
+                            break
+                    if not found:
+                        return False, "Binary executable not found inside zip archive"
+            elif url.endswith(".tar.gz") or url.endswith(".tgz"):
+                with tarfile.open(name=temp_archive, mode="r:gz") as tar:
+                    found = False
+                    for member in tar.getmembers():
+                        base = os.path.basename(member.name)
+                        if base in ("immich-go", "immich-go.exe"):
+                            source = tar.extractfile(member)
+                            if source:
+                                with open(temp_bin, "wb") as target:
+                                    target.write(source.read())
+                                found = True
+                            break
+                    if not found:
+                        return False, "Binary executable not found inside tar archive"
+            else:
+                return False, f"Unsupported archive format: {url}"
+
+            if not self.verify_extracted_binary(temp_bin):
+                return False, "Extracted binary failed post-install verification check."
+
+            os.replace(temp_bin, binary_path)
+            self.select_version(clean_v, binary_path, release_url=url)
+            return True, f"Successfully installed immich-go v{clean_v}"
+
+        except Exception as e:
+            return False, str(e)
+        finally:
+            for tmp_f in (temp_archive, temp_bin):
+                if os.path.exists(tmp_f):
+                    try:
+                        os.remove(tmp_f)
+                    except OSError:
+                        pass
+
     def download_archive(
         self,
         url: str,
