@@ -985,12 +985,14 @@ class ImmichGoGUI(QMainWindow):
 
         self.server_url_edit = QLineEdit()
         self.server_url_edit.setPlaceholderText("http://localhost:2283")
+        self.server_url_edit.textChanged.connect(self._reset_conn_test_state)
         self.inputs["config"]["server"] = self.server_url_edit
         form.add_row("Server URL", self.server_url_edit)
 
         self.api_key_edit = QLineEdit()
         self.api_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
         self.api_key_edit.setPlaceholderText("Paste your Immich API key")
+        self.api_key_edit.textChanged.connect(self._reset_conn_test_state)
         self.inputs["config"]["api_key"] = self.api_key_edit
         form.add_row(
             "API Key",
@@ -1962,8 +1964,20 @@ class ImmichGoGUI(QMainWindow):
         compat_action.triggered.connect(self.show_cli_compatibility_dialog)
         help_menu.addAction(compat_action)
 
-        about_action = QAction("About Immich-Go", self)
-        about_action.triggered.connect(self.open_github_link)
+        help_menu.addSeparator()
+
+        cli_repo_action = QAction("Immich-Go CLI GitHub", self)
+        cli_repo_action.triggered.connect(self.open_immich_go_cli_link)
+        help_menu.addAction(cli_repo_action)
+
+        gui_repo_action = QAction("Immich-Go GUI GitHub", self)
+        gui_repo_action.triggered.connect(self.open_immich_go_gui_link)
+        help_menu.addAction(gui_repo_action)
+
+        help_menu.addSeparator()
+
+        about_action = QAction("About Immich-Go GUI", self)
+        about_action.triggered.connect(self.show_about_dialog)
         help_menu.addAction(about_action)
 
     def show_cli_compatibility_dialog(self):
@@ -2620,6 +2634,10 @@ class ImmichGoGUI(QMainWindow):
         base.warnings.extend(adv.warnings)
         return base
 
+    def _reset_conn_test_state(self):
+        self._last_conn_test_ok = None
+        self.update_status()
+
     def on_test_connection_clicked(self):
         srv_widget = self.inputs.get("config", {}).get("server")
         api_widget = self.inputs.get("config", {}).get("api_key")
@@ -2638,9 +2656,12 @@ class ImmichGoGUI(QMainWindow):
 
         res = test_immich_connection(server_url, api_key, skip_ssl=skip_ssl)
         if res.ok:
+            self._last_conn_test_ok = True
             QMessageBox.information(self, "Test Connection Succeeded", res.message)
         else:
+            self._last_conn_test_ok = False
             QMessageBox.warning(self, "Test Connection Failed", res.message)
+        self.update_status()
 
     def update_status(self):
         active_lock = getattr(self, "active_lock_path", None)
@@ -2654,8 +2675,17 @@ class ImmichGoGUI(QMainWindow):
         else:
             self.lbl_running_warning.setVisible(False)
 
+        last_test = getattr(self, "_last_conn_test_ok", None)
         active_tab = self._get_active_tab_key()
-        if active_tab == "config":
+
+        if last_test is False:
+            self.status_card.set_server("err", "Server: Connection Failed")
+            if not is_running:
+                self.btn_run.setEnabled(False)
+                self.btn_dry_run.setEnabled(False)
+        elif last_test is True and active_tab == "config":
+            self.status_card.set_server("ok", "Server: Connected")
+        elif active_tab == "config":
             srv_widget = self.inputs.get("config", {}).get("server")
             api_widget = self.inputs.get("config", {}).get("api_key")
             srv_text = srv_widget.text().strip() if srv_widget else ""
@@ -3397,8 +3427,25 @@ class ImmichGoGUI(QMainWindow):
                 msg,
             )
 
-    def open_github_link(self):
+    def open_immich_go_cli_link(self):
         webbrowser.open("https://github.com/simulot/immich-go")
+
+    def open_immich_go_gui_link(self):
+        webbrowser.open("https://github.com/shitan198u/immich-go-gui")
+
+    def show_about_dialog(self):
+        QMessageBox.about(
+            self,
+            "About Immich-Go GUI",
+            "<h3>Immich-Go GUI</h3>"
+            "<p>A modern PySide6 desktop interface for <b>immich-go</b>.</p>"
+            "<p><b>Version:</b> 1.0.1 (CLI Target: v0.32.0)</p>"
+            "<hr/>"
+            "<p><b>Immich-Go GUI Repository:</b><br/>"
+            "<a href='https://github.com/shitan198u/immich-go-gui'>https://github.com/shitan198u/immich-go-gui</a></p>"
+            "<p><b>Immich-Go CLI Engine:</b><br/>"
+            "<a href='https://github.com/simulot/immich-go'>https://github.com/simulot/immich-go</a></p>"
+        )
 
 
 # ==========================================================

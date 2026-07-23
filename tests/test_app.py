@@ -1065,6 +1065,16 @@ def test_check_preflight_server_connection_unreachable():
         assert "Failed to connect to server" in res.message
 
 
+def test_status_card_reflects_connection_test_failure(gui):
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+
+    with patch("requests.get", side_effect=requests.exceptions.ConnectionError):
+        gui.on_test_connection_clicked()
+        assert gui._last_conn_test_ok is False
+        assert "Connection Failed" in gui.status_card.txt_s.text()
+
+
 def test_command_builder_destructive_warnings():
     from core.command_builder import build_plan_from_state
 
