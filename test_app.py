@@ -596,6 +596,25 @@ def test_golden_stack(gui):
     ]
 
 
+def test_golden_stack_advanced_with_date_range(gui):
+    """Golden: stack advanced mode command with date-range flag."""
+    gui.toggle_advanced(True)
+    gui.stacked_widget.setCurrentIndex(3)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("test-key")
+    gui.inputs["stack"]["manage-burst"].setCurrentText("Stack")
+    gui.adv_rows["stack"]["date-range"].set_state({"enabled": True, "value": "2023-01-01,2023-12-31"})
+
+    plan = gui.build_plan(dry_run=False)
+
+    assert plan.argv == [
+        "stack",
+        "--server=http://localhost:2283",
+        "--manage-burst=Stack",
+        "--date-range=2023-01-01,2023-12-31",
+    ]
+
+
 def test_golden_archive_folder(gui):
     """Golden: archive from-folder simple mode."""
     gui.toggle_advanced(False)
