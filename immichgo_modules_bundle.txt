@@ -4,12 +4,12 @@ IMMICH-GO GUI - PYTHON BACKEND, CORE & HELPERS BUNDLE
 Generated for LLM Review & Prompting
 Files Included:
    1. core/__init__.py (159 lines)
-   2. core/advanced_flags.py (1004 lines)
+   2. core/advanced_flags.py (1573 lines)
    3. core/binary_manager.py (696 lines)
    4. core/cli_contract.py (96 lines)
-   5. core/cli_help.py (56 lines)
-   6. core/cli_schema.py (243 lines)
-   7. core/command_builder.py (525 lines)
+   5. core/cli_help.py (61 lines)
+   6. core/cli_schema.py (329 lines)
+   7. core/command_builder.py (642 lines)
    8. core/config_manager.py (381 lines)
    9. core/models.py (94 lines)
   10. core/network.py (115 lines)
@@ -17,8 +17,8 @@ Files Included:
   12. core/profile_manager.py (340 lines)
   13. core/terminal_launcher.py (237 lines)
   14. core/validation.py (237 lines)
-  15. test_app.py (2294 lines)
-  16. scripts/capture_cli_help.py (84 lines)
+  15. test_app.py (2394 lines)
+  16. scripts/capture_cli_help.py (89 lines)
   17. scripts/convert_markdown.py (564 lines)
   18. scripts/generate_diff_bundle.py (55 lines)
 ================================================================================
@@ -190,7 +190,7 @@ __all__ = [
 
 
 ================================================================================
-FILE 2 / 18: core/advanced_flags.py (Lines 1-1004)
+FILE 2 / 18: core/advanced_flags.py (Lines 1-1573)
 ================================================================================
 """Pure-Python registry and helper functions for schema-driven opt-in advanced flags.
 
@@ -764,10 +764,261 @@ ADVANCED_FLAGS: dict[str, tuple[AdvancedFlagDef, ...]] = {
             options=("INFO", "DEBUG", "WARN", "ERROR"),
             default="INFO",
         ),
+    ),
+    "upload-icloud": (
+        AdvancedFlagDef(
+            key="memories",
+            flag="memories",
+            label="Import iCloud Memories as albums",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="date-range",
+            flag="date-range",
+            label="Date range",
+            kind="date_range",
+            placeholder="YYYY-MM-DD,YYYY-MM-DD",
+        ),
+        AdvancedFlagDef(
+            key="include-ext",
+            flag="include-extensions",
+            label="Include extensions",
+            kind="extensions",
+            placeholder=".jpg,.heic,.mp4",
+        ),
+        AdvancedFlagDef(
+            key="exclude-ext",
+            flag="exclude-extensions",
+            label="Exclude extensions",
+            kind="extensions",
+            placeholder=".thm,.xmp",
+        ),
+        AdvancedFlagDef(
+            key="include-type",
+            flag="include-type",
+            label="Media type",
+            kind="enum",
+            options=("all", "IMAGE", "VIDEO"),
+            default="all",
+        ),
+        AdvancedFlagDef(
+            key="ban-file",
+            flag="ban-file",
+            label="Skip files matching patterns",
+            kind="lines_repeat",
+            placeholder="@eaDir/\n.DS_Store",
+        ),
+        AdvancedFlagDef(
+            key="tag",
+            flag="tag",
+            label="Custom tags",
+            kind="csv_repeat",
+            placeholder="vacation, family/reunion",
+        ),
+        AdvancedFlagDef(
+            key="session-tag",
+            flag="session-tag",
+            label="Session tag",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="overwrite",
+            flag="overwrite",
+            label="Overwrite existing",
+            kind="bool",
+            default=False,
+            warn_values={True: "Overwrite mode will replace existing files on the server."},
+        ),
+        AdvancedFlagDef(
+            key="pause-jobs",
+            flag="pause-immich-jobs",
+            label="Pause Immich background jobs",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="time-zone",
+            flag="time-zone",
+            label="Time zone override",
+            kind="text",
+            placeholder="UTC or America/New_York",
+        ),
+        AdvancedFlagDef(
+            key="on-errors",
+            flag="on-errors",
+            label="On errors",
+            kind="enum",
+            options=("stop", "continue"),
+            default="stop",
+        ),
+        AdvancedFlagDef(
+            key="log-level",
+            flag="log-level",
+            label="Log level",
+            kind="enum",
+            options=("INFO", "DEBUG", "WARN", "ERROR"),
+            default="INFO",
+        ),
         AdvancedFlagDef(
             key="api-trace",
             flag="api-trace",
-            label="Destination API trace",
+            label="Enable API trace",
+            kind="bool",
+            default=False,
+        ),
+    ),
+    "upload-picasa": (
+        AdvancedFlagDef(
+            key="album-picasa",
+            flag="album-picasa",
+            label="Use Picasa album name found in .picasa.ini file",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="recursive",
+            flag="recursive",
+            label="Scan subdirectories recursively",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="date-from-name",
+            flag="date-from-name",
+            label="Use date from filename",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="ignore-sidecar",
+            flag="ignore-sidecar-files",
+            label="Ignore sidecar files",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="include-ext",
+            flag="include-extensions",
+            label="Include extensions",
+            kind="extensions",
+            placeholder=".jpg,.png",
+        ),
+        AdvancedFlagDef(
+            key="exclude-ext",
+            flag="exclude-extensions",
+            label="Exclude extensions",
+            kind="extensions",
+            placeholder=".thm,.xmp",
+        ),
+        AdvancedFlagDef(
+            key="include-type",
+            flag="include-type",
+            label="Media type",
+            kind="enum",
+            options=("all", "IMAGE", "VIDEO"),
+            default="all",
+        ),
+        AdvancedFlagDef(
+            key="ban-file",
+            flag="ban-file",
+            label="Skip files matching patterns",
+            kind="lines_repeat",
+            placeholder="@eaDir/\n.DS_Store",
+        ),
+        AdvancedFlagDef(
+            key="date-range",
+            flag="date-range",
+            label="Date range",
+            kind="date_range",
+            placeholder="YYYY-MM-DD,YYYY-MM-DD",
+        ),
+        AdvancedFlagDef(
+            key="folder-album",
+            flag="folder-as-album",
+            label="Folder as album mode",
+            kind="enum",
+            options=("NONE", "FOLDER", "PATH"),
+            default="NONE",
+        ),
+        AdvancedFlagDef(
+            key="folder-tags",
+            flag="folder-as-tags",
+            label="Folder as tags",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="album-joiner",
+            flag="album-path-joiner",
+            label="Album path joiner",
+            kind="text",
+            placeholder=" / ",
+        ),
+        AdvancedFlagDef(
+            key="into-album",
+            flag="into-album",
+            label="Import all files into album",
+            kind="text",
+            placeholder="Vacation 2024",
+        ),
+        AdvancedFlagDef(
+            key="tag",
+            flag="tag",
+            label="Custom tags",
+            kind="csv_repeat",
+            placeholder="vacation, family/reunion",
+        ),
+        AdvancedFlagDef(
+            key="session-tag",
+            flag="session-tag",
+            label="Session tag",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="overwrite",
+            flag="overwrite",
+            label="Overwrite existing",
+            kind="bool",
+            default=False,
+            warn_values={True: "Overwrite mode will replace existing files on the server."},
+        ),
+        AdvancedFlagDef(
+            key="pause-jobs",
+            flag="pause-immich-jobs",
+            label="Pause Immich background jobs",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="time-zone",
+            flag="time-zone",
+            label="Time zone override",
+            kind="text",
+            placeholder="UTC or America/New_York",
+        ),
+        AdvancedFlagDef(
+            key="on-errors",
+            flag="on-errors",
+            label="On errors",
+            kind="enum",
+            options=("stop", "continue"),
+            default="stop",
+        ),
+        AdvancedFlagDef(
+            key="log-level",
+            flag="log-level",
+            label="Log level",
+            kind="enum",
+            options=("INFO", "DEBUG", "WARN", "ERROR"),
+            default="INFO",
+        ),
+        AdvancedFlagDef(
+            key="api-trace",
+            flag="api-trace",
+            label="Enable API trace",
             kind="bool",
             default=False,
         ),
@@ -1068,6 +1319,324 @@ ADVANCED_FLAGS: dict[str, tuple[AdvancedFlagDef, ...]] = {
             label="Enable API trace",
             kind="bool",
             default=False,
+        ),
+    ),
+    "archive-gp": (
+        AdvancedFlagDef(
+            key="include-unmatched",
+            flag="include-unmatched",
+            label="Include unmatched photos (no JSON)",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="include-trashed",
+            flag="include-trashed",
+            label="Include trashed photos",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="from-album-name",
+            flag="from-album-name",
+            label="Only import from album",
+            kind="text",
+            placeholder="Family Album",
+        ),
+        AdvancedFlagDef(
+            key="partner-album",
+            flag="partner-shared-album",
+            label="Add partner photos to album",
+            kind="text",
+            placeholder="Partner Photos",
+        ),
+        AdvancedFlagDef(
+            key="include-untitled-albums",
+            flag="include-untitled-albums",
+            label="Include untitled albums",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="takeout-tag",
+            flag="takeout-tag",
+            label="Tag photos with Takeout timestamp",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="people-tag",
+            flag="people-tag",
+            label="Tag photos with people names from JSON",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="date-range",
+            flag="date-range",
+            label="Date range",
+            kind="date_range",
+            placeholder="YYYY-MM-DD,YYYY-MM-DD",
+        ),
+        AdvancedFlagDef(
+            key="include-ext",
+            flag="include-extensions",
+            label="Include extensions",
+            kind="extensions",
+            placeholder=".jpg,.heic",
+        ),
+        AdvancedFlagDef(
+            key="exclude-ext",
+            flag="exclude-extensions",
+            label="Exclude extensions",
+            kind="extensions",
+            placeholder=".thm,.xmp",
+        ),
+        AdvancedFlagDef(
+            key="include-type",
+            flag="include-type",
+            label="Media type",
+            kind="enum",
+            options=("all", "IMAGE", "VIDEO"),
+            default="all",
+        ),
+        AdvancedFlagDef(
+            key="ban-file",
+            flag="ban-file",
+            label="Skip files matching patterns",
+            kind="lines_repeat",
+            placeholder="@eaDir/\n.DS_Store",
+        ),
+        AdvancedFlagDef(
+            key="on-errors",
+            flag="on-errors",
+            label="On errors",
+            kind="enum",
+            options=("stop", "continue"),
+            default="stop",
+        ),
+        AdvancedFlagDef(
+            key="log-level",
+            flag="log-level",
+            label="Log level",
+            kind="enum",
+            options=("INFO", "DEBUG", "WARN", "ERROR"),
+            default="INFO",
+        ),
+    ),
+    "archive-icloud": (
+        AdvancedFlagDef(
+            key="memories",
+            flag="memories",
+            label="Import iCloud Memories as albums",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="date-range",
+            flag="date-range",
+            label="Date range",
+            kind="date_range",
+            placeholder="YYYY-MM-DD,YYYY-MM-DD",
+        ),
+        AdvancedFlagDef(
+            key="include-ext",
+            flag="include-extensions",
+            label="Include extensions",
+            kind="extensions",
+            placeholder=".jpg,.heic,.mp4",
+        ),
+        AdvancedFlagDef(
+            key="exclude-ext",
+            flag="exclude-extensions",
+            label="Exclude extensions",
+            kind="extensions",
+            placeholder=".thm,.xmp",
+        ),
+        AdvancedFlagDef(
+            key="include-type",
+            flag="include-type",
+            label="Media type",
+            kind="enum",
+            options=("all", "IMAGE", "VIDEO"),
+            default="all",
+        ),
+        AdvancedFlagDef(
+            key="ban-file",
+            flag="ban-file",
+            label="Skip files matching patterns",
+            kind="lines_repeat",
+            placeholder="@eaDir/\n.DS_Store",
+        ),
+        AdvancedFlagDef(
+            key="recursive",
+            flag="recursive",
+            label="Scan subdirectories recursively",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="ignore-sidecar",
+            flag="ignore-sidecar-files",
+            label="Ignore sidecar files",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="date-from-name",
+            flag="date-from-name",
+            label="Use date from filename",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="folder-album",
+            flag="folder-as-album",
+            label="Folder as album mode",
+            kind="enum",
+            options=("NONE", "FOLDER", "PATH"),
+            default="NONE",
+        ),
+        AdvancedFlagDef(
+            key="folder-tags",
+            flag="folder-as-tags",
+            label="Folder as tags",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="into-album",
+            flag="into-album",
+            label="Into album",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="album-path-joiner",
+            flag="album-path-joiner",
+            label="Album path joiner",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="on-errors",
+            flag="on-errors",
+            label="On errors",
+            kind="enum",
+            options=("stop", "continue"),
+            default="stop",
+        ),
+        AdvancedFlagDef(
+            key="log-level",
+            flag="log-level",
+            label="Log level",
+            kind="enum",
+            options=("INFO", "DEBUG", "WARN", "ERROR"),
+            default="INFO",
+        ),
+    ),
+    "archive-picasa": (
+        AdvancedFlagDef(
+            key="album-picasa",
+            flag="album-picasa",
+            label="Use Picasa album name found in .picasa.ini file",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="date-range",
+            flag="date-range",
+            label="Date range",
+            kind="date_range",
+            placeholder="YYYY-MM-DD,YYYY-MM-DD",
+        ),
+        AdvancedFlagDef(
+            key="include-type",
+            flag="include-type",
+            label="Media type",
+            kind="enum",
+            options=("all", "IMAGE", "VIDEO"),
+            default="all",
+        ),
+        AdvancedFlagDef(
+            key="include-ext",
+            flag="include-extensions",
+            label="Include extensions",
+            kind="extensions",
+        ),
+        AdvancedFlagDef(
+            key="exclude-ext",
+            flag="exclude-extensions",
+            label="Exclude extensions",
+            kind="extensions",
+        ),
+        AdvancedFlagDef(
+            key="ban-file",
+            flag="ban-file",
+            label="Skip files matching patterns",
+            kind="lines_repeat",
+        ),
+        AdvancedFlagDef(
+            key="recursive",
+            flag="recursive",
+            label="Scan subdirectories recursively",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="ignore-sidecar",
+            flag="ignore-sidecar-files",
+            label="Ignore sidecar files",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="date-from-name",
+            flag="date-from-name",
+            label="Use date from filename",
+            kind="bool",
+            default=True,
+        ),
+        AdvancedFlagDef(
+            key="folder-album",
+            flag="folder-as-album",
+            label="Folder as album mode",
+            kind="enum",
+            options=("NONE", "FOLDER", "PATH"),
+            default="NONE",
+        ),
+        AdvancedFlagDef(
+            key="folder-tags",
+            flag="folder-as-tags",
+            label="Folder as tags",
+            kind="bool",
+            default=False,
+        ),
+        AdvancedFlagDef(
+            key="into-album",
+            flag="into-album",
+            label="Into album",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="album-path-joiner",
+            flag="album-path-joiner",
+            label="Album path joiner",
+            kind="text",
+        ),
+        AdvancedFlagDef(
+            key="on-errors",
+            flag="on-errors",
+            label="On errors",
+            kind="enum",
+            options=("stop", "continue"),
+            default="stop",
+        ),
+        AdvancedFlagDef(
+            key="log-level",
+            flag="log-level",
+            label="Log level",
+            kind="enum",
+            options=("INFO", "DEBUG", "WARN", "ERROR"),
+            default="INFO",
         ),
     ),
 }
@@ -2004,7 +2573,7 @@ def check_binary_help(binary_path: Path, version: str = TESTED_IMMICH_GO_VERSION
 
 
 ================================================================================
-FILE 5 / 18: core/cli_help.py (Lines 1-56)
+FILE 5 / 18: core/cli_help.py (Lines 1-61)
 ================================================================================
 """CLI Help parsing and fixture loading module for Immich-Go GUI.
 
@@ -2037,8 +2606,13 @@ def help_name_for_tab(tab_key: str) -> str:
     mapping = {
         "upload-folder": "upload_from-folder",
         "upload-gp": "upload_from-google-photos",
+        "upload-icloud": "upload_from-icloud",
+        "upload-picasa": "upload_from-picasa",
         "upload-immich": "upload_from-immich",
         "archive-folder": "archive_from-folder",
+        "archive-gp": "archive_from-google-photos",
+        "archive-icloud": "archive_from-icloud",
+        "archive-picasa": "archive_from-picasa",
         "archive-immich": "archive_from-immich",
         "stack": "stack",
     }
@@ -2066,7 +2640,7 @@ def load_help_fixture(version: str = "0.32.0", help_name: str = "root", raise_on
 
 
 ================================================================================
-FILE 6 / 18: core/cli_schema.py (Lines 1-243)
+FILE 6 / 18: core/cli_schema.py (Lines 1-329)
 ================================================================================
 """Stable metadata constants, mappings, and compatibility matrices.
 
@@ -2083,8 +2657,13 @@ TAB_KEYS = [
     "config",
     "upload-folder",
     "upload-gp",
+    "upload-icloud",
+    "upload-picasa",
     "upload-immich",
     "archive-folder",
+    "archive-gp",
+    "archive-icloud",
+    "archive-picasa",
     "archive-immich",
     "stack",
 ]
@@ -2092,11 +2671,16 @@ TAB_KEYS = [
 UPLOAD_TABS = {
     "upload-folder",
     "upload-gp",
+    "upload-icloud",
+    "upload-picasa",
     "upload-immich",
 }
 
 ARCHIVE_TABS = {
     "archive-folder",
+    "archive-gp",
+    "archive-icloud",
+    "archive-picasa",
     "archive-immich",
 }
 
@@ -2104,6 +2688,8 @@ ARCHIVE_TABS = {
 SERVER_REQUIRED_TABS = {
     "upload-folder",
     "upload-gp",
+    "upload-icloud",
+    "upload-picasa",
     "upload-immich",
     "archive-immich",
     "stack",
@@ -2112,14 +2698,22 @@ SERVER_REQUIRED_TABS = {
 # Tabs that do not require the main Immich server.
 SERVERLESS_TABS = {
     "archive-folder",
+    "archive-gp",
+    "archive-icloud",
+    "archive-picasa",
 }
 
 # Mapping from internal tab key to immich-go command tokens.
 TAB_COMMANDS = {
     "upload-folder": ["upload", "from-folder"],
     "upload-gp": ["upload", "from-google-photos"],
+    "upload-icloud": ["upload", "from-icloud"],
+    "upload-picasa": ["upload", "from-picasa"],
     "upload-immich": ["upload", "from-immich"],
     "archive-folder": ["archive", "from-folder"],
+    "archive-gp": ["archive", "from-google-photos"],
+    "archive-icloud": ["archive", "from-icloud"],
+    "archive-picasa": ["archive", "from-picasa"],
     "archive-immich": ["archive", "from-immich"],
     "stack": ["stack"],
 }
@@ -2144,6 +2738,16 @@ ENV_KEY_MAP = {
         "admin_api_key": "IMMICH_GO_UPLOAD_ADMIN_API_KEY",
     },
     "upload-gp": {
+        "server": "IMMICH_GO_UPLOAD_SERVER",
+        "api_key": "IMMICH_GO_UPLOAD_API_KEY",
+        "admin_api_key": "IMMICH_GO_UPLOAD_ADMIN_API_KEY",
+    },
+    "upload-icloud": {
+        "server": "IMMICH_GO_UPLOAD_SERVER",
+        "api_key": "IMMICH_GO_UPLOAD_API_KEY",
+        "admin_api_key": "IMMICH_GO_UPLOAD_ADMIN_API_KEY",
+    },
+    "upload-picasa": {
         "server": "IMMICH_GO_UPLOAD_SERVER",
         "api_key": "IMMICH_GO_UPLOAD_API_KEY",
         "admin_api_key": "IMMICH_GO_UPLOAD_ADMIN_API_KEY",
@@ -2228,6 +2832,34 @@ TAB_ALLOWED_FLAGS: dict[str, frozenset[str]] = {
         "manage-epson-fastfoto",
     }),
 
+    "upload-icloud": frozenset({
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks",
+        "overwrite", "pause-immich-jobs", "on-errors", "session-tag", "tag",
+        "device-uuid", "api-trace", "log-level", "time-zone",
+
+        "album-path-joiner", "ban-file", "date-from-name", "date-range",
+        "exclude-extensions", "folder-as-album", "folder-as-tags",
+        "ignore-sidecar-files", "include-extensions", "include-type",
+        "into-album", "memories", "recursive",
+
+        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg",
+        "manage-epson-fastfoto",
+    }),
+
+    "upload-picasa": frozenset({
+        "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks",
+        "overwrite", "pause-immich-jobs", "on-errors", "session-tag", "tag",
+        "device-uuid", "api-trace", "log-level", "time-zone",
+
+        "album-path-joiner", "album-picasa", "ban-file", "date-from-name",
+        "date-range", "exclude-extensions", "folder-as-album", "folder-as-tags",
+        "ignore-sidecar-files", "include-extensions", "include-type",
+        "into-album", "recursive",
+
+        "manage-burst", "manage-raw-jpeg", "manage-heic-jpeg",
+        "manage-epson-fastfoto",
+    }),
+
     "upload-immich": frozenset({
         "server", "skip-verify-ssl", "client-timeout", "dry-run", "concurrent-tasks",
         "overwrite", "pause-immich-jobs", "on-errors", "session-tag", "tag",
@@ -2253,6 +2885,34 @@ TAB_ALLOWED_FLAGS: dict[str, frozenset[str]] = {
 
         "album-path-joiner", "ban-file", "date-from-name", "date-range",
         "exclude-extensions", "folder-as-album", "folder-as-tags",
+        "ignore-sidecar-files", "include-extensions", "include-type",
+        "into-album", "recursive",
+    }),
+
+    "archive-gp": frozenset({
+        "write-to-folder", "dry-run", "log-level", "concurrent-tasks", "on-errors",
+
+        "ban-file", "date-range", "exclude-extensions", "from-album-name",
+        "include-archived", "include-extensions", "include-partner",
+        "include-trashed", "include-type", "include-unmatched",
+        "include-untitled-albums", "partner-shared-album", "people-tag",
+        "sync-albums", "takeout-tag",
+    }),
+
+    "archive-icloud": frozenset({
+        "write-to-folder", "dry-run", "log-level", "concurrent-tasks", "on-errors",
+
+        "album-path-joiner", "ban-file", "date-from-name", "date-range",
+        "exclude-extensions", "folder-as-album", "folder-as-tags",
+        "ignore-sidecar-files", "include-extensions", "include-type",
+        "into-album", "memories", "recursive",
+    }),
+
+    "archive-picasa": frozenset({
+        "write-to-folder", "dry-run", "log-level", "concurrent-tasks", "on-errors",
+
+        "album-path-joiner", "album-picasa", "ban-file", "date-from-name",
+        "date-range", "exclude-extensions", "folder-as-album", "folder-as-tags",
         "ignore-sidecar-files", "include-extensions", "include-type",
         "into-album", "recursive",
     }),
@@ -2315,7 +2975,7 @@ COMPATIBILITY_MATRIX = {
 
 
 ================================================================================
-FILE 7 / 18: core/command_builder.py (Lines 1-525)
+FILE 7 / 18: core/command_builder.py (Lines 1-642)
 ================================================================================
 """Pure command-building and state validation logic for Immich-Go.
 
@@ -2335,6 +2995,7 @@ from .cli_schema import (
     ON_ERRORS_CUSTOM_VALUE,
     SECRET_FLAGS,
     SERVER_REQUIRED_TABS,
+    SERVERLESS_TABS,
     TAB_COMMANDS,
     UPLOAD_TABS,
     flag_allowed_for_tab,
@@ -2598,11 +3259,63 @@ def validate_state(
         if not fk:
             res.errors.append("Source Immich API Key is required.")
 
+    elif tab_key == "upload-icloud":
+        p = tab_state.get("path", "").strip()
+        if not p:
+            res.errors.append("iCloud export path is required.")
+        else:
+            _, path_warns = expand_source_paths(p)
+            res.warnings.extend(path_warns)
+
+    elif tab_key == "upload-picasa":
+        p = tab_state.get("path", "").strip()
+        if not p:
+            res.errors.append("Picasa collection path is required.")
+        else:
+            _, path_warns = expand_source_paths(p)
+            res.warnings.extend(path_warns)
+
     elif tab_key == "archive-folder":
         p = tab_state.get("path", "").strip()
         w = tab_state.get("write-to", "").strip()
         if not p:
             res.errors.append("Source folder path is required.")
+        if not w:
+            res.errors.append("Destination folder is required.")
+        if p and w:
+            expanded_sources, path_warns = expand_source_paths(p)
+            res.warnings.extend(path_warns)
+            res.warnings.extend(validate_destination_folder(w, expanded_sources))
+
+    elif tab_key == "archive-gp":
+        p = tab_state.get("path", "").strip()
+        w = tab_state.get("write-to", "").strip()
+        if not p:
+            res.errors.append("Google Photos takeout source path is required.")
+        if not w:
+            res.errors.append("Destination folder is required.")
+        if p and w:
+            expanded_sources, path_warns = expand_source_paths(p)
+            res.warnings.extend(path_warns)
+            res.warnings.extend(validate_destination_folder(w, expanded_sources))
+
+    elif tab_key == "archive-icloud":
+        p = tab_state.get("path", "").strip()
+        w = tab_state.get("write-to", "").strip()
+        if not p:
+            res.errors.append("iCloud export path is required.")
+        if not w:
+            res.errors.append("Destination folder is required.")
+        if p and w:
+            expanded_sources, path_warns = expand_source_paths(p)
+            res.warnings.extend(path_warns)
+            res.warnings.extend(validate_destination_folder(w, expanded_sources))
+
+    elif tab_key == "archive-picasa":
+        p = tab_state.get("path", "").strip()
+        w = tab_state.get("write-to", "").strip()
+        if not p:
+            res.errors.append("Picasa collection path is required.")
         if not w:
             res.errors.append("Destination folder is required.")
         if p and w:
@@ -2673,8 +3386,8 @@ def build_plan_from_state(
     if log_level and log_level != "INFO":
         emitter.add_option("log-level", log_level)
 
-    # Server and SSL (exclude serverless archive-folder & source-only archive-immich)
-    if tab_key not in ("archive-folder", "archive-immich"):
+    # Server and SSL (exclude serverless tabs & source-only archive-immich)
+    if tab_key not in SERVERLESS_TABS and tab_key != "archive-immich":
         if server:
             emitter.add_option("server", normalize_server_url(server))
 
@@ -2686,7 +3399,7 @@ def build_plan_from_state(
             )
 
     # Global advanced options
-    if tab_key not in ("archive-folder", "archive-immich"):
+    if tab_key not in SERVERLESS_TABS and tab_key != "archive-immich":
         client_timeout = config_state.get("client_timeout", 20)
         if client_timeout != 20:
             emitter.add_option("client-timeout", f"{client_timeout}m")
@@ -2771,6 +3484,30 @@ def build_plan_from_state(
         if raw_paths:
             path_opt.extend(collect_paths(raw_paths))
 
+    elif tab_key == "upload-icloud":
+        if tab_state.get("manage-burst", "NoStack") != "NoStack":
+            emitter.add_option("manage-burst", tab_state["manage-burst"])
+        if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
+            emitter.add_option("manage-raw-jpeg", tab_state["manage-raw-jpeg"])
+        if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
+            emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
+
+        raw_path = str(tab_state.get("path", "")).strip()
+        if raw_path:
+            path_opt.extend(collect_paths(raw_path))
+
+    elif tab_key == "upload-picasa":
+        if tab_state.get("manage-burst", "NoStack") != "NoStack":
+            emitter.add_option("manage-burst", tab_state["manage-burst"])
+        if tab_state.get("manage-raw-jpeg", "NoStack") != "NoStack":
+            emitter.add_option("manage-raw-jpeg", tab_state["manage-raw-jpeg"])
+        if tab_state.get("manage-heic-jpeg", "NoStack") != "NoStack":
+            emitter.add_option("manage-heic-jpeg", tab_state["manage-heic-jpeg"])
+
+        raw_path = str(tab_state.get("path", "")).strip()
+        if raw_path:
+            path_opt.extend(collect_paths(raw_path))
+
     elif tab_key == "upload-immich":
         if from_server:
             emitter.add_option("from-server", normalize_server_url(from_server))
@@ -2780,6 +3517,46 @@ def build_plan_from_state(
             emitter.add_option("from-albums", album)
 
     elif tab_key == "archive-folder":
+        if tab_state.get("write-to"):
+            write_to = os.path.abspath(
+                os.path.expanduser(str(tab_state["write-to"]).strip())
+            )
+            emitter.add_option("write-to-folder", write_to)
+
+        raw_path = str(tab_state.get("path", "")).strip()
+        if raw_path:
+            path_opt.extend(collect_paths(raw_path))
+
+    elif tab_key == "archive-gp":
+        if not tab_state.get("include-partner", True):
+            emitter.add_bool_val("include-partner", False)
+        if not tab_state.get("sync-albums", True):
+            emitter.add_bool_val("sync-albums", False)
+        if not tab_state.get("include-archived", True):
+            emitter.add_bool_val("include-archived", False)
+
+        if tab_state.get("write-to"):
+            write_to = os.path.abspath(
+                os.path.expanduser(str(tab_state["write-to"]).strip())
+            )
+            emitter.add_option("write-to-folder", write_to)
+
+        raw_paths = str(tab_state.get("path", "")).strip()
+        if raw_paths:
+            path_opt.extend(collect_paths(raw_paths))
+
+    elif tab_key == "archive-icloud":
+        if tab_state.get("write-to"):
+            write_to = os.path.abspath(
+                os.path.expanduser(str(tab_state["write-to"]).strip())
+            )
+            emitter.add_option("write-to-folder", write_to)
+
+        raw_path = str(tab_state.get("path", "")).strip()
+        if raw_path:
+            path_opt.extend(collect_paths(raw_path))
+
+    elif tab_key == "archive-picasa":
         if tab_state.get("write-to"):
             write_to = os.path.abspath(
                 os.path.expanduser(str(tab_state["write-to"]).strip())
@@ -4530,7 +5307,7 @@ def validate_destination_folder(
 
 
 ================================================================================
-FILE 15 / 18: test_app.py (Lines 1-2294)
+FILE 15 / 18: test_app.py (Lines 1-2394)
 ================================================================================
 import pytest
 import os
@@ -4662,7 +5439,7 @@ def test_api_key_never_in_argv(gui):
 
 def test_from_api_key_never_in_argv(gui):
     gui.stacked_widget.setCurrentIndex(1)
-    gui.upload_tabs.setCurrentIndex(2)
+    gui.upload_tabs.setCurrentIndex(4)
     gui.inputs["config"]["server"].setText("http://new:2283")
     gui.inputs["config"]["api_key"].setText("new_key")
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
@@ -4760,11 +5537,11 @@ def test_tab_switching_updates_crumb(gui):
     gui.upload_tabs.setCurrentIndex(1)    # Google Takeout sub-tab
     assert gui.lbl_crumb.text() == "upload · from-google-photos"
 
-    gui.upload_tabs.setCurrentIndex(2)    # From Immich sub-tab
+    gui.upload_tabs.setCurrentIndex(4)    # From Immich sub-tab
     assert gui.lbl_crumb.text() == "upload · from-immich"
 
     gui.stacked_widget.setCurrentIndex(2)  # Archive page
-    gui.archive_tabs.setCurrentIndex(1)    # Archive Server sub-tab
+    gui.archive_tabs.setCurrentIndex(4)    # Archive Server sub-tab
     assert gui.lbl_crumb.text() == "archive · from-immich"
 
 
@@ -4818,7 +5595,7 @@ def test_pause_jobs_not_on_stack(gui):
 def test_on_errors_emitted_when_configured(gui):
     gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(2)  # archive page
-    gui.archive_tabs.setCurrentIndex(1)    # archive-immich
+    gui.archive_tabs.setCurrentIndex(4)    # archive-immich
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["archive-immich"]["write-to"].setText("/dst")
@@ -4876,7 +5653,7 @@ def test_api_trace_on_stack(gui):
 def test_from_client_timeout(gui):
     gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
-    gui.upload_tabs.setCurrentIndex(2)     # upload-immich
+    gui.upload_tabs.setCurrentIndex(4)     # upload-immich
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
@@ -4961,7 +5738,7 @@ def test_api_trace_on_stack_disabled(gui):
 def test_build_command_upload_immich(gui):
     gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
-    gui.upload_tabs.setCurrentIndex(2)     # upload-immich sub-tab
+    gui.upload_tabs.setCurrentIndex(4)     # upload-immich sub-tab
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("local-key")
     gui.inputs["upload-immich"]["from-server"].setText("http://remote:2283")
@@ -5027,7 +5804,7 @@ def test_build_command_archive_folder(gui):
 def test_build_command_archive_immich(gui):
     gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(2)  # archive page
-    gui.archive_tabs.setCurrentIndex(1)    # archive-immich sub-tab
+    gui.archive_tabs.setCurrentIndex(4)    # archive-immich sub-tab
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["archive-immich"]["write-to"].setText("/dest/folder")
@@ -5172,7 +5949,7 @@ def test_golden_upload_immich(gui):
     """Golden: upload from-immich simple mode."""
     gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(1)
-    gui.upload_tabs.setCurrentIndex(2)
+    gui.upload_tabs.setCurrentIndex(4)
     gui.inputs["config"]["server"].setText("http://new:2283")
     gui.inputs["config"]["api_key"].setText("new-key")
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
@@ -5195,7 +5972,7 @@ def test_golden_archive_immich(gui):
     """Golden: archive from-immich simple mode."""
     gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(2)
-    gui.archive_tabs.setCurrentIndex(1)
+    gui.archive_tabs.setCurrentIndex(4)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("test-key")
     gui.inputs["archive-immich"]["write-to"].setText("/backup/photos")
@@ -6493,7 +7270,7 @@ def test_upload_gp_does_not_include_into_album_advanced_key():
 def test_from_admin_api_key_advanced_secret_env(gui):
     gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)
-    gui.upload_tabs.setCurrentIndex(2)
+    gui.upload_tabs.setCurrentIndex(4)
 
     gui.inputs["config"]["server"].setText("http://new:2283")
     gui.inputs["config"]["api_key"].setText("new-key")
@@ -6577,7 +7354,7 @@ def test_upload_immich_simple_mode_from_date_range_emitted(gui):
     """A1: from-date-range in upload-immich simple card must produce CLI flag."""
     gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(1)
-    gui.upload_tabs.setCurrentIndex(2)
+    gui.upload_tabs.setCurrentIndex(4)
     gui.inputs["config"]["server"].setText("http://new:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
@@ -6594,7 +7371,7 @@ def test_upload_immich_simple_mode_from_albums_emitted(gui):
     """A1: from-albums in upload-immich simple card must produce repeat CLI flags."""
     gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(1)
-    gui.upload_tabs.setCurrentIndex(2)
+    gui.upload_tabs.setCurrentIndex(4)
     gui.inputs["config"]["server"].setText("http://new:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
@@ -6612,7 +7389,7 @@ def test_archive_immich_simple_mode_from_date_range_emitted(gui):
     """A1: from-date-range in archive-immich simple card must produce CLI flag."""
     gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(2)
-    gui.archive_tabs.setCurrentIndex(1)
+    gui.archive_tabs.setCurrentIndex(4)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["archive-immich"]["write-to"].setText("/backup")
@@ -6628,7 +7405,7 @@ def test_archive_immich_simple_mode_from_albums_emitted(gui):
     """A1: from-albums in archive-immich simple card must produce repeat CLI flags."""
     gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(2)
-    gui.archive_tabs.setCurrentIndex(1)
+    gui.archive_tabs.setCurrentIndex(4)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["archive-immich"]["write-to"].setText("/backup")
@@ -6736,7 +7513,7 @@ def test_env_var_secret_contract_with_stub(gui):
 
     gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)
-    gui.upload_tabs.setCurrentIndex(2)  # upload-immich tab
+    gui.upload_tabs.setCurrentIndex(4)  # upload-immich tab
 
     gui.inputs["config"]["server"].setText("http://target:2283")
     gui.inputs["config"]["api_key"].setText("target-secret-key-123")
@@ -6828,8 +7605,108 @@ def test_windows_bat_heartbeat_generation(tmp_path, monkeypatch):
     assert 'del /f "%HB_FILE%"' in bat_content
 
 
+def test_golden_upload_icloud_simple(gui):
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(2)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-icloud"]["path"].setText("/photos/icloud")
+
+    plan = gui.build_plan(dry_run=False)
+    assert plan.argv == ["upload", "from-icloud", "--server=http://localhost:2283", "/photos/icloud"]
+    assert plan.tab_key == "upload-icloud"
+
+
+def test_golden_upload_picasa_simple(gui):
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(1)
+    gui.upload_tabs.setCurrentIndex(3)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["upload-picasa"]["path"].setText("/photos/picasa")
+
+    plan = gui.build_plan(dry_run=False)
+    assert plan.argv == ["upload", "from-picasa", "--server=http://localhost:2283", "/photos/picasa"]
+    assert plan.tab_key == "upload-picasa"
+
+
+def test_golden_archive_gp_simple(gui):
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(1)
+    gui.inputs["archive-gp"]["path"].setPlainText("/takeout/photos")
+    gui.inputs["archive-gp"]["write-to"].setText("/backup/takeout")
+
+    plan = gui.build_plan(dry_run=False)
+    assert plan.argv == ["archive", "from-google-photos", "--write-to-folder=/backup/takeout", "/takeout/photos"]
+    assert "--server" not in " ".join(plan.argv)
+    assert plan.tab_key == "archive-gp"
+
+
+def test_golden_archive_icloud_simple(gui):
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(2)
+    gui.inputs["archive-icloud"]["path"].setText("/photos/icloud")
+    gui.inputs["archive-icloud"]["write-to"].setText("/backup/icloud")
+
+    plan = gui.build_plan(dry_run=False)
+    assert plan.argv == ["archive", "from-icloud", "--write-to-folder=/backup/icloud", "/photos/icloud"]
+    assert "--server" not in " ".join(plan.argv)
+    assert plan.tab_key == "archive-icloud"
+
+
+def test_golden_archive_picasa_simple(gui):
+    gui.toggle_advanced(False)
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(3)
+    gui.inputs["archive-picasa"]["path"].setText("/photos/picasa")
+    gui.inputs["archive-picasa"]["write-to"].setText("/backup/picasa")
+
+    plan = gui.build_plan(dry_run=False)
+    assert plan.argv == ["archive", "from-picasa", "--write-to-folder=/backup/picasa", "/photos/picasa"]
+    assert "--server" not in " ".join(plan.argv)
+    assert plan.tab_key == "archive-picasa"
+
+
+def test_serverless_archive_tabs_never_emit_server(gui):
+    from core.cli_schema import SERVERLESS_TABS
+    gui.inputs["config"]["server"].setText("http://should-not-emit:2283")
+    gui.inputs["config"]["api_key"].setText("secret")
+
+    # archive-folder
+    gui.stacked_widget.setCurrentIndex(2)
+    gui.archive_tabs.setCurrentIndex(0)
+    gui.inputs["archive-folder"]["path"].setText("/src")
+    gui.inputs["archive-folder"]["write-to"].setText("/dst")
+    plan = gui.build_plan(dry_run=False)
+    assert "--server" not in " ".join(plan.argv)
+
+    # archive-gp
+    gui.archive_tabs.setCurrentIndex(1)
+    gui.inputs["archive-gp"]["path"].setPlainText("/src")
+    gui.inputs["archive-gp"]["write-to"].setText("/dst")
+    plan = gui.build_plan(dry_run=False)
+    assert "--server" not in " ".join(plan.argv)
+
+    # archive-icloud
+    gui.archive_tabs.setCurrentIndex(2)
+    gui.inputs["archive-icloud"]["path"].setText("/src")
+    gui.inputs["archive-icloud"]["write-to"].setText("/dst")
+    plan = gui.build_plan(dry_run=False)
+    assert "--server" not in " ".join(plan.argv)
+
+    # archive-picasa
+    gui.archive_tabs.setCurrentIndex(3)
+    gui.inputs["archive-picasa"]["path"].setText("/src")
+    gui.inputs["archive-picasa"]["write-to"].setText("/dst")
+    plan = gui.build_plan(dry_run=False)
+    assert "--server" not in " ".join(plan.argv)
+
+
 ================================================================================
-FILE 16 / 18: scripts/capture_cli_help.py (Lines 1-84)
+FILE 16 / 18: scripts/capture_cli_help.py (Lines 1-89)
 ================================================================================
 #!/usr/bin/env python3
 """Script to capture immich-go CLI help outputs into versioned test fixtures.
@@ -6857,9 +7734,14 @@ TARGET_COMMANDS = {
     "upload": ["upload"],
     "upload_from-folder": ["upload", "from-folder"],
     "upload_from-google-photos": ["upload", "from-google-photos"],
+    "upload_from-icloud": ["upload", "from-icloud"],
+    "upload_from-picasa": ["upload", "from-picasa"],
     "upload_from-immich": ["upload", "from-immich"],
     "archive": ["archive"],
     "archive_from-folder": ["archive", "from-folder"],
+    "archive_from-google-photos": ["archive", "from-google-photos"],
+    "archive_from-icloud": ["archive", "from-icloud"],
+    "archive_from-picasa": ["archive", "from-picasa"],
     "archive_from-immich": ["archive", "from-immich"],
     "stack": ["stack"],
 }
