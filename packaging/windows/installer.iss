@@ -2,6 +2,10 @@
 #define MyAppVersion "1.0.0"
 #endif
 
+#ifndef MyOutputFilename
+#define MyOutputFilename "Immich-Go-GUI-Windows-Setup"
+#endif
+
 [Setup]
 AppName=Immich-Go GUI
 AppVersion={#MyAppVersion}
@@ -12,7 +16,7 @@ Compression=lzma2
 SolidCompression=yes
 SourceDir=..\..\
 OutputDir=..\..\
-OutputBaseFilename=Immich-Go-GUI-Windows-Setup
+OutputBaseFilename={#MyOutputFilename}
 
 [Files]
 Source: "app.dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
