@@ -78,7 +78,7 @@ jobs:
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
         with:
           path: packaging/windows/installer.iss
-          options: /O"${{ github.workspace }}" /DMyAppVersion=${{ env.VERSION }}
+          options: /O"." /DMyAppVersion=${{ env.VERSION }}
 
       # --- MACOS BUILD ---
       - name: Build macOS
