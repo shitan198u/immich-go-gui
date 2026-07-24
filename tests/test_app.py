@@ -273,13 +273,17 @@ def test_pause_jobs_not_on_archive(gui):
     assert not any("--pause-immich-jobs" in o for o in opts)
 
 
-def test_pause_jobs_not_on_stack(gui):
+def test_pause_jobs_auto_disables_on_stack_without_admin_key(gui):
+    """Without an admin key, --pause-immich-jobs=false is emitted on stack tab
+    to prevent 403 Forbidden from the server. See issue #64."""
     gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(3)  # stack
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
+    # Explicitly confirm no admin key is set
+    gui.inputs["config"]["admin_api_key"].setText("")
     opts = gui.build_command(dry_run=False)
-    assert not any("--pause-immich-jobs" in o for o in opts)
+    assert "--pause-immich-jobs=false" in opts
 
 
 def test_on_errors_emitted_when_configured(gui):
@@ -562,6 +566,7 @@ def test_golden_upload_folder(gui):
     gui.upload_tabs.setCurrentIndex(0)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("test-key")
+    gui.inputs["config"]["admin_api_key"].setText("admin-key")  # prevent auto-disable
     gui.inputs["upload-folder"]["path"].setText("/photos")
 
     plan = gui.build_plan(dry_run=False)
@@ -582,6 +587,7 @@ def test_golden_upload_gp(gui):
     gui.upload_tabs.setCurrentIndex(1)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("test-key")
+    gui.inputs["config"]["admin_api_key"].setText("admin-key")  # prevent auto-disable
     gui.inputs["upload-gp"]["path"].setPlainText("/takeout-001.zip\n/takeout-002.zip")
 
     plan = gui.build_plan(dry_run=False)
@@ -600,6 +606,7 @@ def test_golden_stack(gui):
     gui.stacked_widget.setCurrentIndex(3)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("test-key")
+    gui.inputs["config"]["admin_api_key"].setText("admin-key")  # prevent auto-disable
     gui.inputs["stack"]["manage-burst"].setCurrentText("Stack")
     gui.inputs["stack"]["manage-raw-jpeg"].setCurrentText("NoStack")
     gui.inputs["stack"]["manage-heic-jpeg"].setCurrentText("NoStack")
@@ -619,6 +626,7 @@ def test_golden_stack_advanced_with_date_range(gui):
     gui.stacked_widget.setCurrentIndex(3)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("test-key")
+    gui.inputs["config"]["admin_api_key"].setText("admin-key")  # prevent auto-disable
     gui.inputs["stack"]["manage-burst"].setCurrentText("Stack")
     gui.adv_rows["stack"]["date-range"].set_state({"enabled": True, "value": "2023-01-01,2023-12-31"})
 
@@ -658,6 +666,7 @@ def test_golden_upload_immich(gui):
     gui.upload_tabs.setCurrentIndex(4)
     gui.inputs["config"]["server"].setText("http://new:2283")
     gui.inputs["config"]["api_key"].setText("new-key")
+    gui.inputs["config"]["admin_api_key"].setText("admin-key")  # prevent auto-disable
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
     gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
     gui.inputs["upload-immich"]["from-date-range"].clear()
@@ -801,6 +810,7 @@ def test_build_plan_from_state_upload_folder_golden():
     config_state = {
         "server": "http://localhost:2283",
         "api_key": "test-key",
+        "admin_api_key": "admin-key",  # prevent auto-disable of pause-immich-jobs
         "skip-ssl": False,
         "client_timeout": 20,
         "concurrent": 8,
@@ -2355,6 +2365,7 @@ def test_golden_upload_icloud_simple(gui):
     gui.upload_tabs.setCurrentIndex(2)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["config"]["admin_api_key"].setText("admin-key")  # prevent auto-disable
     gui.inputs["upload-icloud"]["path"].setText("/photos/icloud")
 
     plan = gui.build_plan(dry_run=False)
@@ -2368,6 +2379,7 @@ def test_golden_upload_picasa_simple(gui):
     gui.upload_tabs.setCurrentIndex(3)
     gui.inputs["config"]["server"].setText("http://localhost:2283")
     gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["config"]["admin_api_key"].setText("admin-key")  # prevent auto-disable
     gui.inputs["upload-picasa"]["path"].setText("/photos/picasa")
 
     plan = gui.build_plan(dry_run=False)
@@ -2447,3 +2459,323 @@ def test_serverless_archive_tabs_never_emit_server(gui):
     gui.inputs["archive-picasa"]["write-to"].setText("/dst")
     plan = gui.build_plan(dry_run=False)
     assert "--server" not in " ".join(plan.argv)
+
+
+# ==============================================================================
+# SECTION: WINDOWS PATH & FILESYSTEM TESTS
+# Groups:
+#   A — PureWindowsPath pure logic (zero deps, runs on any OS)
+#   B — pyfakefs Windows FS simulation (bat file, Popen quoting, binary paths)
+#   C — pause-immich-jobs auto-disable regression tests (fixes #64)
+# ==============================================================================
+
+from pathlib import PureWindowsPath
+
+
+class TestWindowsPathParsing:
+    """Group A: Pure path logic tests — no filesystem access, run on any OS.
+
+    Uses PureWindowsPath so Windows-style paths can be parsed/validated on
+    Linux CI without any external dependencies or mocking.
+    """
+
+    def test_bat_sibling_derived_from_lock_path(self):
+        """terminal_launcher derives .bat from lock path — verify sibling names."""
+        lock = PureWindowsPath(
+            r"C:\Users\Shsrra\AppData\Roaming\immich-go-gui\locks\run_89d244f3.lock"
+        )
+        bat = lock.with_suffix(".bat")
+        hb = lock.with_suffix(".heartbeat")
+        assert bat.name == "run_89d244f3.bat"
+        assert hb.name == "run_89d244f3.heartbeat"
+        assert bat.parent == lock.parent
+
+    def test_path_with_spaces_in_username(self):
+        """Paths with spaces in username must be quoted before cmd /k."""
+        p = PureWindowsPath(
+            r"C:\Users\John Doe\AppData\Roaming\immich-go-gui\locks\run_abc.bat"
+        )
+        assert " " in str(p)
+        assert p.suffix == ".bat"
+        # Simulate the fix: wrap in double quotes for shell=True
+        cmd_str = f'cmd /k "{str(p)}"'
+        assert cmd_str == r'cmd /k "C:\Users\John Doe\AppData\Roaming\immich-go-gui\locks\run_abc.bat"'
+        # The quoted form must not have unquoted spaces adjacent to the path
+        # (i.e. the entire path must be wrapped in one pair of quotes)
+        inner = cmd_str[len('cmd /k "'):-1]
+        assert inner == str(p)
+
+    def test_path_without_spaces_also_works_quoted(self):
+        """Even paths without spaces should work correctly when quoted."""
+        p = PureWindowsPath(r"C:\Users\Shsrra\AppData\Roaming\immich-go-gui\locks\run_x.bat")
+        assert " " not in str(p)
+        cmd_str = f'cmd /k "{str(p)}"'
+        assert '"' in cmd_str
+
+    def test_binary_filename_win32(self):
+        """BinaryManager should append .exe on Windows."""
+        win_p = PureWindowsPath(r"C:\Users\me\.immich-go-gui\bin\0.32.0\immich-go.exe")
+        assert win_p.name == "immich-go.exe"
+        assert win_p.stem == "immich-go"
+        assert win_p.suffix == ".exe"
+
+    def test_lock_path_drive_letter_preserved(self):
+        """Drive letter must survive .with_suffix() calls."""
+        lock = PureWindowsPath(r"C:\immich-go-gui\locks\run_001.lock")
+        assert lock.with_suffix(".bat").drive == "C:"
+        assert lock.with_suffix(".heartbeat").drive == "C:"
+
+
+class TestWindowsBatFileCreation:
+    """Group B: pyfakefs Windows FS simulation tests.
+
+    Verifies the bat file is written correctly and that Popen receives a
+    properly-quoted string (shell=True form) — the actual fix for issue #65.
+    """
+
+    def test_bat_written_with_heartbeat_content(self, tmp_path, monkeypatch):
+        """Fix #65: bat file is created and contains heartbeat loop."""
+        monkeypatch.setattr("sys.platform", "win32")
+        lock_path = tmp_path / "run_test.lock"
+        lock_path.write_text('{"run_id": "test"}', encoding="utf-8")
+
+        from core.terminal_launcher import launch_external_terminal
+
+        with patch("subprocess.Popen") as mock_popen:
+            mock_popen.return_value.pid = 9999
+            res = launch_external_terminal(["immich-go.exe", "upload", "from-folder"], {}, lock_path)
+
+        assert res.ok
+        bat = lock_path.with_suffix(".bat")
+        assert bat.exists(), "Expected .bat file to be created alongside lock"
+        content = bat.read_text(encoding="utf-8")
+        assert "HB_FILE=" in content
+        assert ".heartbeat" in content
+        assert "start /b cmd /c" in content
+        assert 'del /f "%HB_FILE%"' in content
+
+    def test_popen_receives_quoted_string_not_list(self, tmp_path, monkeypatch):
+        """Fix #65: Popen command is a quoted string (shell=True), not a list.
+
+        This is the root cause of 'The batch file cannot be found' when the
+        lock directory path contains spaces.
+        """
+        monkeypatch.setattr("sys.platform", "win32")
+
+        # Simulate a path with spaces in the directory name
+        spaced_dir = tmp_path / "John Doe" / "locks"
+        spaced_dir.mkdir(parents=True)
+        lock_path = spaced_dir / "run_spaced.lock"
+        lock_path.write_text('{"run_id": "spaced"}', encoding="utf-8")
+
+        from core.terminal_launcher import launch_external_terminal
+
+        with patch("subprocess.Popen") as mock_popen:
+            mock_popen.return_value.pid = 1234
+            res = launch_external_terminal(["immich-go.exe", "stack"], {}, lock_path)
+
+        assert res.ok
+        assert mock_popen.called
+        call_args = mock_popen.call_args
+        cmd_arg = call_args[0][0]
+
+        # The command passed to Popen must be a string (shell=True), not a list
+        assert isinstance(cmd_arg, str), (
+            "Expected shell=True string form for quoted path; "
+            f"got {type(cmd_arg)}: {cmd_arg!r}"
+        )
+        assert cmd_arg.startswith("cmd /k"), f"Expected 'cmd /k ...', got: {cmd_arg!r}"
+        # The bat path must be enclosed in double quotes
+        assert '"' in cmd_arg, f"Expected quoted bat path in: {cmd_arg!r}"
+        # shell=True must be set
+        kwargs = call_args[1]
+        assert kwargs.get("shell") is True, "Expected shell=True in Popen kwargs"
+
+    def test_bat_path_quoted_even_without_spaces(self, tmp_path, monkeypatch):
+        """Quoting is applied consistently regardless of whether path has spaces."""
+        monkeypatch.setattr("sys.platform", "win32")
+        lock_path = tmp_path / "run_nospace.lock"
+        lock_path.write_text('{"run_id": "nospace"}', encoding="utf-8")
+
+        from core.terminal_launcher import launch_external_terminal
+
+        with patch("subprocess.Popen") as mock_popen:
+            mock_popen.return_value.pid = 5678
+            launch_external_terminal(["immich-go.exe", "upload", "from-folder"], {}, lock_path)
+
+        cmd_arg = mock_popen.call_args[0][0]
+        assert isinstance(cmd_arg, str)
+        assert '"' in cmd_arg
+
+
+class TestBinaryManagerWindowsPathResolution:
+    """Group B (extended): binary_manager.py Path.resolve() fix — issue #66."""
+
+    def test_check_binary_uses_resolved_path(self, tmp_path, monkeypatch):
+        """Fix #66: check_binary resolves the binary path before subprocess.run."""
+        from core.binary_manager import BinaryManager
+
+        bm = BinaryManager(base_dir=str(tmp_path), os_name="win32")
+
+        # Point metadata at a path that exists
+        fake_bin = tmp_path / "0.32.0" / "immich-go.exe"
+        fake_bin.parent.mkdir(parents=True)
+        fake_bin.write_bytes(b"fake")
+
+        meta = {
+            "schema_version": 2,
+            "selected_version": "0.32.0",
+            "manual_path": "",
+            "versions": {
+                "0.32.0": {
+                    "path": str(fake_bin),
+                    "gui_tested": True,
+                    "support_status": "tested",
+                    "sha256": "",
+                    "release_url": "",
+                }
+            },
+        }
+
+        with patch("core.binary_manager.subprocess.run") as mock_run, \
+             patch("core.binary_manager.load_binary_metadata", return_value=meta):
+            mock_result = MagicMock()
+            mock_result.stdout = "v0.32.0"
+            mock_result.stderr = ""
+            mock_run.return_value = mock_result
+
+            status = bm.check_binary()
+
+        assert mock_run.called
+        call_args = mock_run.call_args[0][0]
+        # First element of the subprocess list must be a resolved absolute path
+        assert os.path.isabs(call_args[0]), (
+            f"Expected absolute resolved path in subprocess call, got: {call_args[0]!r}"
+        )
+
+    def test_verify_extracted_binary_uses_resolved_path(self, tmp_path):
+        """Fix #66: verify_extracted_binary resolves path before subprocess.run."""
+        from core.binary_manager import BinaryManager
+
+        bm = BinaryManager(os_name="win32")
+        fake_bin = tmp_path / "immich-go.exe"
+        fake_bin.write_bytes(b"fake")
+
+        with patch("core.binary_manager.subprocess.run") as mock_run:
+            mock_result = MagicMock()
+            mock_result.stdout = "v0.32.0"
+            mock_result.stderr = ""
+            mock_run.return_value = mock_result
+
+            result = bm.verify_extracted_binary(str(fake_bin))
+
+        assert result is True
+        call_args = mock_run.call_args[0][0]
+        assert os.path.isabs(call_args[0]), (
+            f"Expected absolute resolved path, got: {call_args[0]!r}"
+        )
+
+
+# ==============================================================================
+# Group C: pause-immich-jobs auto-disable regression tests (fixes #64)
+# ==============================================================================
+
+from core.command_builder import build_plan_from_state as _build_plan
+
+
+class TestPauseJobsAutoDisable:
+    """Regression tests for Bug #64: --pause-immich-jobs + no admin key = 403."""
+
+    _BASE_CONFIG = {
+        "server": "http://localhost:2283",
+        "api_key": "user-key",
+    }
+
+    def test_pause_disabled_when_no_admin_key(self):
+        """Default pause=True + no admin key: auto-emit --pause-immich-jobs=false + warning."""
+        plan = _build_plan(
+            tab_key="upload-folder",
+            config_state={**self._BASE_CONFIG, "admin_api_key": "", "pause_jobs": True},
+            tab_state={"path": "/photos"},
+            binary_path="./immich-go",
+        )
+        assert "--pause-immich-jobs=false" in plan.argv, (
+            "Expected --pause-immich-jobs=false when no admin key is set"
+        )
+        assert any("Admin API Key" in w for w in plan.warnings), (
+            f"Expected a warning about Admin API Key; got: {plan.warnings}"
+        )
+
+    def test_pause_not_disabled_when_admin_key_present(self):
+        """When admin key is set, do not auto-disable pausing."""
+        plan = _build_plan(
+            tab_key="upload-folder",
+            config_state={**self._BASE_CONFIG, "admin_api_key": "admin-secret", "pause_jobs": True},
+            tab_state={"path": "/photos"},
+            binary_path="./immich-go",
+        )
+        assert "--pause-immich-jobs=false" not in plan.argv, (
+            "Should not auto-disable when admin key is provided"
+        )
+        assert not any("Admin API Key" in w for w in plan.warnings)
+
+    def test_explicit_pause_false_no_admin_key(self):
+        """Explicit pause=False + no admin key: flag appears exactly once, no warning."""
+        plan = _build_plan(
+            tab_key="upload-folder",
+            config_state={**self._BASE_CONFIG, "admin_api_key": "", "pause_jobs": False},
+            tab_state={"path": "/photos"},
+            binary_path="./immich-go",
+        )
+        pause_flags = [a for a in plan.argv if "pause-immich-jobs" in a]
+        assert len(pause_flags) == 1, f"Expected exactly one pause flag; got: {pause_flags}"
+        assert pause_flags[0] == "--pause-immich-jobs=false"
+        # No warning because user explicitly disabled it
+        assert not any("Admin API Key" in w for w in plan.warnings)
+
+    def test_pause_auto_disable_on_stack_tab(self):
+        """Auto-disable also applies to the 'stack' tab (not just upload tabs)."""
+        plan = _build_plan(
+            tab_key="stack",
+            config_state={**self._BASE_CONFIG, "admin_api_key": ""},
+            tab_state={},
+            binary_path="./immich-go",
+        )
+        assert "--pause-immich-jobs=false" in plan.argv
+        assert any("Admin API Key" in w for w in plan.warnings)
+
+    def test_pause_auto_disable_on_all_upload_tabs(self):
+        """Auto-disable applies to all upload tabs."""
+        from core.cli_schema import UPLOAD_TABS
+        tab_paths = {
+            "upload-folder": {"path": "/photos"},
+            "upload-gp": {"path": "/takeout.zip"},
+            "upload-icloud": {"path": "/icloud"},
+            "upload-picasa": {"path": "/picasa"},
+        }
+        for tab_key in UPLOAD_TABS:
+            if tab_key == "upload-immich":
+                tab_state = {"from-server": "http://old:2283", "from-api-key": "old-key"}
+            else:
+                tab_state = tab_paths.get(tab_key, {"path": "/photos"})
+
+            plan = _build_plan(
+                tab_key=tab_key,
+                config_state={**self._BASE_CONFIG, "admin_api_key": ""},
+                tab_state=tab_state,
+                binary_path="./immich-go",
+            )
+            assert "--pause-immich-jobs=false" in plan.argv, (
+                f"Expected auto-disable on tab '{tab_key}'; argv={plan.argv}"
+            )
+
+    def test_no_double_pause_flag_injection(self):
+        """When admin key is absent AND pause=False, only one flag is emitted."""
+        plan = _build_plan(
+            tab_key="upload-gp",
+            config_state={**self._BASE_CONFIG, "admin_api_key": "", "pause_jobs": False},
+            tab_state={"path": "/takeout.zip"},
+            binary_path="./immich-go",
+        )
+        pause_flags = [a for a in plan.argv if "pause-immich-jobs" in a]
+        assert len(pause_flags) == 1, f"Expected exactly one pause flag; got: {pause_flags}"
