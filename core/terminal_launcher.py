@@ -89,8 +89,13 @@ def launch_external_terminal(
             bat_path.write_text(bat_content, encoding="utf-8")
 
             CREATE_NEW_CONSOLE = 0x00000010
+            # Use shell=True with explicit quoting so cmd /k can locate the
+            # batch file even when the path contains spaces (e.g. user profile
+            # paths like C:\Users\John Doe\AppData\...).
+            bat_str = str(bat_path)
             proc = subprocess.Popen(
-                ["cmd", "/k", str(bat_path)],
+                f'cmd /k "{bat_str}"',
+                shell=True,
                 creationflags=CREATE_NEW_CONSOLE,
                 env=env,
             )
