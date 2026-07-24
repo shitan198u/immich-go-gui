@@ -75,10 +75,12 @@ jobs:
 
       - name: Compile Windows Installer
         if: matrix.name == 'windows'
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.9
-        with:
-          path: packaging/windows/installer.iss
-          options: /O"." /DMyAppVersion=${{ env.VERSION }}
+        shell: powershell
+        run: |
+          if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y
+          }
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion="${{ env.VERSION }}" packaging/windows/installer.iss
 
       # --- MACOS BUILD ---
       - name: Build macOS
