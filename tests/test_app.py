@@ -359,7 +359,7 @@ def test_gp_multi_path(gui):
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
     gui.inputs["upload-gp"]["path"].setPlainText("/takeout-001.zip\n/takeout-002.zip")
-    opts = gui.build_command(dry_run=False)
+    opts = _norm_argv(gui.build_command(dry_run=False))
     assert "/takeout-001.zip" in opts
     assert "/takeout-002.zip" in opts
 
