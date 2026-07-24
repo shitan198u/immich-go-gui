@@ -107,8 +107,7 @@ jobs:
 
       - name: Audit Python Dependencies
         run: |
-          uv pip install pip-audit
-          uv run pip-audit || echo "Security audit completed"
+          uv run --with pip-audit pip-audit --desc || echo "Security audit completed"
 
       - name: Dependency Review
         if: github.event_name == 'pull_request'
