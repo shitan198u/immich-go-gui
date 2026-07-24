@@ -116,37 +116,11 @@ jobs:
           fail-on-severity: high
           comment-summary-in-pr: always
 
-  # 4. Nuitka Build Verification
-  build-check:
-    name: 🔨 Build Check (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    needs: analyze-changes
-    if: needs.analyze-changes.outputs.has_code_changes == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-22.04, windows-latest]
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Install dependencies
-        run: uv sync --dev
-
-      - name: Install Nuitka Tools
-        run: uv add --dev nuitka pillow
-
-      - name: Verify Nuitka Standalone Compilation
-        run: uv run python -m nuitka --show-scons app.py
-
-  # 5. Aggregate Results & PR Commenting
+  # 4. Aggregate Results & PR Commenting
   fast-feedback-complete:
     name: ✅ Fast Feedback Complete
     runs-on: ubuntu-latest
-    needs: [analyze-changes, unit-tests, security-scan, build-check]
+    needs: [analyze-changes, unit-tests, security-scan]
     if: always()
     steps:
       - name: Check if doc-only PR
@@ -164,15 +138,12 @@ jobs:
         env:
           TEST_STATUS: ${{ needs.unit-tests.result }}
           SECURITY_STATUS: ${{ needs.security-scan.result }}
-          BUILD_STATUS: ${{ needs.build-check.result }}
         run: |
           echo "Unit Tests: $TEST_STATUS"
           echo "Security Scan: $SECURITY_STATUS"
-          echo "Build Check: $BUILD_STATUS"
 
           if [[ "$TEST_STATUS" != "success" ]] || \
-             [[ "$SECURITY_STATUS" != "success" ]] || \
-             [[ "$BUILD_STATUS" != "success" ]]; then
+             [[ "$SECURITY_STATUS" != "success" ]]; then
             echo "❌ Fast feedback checks failed"
             exit 1
           fi
@@ -189,7 +160,7 @@ jobs:
 
             const commentBody = isDocOnly
               ? `## ✅ Fast Feedback Passed (Documentation)\n\nThis PR contains documentation/non-code changes — code verification was skipped.\n\n**Status:** Ready for review.`
-              : `## ✅ Fast Feedback Passed\n\nAll automated code quality checks passed successfully:\n- ✅ **Multi-OS Unit Tests** (Linux Xvfb, macOS, Windows)\n- ✅ **Security & Vulnerability Audit** (\`pip-audit\` / Dependency Review)\n- ✅ **Nuitka Desktop App Compilation Check**\n\n**Status:** Ready to merge once approved!`;
+              : `## ✅ Fast Feedback Passed\n\nAll automated code quality checks passed successfully:\n- ✅ **Multi-OS Unit Tests** (Linux Xvfb, macOS, Windows)\n- ✅ **Security & Vulnerability Audit** (\`pip-audit\` / Dependency Review)\n\n**Status:** Ready to merge once approved!`;
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,

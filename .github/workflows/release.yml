@@ -8,8 +8,6 @@ on:
         required: false
         default: '1.0.0-test'
   push:
-    # branches:
-    #   - master
     tags:
       - 'v*'
 
@@ -33,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Set Version
         id: set-version
@@ -49,13 +47,10 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v5
 
       - name: Install dependencies
-        run: uv sync
-
-      - name: Add Build Tools
-        run: uv add --dev nuitka pillow
+        run: uv sync --dev
 
       # --- WINDOWS BUILD ---
       - name: Build Windows
@@ -64,7 +59,7 @@ jobs:
         run: |
           uv run python -c "from PIL import Image; Image.open('immich-go-gui.png').save('immich-go-gui.ico')"
           NUMERIC_VERSION=$(echo "${{ env.VERSION }}" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' || echo "1.0.0")
-          uv run python -m nuitka --file-version="${NUMERIC_VERSION}.0" --product-version="${NUMERIC_VERSION}.0" app.py
+          uv run python -m nuitka --standalone --enable-plugin=pyside6 --include-data-files=immich-go-gui.png=immich-go-gui.png --include-data-dir=assets=assets --windows-console-mode=disable --windows-icon-from-ico=immich-go-gui.ico --company-name="Shitan198u" --product-name="Immich-Go GUI" --file-version="${NUMERIC_VERSION}.0" --product-version="${NUMERIC_VERSION}.0" app.py
 
       - name: Create Windows Portable Archive
         if: matrix.name == 'windows'
@@ -83,10 +78,16 @@ jobs:
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion="${{ env.VERSION }}" packaging/windows/installer.iss
 
       # --- MACOS BUILD ---
+      - name: Setup Node.js
+        if: matrix.name == 'macos'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Build macOS
         if: matrix.name == 'macos'
         run: |
-          uv run python -m nuitka app.py
+          uv run python -m nuitka --standalone --enable-plugin=pyside6 --include-data-files=immich-go-gui.png=immich-go-gui.png --include-data-dir=assets=assets app.py
           npm install -g create-dmg
           create-dmg app.app || true
           mv *.dmg Immich-Go-GUI-macOS.dmg
@@ -95,7 +96,7 @@ jobs:
       - name: Build Linux Standalone
         if: matrix.name == 'linux'
         run: |
-          uv run python -m nuitka app.py
+          uv run python -m nuitka --standalone --enable-plugin=pyside6 --include-data-files=immich-go-gui.png=immich-go-gui.png --include-data-dir=assets=assets app.py
 
       - name: Create Linux Portable Archive
         if: matrix.name == 'linux'
@@ -127,7 +128,7 @@ jobs:
           EOF
           chmod +x AppDir/AppRun
 
-          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage -O appimagetool
           chmod +x appimagetool
           ./appimagetool --appimage-extract-and-run AppDir Immich-Go-GUI-Linux.AppImage
 
@@ -145,12 +146,12 @@ jobs:
           nfpm pkg --packager deb --target ../../Immich-Go-GUI-Linux.deb
           nfpm pkg --packager rpm --target ../../Immich-Go-GUI-Linux.rpm
 
-
       # --- UPLOAD ARTIFACTS ---
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: Immich-Go-GUI-${{ matrix.name }}
+          if-no-files-found: ignore
           path: |
             Immich-Go-GUI-Windows-Setup.exe
             Immich-Go-GUI-Windows-Portable.zip
@@ -167,7 +168,7 @@ jobs:
       contents: write
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true

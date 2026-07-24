@@ -1,6 +1,7 @@
 import pytest
 import os
 import sys
+import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -1420,7 +1421,7 @@ def test_terminal_launcher_working_directory_isolation(tmp_path, monkeypatch):
         res = launch_external_terminal(cmd, env, lock_path, preferred_terminal="auto")
         assert res.ok is True
 
-    temp_dirs = list(Path("/tmp").glob("immich-go-run-*"))
+    temp_dirs = list(set(list(Path(tempfile.gettempdir()).glob("immich-go-run-*")) + list(Path("/tmp").glob("immich-go-run-*"))))
     assert temp_dirs, "Expected POSIX launcher to create a temp run directory"
 
     latest_temp = max(temp_dirs, key=lambda d: d.stat().st_mtime)
@@ -1596,7 +1597,7 @@ def test_forward_all_immich_go_env_vars(tmp_path, monkeypatch):
         "OTHER_VAR": "ignored",
     }
 
-    with patch("subprocess.Popen") as mock_popen:
+    with patch("subprocess.Popen") as mock_popen, patch("shutil.which", return_value="/usr/bin/gnome-terminal"):
         launch_external_terminal(
             command=["./immich-go", "archive", "from-immich"],
             env=test_env,

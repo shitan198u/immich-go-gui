@@ -61,6 +61,11 @@ jobs:
       - name: Install dependencies & dev tools
         run: uv sync --dev
 
+      - name: Install Linux Desktop Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-x11-0 libxcb-cursor0 xvfb libegl1 libgl1 libxcb-xinerama0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0
+
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
@@ -108,7 +113,9 @@ jobs:
           echo "🏷️ Creating prerelease tag: $PRERELEASE_VERSION"
 
       - name: Run Pytest Suite
-        run: uv run pytest
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: xvfb-run uv run pytest
 
       - name: Create and Push Tag
         run: |
