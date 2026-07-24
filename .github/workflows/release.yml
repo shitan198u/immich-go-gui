@@ -74,9 +74,12 @@ jobs:
           if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) {
             choco install innosetup -y
           }
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /O"${{ github.workspace }}" /DMyAppVersion="${{ env.VERSION }}" /DMyOutputFilename="Immich-Go-GUI-${{ env.VERSION }}-Windows-x86_64-Setup" packaging/windows/installer.iss
-          if (-not (Test-Path "Immich-Go-GUI-${{ env.VERSION }}-Windows-x86_64-Setup.exe") -and (Test-Path "Immich-Go-GUI-Windows-Setup.exe")) {
-            Move-Item -Path "Immich-Go-GUI-Windows-Setup.exe" -Destination "Immich-Go-GUI-${{ env.VERSION }}-Windows-x86_64-Setup.exe" -Force
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion="${{ env.VERSION }}" /DMyOutputFilename="Immich-Go-GUI-${{ env.VERSION }}-Windows-x86_64-Setup" packaging/windows/installer.iss
+          if (Test-Path "..\..\Immich-Go-GUI-*.exe") {
+            Move-Item -Path "..\..\Immich-Go-GUI-*.exe" -Destination "." -Force
+          }
+          if (Test-Path "..\Immich-Go-GUI-*.exe") {
+            Move-Item -Path "..\Immich-Go-GUI-*.exe" -Destination "." -Force
           }
 
       # --- MACOS BUILD ---
