@@ -2,7 +2,8 @@
   "tab_key": "upload-icloud",
   "config_state": {
     "server": "http://localhost:2283",
-    "api_key": "secret_key_123"
+    "api_key": "secret_key_123",
+    "admin_api_key": "admin_key"
   },
   "tab_state": {
     "path": "/data/icloud"

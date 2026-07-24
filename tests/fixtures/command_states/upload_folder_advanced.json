@@ -3,6 +3,7 @@
   "config_state": {
     "server": "http://localhost:2283",
     "api_key": "secret_key_123",
+    "admin_api_key": "admin_key",
     "skip-ssl": false,
     "client_timeout": 30,
     "concurrent": 4
