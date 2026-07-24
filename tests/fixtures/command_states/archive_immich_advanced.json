@@ -1,0 +1,21 @@
+{
+  "tab_key": "archive-immich",
+  "config_state": {
+    "server": "http://localhost:2283",
+    "api_key": "secret_key"
+  },
+  "tab_state": {
+    "write-to": "/backup/zip",
+    "from-date-range": "2023",
+    "from-albums": "ArchiveAlbum"
+  },
+  "advanced_state": {},
+  "expected_argv": [
+    "archive",
+    "from-immich",
+    "--from-server=http://localhost:2283",
+    "--write-to-folder=/backup/zip",
+    "--from-date-range=2023",
+    "--from-albums=ArchiveAlbum"
+  ]
+}

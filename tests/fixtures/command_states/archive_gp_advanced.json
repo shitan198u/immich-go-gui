@@ -1,0 +1,18 @@
+{
+  "tab_key": "archive-gp",
+  "config_state": {},
+  "tab_state": {
+    "path": "/data/takeout.zip",
+    "write-to": "/backup/takeout"
+  },
+  "advanced_state": {
+    "include-unmatched": { "enabled": true, "value": true }
+  },
+  "expected_argv": [
+    "archive",
+    "from-google-photos",
+    "--write-to-folder=/backup/takeout",
+    "--include-unmatched",
+    "/data/takeout.zip"
+  ]
+}

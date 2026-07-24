@@ -1,0 +1,20 @@
+{
+  "tab_key": "upload-picasa",
+  "config_state": {
+    "server": "http://localhost:2283",
+    "api_key": "secret_key_123"
+  },
+  "tab_state": {
+    "path": "/data/picasa"
+  },
+  "advanced_state": {
+    "album-picasa": { "enabled": true, "value": true }
+  },
+  "expected_argv": [
+    "upload",
+    "from-picasa",
+    "--server=http://localhost:2283",
+    "--album-picasa",
+    "/data/picasa"
+  ]
+}

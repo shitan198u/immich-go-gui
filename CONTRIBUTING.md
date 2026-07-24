@@ -38,7 +38,7 @@ Before submitting a Pull Request, please ensure all tests pass:
 ```bash
 uv run pytest
 ```
-If you are adding a new feature, please consider writing a test for it in `test_app.py`.
+If you are adding a new feature, please consider writing a test for it in `tests/test_app.py`.
 
 ## Making a Pull Request
 

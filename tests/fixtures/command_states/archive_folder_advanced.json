@@ -1,0 +1,20 @@
+{
+  "tab_key": "archive-folder",
+  "config_state": {},
+  "tab_state": {
+    "path": "/source/photos",
+    "write-to": "/backup/dest"
+  },
+  "advanced_state": {
+    "date-range": { "enabled": true, "value": "2024" },
+    "include-type": { "enabled": true, "value": "image" }
+  },
+  "expected_argv": [
+    "archive",
+    "from-folder",
+    "--write-to-folder=/backup/dest",
+    "--date-range=2024",
+    "--include-type=image",
+    "/source/photos"
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "tab_key": "archive-picasa",
+  "config_state": {},
+  "tab_state": {
+    "path": "/data/picasa",
+    "write-to": "/backup/picasa"
+  },
+  "advanced_state": {
+    "album-picasa": { "enabled": true, "value": true }
+  },
+  "expected_argv": [
+    "archive",
+    "from-picasa",
+    "--write-to-folder=/backup/picasa",
+    "--album-picasa",
+    "/data/picasa"
+  ]
+}

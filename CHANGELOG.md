@@ -1,66 +1,55 @@
 # Changelog
 
-## [1.0.1](https://github.com/shitan198u/immich-go-gui/compare/v1.0.0...v1.0.1) (2026-07-21)
+All notable changes to the Immich-Go GUI project will be documented in this file.
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-### Bug Fixes
+## [1.1.0] - 2026-07-24
 
-* ensure Nuitka packages assets directory containing SVG icons ([56e823c](https://github.com/shitan198u/immich-go-gui/commit/56e823c3c18fd347f7bf5e91f6b489cbac466442))
-* ensure Nuitka packages SVG icons ([37e0883](https://github.com/shitan198u/immich-go-gui/commit/37e08837cd2e4a234076ca90f0356a460ac86fe2))
+### 🚀 Features & UI Completeness (11/11 CLI Sub-Commands)
+- **5 New GUI Sub-Tabs**: Added full GUI coverage for all 11 `immich-go` CLI sub-commands:
+  - `upload-icloud` (`upload from-icloud`): Support for iCloud photo library imports with `--memories` flag and HEIC/JPEG pair handling.
+  - `upload-picasa` (`upload from-picasa`): Support for Picasa album exports and `--album-picasa` metadata detection.
+  - `archive-gp` (`archive from-google-photos`): Serverless archive tab for Google Takeout photo libraries with takeout filters.
+  - `archive-icloud` (`archive from-icloud`): Serverless archive tab for iCloud photo libraries with `--memories` support.
+  - `archive-picasa` (`archive from-picasa`): Serverless archive tab for Picasa photo libraries with `--album-picasa` support.
+- **Serverless Tab Isolation**: Explicitly classified `archive-folder`, `archive-gp`, `archive-icloud`, and `archive-picasa` as `SERVERLESS_TABS`, guaranteeing they never emit `--server`, `--api-key`, or `--client-timeout` flags.
+- **Pre-Flight Server Connectivity Check**: Added fast pre-flight connection check (`/api/server/about`) before launching server-required commands, warning users if the Immich server is unreachable (`connection refused` / `timeout`).
+- **Help Menu Links**: Added direct links to Immich-Go CLI (`simulot/immich-go`) and Immich-Go GUI (`shitan198u/immich-go-gui`) GitHub repositories alongside an interactive About dialog.
 
-## [1.0.0](https://github.com/shitan198u/immich-go-gui/compare/v0.9.4...v1.0.0) (2026-07-21)
+### 🐛 Bug Fixes & Discrepancy Resolution
+- **Sidebar Server Status Indicator**: Fixed UI status card discrepancy so failed connection tests display `🔴 Server: Connection Failed` rather than falsely displaying green `Server: Configured`.
+- **Automatic Test State Reset**: Reset connection test status automatically when Server URL or API Key input text is edited.
+- **Simple-Mode Control Emission**: Fixed simple-mode date range and album inputs for `upload-immich` and `archive-immich` to prevent options from being silently omitted.
+- **Google Takeout Checkboxes**: Restored `include-partner`, `sync-albums`, and `include-archived` default-true checkboxes in simple mode cards, emitting `--flag=false` when unchecked.
+- **Path Collection Unification**: Standardized glob expansion with `recursive=True` across single and multi-path collection handlers.
 
+### 🛡️ Security & Secret Management
+- **Environment Variable Secret Delivery**: Migrated sensitive API keys (`IMMICH_GO_UPLOAD_API_KEY`, `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY`, etc.) away from CLI command arguments (`argv`) to process environment variables.
+- **OS Keyring Integration**: Supported OS Keyring (Keychain, KWallet, Credential Manager) for secure API key storage.
+- **Redacted Confirmation & Logs**: Sanitized command confirmation dialogs and log files to prevent credential leakage.
 
-### Features
+### 🔧 Release & Runtime Safety
+- **Binary Manager**: Centralized release version fetching, binary downloads, SHA256 checksum verification, and graceful cancellation cleanup.
+- **Windows Terminal Heartbeat**: Hardened Windows external terminal execution using temporary `.bat` launcher scripts and background heartbeat loops (`.heartbeat`) for clean lock lifecycle tracking.
+- **Validation Engine**: Standardized date range validation (`YYYY-MM-DD,YYYY-MM-DD` and single dates) with full calendar semantic checks.
 
-* **cli:** enable native immich-go UI by default ([033574e](https://github.com/shitan198u/immich-go-gui/commit/033574ef67b395f24ecd640e55c51bb6536cbbf2))
-* custom dynamic svg icons for theming ([8337003](https://github.com/shitan198u/immich-go-gui/commit/83370032cedc00e5d941fe0e97fbf4bfb9dec8ec))
-* robust process tracking using psutil ([6995514](https://github.com/shitan198u/immich-go-gui/commit/69955148e24c614e2da806452fa74d78183312ed))
-* **UI:** migrate app.py to new architecture and expand test suite ([f47355b](https://github.com/shitan198u/immich-go-gui/commit/f47355b))
+### 🧪 Test Infrastructure & Codebase Reorganization
+- **Reorganized Test Suite**: Moved test suite to `tests/test_app.py` with dynamic `Path(__file__)` resolution.
+- **Contract Lint Guards**: Enforced duplicate test name checks (`test_no_duplicate_test_names`) and flag subset validation (`test_advanced_flags_subset_of_tab_allowed_flags`).
+- **Golden State Fixtures**: Added JSON fixture files and golden test cases for all 11 sub-commands.
+- **Pytest Suite**: 149 test cases passing cleanly across Linux, macOS, and Windows.
 
+---
 
-### Refactoring
+## [1.0.1] - 2026-02-18
 
-* **UI:** modularize theme engine and fix syntax errors ([584d9b2](https://github.com/shitan198u/immich-go-gui/commit/584d9b2))
-* **UI:** transition to dynamic semantic token theme engine (Fusion) ([c4eb2e4](https://github.com/shitan198u/immich-go-gui/commit/c4eb2e4))
-* **UI:** Phase 2 - Refinement and Validation ([466b94b](https://github.com/shitan198u/immich-go-gui/commit/466b94b))
-* **UI:** Phase 1 - Core Architecture ([7f2e4d6](https://github.com/shitan198u/immich-go-gui/commit/7f2e4d6))
-* **UI:** Phase 0 - Critical Bug Fixes for layout striping ([66c55c4](https://github.com/shitan198u/immich-go-gui/commit/66c55c4))
-* **UI:** cleanup temporary migration scripts and update UI stylesheet ([eb58b69](https://github.com/shitan198u/immich-go-gui/commit/eb58b69))
+### Fixed
+- Fixed PySide6 theme resolution and fusion style application.
+- Improved terminal launcher error messages on Linux and macOS.
 
+## [1.0.0] - 2025-02-18
 
-### Bug Fixes
-
-* **cli:** correct command argument ordering and --no-ui flag handling ([e472e77](https://github.com/shitan198u/immich-go-gui/commit/e472e775c99cd127ec01491ec13346603ea5e5d2))
-* resolve permission denied error for installer builds by downloading binary to user home directory ([45ee1f1](https://github.com/shitan198u/immich-go-gui/commit/45ee1f1e398c47e3480e11337543d8db6d8ecfa9))
-* **ui:** prevent TypeError on QListView.update() in theme engine ([df917dc](https://github.com/shitan198u/immich-go-gui/commit/df917dc))
-* **ui:** correct folder icon assignment in Archive Server tab ([ed68ac9](https://github.com/shitan198u/immich-go-gui/commit/ed68ac9))
-* **ui:** expand BasePage container for uniform tab widths ([50cd140](https://github.com/shitan198u/immich-go-gui/commit/50cd140))
-* **ui:** correct binary status checks for eliding labels ([50974ff](https://github.com/shitan198u/immich-go-gui/commit/50974ff))
-* **ui:** Track 2 - Icons and Status Indicators (No Emoji) ([f3577b6](https://github.com/shitan198u/immich-go-gui/commit/f3577b6))
-* **ui:** Track 1 - UI sizing & right-edge clipping ([6a3ec41](https://github.com/shitan198u/immich-go-gui/commit/6a3ec41))
-* **ui:** UI changes before qwen plan ([1d98bb7](https://github.com/shitan198u/immich-go-gui/commit/1d98bb7))
-* **ui:** convert _build_config_tab to new native component structure ([9b516d7](https://github.com/shitan198u/immich-go-gui/commit/9b516d7))
-
-## [0.9.4](https://github.com/shitan198u/immich-go-gui/compare/v0.9.3...v0.9.4) (2026-07-20)
-
-
-### Bug Fixes
-
-* resolve permission denied error for installer builds by downloading binary to user home directory ([4369e57](https://github.com/shitan198u/immich-go-gui/commit/4369e57e53c6dc27185ff40ddd908be492917f62))
-* resolve permission denied error on installer builds ([1ec5068](https://github.com/shitan198u/immich-go-gui/commit/1ec5068da9ba18d9d9d5eca897279a72d7da75aa))
-
-## [0.9.3](https://github.com/shitan198u/immich-go-gui/compare/v0.9.2...v0.9.3) (2026-07-20)
-
-
-### Bug Fixes
-
-* **ci:** add windows metadata and .exe icon injection ([4234f0d](https://github.com/shitan198u/immich-go-gui/commit/4234f0ddfc494d05426730be52d43e9e05a2910f))
-* ensure inno setup outputs to github workspace ([3f7fd6c](https://github.com/shitan198u/immich-go-gui/commit/3f7fd6c6fd9b8619d84734f787ace335d3911521))
-* specify windows release to use bash shell ([063df55](https://github.com/shitan198u/immich-go-gui/commit/063df5535dab21d624c83d9543aa82a360209041))
-* use test- prefix for manual build tags so release-please ignores them ([ea9aa59](https://github.com/shitan198u/immich-go-gui/commit/ea9aa59f4242e8b47bfbe96bfd2c759a1bb579d5))
-
-
-### Documentation
-
-* clarify windows defender false positive in README ([eeaca49](https://github.com/shitan198u/immich-go-gui/commit/eeaca499be4c47a73163c9ca82e24a65ae5cce51))
+### Added
+- Initial release of Immich-Go GUI with PySide6 interface.

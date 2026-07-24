@@ -1,0 +1,19 @@
+{
+  "tab_key": "stack",
+  "config_state": {
+    "server": "http://localhost:2283",
+    "api_key": "secret_key"
+  },
+  "tab_state": {
+    "manage-burst": "Stack",
+    "manage-raw-jpeg": "StackCoverRaw",
+    "manage-heic-jpeg": "StackCoverJPG"
+  },
+  "expected_argv": [
+    "stack",
+    "--server=http://localhost:2283",
+    "--manage-burst=Stack",
+    "--manage-raw-jpeg=StackCoverRaw",
+    "--manage-heic-jpeg=StackCoverJPG"
+  ]
+}

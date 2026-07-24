@@ -1,0 +1,153 @@
+name: Manual Prerelease
+
+# Manual workflow to trigger and publish pre-releases for Immich-Go GUI.
+# Supports selecting branch, version type (major/minor/patch), prerelease suffix (alpha/beta/rc),
+# or providing a custom version override.
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch to create prerelease from"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - master
+      version_type:
+        description: "Version increment type"
+        required: true
+        default: "minor"
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+      prerelease_suffix:
+        description: "Prerelease suffix (alpha, beta, rc)"
+        required: true
+        default: "rc"
+        type: choice
+        options:
+          - alpha
+          - beta
+          - rc
+      custom_version:
+        description: "Custom version (optional, e.g., 1.1.0-rc1, overrides auto-increment)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  manual-prerelease:
+    name: 🎯 Create Manual Prerelease
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install dependencies & dev tools
+        run: uv sync --dev
+
+      - name: Install Linux Desktop Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-x11-0 libxcb-cursor0 xvfb libegl1 libgl1 libxcb-xinerama0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Calculate Version & Tag
+        id: version
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.1")
+          echo "Latest tag: $LATEST_TAG"
+
+          if [[ -n "${{ github.event.inputs.custom_version }}" ]]; then
+            NEXT_VERSION="${{ github.event.inputs.custom_version }}"
+            if [[ ! $NEXT_VERSION =~ ^v ]]; then
+              NEXT_VERSION="v$NEXT_VERSION"
+            fi
+            PRERELEASE_VERSION="$NEXT_VERSION"
+          else
+            if [[ $LATEST_TAG =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+              MAJOR=${BASH_REMATCH[1]}
+              MINOR=${BASH_REMATCH[2]}
+              PATCH=${BASH_REMATCH[3]}
+              
+              case "${{ github.event.inputs.version_type }}" in
+                "major")
+                  BASE_VER="v$((MAJOR + 1)).0.0"
+                  ;;
+                "minor")
+                  BASE_VER="v${MAJOR}.$((MINOR + 1)).0"
+                  ;;
+                "patch")
+                  BASE_VER="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+                  ;;
+              esac
+            else
+              BASE_VER="v1.1.0"
+            fi
+
+            DATE=$(date +"%Y%m%d")
+            SHORT_COMMIT=$(git rev-parse --short HEAD)
+            PRERELEASE_VERSION="${BASE_VER}-${{ github.event.inputs.prerelease_suffix }}.${DATE}.${SHORT_COMMIT}"
+          fi
+
+          echo "prerelease_version=$PRERELEASE_VERSION" >> $GITHUB_OUTPUT
+          echo "🏷️ Creating prerelease tag: $PRERELEASE_VERSION"
+
+      - name: Run Pytest Suite
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: xvfb-run uv run pytest
+
+      - name: Create and Push Tag
+        run: |
+          PRERELEASE_VERSION="${{ steps.version.outputs.prerelease_version }}"
+          SHORT_COMMIT=$(git rev-parse --short HEAD)
+
+          git tag -a "$PRERELEASE_VERSION" -m "Manual prerelease $PRERELEASE_VERSION from ${{ github.event.inputs.branch }} branch
+
+          Built from commit: ${SHORT_COMMIT}
+          Date: $(date -u)
+          Branch: ${{ github.event.inputs.branch }}
+          Version Type: ${{ github.event.inputs.version_type }}
+          Prerelease Type: ${{ github.event.inputs.prerelease_suffix }}"
+
+          git push origin "$PRERELEASE_VERSION"
+
+      - name: Trigger Release Build Workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ steps.version.outputs.prerelease_version }}"
+          RAW_VERSION="${TAG_NAME#v}"
+          gh workflow run release.yml --repo ${{ github.repository }} --ref "$TAG_NAME" -f version="$RAW_VERSION"
+
+      - name: Create Release Summary
+        run: |
+          PRERELEASE_VERSION="${{ steps.version.outputs.prerelease_version }}"
+          echo "## 🎯 Manual Prerelease Tagged Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version Tag:** \`$PRERELEASE_VERSION\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Source Branch:** \`${{ github.event.inputs.branch }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`$(git rev-parse --short HEAD)\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🚀 **Triggered Multi-Platform Build Pipeline** (\`release.yml\`)" >> $GITHUB_STEP_SUMMARY
+          echo "Building standalone desktop assets: Windows Setup/Portable, macOS DMG, Linux AppImage/DEB/RPM." >> $GITHUB_STEP_SUMMARY

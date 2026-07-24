@@ -1,0 +1,43 @@
+Upload photos to an Immich server from various sources
+
+Usage:
+  immich-go upload [command]
+
+Available Commands:
+  from-folder        Upload photos from a folder
+  from-google-photos Upload photos either from a zipped Google Photos takeout or decompressed archive
+  from-icloud        Upload photos from an iCloud takeout folder or zip file
+  from-immich        Get photos from an Immich server
+  from-picasa        Upload photos from a Picasa folder or zip file
+
+Flags:
+      --admin-api-key string           Admin's API Key for managing server's jobs
+  -k, --api-key string                 API Key
+      --api-trace                      Enable trace of api calls
+      --client-timeout duration        Set server calls timeout (default 20m0s)
+      --device-uuid string             Set a device UUID (default "K3502ZA")
+      --dry-run                        Simulate all actions
+  -h, --help                           help for upload
+      --manage-burst BurstFlag         Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG (default NoStack)
+      --manage-epson-fastfoto          Manage Epson FastFoto file (default: false)
+      --manage-heic-jpeg HeicJpgFlag   Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG (default NoStack)
+      --manage-raw-jpeg RawJPGFlag     Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG (default NoStack)
+      --no-ui                          Disable the user interface
+      --overwrite                      Always overwrite files on the server with local versions
+      --pause-immich-jobs              Pause Immich background jobs during upload operations (default true)
+  -s, --server string                  Immich server address (example http://your-ip:2283 or https://your-domain)
+      --session-tag                    Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS"
+      --skip-verify-ssl                Skip SSL verification
+      --tag strings                    Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')
+      --time-zone string               Override the system time zone
+
+Global Flags:
+      --concurrent-tasks int     Number of concurrent tasks (1-20) (default 16)
+      --config string            config file (default is ./immich-go.yaml)
+  -l, --log-file string          Write log messages into the file
+      --log-level string         Log level (DEBUG|INFO|WARN|ERROR), default INFO (default "INFO")
+      --log-type string          Log formatted  as text of JSON file (default "text")
+      --on-errors OnErrorsFlag   What to do when an error occurs (stop, continue, accept N errors at max) (default stop)
+      --save-config              Save the configuration to immich-go.yaml
+
+Use "immich-go upload [command] --help" for more information about a command.

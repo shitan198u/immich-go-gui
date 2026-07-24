@@ -1,0 +1,57 @@
+{
+  "version": "0.32.0",
+  "captured_at": "2026-07-23T20:21:38.087612+00:00",
+  "binary_path": "/home/shsrra/.immich-go-gui/bin/immich-go",
+  "commands": {
+    "root": [],
+    "upload": [
+      "upload"
+    ],
+    "upload_from-folder": [
+      "upload",
+      "from-folder"
+    ],
+    "upload_from-google-photos": [
+      "upload",
+      "from-google-photos"
+    ],
+    "upload_from-icloud": [
+      "upload",
+      "from-icloud"
+    ],
+    "upload_from-picasa": [
+      "upload",
+      "from-picasa"
+    ],
+    "upload_from-immich": [
+      "upload",
+      "from-immich"
+    ],
+    "archive": [
+      "archive"
+    ],
+    "archive_from-folder": [
+      "archive",
+      "from-folder"
+    ],
+    "archive_from-google-photos": [
+      "archive",
+      "from-google-photos"
+    ],
+    "archive_from-icloud": [
+      "archive",
+      "from-icloud"
+    ],
+    "archive_from-picasa": [
+      "archive",
+      "from-picasa"
+    ],
+    "archive_from-immich": [
+      "archive",
+      "from-immich"
+    ],
+    "stack": [
+      "stack"
+    ]
+  }
+}

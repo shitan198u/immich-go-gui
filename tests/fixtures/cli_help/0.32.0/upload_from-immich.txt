@@ -1,0 +1,62 @@
+Get photos from an Immich server
+
+Usage:
+  immich-go upload from-immich [flags]
+
+Flags:
+      --from-admin-api-key string               Admin's API Key for managing server's jobs
+      --from-albums strings                     Get assets only from those albums, can be used multiple times
+      --from-api-key string                     API Key
+      --from-api-trace                          Enable trace of api calls
+      --from-archived                           Get only archived assets
+      --from-city string                        Get only assets from this city
+      --from-client-timeout duration            Set server calls timeout (default 20m0s)
+      --from-country string                     Get only assets from this country
+      --from-date-range date-range              Only import photos taken within the specified date range (default unset)
+      --from-device-uuid string                 Set a device UUID (default "K3502ZA")
+      --from-dry-run                            Simulate all actions
+      --from-exclude-extensions ExtensionList   Comma-separated list of extension to exclude. (e.g. .gif,.PM) (default: none)
+      --from-favorite                           Get only favorite assets
+      --from-include-extensions ExtensionList   Comma-separated list of extension to include. (e.g. .jpg,.heic) (default: all)
+      --from-include-type IncludeType           Single file type to include. (VIDEO or IMAGE) (default: all)
+      --from-make string                        Get only assets with this make
+      --from-minimal-rating int                 Get only assets with a rating greater or equal to this value
+      --from-model string                       Get only assets with this model
+      --from-no-album                           Get only assets that are not in any album
+      --from-partners                           Get partner's assets as well
+      --from-pause-immich-jobs                  Pause Immich background jobs during upload operations (default true)
+      --from-people strings                     Get assets only with those people, can be used multiple times
+      --from-server string                      Immich server address (example http://your-ip:2283 or https://your-domain)
+      --from-skip-verify-ssl                    Skip SSL verification
+      --from-state string                       Get only assets from this state
+      --from-tags strings                       Get assets only with those tags, can be used multiple times
+      --from-time-zone string                   Override the system time zone
+      --from-trash                              Get only trashed assets
+  -h, --help                                    help for from-immich
+
+Global Flags:
+      --admin-api-key string           Admin's API Key for managing server's jobs
+  -k, --api-key string                 API Key
+      --api-trace                      Enable trace of api calls
+      --client-timeout duration        Set server calls timeout (default 20m0s)
+      --concurrent-tasks int           Number of concurrent tasks (1-20) (default 16)
+      --config string                  config file (default is ./immich-go.yaml)
+      --device-uuid string             Set a device UUID (default "K3502ZA")
+      --dry-run                        Simulate all actions
+  -l, --log-file string                Write log messages into the file
+      --log-level string               Log level (DEBUG|INFO|WARN|ERROR), default INFO (default "INFO")
+      --log-type string                Log formatted  as text of JSON file (default "text")
+      --manage-burst BurstFlag         Manage burst photos. Possible values: NoStack, Stack, StackKeepRaw, StackKeepJPEG (default NoStack)
+      --manage-epson-fastfoto          Manage Epson FastFoto file (default: false)
+      --manage-heic-jpeg HeicJpgFlag   Manage coupled HEIC and JPEG files. Possible values: NoStack, KeepHeic, KeepJPG, StackCoverHeic, StackCoverJPG (default NoStack)
+      --manage-raw-jpeg RawJPGFlag     Manage coupled RAW and JPEG files. Possible values: NoStack, KeepRaw, KeepJPG, StackCoverRaw, StackCoverJPG (default NoStack)
+      --no-ui                          Disable the user interface
+      --on-errors OnErrorsFlag         What to do when an error occurs (stop, continue, accept N errors at max) (default stop)
+      --overwrite                      Always overwrite files on the server with local versions
+      --pause-immich-jobs              Pause Immich background jobs during upload operations (default true)
+      --save-config                    Save the configuration to immich-go.yaml
+  -s, --server string                  Immich server address (example http://your-ip:2283 or https://your-domain)
+      --session-tag                    Tag uploaded photos with a tag "{immich-go}/YYYY-MM-DD HH-MM-SS"
+      --skip-verify-ssl                Skip SSL verification
+      --tag strings                    Add tags to the imported assets. Can be specified multiple times. Hierarchy is supported using a / separator (e.g. 'tag1/subtag1')
+      --time-zone string               Override the system time zone
