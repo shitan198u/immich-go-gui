@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "python",
+      "package-name": "immich-go-gui",
+      "changelog-path": "CHANGELOG.md",
+      "bump-minor-pre-major": false,
+      "bump-patch-for-minor-pre-major": false,
+      "draft": false,
+      "prerelease": false,
+      "changelog-sections": [
+        { "type": "feat", "section": "🚀 Features & UI Completeness", "hidden": false },
+        { "type": "fix", "section": "🐛 Bug Fixes & Discrepancy Resolution", "hidden": false },
+        { "type": "sec", "section": "🛡️ Security & Secret Management", "hidden": false },
+        { "type": "perf", "section": "⚡ Performance & Safety", "hidden": false },
+        { "type": "docs", "section": "📚 Documentation", "hidden": false },
+        { "type": "refactor", "section": "🔧 Refactoring & Architecture", "hidden": false },
+        { "type": "test", "section": "🧪 Testing Infrastructure", "hidden": true },
+        { "type": "ci", "section": "📦 Build & CI Workflows", "hidden": true },
+        { "type": "chore", "section": "🧹 Maintenance", "hidden": true }
+      ]
+    }
+  }
+}
