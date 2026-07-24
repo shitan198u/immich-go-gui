@@ -130,7 +130,8 @@ jobs:
 
           wget -q https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage -O appimagetool
           chmod +x appimagetool
-          ARCH=x86_64 ./appimagetool --appimage-extract-and-run AppDir Immich-Go-GUI-Linux.AppImage
+          ./appimagetool --appimage-extract
+          ARCH=x86_64 ./squashfs-root/AppRun AppDir Immich-Go-GUI-Linux.AppImage
 
       - name: Install nFPM
         if: matrix.name == 'linux'
