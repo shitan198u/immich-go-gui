@@ -30,12 +30,12 @@ from PySide6.QtGui import QDropEvent
 # ==============================================================================
 
 def test_collect_paths_single_file():
-    assert collect_paths("/path/to/file.zip") == ["/path/to/file.zip"]
+    assert _norm_argv(collect_paths("/path/to/file.zip")) == _norm_argv(["/path/to/file.zip"])
 
 
 def test_collect_paths_multiline():
     text = "/path/one.zip\n\n/path/two.zip\n"
-    assert collect_paths(text) == ["/path/one.zip", "/path/two.zip"]
+    assert _norm_argv(collect_paths(text)) == _norm_argv(["/path/one.zip", "/path/two.zip"])
 
 
 def test_collect_paths_glob_expansion(tmp_path):
@@ -481,7 +481,7 @@ def test_build_command_archive_folder(gui):
     gui.inputs["archive-folder"]["path"].setText("/source/folder")
     gui.inputs["archive-folder"]["write-to"].setText("/dest/folder")
     gui.adv_rows["archive-folder"]["date-range"].set_state({"enabled": True, "value": "2024-01-01,2024-02-01"})
-    opts = gui.build_command(dry_run=True)
+    opts = _norm_argv(gui.build_command(dry_run=True))
     assert "archive" in opts
     assert "from-folder" in opts
     assert "--server=http://local:2283" not in opts
@@ -501,7 +501,7 @@ def test_build_command_archive_immich(gui):
     # from-date-range and from-albums are now simple-mode controls
     gui.inputs["archive-immich"]["from-date-range"].setText("2024-01-01,2024-02-01")
     gui.inputs["archive-immich"]["from-albums"].setText("ArchiveAlbum")
-    opts = gui.build_command(dry_run=False)
+    opts = _norm_argv(gui.build_command(dry_run=False))
     assert "archive" in opts
     assert "from-immich" in opts
     assert "--write-to-folder=/dest/folder" in opts
@@ -844,13 +844,13 @@ def test_build_plan_from_state_upload_folder_golden():
         base_env={},
     )
 
-    assert plan.argv == [
+    assert _norm_argv(plan.argv) == _norm_argv([
         "upload",
         "from-folder",
         "--server=http://localhost:2283",
         "--manage-burst=Stack",
         "/photos",
-    ]
+    ])
 
     assert plan.env.get("IMMICH_GO_UPLOAD_API_KEY") == "test-key"
     assert not any("--api-key" in part for part in plan.argv)
@@ -1411,6 +1411,7 @@ def test_flag_emitter_allowlist_enforcement():
 
 def test_terminal_launcher_working_directory_isolation(tmp_path, monkeypatch):
     monkeypatch.setenv("IMMICH_GO_GUI_CONFIG", str(tmp_path / "config.toml"))
+    monkeypatch.setattr("sys.platform", "linux")
     lock_path = create_lock("upload-folder", "upload", "./immich-go")
 
     env = {"IMMICH_GO_UPLOAD_SERVER": "http://localhost:2283"}
@@ -1519,7 +1520,7 @@ def test_archive_immich_source_model_cmd():
         dry_run=True,
     )
     assert "--from-server=http://source-server:2283" in plan.argv
-    assert "--write-to-folder=/dest/folder" in plan.argv
+    assert "--write-to-folder=/dest/folder" in _norm_argv(plan.argv)
     assert "--dry-run" in plan.argv
     assert not any(arg.startswith("--server=") for arg in plan.argv)
 
