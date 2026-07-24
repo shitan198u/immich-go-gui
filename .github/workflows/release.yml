@@ -57,14 +57,13 @@ jobs:
         if: matrix.name == 'windows'
         shell: bash
         run: |
-          uv run python -c "from PIL import Image; Image.open('immich-go-gui.png').save('immich-go-gui.ico')"
           NUMERIC_VERSION=$(echo "${{ env.VERSION }}" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' || echo "1.0.0")
-          uv run python -m nuitka --standalone --enable-plugin=pyside6 --include-data-files=immich-go-gui.png=immich-go-gui.png --include-data-dir=assets=assets --windows-console-mode=disable --windows-icon-from-ico=immich-go-gui.ico --company-name="Shitan198u" --product-name="Immich-Go GUI" --file-version="${NUMERIC_VERSION}.0" --product-version="${NUMERIC_VERSION}.0" app.py
+          uv run python -m nuitka --standalone --enable-plugin=pyside6 --output-filename=Immich-Go-GUI.exe --include-data-files=immich-go-gui.png=immich-go-gui.png --include-data-dir=assets=assets --windows-console-mode=disable --windows-icon-from-ico=immich-go-gui.ico --company-name="Shitan198u" --product-name="Immich-Go GUI" --file-version="${NUMERIC_VERSION}.0" --product-version="${NUMERIC_VERSION}.0" app.py
 
       - name: Create Windows Portable Archive
         if: matrix.name == 'windows'
         run: |
-          Rename-Item -Path "app.dist/app.exe" -NewName "Immich-Go-GUI.exe"
+          if (Test-Path "app.dist/app.exe") { Rename-Item -Path "app.dist/app.exe" -NewName "Immich-Go-GUI.exe" }
           Set-Content -Path "app.dist/README.txt" -Value "To launch the application, simply double-click the file named Immich-Go-GUI.exe. You do not need to install anything else."
           Compress-Archive -Path "app.dist/*" -DestinationPath "Immich-Go-GUI-Windows-Portable.zip"
 
@@ -87,21 +86,22 @@ jobs:
       - name: Build macOS
         if: matrix.name == 'macos'
         run: |
-          uv run python -m nuitka --standalone --enable-plugin=pyside6 --include-data-files=immich-go-gui.png=immich-go-gui.png --include-data-dir=assets=assets app.py
+          uv run python -m nuitka --standalone --enable-plugin=pyside6 --output-filename=Immich-Go-GUI --include-data-files=immich-go-gui.png=immich-go-gui.png --include-data-dir=assets=assets app.py
           npm install -g create-dmg
           create-dmg app.app || true
-          mv *.dmg Immich-Go-GUI-macOS.dmg
+          mv *.dmg Immich-Go-GUI-macOS.dmg || true
 
       # --- LINUX BUILD ---
       - name: Build Linux Standalone
         if: matrix.name == 'linux'
         run: |
-          uv run python -m nuitka --standalone --enable-plugin=pyside6 --include-data-files=immich-go-gui.png=immich-go-gui.png --include-data-dir=assets=assets app.py
+          uv run python -m nuitka --standalone --enable-plugin=pyside6 --output-filename=Immich-Go-GUI --include-data-files=immich-go-gui.png=immich-go-gui.png --include-data-dir=assets=assets app.py
 
       - name: Create Linux Portable Archive
         if: matrix.name == 'linux'
         run: |
-          mv app.dist/app.bin app.dist/Immich-Go-GUI
+          if [ -f app.dist/app.bin ]; then mv app.dist/app.bin app.dist/Immich-Go-GUI; fi
+          if [ -f app.dist/app ]; then mv app.dist/app app.dist/Immich-Go-GUI; fi
           echo "To launch the application, double-click the file named Immich-Go-GUI, or run ./Immich-Go-GUI in the terminal. You do not need to install anything else." > app.dist/README.txt
           tar -czvf Immich-Go-GUI-Linux-Portable.tar.gz -C app.dist .
 
@@ -130,7 +130,7 @@ jobs:
 
           wget -q https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage -O appimagetool
           chmod +x appimagetool
-          ./appimagetool --appimage-extract-and-run AppDir Immich-Go-GUI-Linux.AppImage
+          ARCH=x86_64 ./appimagetool --appimage-extract-and-run AppDir Immich-Go-GUI-Linux.AppImage
 
       - name: Install nFPM
         if: matrix.name == 'linux'
