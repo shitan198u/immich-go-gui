@@ -18,28 +18,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Pre-Flight Server Connectivity Check**: Added fast pre-flight connection check (`/api/server/about`) before launching server-required commands, warning users if the Immich server is unreachable (`connection refused` / `timeout`).
 - **Help Menu Links**: Added direct links to Immich-Go CLI (`simulot/immich-go`) and Immich-Go GUI (`shitan198u/immich-go-gui`) GitHub repositories alongside an interactive About dialog.
 
-### 🐛 Bug Fixes & Discrepancy Resolution
-- **Sidebar Server Status Indicator**: Fixed UI status card discrepancy so failed connection tests display `🔴 Server: Connection Failed` rather than falsely displaying green `Server: Configured`.
-- **Automatic Test State Reset**: Reset connection test status automatically when Server URL or API Key input text is edited.
-- **Simple-Mode Control Emission**: Fixed simple-mode date range and album inputs for `upload-immich` and `archive-immich` to prevent options from being silently omitted.
-- **Google Takeout Checkboxes**: Restored `include-partner`, `sync-albums`, and `include-archived` default-true checkboxes in simple mode cards, emitting `--flag=false` when unchecked.
-- **Path Collection Unification**: Standardized glob expansion with `recursive=True` across single and multi-path collection handlers.
-
 ### 🛡️ Security & Secret Management
 - **Environment Variable Secret Delivery**: Migrated sensitive API keys (`IMMICH_GO_UPLOAD_API_KEY`, `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY`, etc.) away from CLI command arguments (`argv`) to process environment variables.
+- **Zero Plaintext Disk Files**: Completely eliminated disk shell files (`env.sh`) in favor of direct process launching via Python `subprocess.Popen`.
 - **OS Keyring Integration**: Supported OS Keyring (Keychain, KWallet, Credential Manager) for secure API key storage.
-- **Redacted Confirmation & Logs**: Sanitized command confirmation dialogs and log files to prevent credential leakage.
+- **Redacted Previews & Logs**: Sanitized command confirmation dialogs and log files to prevent credential leakage.
+- **SSL Bypass Warning Banners**: Displayed clear inline safety warnings when `--skip-verify-ssl` is activated.
 
 ### 🔧 Release & Runtime Safety
 - **Binary Manager**: Centralized release version fetching, binary downloads, SHA256 checksum verification, and graceful cancellation cleanup.
+- **Safe Working Directory Isolation**: POSIX launchers execute inside isolated temporary directories with safe `$HOME` fallback directory changes, avoiding working directory deletion crashes.
 - **Windows Terminal Heartbeat**: Hardened Windows external terminal execution using temporary `.bat` launcher scripts and background heartbeat loops (`.heartbeat`) for clean lock lifecycle tracking.
 - **Validation Engine**: Standardized date range validation (`YYYY-MM-DD,YYYY-MM-DD` and single dates) with full calendar semantic checks.
 
-### 🧪 Test Infrastructure & Codebase Reorganization
-- **Reorganized Test Suite**: Moved test suite to `tests/test_app.py` with dynamic `Path(__file__)` resolution.
-- **Contract Lint Guards**: Enforced duplicate test name checks (`test_no_duplicate_test_names`) and flag subset validation (`test_advanced_flags_subset_of_tab_allowed_flags`).
+### 📦 Multi-Platform Packaging & CI
+- **Automated Standalone Builds**: Compiled standalone distributions for Windows (Installer & Portable), macOS (DMG), and Linux (AppImage, DEB, RPM, Portable Tarball).
+- **Version & Architecture Tagging**: Standardized output package names to include version and architecture (e.g., `Immich-Go-GUI-1.1.0-Windows-x86_64-Setup.exe`, `Immich-Go-GUI-1.1.0-Linux-x86_64.AppImage`).
+
+### 🧪 Test Infrastructure
+- **Cross-Platform Test Suite**: Added `_norm_argv` path normalization helper ensuring 100% test suite pass rate (149/149 tests) across Linux, macOS, and Windows.
 - **Golden State Fixtures**: Added JSON fixture files and golden test cases for all 11 sub-commands.
-- **Pytest Suite**: 149 test cases passing cleanly across Linux, macOS, and Windows.
 
 ---
 
