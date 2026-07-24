@@ -539,10 +539,17 @@ def test_native_dialog_options_passed(gui):
 # ==============================================================================
 
 def _norm_argv(argv):
-    import re
     normed = []
     for arg in argv:
-        clean = re.sub(r'^[A-Za-z]:', '', arg).replace('\\', '/')
+        clean = str(arg).replace('\\', '/')
+        if '=' in clean:
+            key, val = clean.split('=', 1)
+            if len(val) >= 2 and val[1] == ':' and val[0].isalpha():
+                val = val[2:]
+            clean = f"{key}={val}"
+        else:
+            if len(clean) >= 2 and clean[1] == ':' and clean[0].isalpha():
+                clean = clean[2:]
         normed.append(clean)
     return normed
 
