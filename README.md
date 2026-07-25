@@ -17,8 +17,9 @@ A cross-platform desktop front-end for [immich-go](https://github.com/simulot/im
                                                                           Immich server
 ```
 
-![Main window](screenshots/screenshot.png)
-![Workflow view](screenshots/screenshot1.png)
+![Screenshot 1](screenshots/1.png)
+![Screenshot 2](screenshots/2.png)
+![Screenshot 3](screenshots/3.png)
 
 ## Why this exists
 
@@ -121,4 +122,4 @@ If Immich-Go GUI saves you time, you can support development:
 
 ## License
 
-MIT — see [LICENSE.txt](LICENSE.txt).
+
