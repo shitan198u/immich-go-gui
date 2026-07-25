@@ -6,36 +6,48 @@ Immich-Go GUI is a desktop application with a deliberate separation between Qt U
 
 ```mermaid
 flowchart TB
-    classDef user fill:#6366f1,stroke:#4338ca,color:#ffffff,stroke-width:2px,rx:10px;
-    classDef gui fill:#0ea5e9,stroke:#0284c7,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef core fill:#8b5cf6,stroke:#6d28d9,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef process fill:#f59e0b,stroke:#d97706,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef external fill:#ec4899,stroke:#be185d,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef storage fill:#10b981,stroke:#047857,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef userStyle fill:#6366f1,stroke:#4338ca,color:#fff,stroke-width:2px
+    classDef uiStyle fill:#0ea5e9,stroke:#0369a1,color:#fff,stroke-width:2px
+    classDef coreStyle fill:#8b5cf6,stroke:#6d28d9,color:#fff,stroke-width:2px
+    classDef runStyle fill:#f59e0b,stroke:#b45309,color:#fff,stroke-width:2px
+    classDef extStyle fill:#10b981,stroke:#047857,color:#fff,stroke-width:2px
+    classDef storStyle fill:#ec4899,stroke:#be185d,color:#fff,stroke-width:2px
 
-    User([User]):::user
-    GUI[Immich-Go GUI]:::gui
-    Config[Configuration Manager]:::core
-    Validator[Input Validator]:::core
-    Builder[Command Builder]:::core
-    Downloader[Binary Manager]:::core
-    Process[Process Runner]:::process
-    Binary[immich-go Binary]:::external
-    Server[(Immich Server)]:::external
-    Log[Live Log Output]:::storage
-    Settings[(Saved Configuration)]:::storage
+    User([👤 User]):::userStyle
 
-    User --> GUI
-    GUI --> Config
-    GUI --> Validator
-    GUI --> Builder
-    GUI --> Downloader
-    Builder --> Process
-    Downloader --> Binary
-    Process --> Binary
-    Binary --> Server
-    Process --> Log
-    Config --> Settings
+    subgraph UI["🖥️  UI Layer — app.py / theme.py"]
+        direction TB
+        AppPy[app.py\nTabs · Widgets · Events]:::uiStyle
+        ThemePy[theme.py\nPalette · Icons]:::uiStyle
+    end
+
+    subgraph Core["⚙️  core/ — Qt-free business logic"]
+        direction LR
+        Builder[command_builder\nCommandPlan]:::coreStyle
+        Config[config_manager\nTOML + keyring]:::coreStyle
+        BinMgr[binary_manager\nGitHub Releases]:::coreStyle
+        Validator[validation]:::coreStyle
+        Tracker[process_tracker\nLock files]:::coreStyle
+        Terminal[terminal_launcher]:::runStyle
+    end
+
+    subgraph Ext["☁️  External"]
+        direction LR
+        ImmichGo[immich-go CLI]:::extStyle
+        ImmichAPI[(Immich Server)]:::extStyle
+        GitHub[(GitHub Releases)]:::extStyle
+    end
+
+    User -->|interact| UI
+    AppPy --> Builder
+    AppPy --> Config
+    AppPy --> BinMgr
+    AppPy --> Tracker
+    Builder -->|argv + masked env| Terminal
+    Terminal -->|launch subprocess| ImmichGo
+    BinMgr -->|download / verify SHA256| GitHub
+    Config -->|pre-flight ping| ImmichAPI
+    ImmichGo -->|upload / archive / stack| ImmichAPI
 ```
 
 ## High-Level Structure

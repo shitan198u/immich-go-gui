@@ -37,58 +37,45 @@ New here? Start with **[docs/](docs/README.md)** — especially [Choose Your Wor
 ## Architecture Overview
 
 ```mermaid
-flowchart TB
-    classDef user fill:#6366f1,stroke:#4338ca,color:#ffffff,stroke-width:2px,rx:10px;
-    classDef gui fill:#0ea5e9,stroke:#0284c7,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef core fill:#8b5cf6,stroke:#6d28d9,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef process fill:#f59e0b,stroke:#d97706,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef external fill:#ec4899,stroke:#be185d,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef storage fill:#10b981,stroke:#047857,color:#ffffff,stroke-width:2px,rx:8px;
+flowchart LR
+    classDef userStyle fill:#6366f1,stroke:#4338ca,color:#fff,stroke-width:2px
+    classDef guiStyle fill:#0ea5e9,stroke:#0369a1,color:#fff,stroke-width:2px
+    classDef cliStyle fill:#8b5cf6,stroke:#6d28d9,color:#fff,stroke-width:2px
+    classDef serverStyle fill:#10b981,stroke:#047857,color:#fff,stroke-width:2px
 
-    User([User]):::user
-    GUI[Immich-Go GUI]:::gui
-    Config[Configuration Manager]:::core
-    Validator[Input Validator]:::core
-    Builder[Command Builder]:::core
-    Downloader[Binary Manager]:::core
-    Process[Process Runner]:::process
-    Binary[immich-go Binary]:::external
-    Server[(Immich Server)]:::external
-    Log[Live Log Output]:::storage
-    Settings[(Saved Configuration)]:::storage
+    User([👤 You]):::userStyle
+    GUI[🖥️ Immich-Go GUI]:::guiStyle
+    CLI[⚙️ immich-go CLI]:::cliStyle
+    Server[(☁️ Immich Server)]:::serverStyle
 
-    User --> GUI
-    GUI --> Config
-    GUI --> Validator
-    GUI --> Builder
-    GUI --> Downloader
-    Builder --> Process
-    Downloader --> Binary
-    Process --> Binary
-    Binary --> Server
-    Process --> Log
-    Config --> Settings
+    User -->|configure & launch| GUI
+    GUI -->|argv + env secrets| CLI
+    CLI -->|upload / archive / stack| Server
 ```
 
 ## Download & Installation
 
-### Pre-built binaries (recommended)
+### 📥 Download — Releases Page (recommended)
 
-Grab the latest build from the [Releases page](https://github.com/shitan198u/immich-go-gui/releases/latest):
+**[⬇️ Download the latest release →](https://github.com/shitan198u/immich-go-gui/releases/latest)**
 
-| Platform | Recommended package |
-|----------|---------------------|
-| Windows | `Immich-Go-GUI-{VERSION}-Windows-x86_64-Setup.exe` (or `…-Portable.zip`) |
-| macOS | `Immich-Go-GUI-{VERSION}-macOS-x86_64.dmg` |
-| Linux | `Immich-Go-GUI-{VERSION}-Linux-x86_64.AppImage` (also `.deb` / `.rpm` / `.tar.gz`) |
+Pre-built desktop apps are available for all platforms — no Python or dependencies required:
 
-Platform-specific tips (Gatekeeper, AppImage `chmod`, Defender false positives): **[Platform Notes](docs/user-guide/platform-notes.md)**.
+| Platform | Package |
+|----------|---------|
+| 🪟 Windows | `Immich-Go-GUI-{VERSION}-Windows-x86_64-Setup.exe` (or Portable `.zip`) |
+| 🍎 macOS | `Immich-Go-GUI-{VERSION}-macOS-x86_64.dmg` |
+| 🐧 Linux | `Immich-Go-GUI-{VERSION}-Linux-x86_64.AppImage` · `.deb` · `.rpm` · `.tar.gz` |
 
-> **Windows antivirus note:** Defender or VirusTotal may flag the unsigned Nuitka build (e.g. `Trojan:Win32/Wacatac.B!ml`). This is a common **false positive**. Prefer official GitHub Releases, or run from source below.
+> **Windows antivirus note:** Defender or VirusTotal may flag the unsigned Nuitka build (`Trojan:Win32/Wacatac.B!ml`). This is a common **false positive**. Always download from [official GitHub Releases](https://github.com/shitan198u/immich-go-gui/releases/latest).
 
-### Run from source
+See **[Platform Notes](docs/user-guide/platform-notes.md)** for Gatekeeper, AppImage `chmod +x`, and other OS-specific tips.
 
-**Prerequisites:** Python **3.13** (`>=3.13.0, <3.14`) and [uv](https://docs.astral.sh/uv/getting-started/installation/).
+### 💻 Run from source
+
+For contributors or users who prefer source:
+
+**Prerequisites:** Python **3.13** and [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```bash
 git clone https://github.com/shitan198u/immich-go-gui.git

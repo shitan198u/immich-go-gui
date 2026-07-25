@@ -6,38 +6,37 @@ Not sure which tab to open? Start here. Immich-Go GUI maps each use case to a sp
 
 ```mermaid
 flowchart LR
-    classDef startNode fill:#6366f1,stroke:#4338ca,color:#ffffff,stroke-width:2px,rx:10px;
-    classDef typeNode fill:#0ea5e9,stroke:#0284c7,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef configNode fill:#8b5cf6,stroke:#6d28d9,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef previewNode fill:#f59e0b,stroke:#d97706,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef runNode fill:#ec4899,stroke:#be185d,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef endNode fill:#10b981,stroke:#047857,color:#ffffff,stroke-width:2px,rx:10px;
+    classDef startEnd fill:#6366f1,stroke:#4338ca,color:#fff,stroke-width:2px
+    classDef source fill:#0ea5e9,stroke:#0369a1,color:#fff,stroke-width:2px
+    classDef config fill:#8b5cf6,stroke:#6d28d9,color:#fff,stroke-width:2px
+    classDef preview fill:#f59e0b,stroke:#b45309,color:#fff,stroke-width:2px
+    classDef run fill:#ec4899,stroke:#be185d,color:#fff,stroke-width:2px
+    classDef done fill:#10b981,stroke:#047857,color:#fff,stroke-width:2px
 
-    Start([Start]):::startNode
-    Select[Select Import Type]:::typeNode
-    Folder[Local Folder]:::typeNode
-    Takeout[Google Takeout]:::typeNode
-    Archive[Archive]:::typeNode
-    Stack[Stack Images]:::typeNode
-    Configure[Configure Options]:::configNode
-    Preview[Preview Generated Command]:::previewNode
-    Run[Execute immich-go]:::runNode
-    Progress[Live Progress]:::runNode
-    Finished([Completed]):::endNode
+    Start([▶ Start]):::startEnd
+    Select[Select Source]:::source
+
+    subgraph Sources["📂 Import Sources"]
+        Folder[Local Folder]:::source
+        Takeout[Google Takeout]:::source
+        iCloud[iCloud]:::source
+        Archive[Archive]:::source
+        Stack[Stack]:::source
+    end
+
+    Configure[⚙️ Configure Options]:::config
+    Preview[👁 Preview Command]:::preview
+    Run[🚀 Execute immich-go]:::run
+    Progress[📊 Live Progress]:::run
+    Done([✅ Done]):::done
 
     Start --> Select
-    Select --> Folder
-    Select --> Takeout
-    Select --> Archive
-    Select --> Stack
-    Folder --> Configure
-    Takeout --> Configure
-    Archive --> Configure
-    Stack --> Configure
-    Configure --> Preview
-    Preview --> Run
+    Select --> Sources
+    Sources -->|user fills form| Configure
+    Configure -->|validate inputs| Preview
+    Preview -->|user confirms| Run
     Run --> Progress
-    Progress --> Finished
+    Progress --> Done
 ```
 
 ## Quick Decision Tree

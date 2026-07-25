@@ -17,36 +17,35 @@ Immich-Go GUI is a cross-platform desktop application (PySide6/Qt) that wraps th
 
 ```mermaid
 flowchart TB
-    classDef user fill:#6366f1,stroke:#4338ca,color:#ffffff,stroke-width:2px,rx:10px;
-    classDef gui fill:#0ea5e9,stroke:#0284c7,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef core fill:#8b5cf6,stroke:#6d28d9,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef process fill:#f59e0b,stroke:#d97706,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef external fill:#ec4899,stroke:#be185d,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef storage fill:#10b981,stroke:#047857,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef userStyle fill:#6366f1,stroke:#4338ca,color:#fff,stroke-width:2px
+    classDef guiStyle fill:#0ea5e9,stroke:#0369a1,color:#fff,stroke-width:2px
+    classDef coreStyle fill:#8b5cf6,stroke:#6d28d9,color:#fff,stroke-width:2px
+    classDef runStyle fill:#f59e0b,stroke:#b45309,color:#fff,stroke-width:2px
+    classDef extStyle fill:#10b981,stroke:#047857,color:#fff,stroke-width:2px
 
-    User([User]):::user
-    GUI[Immich-Go GUI]:::gui
-    Config[Configuration Manager]:::core
-    Validator[Input Validator]:::core
-    Builder[Command Builder]:::core
-    Downloader[Binary Manager]:::core
-    Process[Process Runner]:::process
-    Binary[immich-go Binary]:::external
-    Server[(Immich Server)]:::external
-    Log[Live Log Output]:::storage
-    Settings[(Saved Configuration)]:::storage
+    User([👤 User]):::userStyle
 
-    User --> GUI
-    GUI --> Config
-    GUI --> Validator
-    GUI --> Builder
-    GUI --> Downloader
+    subgraph GUILayer["🖥️  Immich-Go GUI"]
+        direction TB
+        Config[Config Manager]:::coreStyle
+        Builder[Command Builder]:::coreStyle
+        Validator[Input Validator]:::coreStyle
+        BinMgr[Binary Manager]:::coreStyle
+        Process[Process Runner]:::runStyle
+    end
+
+    subgraph External["☁️  External"]
+        direction TB
+        Binary[immich-go CLI]:::extStyle
+        Server[(Immich Server)]:::extStyle
+    end
+
+    User --> GUILayer
+    Config --> Process
     Builder --> Process
-    Downloader --> Binary
-    Process --> Binary
-    Binary --> Server
-    Process --> Log
-    Config --> Settings
+    BinMgr --> Binary
+    Process -->|launch with argv + secrets| Binary
+    Binary -->|upload / archive / stack| Server
 ```
 
 ### Suggested reading order (new users)

@@ -74,26 +74,27 @@ These defaults apply globally and can be overridden per tab in advanced mode:
 
 ```mermaid
 flowchart TD
-    classDef action fill:#0ea5e9,stroke:#0284c7,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef decision fill:#f59e0b,stroke:#d97706,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef success fill:#10b981,stroke:#047857,color:#ffffff,stroke-width:2px,rx:8px;
-    classDef process fill:#6366f1,stroke:#4338ca,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef startEnd fill:#6366f1,stroke:#4338ca,color:#fff,stroke-width:2px
+    classDef check fill:#f59e0b,stroke:#b45309,color:#fff,stroke-width:2px
+    classDef download fill:#0ea5e9,stroke:#0369a1,color:#fff,stroke-width:2px
+    classDef run fill:#8b5cf6,stroke:#6d28d9,color:#fff,stroke-width:2px
+    classDef done fill:#10b981,stroke:#047857,color:#fff,stroke-width:2px
 
-    Start([Start]):::action
-    Check{Binary Exists?}:::decision
-    Launch[Prepare Launch]:::process
-    Download[Download Release]:::action
-    Verify[Verify SHA256]:::action
-    Execute[Execute Binary]:::process
-    End([Completed]):::success
+    Start([🚀 Launch Requested]):::startEnd
+    Check{🔍 Binary found\nin ~/.immich-go-gui/bin/}:::check
+    Download[📥 Download from\nGitHub Releases]:::download
+    Verify[🔐 Verify SHA256\nchecksum]:::download
+    Launch[⚡ Prepare argv\n+ env secrets]:::run
+    Execute[🖥️ Open terminal\n+ run immich-go]:::run
+    Done([✅ Process Running]):::done
 
     Start --> Check
     Check -- Yes --> Launch
     Check -- No --> Download
-    Download --> Verify
-    Verify --> Launch
+    Download -->|fetch archive| Verify
+    Verify -->|checksum OK| Launch
     Launch --> Execute
-    Execute --> End
+    Execute --> Done
 ```
 
 The GUI bundles no immich-go binary inside the app. On first use it can download one from [GitHub Releases](https://github.com/simulot/immich-go/releases).
