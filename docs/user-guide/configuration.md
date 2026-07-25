@@ -29,6 +29,26 @@ Immich can pause background jobs while immich-go runs (`pause-immich-jobs`, enab
 
 **Recommendation:** create an admin API key in Immich if you upload large libraries and want Immich to stop thumbnail/metadata jobs from competing for I/O. Otherwise leave the admin field empty and accept that pausing stays off.
 
+## Configuration Lifecycle
+
+```mermaid
+stateDiagram-v2
+
+    [*] --> Default
+
+    Default --> Modified
+
+    Modified --> Saved
+
+    Saved --> Loaded
+
+    Loaded --> Modified
+
+    Saved --> Deleted
+
+    Deleted --> Default
+```
+
 ## Secret Storage
 
 API keys are handled securely:
@@ -51,6 +71,26 @@ These defaults apply globally and can be overridden per tab in advanced mode:
 | Pause Immich jobs | enabled | Pause background Immich jobs during upload |
 
 ## immich-go Binary Management
+
+```mermaid
+flowchart TD
+
+    Start --> Check
+
+    Check{Binary Exists?}
+
+    Check -- Yes --> Launch
+
+    Check -- No --> Download
+
+    Download --> Verify
+
+    Verify --> Launch
+
+    Launch --> Execute
+
+    Execute --> End
+```
 
 The GUI bundles no immich-go binary inside the app. On first use it can download one from [GitHub Releases](https://github.com/simulot/immich-go/releases).
 

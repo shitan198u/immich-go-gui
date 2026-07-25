@@ -2,6 +2,33 @@
 
 Immich-Go GUI is a desktop application with a deliberate separation between Qt UI code and testable business logic.
 
+## High-Level Overview
+
+```mermaid
+flowchart TB
+
+    User([User])
+
+    User --> GUI[Immich-Go GUI]
+
+    GUI --> Config[Configuration Manager]
+    GUI --> Validator[Input Validator]
+    GUI --> Builder[Command Builder]
+    GUI --> Downloader[Binary Manager]
+
+    Builder --> Process[Process Runner]
+
+    Downloader --> Binary[immich-go Binary]
+
+    Process --> Binary
+
+    Binary --> Server[(Immich Server)]
+
+    Process --> Log[Live Log Output]
+
+    Config --> Settings[(Saved Configuration)]
+```
+
 ## High-Level Structure
 
 ```text
@@ -73,6 +100,34 @@ flowchart LR
 ```
 
 ### Typical Run Sequence
+
+```mermaid
+sequenceDiagram
+
+participant User
+participant GUI
+participant Builder
+participant Process
+participant Immich
+
+User->>GUI: Configure Import
+
+GUI->>Builder: Build Command
+
+Builder-->>GUI: Generated Command
+
+User->>GUI: Start
+
+GUI->>Process: Launch Process
+
+Process->>Immich: Execute immich-go
+
+Immich-->>Process: Progress
+
+Process-->>GUI: Live Logs
+
+GUI-->>User: Status Updates
+```
 
 1. User fills form fields on a workflow tab in `app.py`.
 2. `build_plan_from_state()` in `core/command_builder.py` validates input and produces a `CommandPlan` (argv + env + masked display).

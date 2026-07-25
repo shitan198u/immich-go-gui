@@ -2,6 +2,36 @@
 
 Not sure which tab to open? Start here. Immich-Go GUI maps each use case to a specific immich-go subcommand so you do not have to memorize CLI flags.
 
+## Operation Lifecycle
+
+```mermaid
+flowchart LR
+
+    Start([Start])
+
+    Start --> Select[Select Import Type]
+
+    Select --> Folder[Local Folder]
+    Select --> Takeout[Google Takeout]
+    Select --> Archive[Archive]
+    Select --> Stack[Stack Images]
+
+    Folder --> Configure
+    Takeout --> Configure
+    Archive --> Configure
+    Stack --> Configure
+
+    Configure --> Preview
+
+    Preview[Preview Generated Command]
+
+    Preview --> Run[Execute immich-go]
+
+    Run --> Progress[Live Progress]
+
+    Progress --> Finished([Completed])
+```
+
 ## Quick Decision Tree
 
 ```text

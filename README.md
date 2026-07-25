@@ -7,14 +7,29 @@
 
 A cross-platform desktop front-end for [immich-go](https://github.com/simulot/immich-go) — configure workflows with forms, preview the exact command, and launch it in a real terminal against your [Immich](https://immich.app/) server.
 
-```text
-┌──────────────┐     build + mask      ┌─────────────┐     env secrets      ┌───────────┐
-│  Immich-Go   │ ───────────────────► │  External   │ ──────────────────► │ immich-go │
-│     GUI      │   CommandPlan argv   │  terminal   │   + CLI flags       │    CLI    │
-└──────────────┘                      └─────────────┘                     └─────┬─────┘
-       │                                                                        │
-  profiles · keyring · locks · binary manager                                   ▼
-                                                                          Immich server
+```mermaid
+flowchart TB
+
+    User([User])
+
+    User --> GUI[Immich-Go GUI]
+
+    GUI --> Config[Configuration Manager]
+    GUI --> Validator[Input Validator]
+    GUI --> Builder[Command Builder]
+    GUI --> Downloader[Binary Manager]
+
+    Builder --> Process[Process Runner]
+
+    Downloader --> Binary[immich-go Binary]
+
+    Process --> Binary
+
+    Binary --> Server[(Immich Server)]
+
+    Process --> Log[Live Log Output]
+
+    Config --> Settings[(Saved Configuration)]
 ```
 
 ![Screenshot 1](screenshots/1.png)

@@ -2,11 +2,29 @@
 
 Immich-Go GUI is a cross-platform desktop application (PySide6/Qt) that wraps the [immich-go](https://github.com/simulot/immich-go) CLI. It helps you configure, preview, and launch immich-go commands for uploading, archiving, and stacking media with [Immich](https://immich.app/).
 
-```text
-  You  →  Immich-Go GUI  →  external terminal  →  immich-go  →  Immich server
-              │                                         │
-         forms, previews,                      upload / archive / stack
-         profiles, locks
+```mermaid
+flowchart TB
+
+    User([User])
+
+    User --> GUI[Immich-Go GUI]
+
+    GUI --> Config[Configuration Manager]
+    GUI --> Validator[Input Validator]
+    GUI --> Builder[Command Builder]
+    GUI --> Downloader[Binary Manager]
+
+    Builder --> Process[Process Runner]
+
+    Downloader --> Binary[immich-go Binary]
+
+    Process --> Binary
+
+    Binary --> Server[(Immich Server)]
+
+    Process --> Log[Live Log Output]
+
+    Config --> Settings[(Saved Configuration)]
 ```
 
 ## Start Here
