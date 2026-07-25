@@ -5,6 +5,23 @@ All notable changes to the Immich-Go GUI project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2](https://github.com/shitan198u/immich-go-gui/compare/v1.1.0...v1.1.2) - 2026-07-25
+
+### 🐛 Bug Fixes (Windows Runtime)
+
+* **command_builder**: auto-disable `--pause-immich-jobs` when no Admin API Key is configured — previously caused an immediate `403 Forbidden` that aborted every upload ([#64](https://github.com/shitan198u/immich-go-gui/issues/64))
+* **terminal_launcher**: remove bat file self-deletion — the script deleting itself under `cmd /k` caused `The batch file cannot be found` to be printed after every run ([#68](https://github.com/shitan198u/immich-go-gui/issues/68))
+* **terminal_launcher**: revert `shell=True` which caused the CMD window to be invisible — the list-form `Popen` with `CREATE_NEW_CONSOLE` correctly shows the terminal window
+* **process_tracker**: lock now clears immediately when the CMD window is closed — previously the orphan heartbeat subprocess kept the lock "active" indefinitely, blocking re-uploads ([#69](https://github.com/shitan198u/immich-go-gui/issues/69))
+* **binary_manager**: resolve binary path via `Path.resolve()` before `subprocess.run` to fix `Error running binary` in Binary Management on Windows ([#66](https://github.com/shitan198u/immich-go-gui/issues/66))
+
+### 🧹 Maintenance
+
+* Pin Python to 3.13 in CI for Nuitka build compatibility
+* Add `pyfakefs>=5.5.0` as dev dependency for Windows simulation tests
+
+---
+
 ## [1.1.0] - 2026-07-24
 
 ### 🚀 Features & UI Completeness (11/11 CLI Sub-Commands)
