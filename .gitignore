@@ -33,4 +33,6 @@ Refinement*
 # Editor & IDE states
 .kilo/
 .vscode/
+.agents/
+
 
