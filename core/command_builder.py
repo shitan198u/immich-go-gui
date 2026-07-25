@@ -434,11 +434,26 @@ def build_plan_from_state(
         emitter.add_option("concurrent-tasks", concurrent)
 
     if tab_key in UPLOAD_TABS or tab_key == "stack":
+        # Determine whether the user wants to pause jobs (default: True).
         if "pause-jobs" in tab_state:
-            if not tab_state["pause-jobs"]:
-                emitter.add_bool_val("pause-immich-jobs", False)
-        elif not config_state.get("pause_jobs", True):
+            pause_active = bool(tab_state["pause-jobs"])
+        else:
+            pause_active = bool(config_state.get("pause_jobs", True))
+
+        has_admin_key = bool(admin_api_key)
+
+        if not pause_active:
+            # Explicitly disabled by user — emit the flag regardless of admin key.
             emitter.add_bool_val("pause-immich-jobs", False)
+        elif pause_active and not has_admin_key:
+            # Pausing is desired but would cause 403 Forbidden without an admin key.
+            # Auto-disable and warn the user so the upload is not aborted silently.
+            emitter.add_bool_val("pause-immich-jobs", False)
+            plan.warnings.append(
+                "Job pausing disabled: no Admin API Key is configured. "
+                "Set an Admin API Key in the Configuration tab to enable "
+                "pausing of Immich background jobs during upload."
+            )
 
     if flag_allowed_for_tab(tab_key, "on-errors"):
         if "on-errors" in tab_state:

@@ -251,8 +251,12 @@ class BinaryManager:
                 )
 
         try:
+            # Resolve the path to an absolute string before invoking subprocess.
+            # On Windows, unresolved relative paths or paths with mixed separators
+            # can fail silently even when the file exists.
+            resolved_path = str(Path(binary_path).resolve())
             res = subprocess.run(
-                [binary_path, "version"],
+                [resolved_path, "version"],
                 capture_output=True,
                 text=True,
                 timeout=3,
@@ -501,8 +505,10 @@ class BinaryManager:
             except OSError:
                 return False
         try:
+            # Resolve the path before subprocess invocation (Windows robustness).
+            resolved_path = str(Path(binary_path).resolve())
             res = subprocess.run(
-                [binary_path, "version"],
+                [resolved_path, "version"],
                 capture_output=True,
                 text=True,
                 timeout=5,

@@ -2,7 +2,8 @@
   "tab_key": "stack",
   "config_state": {
     "server": "http://localhost:2283",
-    "api_key": "secret_key"
+    "api_key": "secret_key",
+    "admin_api_key": "admin_key"
   },
   "tab_state": {
     "manage-burst": "Stack",
