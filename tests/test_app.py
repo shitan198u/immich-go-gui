@@ -2496,26 +2496,31 @@ class TestWindowsPathParsing:
         assert bat.parent == lock.parent
 
     def test_path_with_spaces_in_username(self):
-        """Paths with spaces in username must be quoted before cmd /k."""
+        """Paths with spaces in username are handled by Python's list2cmdline.
+
+        The list form Popen(["cmd", "/k", bat_path]) passes each token through
+        subprocess.list2cmdline() on Windows, which quotes arguments containing
+        spaces. So 'C:\\Users\\John Doe\\...\\run.bat' becomes
+        'cmd /k "C:\\Users\\John Doe\\...\\run.bat"' correctly without shell=True.
+        """
+        import subprocess as _sp
         p = PureWindowsPath(
             r"C:\Users\John Doe\AppData\Roaming\immich-go-gui\locks\run_abc.bat"
         )
         assert " " in str(p)
         assert p.suffix == ".bat"
-        # Simulate the fix: wrap in double quotes for shell=True
-        cmd_str = f'cmd /k "{str(p)}"'
-        assert cmd_str == r'cmd /k "C:\Users\John Doe\AppData\Roaming\immich-go-gui\locks\run_abc.bat"'
-        # The quoted form must not have unquoted spaces adjacent to the path
-        # (i.e. the entire path must be wrapped in one pair of quotes)
-        inner = cmd_str[len('cmd /k "'):-1]
-        assert inner == str(p)
+        # Verify list2cmdline quotes the path with spaces
+        cmdline = _sp.list2cmdline(["cmd", "/k", str(p)])
+        assert '"' in cmdline, f"Expected quoted path in: {cmdline!r}"
+        assert str(p) in cmdline
 
-    def test_path_without_spaces_also_works_quoted(self):
-        """Even paths without spaces should work correctly when quoted."""
+    def test_path_without_spaces_list2cmdline(self):
+        """Paths without spaces are passed through list2cmdline correctly."""
+        import subprocess as _sp
         p = PureWindowsPath(r"C:\Users\Shsrra\AppData\Roaming\immich-go-gui\locks\run_x.bat")
         assert " " not in str(p)
-        cmd_str = f'cmd /k "{str(p)}"'
-        assert '"' in cmd_str
+        cmdline = _sp.list2cmdline(["cmd", "/k", str(p)])
+        assert str(p) in cmdline
 
     def test_binary_filename_win32(self):
         """BinaryManager should append .exe on Windows."""
@@ -2532,10 +2537,10 @@ class TestWindowsPathParsing:
 
 
 class TestWindowsBatFileCreation:
-    """Group B: pyfakefs Windows FS simulation tests.
+    """Group B: Windows FS simulation tests.
 
-    Verifies the bat file is written correctly and that Popen receives a
-    properly-quoted string (shell=True form) — the actual fix for issue #65.
+    Verifies the bat file is written correctly and that Popen uses the list
+    form (not shell=True) so CREATE_NEW_CONSOLE produces a visible window.
     """
 
     def test_bat_written_with_heartbeat_content(self, tmp_path, monkeypatch):
@@ -2563,15 +2568,18 @@ class TestWindowsBatFileCreation:
         bat_path_str = str(lock_path.with_suffix(".bat"))
         assert f'del /f "{bat_path_str}"' not in content
 
-    def test_popen_receives_quoted_string_not_list(self, tmp_path, monkeypatch):
-        """Fix #65: Popen command is a quoted string (shell=True), not a list.
+    def test_popen_uses_list_form_not_shell(self, tmp_path, monkeypatch):
+        """Popen must use list form (not shell=True) so CREATE_NEW_CONSOLE
+        produces a visible console window.
 
-        This is the root cause of 'The batch file cannot be found' when the
-        lock directory path contains spaces.
+        shell=True wraps the command in 'cmd.exe /c', which makes the resulting
+        console window invisible to the user even though the process runs.
+        Python's list2cmdline() correctly quotes arguments with spaces, so the
+        list form handles paths like C:\\Users\\John Doe\\... correctly.
         """
         monkeypatch.setattr("sys.platform", "win32")
 
-        # Simulate a path with spaces in the directory name
+        # Path with spaces in directory name — list2cmdline handles quoting
         spaced_dir = tmp_path / "John Doe" / "locks"
         spaced_dir.mkdir(parents=True)
         lock_path = spaced_dir / "run_spaced.lock"
@@ -2588,20 +2596,22 @@ class TestWindowsBatFileCreation:
         call_args = mock_popen.call_args
         cmd_arg = call_args[0][0]
 
-        # The command passed to Popen must be a string (shell=True), not a list
-        assert isinstance(cmd_arg, str), (
-            "Expected shell=True string form for quoted path; "
+        # Must be a list — the list form with CREATE_NEW_CONSOLE shows the window
+        assert isinstance(cmd_arg, list), (
+            "Expected list form Popen (not shell=True); "
             f"got {type(cmd_arg)}: {cmd_arg!r}"
         )
-        assert cmd_arg.startswith("cmd /k"), f"Expected 'cmd /k ...', got: {cmd_arg!r}"
-        # The bat path must be enclosed in double quotes
-        assert '"' in cmd_arg, f"Expected quoted bat path in: {cmd_arg!r}"
-        # shell=True must be set
+        assert cmd_arg[0] == "cmd"
+        assert cmd_arg[1] == "/k"
+        assert str(lock_path.with_suffix(".bat")) == cmd_arg[2]
+        # shell=True must NOT be set
         kwargs = call_args[1]
-        assert kwargs.get("shell") is True, "Expected shell=True in Popen kwargs"
+        assert not kwargs.get("shell"), "shell=True must NOT be used (hides the console window)"
+        # CREATE_NEW_CONSOLE must be set for visible window
+        assert kwargs.get("creationflags", 0) & 0x00000010, "Expected CREATE_NEW_CONSOLE flag"
 
-    def test_bat_path_quoted_even_without_spaces(self, tmp_path, monkeypatch):
-        """Quoting is applied consistently regardless of whether path has spaces."""
+    def test_popen_list_form_without_spaces(self, tmp_path, monkeypatch):
+        """List form Popen is used consistently regardless of whether path has spaces."""
         monkeypatch.setattr("sys.platform", "win32")
         lock_path = tmp_path / "run_nospace.lock"
         lock_path.write_text('{"run_id": "nospace"}', encoding="utf-8")
@@ -2613,8 +2623,9 @@ class TestWindowsBatFileCreation:
             launch_external_terminal(["immich-go.exe", "upload", "from-folder"], {}, lock_path)
 
         cmd_arg = mock_popen.call_args[0][0]
-        assert isinstance(cmd_arg, str)
-        assert '"' in cmd_arg
+        assert isinstance(cmd_arg, list)
+        assert cmd_arg[0] == "cmd"
+        assert not mock_popen.call_args[1].get("shell")
 
 
 class TestBinaryManagerWindowsPathResolution:
