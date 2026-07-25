@@ -82,7 +82,11 @@ def launch_external_terminal(
                 f"set ERR=%ERRORLEVEL%\r\n"
                 f'del /f "%LOCK_FILE%" 2>nul\r\n'
                 f'del /f "%HB_FILE%" 2>nul\r\n'
-                f'del /f "{bat_path}" 2>nul\r\n'
+                # NOTE: do NOT delete the bat file here. Deleting a bat file
+                # from within itself while running under "cmd /k" causes
+                # Windows to print "The batch file cannot be found" when the
+                # script ends. release_lock() in process_tracker.py already
+                # cleans up the .bat sidecar when the lock is released.
                 f"echo.\r\n"
                 f"echo immich-go exited with code %ERR%\r\n"
             )

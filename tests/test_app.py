@@ -2357,6 +2357,11 @@ def test_windows_bat_heartbeat_generation(tmp_path, monkeypatch):
     assert ".heartbeat" in bat_content
     assert "start /b cmd /c" in bat_content
     assert 'del /f "%HB_FILE%"' in bat_content
+    # Fix #67b: bat file must NOT delete itself — self-deletion under cmd /k
+    # causes 'The batch file cannot be found' after immich-go exits.
+    # release_lock() cleans up the .bat sidecar instead.
+    assert 'del /f "' + str(lock_file.with_suffix(".bat")) + '"' not in bat_content
+    assert "del /f \"%BAT_FILE%\"" not in bat_content
 
 
 def test_golden_upload_icloud_simple(gui):
@@ -2553,6 +2558,10 @@ class TestWindowsBatFileCreation:
         assert ".heartbeat" in content
         assert "start /b cmd /c" in content
         assert 'del /f "%HB_FILE%"' in content
+        # Fix #67b: bat file must NOT delete itself — self-deletion under cmd /k
+        # causes 'The batch file cannot be found' after immich-go exits.
+        bat_path_str = str(lock_path.with_suffix(".bat"))
+        assert f'del /f "{bat_path_str}"' not in content
 
     def test_popen_receives_quoted_string_not_list(self, tmp_path, monkeypatch):
         """Fix #65: Popen command is a quoted string (shell=True), not a list.
