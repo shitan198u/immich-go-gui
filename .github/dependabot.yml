@@ -5,9 +5,12 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 15
 
   # Maintain pip dependencies in pyproject.toml
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 15
+
