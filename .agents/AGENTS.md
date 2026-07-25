@@ -1,5 +1,7 @@
 # Immich-Go GUI Project Knowledge & Design Guidelines
 
+> **Note:** Committed developer documentation lives in [`docs/developer-guide/`](../docs/developer-guide/architecture.md). Keep this file aligned with those docs when updating architecture, CI, or testing conventions.
+
 ## 1. Work Workflow & Execution Philosophy
 - **Step-by-Step Slow Approach**: Take a careful, deliberate, step-by-step approach. Always plan, document, and inspect authoritative source files before writing or modifying code. Never guess code logic or file structures.
 - **Frequent Commits**: Keep committing progress in logical, well-demarcated chunks as work progresses so changes are easily tracked and reversible.

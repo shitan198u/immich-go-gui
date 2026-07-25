@@ -1,7 +1,7 @@
 [project]
 name = "immich-go-gui"
 version = "1.1.2"
-description = "Add your description here"
+description = "Cross-platform desktop GUI for immich-go — configure, preview, and launch Immich media upload, archive, and stack workflows."
 readme = "README.md"
 requires-python = ">=3.13.0, <3.14"
 dependencies = [

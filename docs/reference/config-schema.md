@@ -1,0 +1,148 @@
+# Config Schema
+
+Immich-Go GUI stores configuration in TOML files. API keys are stored in the OS keyring by default, not in these files.
+
+## Directory Layout
+
+```text
+{config_dir}/
+├── profiles.toml              # Profile index
+├── locks/                     # Run lock files (runtime)
+└── profiles/
+    └── {profile_name}/
+        ├── config.toml        # Settings and form state
+        └── secrets.toml       # Plaintext secrets (fallback only)
+```
+
+## Config Directory Paths
+
+| Platform | Default path |
+|----------|--------------|
+| Linux | `~/.config/immich-go-gui/` |
+| Linux (XDG) | `$XDG_CONFIG_HOME/immich-go-gui/` |
+| macOS | `~/Library/Application Support/immich-go-gui/` |
+| Windows | `%APPDATA%\immich-go-gui\` |
+
+### Environment Override
+
+| Variable | Effect |
+|----------|--------|
+| `IMMICH_GO_GUI_CONFIG` | Path to a specific `config.toml` file. Config directory is derived from the file's parent. |
+
+## profiles.toml
+
+Profile index file at `{config_dir}/profiles.toml`:
+
+```toml
+schema_version = 1
+active_profile = "default"
+
+[[profiles]]
+name = "default"
+created_at = "2026-01-01T00:00:00+00:00"
+```
+
+## config.toml Schema
+
+Current schema version: **2**
+
+```toml
+schema_version = 2
+
+[general]
+theme = "system"                    # "system" | "light" | "dark"
+advanced_mode = false
+allow_untested_updates = false
+preferred_terminal = "auto"
+
+[server]
+url = "https://immich.example.com"
+skip_ssl = false
+
+[secrets]
+provider = "keyring"                # "keyring" | "file"
+
+[advanced]
+client_timeout_minutes = 20
+concurrent_tasks = 0                # 0 = auto
+device_uuid = ""
+on_errors = "stop"                  # "stop" | "continue" | "custom"
+on_errors_tolerance = 10
+pause_immich_jobs = true
+
+[form_state]
+# Tab-keyed form field values (dynamic keys)
+"upload-folder" = { path = "/photos", dry_run = false }
+"stack" = { date_from = "2020-01-01" }
+```
+
+### Section Reference
+
+| Section | Field | Type | Default | Description |
+|---------|-------|------|---------|-------------|
+| `general` | `theme` | string | `"system"` | UI theme |
+| `general` | `advanced_mode` | bool | `false` | Show advanced flag rows |
+| `general` | `allow_untested_updates` | bool | `false` | Allow immich-go versions outside tested range |
+| `general` | `preferred_terminal` | string | `"auto"` | Terminal emulator preference |
+| `server` | `url` | string | `""` | Immich server base URL |
+| `server` | `skip_ssl` | bool | `false` | Skip TLS verification |
+| `secrets` | `provider` | string | `"keyring"` | Secret storage backend |
+| `advanced` | `client_timeout_minutes` | int | `20` | HTTP timeout |
+| `advanced` | `concurrent_tasks` | int | `0` | Parallel task count |
+| `advanced` | `device_uuid` | string | `""` | Device identifier |
+| `advanced` | `on_errors` | string | `"stop"` | Error handling mode |
+| `advanced` | `on_errors_tolerance` | int | `10` | Custom error tolerance |
+| `advanced` | `pause_immich_jobs` | bool | `true` | Pause Immich jobs during runs |
+| `form_state` | *(tab keys)* | dict | `{}` | Per-tab saved field values |
+
+## secrets.toml (Fallback)
+
+Used when keyring is unavailable and `secrets.provider = "file"`:
+
+```toml
+api_key = "your-api-key"
+admin_api_key = "optional-admin-key"
+```
+
+Prefer keyring storage. Plaintext secrets are a fallback only.
+
+## Keyring Storage
+
+Service name: `immich-go-gui`
+
+User key format: `{profile_name}:{key}` (e.g. `default:api_key`)
+
+Legacy key `immich_api_key` is migrated non-destructively to `default:api_key`.
+
+## Binary Storage
+
+Separate from config directory:
+
+| Path | Contents |
+|------|----------|
+| `~/.immich-go-gui/bin/` | Downloaded immich-go binary |
+| `~/.immich-go-gui/bin/metadata.json` | Version and download metadata |
+
+## Qt Settings (Legacy)
+
+Theme and legacy API key may exist in `QSettings("Shitan198u", "ImmichGoGUI")`. API keys are migrated to keyring on first read.
+
+## Lock Files
+
+Runtime lock files in `{config_dir}/locks/run_{id}.lock`:
+
+```json
+{
+  "run_id": "abc12345",
+  "gui_pid": 12345,
+  "started_at": "2026-01-01T00:00:00+00:00",
+  "tab_key": "upload-folder",
+  "command_summary": "upload from-folder /photos",
+  "binary_path": "/home/user/.immich-go-gui/bin/immich-go"
+}
+```
+
+## Related
+
+- [Profiles](../user-guide/profiles.md)
+- [Environment Variables](environment-variables.md)
