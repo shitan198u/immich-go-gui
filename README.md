@@ -7,9 +7,29 @@
 
 A cross-platform desktop front-end for [immich-go](https://github.com/simulot/immich-go) — configure workflows with forms, preview the exact command, and launch it in a real terminal against your [Immich](https://immich.app/) server.
 
-![Screenshot 1](screenshots/1.png)
-![Screenshot 2](screenshots/2.png)
-![Screenshot 3](screenshots/3.png)
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <a href="screenshots/1.png">
+        <img src="screenshots/1.png" alt="Main window" width="100%"/>
+      </a>
+      <sub><b>Main Window</b></sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="screenshots/2.png">
+        <img src="screenshots/2.png" alt="Workflow tab" width="100%"/>
+      </a>
+      <sub><b>Workflow Tab</b></sub>
+    </td>
+    <td align="center" width="33%">
+      <a href="screenshots/3.png">
+        <img src="screenshots/3.png" alt="Command preview" width="100%"/>
+      </a>
+      <sub><b>Command Preview</b></sub>
+    </td>
+  </tr>
+</table>
+
 
 ## Why this exists
 
