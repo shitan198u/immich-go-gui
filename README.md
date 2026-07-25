@@ -7,31 +7,6 @@
 
 A cross-platform desktop front-end for [immich-go](https://github.com/simulot/immich-go) — configure workflows with forms, preview the exact command, and launch it in a real terminal against your [Immich](https://immich.app/) server.
 
-```mermaid
-flowchart TB
-
-    User([User])
-
-    User --> GUI[Immich-Go GUI]
-
-    GUI --> Config[Configuration Manager]
-    GUI --> Validator[Input Validator]
-    GUI --> Builder[Command Builder]
-    GUI --> Downloader[Binary Manager]
-
-    Builder --> Process[Process Runner]
-
-    Downloader --> Binary[immich-go Binary]
-
-    Process --> Binary
-
-    Binary --> Server[(Immich Server)]
-
-    Process --> Log[Live Log Output]
-
-    Config --> Settings[(Saved Configuration)]
-```
-
 ![Screenshot 1](screenshots/1.png)
 ![Screenshot 2](screenshots/2.png)
 ![Screenshot 3](screenshots/3.png)
@@ -58,6 +33,42 @@ New here? Start with **[docs/](docs/README.md)** — especially [Choose Your Wor
 | **CLI parity** | Simple mode for common fields; advanced mode for full flag surface |
 | **Ops** | Binary manager, connection test, command preview, drag-and-drop paths |
 | **Platforms** | Windows installer/portable, macOS DMG, Linux AppImage/DEB/RPM/tarball |
+
+## Architecture Overview
+
+```mermaid
+flowchart TB
+    classDef user fill:#6366f1,stroke:#4338ca,color:#ffffff,stroke-width:2px,rx:10px;
+    classDef gui fill:#0ea5e9,stroke:#0284c7,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef core fill:#8b5cf6,stroke:#6d28d9,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef process fill:#f59e0b,stroke:#d97706,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef external fill:#ec4899,stroke:#be185d,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef storage fill:#10b981,stroke:#047857,color:#ffffff,stroke-width:2px,rx:8px;
+
+    User([User]):::user
+    GUI[Immich-Go GUI]:::gui
+    Config[Configuration Manager]:::core
+    Validator[Input Validator]:::core
+    Builder[Command Builder]:::core
+    Downloader[Binary Manager]:::core
+    Process[Process Runner]:::process
+    Binary[immich-go Binary]:::external
+    Server[(Immich Server)]:::external
+    Log[Live Log Output]:::storage
+    Settings[(Saved Configuration)]:::storage
+
+    User --> GUI
+    GUI --> Config
+    GUI --> Validator
+    GUI --> Builder
+    GUI --> Downloader
+    Builder --> Process
+    Downloader --> Binary
+    Process --> Binary
+    Binary --> Server
+    Process --> Log
+    Config --> Settings
+```
 
 ## Download & Installation
 

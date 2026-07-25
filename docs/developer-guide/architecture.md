@@ -6,27 +6,36 @@ Immich-Go GUI is a desktop application with a deliberate separation between Qt U
 
 ```mermaid
 flowchart TB
+    classDef user fill:#6366f1,stroke:#4338ca,color:#ffffff,stroke-width:2px,rx:10px;
+    classDef gui fill:#0ea5e9,stroke:#0284c7,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef core fill:#8b5cf6,stroke:#6d28d9,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef process fill:#f59e0b,stroke:#d97706,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef external fill:#ec4899,stroke:#be185d,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef storage fill:#10b981,stroke:#047857,color:#ffffff,stroke-width:2px,rx:8px;
 
-    User([User])
+    User([User]):::user
+    GUI[Immich-Go GUI]:::gui
+    Config[Configuration Manager]:::core
+    Validator[Input Validator]:::core
+    Builder[Command Builder]:::core
+    Downloader[Binary Manager]:::core
+    Process[Process Runner]:::process
+    Binary[immich-go Binary]:::external
+    Server[(Immich Server)]:::external
+    Log[Live Log Output]:::storage
+    Settings[(Saved Configuration)]:::storage
 
-    User --> GUI[Immich-Go GUI]
-
-    GUI --> Config[Configuration Manager]
-    GUI --> Validator[Input Validator]
-    GUI --> Builder[Command Builder]
-    GUI --> Downloader[Binary Manager]
-
-    Builder --> Process[Process Runner]
-
-    Downloader --> Binary[immich-go Binary]
-
+    User --> GUI
+    GUI --> Config
+    GUI --> Validator
+    GUI --> Builder
+    GUI --> Downloader
+    Builder --> Process
+    Downloader --> Binary
     Process --> Binary
-
-    Binary --> Server[(Immich Server)]
-
-    Process --> Log[Live Log Output]
-
-    Config --> Settings[(Saved Configuration)]
+    Binary --> Server
+    Process --> Log
+    Config --> Settings
 ```
 
 ## High-Level Structure

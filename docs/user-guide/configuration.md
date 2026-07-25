@@ -74,21 +74,25 @@ These defaults apply globally and can be overridden per tab in advanced mode:
 
 ```mermaid
 flowchart TD
+    classDef action fill:#0ea5e9,stroke:#0284c7,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef decision fill:#f59e0b,stroke:#d97706,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef success fill:#10b981,stroke:#047857,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef process fill:#6366f1,stroke:#4338ca,color:#ffffff,stroke-width:2px,rx:8px;
+
+    Start([Start]):::action
+    Check{Binary Exists?}:::decision
+    Launch[Prepare Launch]:::process
+    Download[Download Release]:::action
+    Verify[Verify SHA256]:::action
+    Execute[Execute Binary]:::process
+    End([Completed]):::success
 
     Start --> Check
-
-    Check{Binary Exists?}
-
     Check -- Yes --> Launch
-
     Check -- No --> Download
-
     Download --> Verify
-
     Verify --> Launch
-
     Launch --> Execute
-
     Execute --> End
 ```
 

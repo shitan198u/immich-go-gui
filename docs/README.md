@@ -2,31 +2,6 @@
 
 Immich-Go GUI is a cross-platform desktop application (PySide6/Qt) that wraps the [immich-go](https://github.com/simulot/immich-go) CLI. It helps you configure, preview, and launch immich-go commands for uploading, archiving, and stacking media with [Immich](https://immich.app/).
 
-```mermaid
-flowchart TB
-
-    User([User])
-
-    User --> GUI[Immich-Go GUI]
-
-    GUI --> Config[Configuration Manager]
-    GUI --> Validator[Input Validator]
-    GUI --> Builder[Command Builder]
-    GUI --> Downloader[Binary Manager]
-
-    Builder --> Process[Process Runner]
-
-    Downloader --> Binary[immich-go Binary]
-
-    Process --> Binary
-
-    Binary --> Server[(Immich Server)]
-
-    Process --> Log[Live Log Output]
-
-    Config --> Settings[(Saved Configuration)]
-```
-
 ## Start Here
 
 | I want to… | Go to |
@@ -37,6 +12,42 @@ flowchart TB
 | Understand how credentials are handled | [Security & Privacy](user-guide/security-and-privacy.md) |
 | Contribute code | [Architecture](developer-guide/architecture.md) · [CONTRIBUTING](../CONTRIBUTING.md) |
 | Look up a flag, path, or env var | [Reference](#reference) |
+
+## System Architecture
+
+```mermaid
+flowchart TB
+    classDef user fill:#6366f1,stroke:#4338ca,color:#ffffff,stroke-width:2px,rx:10px;
+    classDef gui fill:#0ea5e9,stroke:#0284c7,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef core fill:#8b5cf6,stroke:#6d28d9,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef process fill:#f59e0b,stroke:#d97706,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef external fill:#ec4899,stroke:#be185d,color:#ffffff,stroke-width:2px,rx:8px;
+    classDef storage fill:#10b981,stroke:#047857,color:#ffffff,stroke-width:2px,rx:8px;
+
+    User([User]):::user
+    GUI[Immich-Go GUI]:::gui
+    Config[Configuration Manager]:::core
+    Validator[Input Validator]:::core
+    Builder[Command Builder]:::core
+    Downloader[Binary Manager]:::core
+    Process[Process Runner]:::process
+    Binary[immich-go Binary]:::external
+    Server[(Immich Server)]:::external
+    Log[Live Log Output]:::storage
+    Settings[(Saved Configuration)]:::storage
+
+    User --> GUI
+    GUI --> Config
+    GUI --> Validator
+    GUI --> Builder
+    GUI --> Downloader
+    Builder --> Process
+    Downloader --> Binary
+    Process --> Binary
+    Binary --> Server
+    Process --> Log
+    Config --> Settings
+```
 
 ### Suggested reading order (new users)
 
