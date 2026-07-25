@@ -164,8 +164,18 @@ def is_lock_active(lock_path: Path) -> bool:
         return True
 
     # 2. Check terminal_pid
-    if lock.terminal_pid and _is_process_alive(lock.terminal_pid):
-        return True
+    if lock.terminal_pid:
+        if _is_process_alive(lock.terminal_pid):
+            return True
+        # On Windows, terminal_pid is the cmd.exe /k window PID — a direct and
+        # reliable indicator that the terminal is still open. If it is set but the
+        # process is dead, the user has closed the cmd window. In this case we must
+        # NOT fall through to the heartbeat check: the orphan `start /b` heartbeat
+        # subprocess keeps updating the .heartbeat file every 10 s even after the
+        # cmd window is closed, so the heartbeat would incorrectly declare the lock
+        # as active indefinitely. Return False immediately.
+        if sys.platform.startswith("win"):
+            return False
 
     # 3. Check sidecar .heartbeat file
     hb_file = p.with_suffix(".heartbeat")

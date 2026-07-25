@@ -1597,6 +1597,42 @@ def test_stale_lock_detection_with_pid_and_heartbeat(tmp_path, monkeypatch):
     release_lock(l_path)
 
 
+def test_windows_stale_lock_on_closed_terminal(tmp_path, monkeypatch):
+    """Regression test: closing the cmd window must mark the lock stale even when
+    the orphan heartbeat subprocess keeps updating the .heartbeat file.
+
+    Before the fix, is_lock_active() fell through to the heartbeat check after
+    seeing terminal_pid dead, and the fresh heartbeat file returned True forever.
+    """
+    monkeypatch.setenv("IMMICH_GO_GUI_CONFIG", str(tmp_path / "config.toml"))
+    monkeypatch.setattr("sys.platform", "win32")
+    from core.process_tracker import create_lock, update_lock, is_lock_active, release_lock
+
+    l_path = create_lock("upload-folder", "upload", "./immich-go")
+
+    # Simulate: cmd /k launched (terminal_pid set), started more than 60 s ago
+    # (so grace period does not keep it alive), shell_pid not set.
+    update_lock(
+        l_path,
+        terminal_pid=999999,          # dead PID — cmd window is "closed"
+        started_at="2020-01-01T00:00:00+00:00",
+    )
+
+    # Create a fresh .heartbeat file (simulating the orphan heartbeat subprocess
+    # that keeps running after the cmd window is closed).
+    hb_path = l_path.with_suffix(".heartbeat")
+    hb_path.write_text("", encoding="utf-8")
+    # mtime is "now" by default — age < 60 s, so heartbeat looks fresh.
+
+    # BEFORE fix: is_lock_active() would return True (heartbeat check wins).
+    # AFTER fix: should return False because terminal_pid is dead on win32.
+    assert is_lock_active(l_path) is False, (
+        "Lock must be stale when cmd window PID is dead, even if heartbeat file is fresh"
+    )
+
+    release_lock(l_path)
+
+
 def test_forward_all_immich_go_env_vars(tmp_path, monkeypatch):
     from core.terminal_launcher import launch_external_terminal
     dummy_lock = tmp_path / "test.lock"
