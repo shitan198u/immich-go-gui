@@ -1,0 +1,100 @@
+site_name: Immich-Go GUI
+site_url: https://shitan198u.github.io/immich-go-gui/
+site_description: A cross-platform desktop GUI for immich-go — configure, preview, and launch upload/archive/stack workflows against your Immich server.
+site_author: shitan198u
+repo_url: https://github.com/shitan198u/immich-go-gui
+repo_name: shitan198u/immich-go-gui
+edit_uri: edit/docs/comprehensive-documentation/docs/
+
+validation:
+  links:
+    absolute_links: warn
+    anchors: warn
+    unrecognized_links: warn
+    not_found: warn
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.action.edit
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: README.md
+  - User Guide:
+    - Getting Started: user-guide/getting-started.md
+    - Platform Notes: user-guide/platform-notes.md
+    - Choose Your Workflow: user-guide/choose-your-workflow.md
+    - Configuration: user-guide/configuration.md
+    - Profiles: user-guide/profiles.md
+    - Upload Workflows: user-guide/upload-workflows.md
+    - Archive Workflows: user-guide/archive-workflows.md
+    - Stack: user-guide/stack.md
+    - Advanced Flags: user-guide/advanced-flags.md
+    - Security & Privacy: user-guide/security-and-privacy.md
+    - Troubleshooting: user-guide/troubleshooting.md
+    - FAQ: user-guide/faq.md
+    - Glossary: user-guide/glossary.md
+  - Developer Guide:
+    - Architecture: developer-guide/architecture.md
+    - Core Modules: developer-guide/core-modules.md
+    - Adding Tabs & Flags: developer-guide/adding-tabs-and-flags.md
+    - Testing: developer-guide/testing.md
+    - CI/CD & Releases: developer-guide/ci-cd-and-releases.md
+    - Scripts: developer-guide/scripts.md
+  - Reference:
+    - CLI Command Mapping: reference/cli-command-mapping.md
+    - Config Schema: reference/config-schema.md
+    - Environment Variables: reference/environment-variables.md
+    - immich-go Compatibility: reference/immich-go-compatibility.md
+
+docs_dir: docs
+
+plugins:
+  - search
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true

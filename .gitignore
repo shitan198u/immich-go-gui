@@ -36,3 +36,6 @@ Refinement*
 .agents/
 
 
+
+# MkDocs build output
+site/
