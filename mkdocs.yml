@@ -20,15 +20,15 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: indigo
-      accent: deep purple
+      primary: emerald
+      accent: orange
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: indigo
-      accent: deep purple
+      primary: emerald
+      accent: orange
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
@@ -103,7 +103,7 @@ plugins:
   - social:
       cards: true
       cards_layout_options:
-        background_color: "#6366f1"
+        background_color: "#059669"
         color: "#ffffff"
   - autorefs
   - git-revision-date-localized:
