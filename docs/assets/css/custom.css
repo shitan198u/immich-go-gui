@@ -130,11 +130,27 @@ body {
 
 /* ---------- Header ---------- */
 .md-header {
-  background: rgba(12, 14, 20, 0.82) !important;
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  background: rgba(12, 14, 20, 0.88) !important;
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   box-shadow: 0 1px 0 rgba(233, 83, 63, 0.15), 0 8px 32px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Reorder header flex children so toggle stays right */
+.md-header__inner {
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* Theme toggle: push to the far right after source */
+.md-header__option {
+  order: 10 !important;
+  margin-left: 0 !important;
+}
+
+.md-header__source {
+  order: 11 !important;
 }
 
 .md-header__title {
@@ -217,52 +233,63 @@ body {
   box-shadow: none !important;
 }
 
-/* Header Icon Buttons (Sponsor & Coffee) */
-.header-sponsor-wrapper {
+/* ── Header Sponsor & Coffee Pills ── */
+.igg-sponsor-wrapper {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 0.4rem !important;
-  margin: 0 0.6rem !important;
+  gap: 0.5rem !important;
+  margin: 0 0.75rem !important;
+  flex-shrink: 0 !important;
+  order: 9 !important;
+}
+
+.igg-sponsor-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.38em !important;
+  padding: 0.3em 0.82em !important;
+  font-size: 0.76rem !important;
+  font-weight: 650 !important;
+  line-height: 1 !important;
+  border-radius: 999px !important;
+  text-decoration: none !important;
+  letter-spacing: 0.01em !important;
+  white-space: nowrap !important;
+  transition: background 0.22s ease, box-shadow 0.22s ease, transform 0.18s ease, color 0.18s ease !important;
+}
+
+.igg-sponsor-btn svg {
   flex-shrink: 0 !important;
 }
 
-.header-icon-btn {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 32px !important;
-  height: 32px !important;
-  border-radius: 50% !important;
-  text-decoration: none !important;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+/* GitHub Sponsor — coral */
+.igg-sponsor-btn--github {
+  background: rgba(233, 83, 63, 0.14) !important;
+  color: #ff7060 !important;
+  border: 1px solid rgba(233, 83, 63, 0.38) !important;
 }
 
-.header-icon-btn--sponsor {
-  background: rgba(233, 83, 63, 0.15) !important;
-  color: #ff6e59 !important;
-  border: 1px solid rgba(233, 83, 63, 0.35) !important;
-}
-
-.header-icon-btn--sponsor:hover {
+.igg-sponsor-btn--github:hover {
   background: #e9533f !important;
-  color: #ffffff !important;
-  border-color: #e9533f !important;
-  box-shadow: 0 4px 14px rgba(233, 83, 63, 0.5) !important;
-  transform: translateY(-1px) scale(1.05) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  box-shadow: 0 3px 12px rgba(233, 83, 63, 0.55), 0 0 0 3px rgba(233, 83, 63, 0.15) !important;
+  transform: translateY(-1px) !important;
 }
 
-.header-icon-btn--coffee {
-  background: rgba(245, 158, 11, 0.15) !important;
-  color: #fbbf24 !important;
-  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+/* Buy Me a Coffee — official BMC yellow (#FFDD00) */
+.igg-sponsor-btn--bmc {
+  background: rgba(255, 221, 0, 0.12) !important;
+  color: #e8c800 !important;
+  border: 1px solid rgba(255, 221, 0, 0.36) !important;
 }
 
-.header-icon-btn--coffee:hover {
-  background: #f59e0b !important;
-  color: #ffffff !important;
-  border-color: #f59e0b !important;
-  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.5) !important;
-  transform: translateY(-1px) scale(1.05) !important;
+.igg-sponsor-btn--bmc:hover {
+  background: #FFDD00 !important;
+  color: #0d0c22 !important;
+  border-color: transparent !important;
+  box-shadow: 0 3px 12px rgba(255, 221, 0, 0.5), 0 0 0 3px rgba(255, 221, 0, 0.15) !important;
+  transform: translateY(-1px) !important;
 }
 
 /* ---------- Search ---------- */
