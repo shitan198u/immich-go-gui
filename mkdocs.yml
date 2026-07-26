@@ -103,8 +103,9 @@ plugins:
   - social:
       cards: true
       cards_layout_options:
-        background_color: "#1c2033"
+        background_color: "#121520"
         color: "#ffffff"
+        background_image: null
   - autorefs
   - git-revision-date-localized:
       enable_creation_date: true
