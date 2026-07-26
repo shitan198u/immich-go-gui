@@ -137,21 +137,26 @@ body {
   box-shadow: 0 1px 0 rgba(233, 83, 63, 0.15), 0 8px 32px rgba(0, 0, 0, 0.35) !important;
 }
 
-/* Reorder header flex children so toggle stays right */
+/* Explicit flex order: Logo | Title | Search ··· Sponsors | Toggle | GitHub */
 .md-header__inner {
   display: flex !important;
   align-items: center !important;
 }
 
-/* Theme toggle: push to the far right after source */
-.md-header__option {
-  order: 10 !important;
-  margin-left: 0 !important;
-}
-
-.md-header__source {
-  order: 11 !important;
-}
+/* Logo button */
+.md-header__button.md-logo { order: 1 !important; }
+/* Hamburger/back */
+.md-header__button:not(.md-logo):not(.md-icon) { order: 2 !important; }
+/* Site title */
+.md-header__title { order: 3 !important; flex: 1 !important; min-width: 0; }
+/* Search */
+.md-search { order: 4 !important; }
+/* Our sponsor wrapper (injected by JS) */
+.igg-sponsor-wrapper { order: 9 !important; }
+/* Dark mode toggle */
+.md-header__option { order: 10 !important; margin-left: 0 !important; }
+/* GitHub source widget */
+.md-header__source { order: 11 !important; }
 
 .md-header__title {
   font-weight: 700;
