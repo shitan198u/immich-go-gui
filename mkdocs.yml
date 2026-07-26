@@ -1,7 +1,7 @@
-site_name: Immich-Go GUI
-site_url: https://shitan198u.github.io/immich-go-gui/
-site_description: A cross-platform desktop GUI for immich-go — configure, preview, and launch upload/archive/stack workflows against your Immich server.
+site_name: Immich-Go GUI Documentation
+site_description: Complete documentation for Immich-Go GUI — a desktop GUI for immich-go bulk media operations.
 site_author: shitan198u
+site_url: https://shitan198u.github.io/immich-go-gui/
 repo_url: https://github.com/shitan198u/immich-go-gui
 repo_name: shitan198u/immich-go-gui
 edit_uri: edit/docs/comprehensive-documentation/docs/
@@ -15,6 +15,8 @@ validation:
 
 theme:
   name: material
+  logo: assets/logo.svg
+  favicon: assets/favicon.png
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
@@ -36,46 +38,77 @@ theme:
     - navigation.sections
     - navigation.top
     - navigation.footer
+    - navigation.indexes
     - search.highlight
     - search.suggest
+    - search.share
     - content.code.copy
+    - content.code.annotate
     - content.action.edit
+    - content.action.view
+    - toc.follow
+    - header.autohide
   icon:
     repo: fontawesome/brands/github
+    admonition:
+      note: octicons/tag-16
+      abstract: octicons/checklist-16
+      info: octicons/info-16
+      tip: octicons/squirrel-16
+      success: octicons/check-16
+      question: octicons/question-16
+      warning: octicons/alert-16
+      failure: octicons/x-circle-16
+      danger: octicons/zap-16
+      bug: octicons/bug-16
+      example: octicons/beaker-16
+      quote: octicons/quote-16
 
 nav:
-  - Home: README.md
-  - User Guide:
-    - Getting Started: user-guide/getting-started.md
-    - Platform Notes: user-guide/platform-notes.md
-    - Choose Your Workflow: user-guide/choose-your-workflow.md
-    - Configuration: user-guide/configuration.md
-    - Profiles: user-guide/profiles.md
-    - Upload Workflows: user-guide/upload-workflows.md
-    - Archive Workflows: user-guide/archive-workflows.md
-    - Stack: user-guide/stack.md
-    - Advanced Flags: user-guide/advanced-flags.md
-    - Security & Privacy: user-guide/security-and-privacy.md
-    - Troubleshooting: user-guide/troubleshooting.md
-    - FAQ: user-guide/faq.md
-    - Glossary: user-guide/glossary.md
-  - Developer Guide:
-    - Architecture: developer-guide/architecture.md
-    - Core Modules: developer-guide/core-modules.md
-    - Adding Tabs & Flags: developer-guide/adding-tabs-and-flags.md
-    - Testing: developer-guide/testing.md
-    - CI/CD & Releases: developer-guide/ci-cd-and-releases.md
-    - Scripts: developer-guide/scripts.md
-  - Reference:
-    - CLI Command Mapping: reference/cli-command-mapping.md
-    - Config Schema: reference/config-schema.md
-    - Environment Variables: reference/environment-variables.md
-    - immich-go Compatibility: reference/immich-go-compatibility.md
+  - 🏠 Home: README.md
+  - 📖 User Guide:
+      - 🚀 Getting Started: user-guide/getting-started.md
+      - 💻 Platform Notes: user-guide/platform-notes.md
+      - 🧭 Choose Your Workflow: user-guide/choose-your-workflow.md
+      - ⚙️ Configuration: user-guide/configuration.md
+      - 👤 Profiles: user-guide/profiles.md
+      - ⬆️ Upload Workflows: user-guide/upload-workflows.md
+      - 📦 Archive Workflows: user-guide/archive-workflows.md
+      - 🗂️ Stack: user-guide/stack.md
+      - 🔧 Advanced Flags: user-guide/advanced-flags.md
+      - 🔒 Security & Privacy: user-guide/security-and-privacy.md
+      - 🐛 Troubleshooting: user-guide/troubleshooting.md
+      - ❓ FAQ: user-guide/faq.md
+      - 📚 Glossary: user-guide/glossary.md
+  - 🛠️ Developer Guide:
+      - 🏗️ Architecture: developer-guide/architecture.md
+      - 📦 Core Modules: developer-guide/core-modules.md
+      - ➕ Adding Tabs & Flags: developer-guide/adding-tabs-and-flags.md
+      - 🧪 Testing: developer-guide/testing.md
+      - 🔄 CI/CD & Releases: developer-guide/ci-cd-and-releases.md
+      - 📜 Scripts: developer-guide/scripts.md
+  - 📋 Reference:
+      - ⌨️ CLI Command Mapping: reference/cli-command-mapping.md
+      - 📐 Config Schema: reference/config-schema.md
+      - 🔑 Environment Variables: reference/environment-variables.md
+      - 🔗 immich-go Compatibility: reference/immich-go-compatibility.md
+  - 🤝 Contributing: CONTRIBUTING.md
+  - 📜 Changelog: CHANGELOG.md
 
 docs_dir: docs
+site_dir: site
 
 plugins:
   - search
+  - social:
+      cards: true
+      cards_layout_options:
+        background_color: "#6366f1"
+        color: "#ffffff"
+  - autorefs
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: timeago
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -91,10 +124,29 @@ markdown_extensions:
   - pymdownx.snippets
   - pymdownx.tabbed:
       alternate_style: true
-  - admonition
   - pymdownx.details
+  - admonition
   - attr_list
   - md_in_html
   - tables
   - toc:
       permalink: true
+      permalink_title: Anchor link to this section
+
+extra_css:
+  - assets/css/custom.css
+
+extra_javascript:
+  - https://unpkg.com/mermaid@10/dist/mermaid.min.js
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/shitan198u/immich-go-gui
+      name: GitHub Repository
+    - icon: fontawesome/brands/discord
+      link: https://discord.immich.app
+      name: Immich Discord
+
+copyright: |
+  Copyright &copy; 2024–2026 shitan198u

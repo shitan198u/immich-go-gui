@@ -7,13 +7,13 @@ Common issues and how to resolve them. For short Q&A, see the [FAQ](faq.md). For
 | Symptom | Jump to |
 |---------|---------|
 | Defender / VirusTotal flag | [Windows antivirus](#windows-antivirus-false-positives) |
-| Run button grayed out | [Process already running](#run-button-disabled--process-already-running) |
+| Run button grayed out | [Process already running](#run-button-disabled-process-already-running) |
 | No terminal window | [Terminal does not open](#terminal-does-not-open) |
 | Cannot reach Immich | [Server connection failed](#server-connection-failed) |
 | `403` during upload | [403 when pausing jobs](#403-forbidden-when-pausing-immich-jobs) |
 | Version warning on Config | [immich-go version warnings](#immich-go-version-warnings) |
 | API key empty after restart | [API key not saved](#api-key-not-saved) |
-| TLS errors | [SSL / certificate errors](#ssl--certificate-errors) |
+| TLS errors | [SSL / certificate errors](#ssl-certificate-errors) |
 
 ## Windows Antivirus False Positives
 

@@ -1,0 +1,101 @@
+/* Brand colors - match Qt app theme */
+:root {
+  --md-primary-fg-color: #6366f1;      /* Indigo */
+  --md-primary-fg-color--light: #818cf8;
+  --md-primary-fg-color--dark: #4338ca;
+  --md-accent-fg-color: #7c3aed;       /* Deep purple */
+  --md-accent-fg-color--light: #a78bfa;
+}
+
+/* Header banner */
+.md-header {
+  background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+}
+
+/* Hero section on home page */
+.hero {
+  background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
+  color: white;
+  border-radius: 12px;
+  padding: 3em 2em;
+  margin: 0 -1em 2em -1em;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}
+
+.hero h1 {
+  color: white !important;
+  font-size: 2.5em;
+  margin-bottom: 0.5em;
+  font-weight: 700;
+}
+
+.hero p {
+  font-size: 1.2em;
+  opacity: 0.95;
+  margin-bottom: 1.5em;
+}
+
+.md-button--primary {
+  background: white !important;
+  color: #6366f1 !important;
+  border-color: white !important;
+  font-weight: 600;
+}
+
+.md-button--primary:hover {
+  background: #f3f4f6 !important;
+  color: #4338ca !important;
+}
+
+/* Make Mermaid diagrams more compact & centered */
+.mermaid {
+  text-align: center;
+  margin: 1.5em 0;
+}
+
+/* Admonition styling enhancements */
+.admonition.tip {
+  border-left-color: #10b981;
+}
+.admonition.warning {
+  border-left-color: #f59e0b;
+}
+.admonition.danger {
+  border-left-color: #ef4444;
+}
+
+/* Better table styling */
+.md-typeset table:not([class]) {
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.md-typeset table:not([class]) th {
+  background-color: var(--md-primary-fg-color);
+  color: white;
+}
+
+/* Code block copy button enhancement */
+.md-clipboard {
+  color: var(--md-primary-fg-color);
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Make images responsive with rounded corners */
+.md-typeset img {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  max-width: 100%;
+  height: auto;
+}
+
+/* Footer enhancement */
+.md-footer {
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+}

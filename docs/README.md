@@ -1,3 +1,22 @@
+---
+hide:
+  - navigation
+  - toc
+---
+
+<div markdown="1" class="hero">
+
+# 📸 Immich-Go GUI
+
+**A beautiful desktop GUI for [immich-go](https://github.com/simulot/immich-go) — bulk upload, archive, and stack your media with Immich.**
+
+[Get Started](user-guide/getting-started.md){ .md-button .md-button--primary }
+[Choose Your Workflow](user-guide/choose-your-workflow.md){ .md-button }
+
+</div>
+
+---
+
 # Immich-Go GUI Documentation
 
 Immich-Go GUI is a cross-platform desktop application (PySide6/Qt) that wraps the [immich-go](https://github.com/simulot/immich-go) CLI. It helps you configure, preview, and launch immich-go commands for uploading, archiving, and stacking media with [Immich](https://immich.app/).
@@ -10,7 +29,7 @@ Immich-Go GUI is a cross-platform desktop application (PySide6/Qt) that wraps th
 | Pick the right tab for my library | [Choose Your Workflow](user-guide/choose-your-workflow.md) |
 | Fix a problem quickly | [Troubleshooting](user-guide/troubleshooting.md) · [FAQ](user-guide/faq.md) |
 | Understand how credentials are handled | [Security & Privacy](user-guide/security-and-privacy.md) |
-| Contribute code | [Architecture](developer-guide/architecture.md) · [CONTRIBUTING](../CONTRIBUTING.md) |
+| Contribute code | [Architecture](developer-guide/architecture.md) · [CONTRIBUTING](CONTRIBUTING.md) |
 | Look up a flag, path, or env var | [Reference](#reference) |
 
 ## System Architecture
@@ -109,10 +128,10 @@ flowchart TB
 
 | File | Purpose |
 |------|---------|
-| [README](../README.md) | Project landing page |
-| [CONTRIBUTING](../CONTRIBUTING.md) | How to contribute |
-| [CHANGELOG](../CHANGELOG.md) | Version history |
-| [LICENSE](../LICENSE.txt) | MIT license |
+| [README](https://github.com/shitan198u/immich-go-gui/blob/master/README.md) | Project landing page |
+| [CONTRIBUTING](CONTRIBUTING.md) | How to contribute |
+| [CHANGELOG](CHANGELOG.md) | Version history |
+| [LICENSE](https://github.com/shitan198u/immich-go-gui/blob/master/LICENSE.txt) | MIT license |
 
 ---
 

@@ -73,7 +73,7 @@ Examples:
 
 ## Local Nuitka Builds
 
-See [CONTRIBUTING.md](../../CONTRIBUTING.md) for per-OS Nuitka commands.
+See [CONTRIBUTING](../CONTRIBUTING.md) for per-OS Nuitka commands.
 
 ## Tooling Conventions
 
@@ -94,4 +94,4 @@ feat: …    fix: …    docs: …    sec: …    refactor: …
 test: …    ci: …     chore: …
 ```
 
-See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full contributor workflow.
+See [CONTRIBUTING](../CONTRIBUTING.md) for the full contributor workflow.

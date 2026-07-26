@@ -37,5 +37,6 @@ Refinement*
 
 
 
-# MkDocs build output
+# MkDocs build output & Cache
 site/
+.cache/

@@ -67,11 +67,12 @@ Paths can still be sensitive (home directory layout, album names). Share preview
 | **Skip SSL verification off** (default) | Production, public HTTPS, valid certs |
 | **Skip SSL verification on** | Local lab / self-signed only |
 
-When skip is enabled:
-
-- The Config tab shows an inline warning
-- Command plans add a warning before run
-- Traffic can be inspected by anything on the path — treat the network as trusted
+!!! danger "SSL Verification Warning"
+    When **Skip SSL verification** is enabled:
+    
+    - The Config tab shows a prominent warning banner.
+    - Command plans add a warning indicator before execution.
+    - Traffic can be inspected by any device on the network path — only use this in trusted local lab environments.
 
 ## Admin API Key
 

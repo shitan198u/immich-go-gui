@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - docs/comprehensive-documentation
+      - staging
+      - master
   workflow_dispatch:
 
 permissions:
@@ -20,6 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -33,7 +37,7 @@ jobs:
         run: uv sync --dev
 
       - name: Build docs
-        run: uv run mkdocs build
+        run: uv run mkdocs build --strict
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

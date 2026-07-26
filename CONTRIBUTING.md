@@ -6,21 +6,21 @@ Thank you for helping improve Immich-Go GUI. Clear PRs and docs keep the project
 
 If you've noticed a bug or have a feature request, check for an existing [issue](https://github.com/shitan198u/immich-go-gui/issues) first. If none exists, open one with the provided templates.
 
-Documentation-only fixes are very welcome — start from the [docs hub](docs/README.md).
+Documentation-only fixes are very welcome — start from the [docs hub](README.md).
 
 ## Documentation map
 
 | Audience | Read first |
 |----------|------------|
-| Architecture | [Architecture](docs/developer-guide/architecture.md) |
-| Core package | [Core Modules](docs/developer-guide/core-modules.md) |
-| Tests | [Testing](docs/developer-guide/testing.md) |
-| Releases / CI | [CI/CD and Releases](docs/developer-guide/ci-cd-and-releases.md) |
-| Extending CLI parity | [Adding Tabs and Flags](docs/developer-guide/adding-tabs-and-flags.md) |
-| CLI / config lookup | [Reference](docs/reference/cli-command-mapping.md) |
-| Security model | [Security & Privacy](docs/user-guide/security-and-privacy.md) |
+| Architecture | [Architecture](developer-guide/architecture.md) |
+| Core package | [Core Modules](developer-guide/core-modules.md) |
+| Tests | [Testing](developer-guide/testing.md) |
+| Releases / CI | [CI/CD and Releases](developer-guide/ci-cd-and-releases.md) |
+| Extending CLI parity | [Adding Tabs and Flags](developer-guide/adding-tabs-and-flags.md) |
+| CLI / config lookup | [Reference](reference/cli-command-mapping.md) |
+| Security model | [Security & Privacy](user-guide/security-and-privacy.md) |
 
-Agent-oriented project notes also live in [`.agents/AGENTS.md`](.agents/AGENTS.md); keep them aligned when you change architecture or CI conventions.
+Agent-oriented project notes also live in [`AGENTS.md`](https://github.com/shitan198u/immich-go-gui/blob/master/.agents/AGENTS.md); keep them aligned when you change architecture or CI conventions.
 
 ## Setting up for local development
 
@@ -75,7 +75,7 @@ When adding behavior:
 - Update golden fixtures under `tests/fixtures/` when command output changes
 - After upgrading immich-go, run `uv run scripts/capture_cli_help.py`
 
-Details: [Testing guide](docs/developer-guide/testing.md).
+Details: [Testing guide](developer-guide/testing.md).
 
 ## Making a pull request
 
@@ -144,7 +144,7 @@ uv run python -m nuitka --assume-yes-for-downloads --macos-create-app-bundle --e
 uv run python -m nuitka --assume-yes-for-downloads --standalone --enable-plugin=pyside6 --include-data-files=immich-go-gui.png=immich-go-gui.png app.py
 ```
 
-Official multi-format packages are produced by `.github/workflows/release.yml`. See [CI/CD and Releases](docs/developer-guide/ci-cd-and-releases.md).
+Official multi-format packages are produced by `.github/workflows/release.yml`. See [CI/CD and Releases](developer-guide/ci-cd-and-releases.md).
 
 ## Documentation contributions
 
@@ -158,6 +158,6 @@ When you change user-visible behavior, update the matching page under `docs/`:
 | Install artifact names | `platform-notes.md` + README + getting-started |
 | CI / branching | `ci-cd-and-releases.md` + CONTRIBUTING |
 
-Keep the [docs hub](docs/README.md) table of contents in sync when adding new pages.
+Keep the [docs hub](README.md) table of contents in sync when adding new pages.
 
 Thank you for contributing!

@@ -24,7 +24,8 @@ The application does not run immich-go inside the GUI window. It builds the comm
 
 OS-specific tips (Gatekeeper, AppImage permissions, Defender): **[Platform Notes](platform-notes.md)**.
 
-> **Windows antivirus note:** Windows Defender or VirusTotal may flag the Nuitka-compiled executable as suspicious (`Trojan:Win32/Wacatac.B!ml`). This is a common false positive for unsigned standalone apps. See [Troubleshooting](troubleshooting.md#windows-antivirus-false-positives) for details.
+!!! warning "Windows Antivirus Note"
+    Windows Defender or VirusTotal may flag the Nuitka-compiled executable as suspicious (`Trojan:Win32/Wacatac.B!ml`). This is a common false positive for unsigned standalone apps. See [Troubleshooting](troubleshooting.md#windows-antivirus-false-positives) for details.
 
 ### Running from Source
 
@@ -61,7 +62,8 @@ On first launch, the GUI can automatically download a compatible `immich-go` bin
 
 While a command is running, the Run button is disabled and the GUI shows a status indicator. Close the terminal window when the job completes before starting another run.
 
-**Tip:** Use **Dry run** the first time you try a new source or advanced stacking option.
+!!! tip "Pro Tip"
+    Use **Dry run** the first time you try a new source or advanced stacking option.
 
 ## User Interface Overview
 

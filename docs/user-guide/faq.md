@@ -99,7 +99,7 @@ Yes on path fields. Drop onto the input, not empty chrome. Wayland compositors c
 
 ### Run is disabled / "process already running"
 
-Close the immich-go terminal window and wait a few seconds. On Windows, lock cleanup is heartbeat-based. Last resort: remove stale files under `{config_dir}/locks/` only when no job is running. See [Troubleshooting](troubleshooting.md#run-button-disabled--process-already-running).
+Close the immich-go terminal window and wait a few seconds. On Windows, lock cleanup is heartbeat-based. Last resort: remove stale files under `{config_dir}/locks/` only when no job is running. See [Troubleshooting](troubleshooting.md#run-button-disabled-process-already-running).
 
 ### Upload fails with 403 when pausing jobs
 
@@ -113,7 +113,7 @@ Install a terminal emulator (`gnome-terminal`, `konsole`, `xfce4-terminal`, `xte
 
 ### Where should pull requests target?
 
-Always open PRs against **`staging`**, not `master`. See [CONTRIBUTING.md](../../CONTRIBUTING.md).
+Always open PRs against **`staging`**, not `master`. See [CONTRIBUTING](../CONTRIBUTING.md).
 
 ### How do I run tests?
 
