@@ -217,55 +217,52 @@ body {
   box-shadow: none !important;
 }
 
-/* Header Sponsor & Buy Me a Coffee Badges */
+/* Header Icon Buttons (Sponsor & Coffee) */
 .header-sponsor-wrapper {
-  display: flex !important;
+  display: inline-flex !important;
   align-items: center !important;
-  gap: 0.5rem !important;
-  margin: 0 0.8rem !important;
+  gap: 0.4rem !important;
+  margin: 0 0.6rem !important;
   flex-shrink: 0 !important;
 }
 
-.header-sponsor-btn {
+.header-icon-btn {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 0.35rem !important;
-  padding: 0.32rem 0.75rem !important;
-  font-size: 0.78rem !important;
-  font-weight: 600 !important;
-  line-height: 1 !important;
-  border-radius: 20px !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
   text-decoration: none !important;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  white-space: nowrap !important;
 }
 
-.header-sponsor-btn--github {
+.header-icon-btn--sponsor {
   background: rgba(233, 83, 63, 0.15) !important;
   color: #ff6e59 !important;
-  border: 1px solid rgba(233, 83, 63, 0.4) !important;
+  border: 1px solid rgba(233, 83, 63, 0.35) !important;
 }
 
-.header-sponsor-btn--github:hover {
+.header-icon-btn--sponsor:hover {
   background: #e9533f !important;
   color: #ffffff !important;
   border-color: #e9533f !important;
-  box-shadow: 0 4px 14px rgba(233, 83, 63, 0.45) !important;
-  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 14px rgba(233, 83, 63, 0.5) !important;
+  transform: translateY(-1px) scale(1.05) !important;
 }
 
-.header-sponsor-btn--coffee {
+.header-icon-btn--coffee {
   background: rgba(245, 158, 11, 0.15) !important;
   color: #fbbf24 !important;
-  border: 1px solid rgba(245, 158, 11, 0.4) !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
 }
 
-.header-sponsor-btn--coffee:hover {
+.header-icon-btn--coffee:hover {
   background: #f59e0b !important;
   color: #ffffff !important;
   border-color: #f59e0b !important;
-  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.45) !important;
-  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.5) !important;
+  transform: translateY(-1px) scale(1.05) !important;
 }
 
 /* ---------- Search ---------- */
