@@ -149,86 +149,123 @@ body {
   filter: drop-shadow(0 0 8px rgba(233, 83, 63, 0.35));
 }
 
-/* ---------- Tabs ---------- */
+/* ---------- Tabs (Pill Style, Zero Line Glitch) ---------- */
 .md-tabs {
-  background: linear-gradient(180deg, #151821 0%, #12151d 100%) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: #14161f !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.md-tabs__list {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.3rem !important;
+  padding: 0.4rem 0 !important;
+}
+
+.md-tabs__item {
+  height: auto !important;
 }
 
 .md-tabs__link {
-  opacity: 0.75;
-  font-weight: 550;
-  font-size: 0.8rem;
-  padding: 0.6rem 0.85rem !important;
+  opacity: 0.75 !important;
+  font-weight: 550 !important;
+  font-size: 0.82rem !important;
+  padding: 0.4rem 0.8rem !important;
   margin: 0 !important;
-  transition: all 0.2s var(--igg-ease);
-  position: relative;
+  border-radius: 6px !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  transition: all 0.2s var(--igg-ease) !important;
   text-decoration: none !important;
-  border-bottom: 2px solid transparent !important;
+  border: none !important;
+  background: transparent !important;
 }
 
 .md-tabs__link:hover {
   opacity: 1 !important;
-  color: var(--igg-coral-bright) !important;
-  border-bottom-color: rgba(255, 110, 89, 0.4) !important;
-  transform: none !important;
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 
-.md-tabs__link--active {
+.md-tabs__link--active,
+.md-tabs__item--active .md-tabs__link {
   opacity: 1 !important;
-  color: var(--igg-coral-bright) !important;
+  color: #ffffff !important;
   font-weight: 700 !important;
-  border-bottom: 2px solid var(--igg-coral) !important;
+  background: rgba(233, 83, 63, 0.22) !important;
+  border: 1px solid rgba(233, 83, 63, 0.45) !important;
+  box-shadow: 0 2px 8px rgba(233, 83, 63, 0.2) !important;
 }
 
-/* Hide duplicate pseudo element lines that cause tab line glitch */
+/* Kill all default full-width tab indicator lines and pseudo elements */
+.md-tabs__indicator,
+.md-tabs__indicator::after,
+.md-tabs__indicator::before,
+.md-tabs::after,
+.md-tabs::before,
+.md-tabs__list::after,
+.md-tabs__item::after,
+.md-tabs__link::after,
 .md-tabs__item--active .md-tabs__link::after,
-.md-tabs__link--active::after,
-.md-tabs__link::after {
+.md-tabs__link--active::after {
   display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 /* Header Sponsor & Buy Me a Coffee Badges */
-.header-sponsor-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4em;
-  padding: 0.3em 0.75em;
-  font-size: 0.78rem;
-  font-weight: 600;
-  border-radius: 20px;
+.header-sponsor-wrapper {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  margin: 0 0.8rem !important;
+  flex-shrink: 0 !important;
+}
+
+.header-sponsor-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.35rem !important;
+  padding: 0.32rem 0.75rem !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  border-radius: 20px !important;
   text-decoration: none !important;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  margin-left: 0.4em;
-  white-space: nowrap;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  white-space: nowrap !important;
 }
 
-.header-sponsor-badge--github {
-  background: rgba(233, 83, 63, 0.15);
+.header-sponsor-btn--github {
+  background: rgba(233, 83, 63, 0.15) !important;
   color: #ff6e59 !important;
-  border: 1px solid rgba(233, 83, 63, 0.4);
+  border: 1px solid rgba(233, 83, 63, 0.4) !important;
 }
 
-.header-sponsor-badge--github:hover {
-  background: #e9533f;
+.header-sponsor-btn--github:hover {
+  background: #e9533f !important;
   color: #ffffff !important;
-  border-color: #e9533f;
-  box-shadow: 0 4px 14px rgba(233, 83, 63, 0.45);
-  transform: translateY(-1px);
+  border-color: #e9533f !important;
+  box-shadow: 0 4px 14px rgba(233, 83, 63, 0.45) !important;
+  transform: translateY(-1px) !important;
 }
 
-.header-sponsor-badge--coffee {
-  background: rgba(245, 158, 11, 0.15);
+.header-sponsor-btn--coffee {
+  background: rgba(245, 158, 11, 0.15) !important;
   color: #fbbf24 !important;
-  border: 1px solid rgba(245, 158, 11, 0.4);
+  border: 1px solid rgba(245, 158, 11, 0.4) !important;
 }
 
-.header-sponsor-badge--coffee:hover {
-  background: #f59e0b;
+.header-sponsor-btn--coffee:hover {
+  background: #f59e0b !important;
   color: #ffffff !important;
-  border-color: #f59e0b;
-  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.45);
-  transform: translateY(-1px);
+  border-color: #f59e0b !important;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.45) !important;
+  transform: translateY(-1px) !important;
 }
 
 /* ---------- Search ---------- */
