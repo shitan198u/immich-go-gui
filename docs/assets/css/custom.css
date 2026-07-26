@@ -152,40 +152,83 @@ body {
 /* ---------- Tabs ---------- */
 .md-tabs {
   background: linear-gradient(180deg, #151821 0%, #12151d 100%) !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .md-tabs__link {
-  opacity: 0.72;
+  opacity: 0.75;
   font-weight: 550;
-  font-size: 0.78rem;
-  transition: color 0.2s var(--igg-ease), opacity 0.2s var(--igg-ease), transform 0.2s var(--igg-ease);
+  font-size: 0.8rem;
+  padding: 0.6rem 0.85rem !important;
+  margin: 0 !important;
+  transition: all 0.2s var(--igg-ease);
+  position: relative;
+  text-decoration: none !important;
+  border-bottom: 2px solid transparent !important;
 }
 
 .md-tabs__link:hover {
-  opacity: 1;
+  opacity: 1 !important;
   color: var(--igg-coral-bright) !important;
-  transform: translateY(-1px);
+  border-bottom-color: rgba(255, 110, 89, 0.4) !important;
+  transform: none !important;
 }
 
 .md-tabs__link--active {
   opacity: 1 !important;
-  color: #fff !important;
-  font-weight: 700;
-  position: relative;
+  color: var(--igg-coral-bright) !important;
+  font-weight: 700 !important;
+  border-bottom: 2px solid var(--igg-coral) !important;
 }
 
+/* Hide duplicate pseudo element lines that cause tab line glitch */
 .md-tabs__item--active .md-tabs__link::after,
-.md-tabs__link--active::after {
-  content: "";
-  position: absolute;
-  left: 0.6rem;
-  right: 0.6rem;
-  bottom: 0.15rem;
-  height: 2.5px;
-  border-radius: 99px;
-  background: linear-gradient(90deg, var(--igg-coral), var(--igg-coral-bright));
-  box-shadow: 0 0 12px var(--igg-coral-glow);
+.md-tabs__link--active::after,
+.md-tabs__link::after {
+  display: none !important;
+}
+
+/* Header Sponsor & Buy Me a Coffee Badges */
+.header-sponsor-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.3em 0.75em;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: 20px;
+  text-decoration: none !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-left: 0.4em;
+  white-space: nowrap;
+}
+
+.header-sponsor-badge--github {
+  background: rgba(233, 83, 63, 0.15);
+  color: #ff6e59 !important;
+  border: 1px solid rgba(233, 83, 63, 0.4);
+}
+
+.header-sponsor-badge--github:hover {
+  background: #e9533f;
+  color: #ffffff !important;
+  border-color: #e9533f;
+  box-shadow: 0 4px 14px rgba(233, 83, 63, 0.45);
+  transform: translateY(-1px);
+}
+
+.header-sponsor-badge--coffee {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24 !important;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.header-sponsor-badge--coffee:hover {
+  background: #f59e0b;
+  color: #ffffff !important;
+  border-color: #f59e0b;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.45);
+  transform: translateY(-1px);
 }
 
 /* ---------- Search ---------- */
