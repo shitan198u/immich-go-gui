@@ -24,31 +24,9 @@ bulk upload, archive, and stack your media with <a href="https://immich.app/">Im
 </div>
 
 <div class="hero-meta">
-<span>Windows · macOS · Linux</span>
-<span>11 workflow tabs</span>
-<span>Keyring-backed secrets</span>
-<span>immich-go 0.32.0 tested</span>
+<span>🪟 Windows &nbsp;·&nbsp; 🍎 macOS &nbsp;·&nbsp; 🐧 Linux</span>
 </div>
 
-</div>
-
-<div class="stats-strip">
-  <div class="stat-pill">
-    <span class="stat-value">11</span>
-    <span class="stat-label">Workflows</span>
-  </div>
-  <div class="stat-pill">
-    <span class="stat-value">3</span>
-    <span class="stat-label">Platforms</span>
-  </div>
-  <div class="stat-pill">
-    <span class="stat-value">SHA256</span>
-    <span class="stat-label">Verified Binary</span>
-  </div>
-  <div class="stat-pill">
-    <span class="stat-value">MIT</span>
-    <span class="stat-label">Open Source</span>
-  </div>
 </div>
 
 Immich-Go GUI is a cross-platform desktop application (PySide6/Qt) that wraps the [immich-go](https://github.com/simulot/immich-go) CLI. Configure jobs with forms, preview the exact command, and launch bulk media operations against your [Immich](https://immich.app/) server — without memorizing a forest of flags.

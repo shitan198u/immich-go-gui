@@ -3,9 +3,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![immich-go](https://img.shields.io/badge/immich--go-0.32.0%20tested-blueviolet.svg)](https://github.com/simulot/immich-go)
-[![Docs](https://img.shields.io/badge/docs-user%20%26%20dev%20guides-0A66C2.svg)](docs/README.md)
+[![Docs Website](https://img.shields.io/badge/docs-website-e9533f.svg)](https://shitan198u.github.io/immich-go-gui/)
 
 A cross-platform desktop front-end for [immich-go](https://github.com/simulot/immich-go) — configure workflows with forms, preview the exact command, and launch it in a real terminal against your [Immich](https://immich.app/) server.
+
+📖 **Live Documentation Website**: [https://shitan198u.github.io/immich-go-gui/](https://shitan198u.github.io/immich-go-gui/)
 
 <table>
   <tr>
@@ -107,6 +109,8 @@ uv run app.py
 On first use, the Config tab can download a compatible immich-go binary for you.
 
 ## Documentation
+
+🌐 **Live Documentation Website**: [https://shitan198u.github.io/immich-go-gui/](https://shitan198u.github.io/immich-go-gui/)
 
 Full guides live under **[docs/](docs/README.md)**:
 
