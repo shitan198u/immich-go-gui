@@ -78,13 +78,19 @@ html {
   scroll-behavior: smooth;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 body {
   font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
 }
 
 .md-typeset {
-  font-size: 0.82rem;
+  font-size: 0.875rem;
   line-height: 1.7;
 }
 
@@ -96,20 +102,12 @@ body {
   scroll-margin-top: 5rem;
 }
 
+/* Unified h1 treatment — solid color in both themes (no gradient-clip).
+   Coral underline on h2 is the site's accent motif. */
 .md-typeset h1 {
   font-size: 2rem;
-  background: linear-gradient(135deg, var(--md-default-fg-color) 0%, var(--igg-coral-bright) 160%);
-  -webkit-background-clip: text;
-  background-clip: text;
-}
-
-[data-md-color-scheme="slate"] .md-typeset h1 {
-  color: transparent;
-}
-
-[data-md-color-scheme="default"] .md-typeset h1 {
-  background: none;
   color: var(--md-default-fg-color);
+  background: none;
 }
 
 .md-typeset h2 {
@@ -151,7 +149,7 @@ body {
 .md-header__title { order: 3 !important; flex: 1 !important; min-width: 0; }
 /* Search */
 .md-search { order: 4 !important; }
-/* Our sponsor wrapper (injected by JS) */
+/* Sponsor wrapper (server-rendered in partials/header.html) */
 .igg-sponsor-wrapper { order: 9 !important; }
 /* Dark mode toggle */
 .md-header__option { order: 10 !important; margin-left: 0 !important; }
@@ -537,6 +535,7 @@ body {
     0 6px 24px rgba(233, 83, 63, 0.55),
     0 0 48px rgba(233, 83, 63, 0.25),
     0 1px 0 rgba(255, 255, 255, 0.25) inset !important;
+  /* Pulse only when motion is allowed — see prefers-reduced-motion block below */
   animation: cta-pulse 2.8s ease-in-out infinite;
 }
 
@@ -548,6 +547,39 @@ body {
 .hero .md-button--primary:hover {
   animation: none;
   transform: translateY(-4px) scale(1.03);
+}
+
+/* Respect reduced-motion: stop infinite animations and hover transforms */
+@media (prefers-reduced-motion: reduce) {
+  .hero::after,
+  .hero .md-button--primary {
+    animation: none !important;
+  }
+
+  .hero .md-button--primary:hover,
+  .md-typeset .md-button:hover,
+  .md-typeset .md-button:focus,
+  .shot-gallery a:hover,
+  .shot-gallery a:hover img,
+  .reading-path li:hover,
+  .md-social__link:hover,
+  .md-top:hover,
+  .card-grid a.link-card:hover,
+  .igg-sponsor-btn:hover {
+    transform: none !important;
+  }
+
+  .md-typeset .md-button::before {
+    transition: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
 .hero .md-button:not(.md-button--primary) {
@@ -1107,6 +1139,22 @@ body {
 }
 
 /* ---------- Mobile tweaks ---------- */
+/* Hide sponsor/coffee text labels when the header is crowded */
+@media (max-width: 900px) {
+  .igg-sponsor-wrapper span {
+    display: none !important;
+  }
+
+  .igg-sponsor-btn {
+    padding: 0.35em 0.55em !important;
+  }
+
+  .igg-sponsor-wrapper {
+    margin: 0 0.35rem !important;
+    gap: 0.3rem !important;
+  }
+}
+
 @media (max-width: 600px) {
   .hero {
     padding: 2.5em 1.35em 2.25em;
@@ -1126,5 +1174,10 @@ body {
   .feature-grid,
   .card-grid {
     grid-template-columns: 1fr;
+  }
+
+  /* On very small screens, hide sponsor pills entirely to free header space */
+  .igg-sponsor-wrapper {
+    display: none !important;
   }
 }

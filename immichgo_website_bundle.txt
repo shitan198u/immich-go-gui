@@ -1,0 +1,5074 @@
+================================================================================
+IMMICH-GO GUI - WEBSITE RENDERING & DOCUMENTATION BUNDLE
+================================================================================
+Generated for LLM Review & Analysis
+Files Included:
+   1. mkdocs.yml (161 lines)
+   2. .github/workflows/docs.yml (56 lines)
+   3. pyproject.toml (36 lines)
+   4. docs/CHANGELOG.md (70 lines)
+   5. docs/CONTRIBUTING.md (163 lines)
+   6. docs/README.md (327 lines)
+   7. docs/assets/bmc-logo.svg (1 lines)
+   8. docs/assets/css/custom.css (1130 lines)
+   9. docs/assets/js/sponsor-header.js (32 lines)
+  10. docs/assets/logo.svg (24 lines)
+  11. docs/assets/sponsor-heart.svg (1 lines)
+  12. docs/developer-guide/adding-tabs-and-flags.md (150 lines)
+  13. docs/developer-guide/architecture.md (221 lines)
+  14. docs/developer-guide/ci-cd-and-releases.md (97 lines)
+  15. docs/developer-guide/core-modules.md (161 lines)
+  16. docs/developer-guide/scripts.md (77 lines)
+  17. docs/developer-guide/testing.md (132 lines)
+  18. docs/overrides/main.html (5 lines)
+  19. docs/reference/cli-command-mapping.md (118 lines)
+  20. docs/reference/config-schema.md (148 lines)
+  21. docs/reference/environment-variables.md (85 lines)
+  22. docs/reference/immich-go-compatibility.md (93 lines)
+  23. docs/user-guide/advanced-flags.md (114 lines)
+  24. docs/user-guide/archive-workflows.md (107 lines)
+  25. docs/user-guide/choose-your-workflow.md (171 lines)
+  26. docs/user-guide/configuration.md (145 lines)
+  27. docs/user-guide/faq.md (139 lines)
+  28. docs/user-guide/getting-started.md (99 lines)
+  29. docs/user-guide/glossary.md (42 lines)
+  30. docs/user-guide/platform-notes.md (175 lines)
+  31. docs/user-guide/profiles.md (84 lines)
+  32. docs/user-guide/security-and-privacy.md (116 lines)
+  33. docs/user-guide/stack.md (65 lines)
+  34. docs/user-guide/troubleshooting.md (152 lines)
+  35. docs/user-guide/upload-workflows.md (127 lines)
+================================================================================
+
+
+================================================================================
+FILE 1 / 35: mkdocs.yml (Lines 1-161)
+================================================================================
+site_name: Immich-Go GUI Documentation
+site_description: Complete documentation for Immich-Go GUI — a desktop GUI for immich-go bulk media operations.
+site_author: shitan198u
+site_url: https://shitan198u.github.io/immich-go-gui/
+repo_url: https://github.com/shitan198u/immich-go-gui
+repo_name: shitan198u/immich-go-gui
+edit_uri: edit/docs/comprehensive-documentation/docs/
+
+validation:
+  links:
+    absolute_links: warn
+    anchors: warn
+    unrecognized_links: warn
+    not_found: warn
+
+theme:
+  name: material
+  custom_dir: docs/overrides
+  logo: assets/logo.svg
+  favicon: assets/favicon.png
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: slate
+      accent: slate
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: slate
+      accent: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - search.highlight
+    - search.suggest
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+    - content.action.view
+    - toc.follow
+    - header.autohide
+  icon:
+    repo: fontawesome/brands/github
+    admonition:
+      note: octicons/tag-16
+      abstract: octicons/checklist-16
+      info: octicons/info-16
+      tip: octicons/squirrel-16
+      success: octicons/check-16
+      question: octicons/question-16
+      warning: octicons/alert-16
+      failure: octicons/x-circle-16
+      danger: octicons/zap-16
+      bug: octicons/bug-16
+      example: octicons/beaker-16
+      quote: octicons/quote-16
+
+nav:
+  - 🏠 Home: README.md
+  - 📖 User Guide:
+      - 🚀 Getting Started: user-guide/getting-started.md
+      - 💻 Platform Notes: user-guide/platform-notes.md
+      - 🧭 Choose Your Workflow: user-guide/choose-your-workflow.md
+      - ⚙️ Configuration: user-guide/configuration.md
+      - 👤 Profiles: user-guide/profiles.md
+      - ⬆️ Upload Workflows: user-guide/upload-workflows.md
+      - 📦 Archive Workflows: user-guide/archive-workflows.md
+      - 🗂️ Stack: user-guide/stack.md
+      - 🔧 Advanced Flags: user-guide/advanced-flags.md
+      - 🔒 Security & Privacy: user-guide/security-and-privacy.md
+      - 🐛 Troubleshooting: user-guide/troubleshooting.md
+      - ❓ FAQ: user-guide/faq.md
+      - 📚 Glossary: user-guide/glossary.md
+  - 🛠️ Developer Guide:
+      - 🏗️ Architecture: developer-guide/architecture.md
+      - 📦 Core Modules: developer-guide/core-modules.md
+      - ➕ Adding Tabs & Flags: developer-guide/adding-tabs-and-flags.md
+      - 🧪 Testing: developer-guide/testing.md
+      - 🔄 CI/CD & Releases: developer-guide/ci-cd-and-releases.md
+      - 📜 Scripts: developer-guide/scripts.md
+  - 📋 Reference:
+      - ⌨️ CLI Command Mapping: reference/cli-command-mapping.md
+      - 📐 Config Schema: reference/config-schema.md
+      - 🔑 Environment Variables: reference/environment-variables.md
+      - 🔗 immich-go Compatibility: reference/immich-go-compatibility.md
+  - 🤝 Contributing: CONTRIBUTING.md
+  - 📜 Changelog: CHANGELOG.md
+
+docs_dir: docs
+site_dir: site
+
+plugins:
+  - search
+  - social:
+      cards: true
+      cards_layout_options:
+        background_color: "#121520"
+        color: "#ffffff"
+        background_image: null
+  - autorefs
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: timeago
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      permalink_title: Anchor link to this section
+
+extra_css:
+  - assets/css/custom.css
+
+extra_javascript:
+  - https://unpkg.com/mermaid@10/dist/mermaid.min.js
+  - assets/js/sponsor-header.js
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/shitan198u/immich-go-gui
+      name: GitHub Repository
+    - icon: fontawesome/solid/heart
+      link: https://github.com/sponsors/shitan198u
+      name: Sponsor on GitHub
+    - icon: fontawesome/solid/mug-hot
+      link: https://www.buymeacoffee.com/shivashitan
+      name: Buy Me a Coffee
+    - icon: fontawesome/brands/discord
+      link: https://discord.immich.app
+      name: Immich Discord
+
+copyright: |
+  Copyright &copy; 2024–2026 shitan198u
+
+
+
+================================================================================
+FILE 2 / 35: .github/workflows/docs.yml (Lines 1-56)
+================================================================================
+name: Deploy Docs to GitHub Pages
+
+on:
+  push:
+    branches:
+      - docs/comprehensive-documentation
+      - staging
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Build docs
+        run: uv run mkdocs build --strict
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+
+
+================================================================================
+FILE 3 / 35: pyproject.toml (Lines 1-36)
+================================================================================
+[project]
+name = "immich-go-gui"
+version = "1.1.2"
+description = "Cross-platform desktop GUI for immich-go — configure, preview, and launch Immich media upload, archive, and stack workflows."
+readme = "README.md"
+requires-python = ">=3.13.0, <3.14"
+dependencies = [
+    "keyring>=25.0.0",
+    "packaging>=24.0.0",
+    "psutil>=6.1.1",
+    "pyside6>=6.8.2",
+    "requests>=2.32.3",
+    "tomli-w>=1.2.0",
+]
+
+[dependency-groups]
+dev = [
+    "cairosvg>=2.7.1",
+    "mkdocs>=1.6.1",
+    "mkdocs-autorefs>=1.2.0",
+    "mkdocs-git-revision-date-localized-plugin>=1.3.0",
+    "mkdocs-material[imaging]>=9.7.7",
+    "nuitka>=4.1.3",
+    "pillow>=10.4.0",
+    "pre-commit>=4.6.0",
+    "pyfakefs>=5.5.0",
+    "pymdown-extensions>=10.14",
+    "pytest>=9.1.1",
+    "pytest-qt>=4.5.0",
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+
+
+
+================================================================================
+FILE 4 / 35: docs/CHANGELOG.md (Lines 1-70)
+================================================================================
+# Changelog
+
+All notable changes to the Immich-Go GUI project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.1.2](https://github.com/shitan198u/immich-go-gui/compare/v1.1.0...v1.1.2) - 2026-07-25
+
+### 🐛 Bug Fixes (Windows Runtime)
+
+* **command_builder**: auto-disable `--pause-immich-jobs` when no Admin API Key is configured — previously caused an immediate `403 Forbidden` that aborted every upload ([#64](https://github.com/shitan198u/immich-go-gui/issues/64))
+* **terminal_launcher**: remove bat file self-deletion — the script deleting itself under `cmd /k` caused `The batch file cannot be found` to be printed after every run ([#68](https://github.com/shitan198u/immich-go-gui/issues/68))
+* **terminal_launcher**: revert `shell=True` which caused the CMD window to be invisible — the list-form `Popen` with `CREATE_NEW_CONSOLE` correctly shows the terminal window
+* **process_tracker**: lock now clears immediately when the CMD window is closed — previously the orphan heartbeat subprocess kept the lock "active" indefinitely, blocking re-uploads ([#69](https://github.com/shitan198u/immich-go-gui/issues/69))
+* **binary_manager**: resolve binary path via `Path.resolve()` before `subprocess.run` to fix `Error running binary` in Binary Management on Windows ([#66](https://github.com/shitan198u/immich-go-gui/issues/66))
+
+### 🧹 Maintenance
+
+* Pin Python to 3.13 in CI for Nuitka build compatibility
+* Add `pyfakefs>=5.5.0` as dev dependency for Windows simulation tests
+
+---
+
+## [1.1.0] - 2026-07-24
+
+### 🚀 Features & UI Completeness (11/11 CLI Sub-Commands)
+- **5 New GUI Sub-Tabs**: Added full GUI coverage for all 11 `immich-go` CLI sub-commands:
+  - `upload-icloud` (`upload from-icloud`): Support for iCloud photo library imports with `--memories` flag and HEIC/JPEG pair handling.
+  - `upload-picasa` (`upload from-picasa`): Support for Picasa album exports and `--album-picasa` metadata detection.
+  - `archive-gp` (`archive from-google-photos`): Serverless archive tab for Google Takeout photo libraries with takeout filters.
+  - `archive-icloud` (`archive from-icloud`): Serverless archive tab for iCloud photo libraries with `--memories` support.
+  - `archive-picasa` (`archive from-picasa`): Serverless archive tab for Picasa photo libraries with `--album-picasa` support.
+- **Serverless Tab Isolation**: Explicitly classified `archive-folder`, `archive-gp`, `archive-icloud`, and `archive-picasa` as `SERVERLESS_TABS`, guaranteeing they never emit `--server`, `--api-key`, or `--client-timeout` flags.
+- **Pre-Flight Server Connectivity Check**: Added fast pre-flight connection check (`/api/server/about`) before launching server-required commands, warning users if the Immich server is unreachable (`connection refused` / `timeout`).
+- **Help Menu Links**: Added direct links to Immich-Go CLI (`simulot/immich-go`) and Immich-Go GUI (`shitan198u/immich-go-gui`) GitHub repositories alongside an interactive About dialog.
+
+### 🛡️ Security & Secret Management
+- **Environment Variable Secret Delivery**: Migrated sensitive API keys (`IMMICH_GO_UPLOAD_API_KEY`, `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY`, etc.) away from CLI command arguments (`argv`) to process environment variables.
+- **Zero Plaintext Disk Files**: Completely eliminated disk shell files (`env.sh`) in favor of direct process launching via Python `subprocess.Popen`.
+- **OS Keyring Integration**: Supported OS Keyring (Keychain, KWallet, Credential Manager) for secure API key storage.
+- **Redacted Previews & Logs**: Sanitized command confirmation dialogs and log files to prevent credential leakage.
+- **SSL Bypass Warning Banners**: Displayed clear inline safety warnings when `--skip-verify-ssl` is activated.
+
+### 🔧 Release & Runtime Safety
+- **Binary Manager**: Centralized release version fetching, binary downloads, SHA256 checksum verification, and graceful cancellation cleanup.
+- **Safe Working Directory Isolation**: POSIX launchers execute inside isolated temporary directories with safe `$HOME` fallback directory changes, avoiding working directory deletion crashes.
+- **Windows Terminal Heartbeat**: Hardened Windows external terminal execution using temporary `.bat` launcher scripts and background heartbeat loops (`.heartbeat`) for clean lock lifecycle tracking.
+- **Validation Engine**: Standardized date range validation (`YYYY-MM-DD,YYYY-MM-DD` and single dates) with full calendar semantic checks.
+
+### 📦 Multi-Platform Packaging & CI
+- **Automated Standalone Builds**: Compiled standalone distributions for Windows (Installer & Portable), macOS (DMG), and Linux (AppImage, DEB, RPM, Portable Tarball).
+- **Version & Architecture Tagging**: Standardized output package names to include version and architecture (e.g., `Immich-Go-GUI-1.1.0-Windows-x86_64-Setup.exe`, `Immich-Go-GUI-1.1.0-Linux-x86_64.AppImage`).
+
+### 🧪 Test Infrastructure
+- **Cross-Platform Test Suite**: Added `_norm_argv` path normalization helper ensuring 100% test suite pass rate (149/149 tests) across Linux, macOS, and Windows.
+- **Golden State Fixtures**: Added JSON fixture files and golden test cases for all 11 sub-commands.
+
+---
+
+## [1.0.1] - 2026-02-18
+
+### Fixed
+- Fixed PySide6 theme resolution and fusion style application.
+- Improved terminal launcher error messages on Linux and macOS.
+
+## [1.0.0] - 2025-02-18
+
+### Added
+- Initial release of Immich-Go GUI with PySide6 interface.
+
+
+
+================================================================================
+FILE 5 / 35: docs/CONTRIBUTING.md (Lines 1-163)
+================================================================================
+# Contributing to Immich-Go GUI
+
+Thank you for helping improve Immich-Go GUI. Clear PRs and docs keep the project healthy for users and maintainers alike.
+
+## Where do I go from here?
+
+If you've noticed a bug or have a feature request, check for an existing [issue](https://github.com/shitan198u/immich-go-gui/issues) first. If none exists, open one with the provided templates.
+
+Documentation-only fixes are very welcome — start from the [docs hub](README.md).
+
+## Documentation map
+
+| Audience | Read first |
+|----------|------------|
+| Architecture | [Architecture](developer-guide/architecture.md) |
+| Core package | [Core Modules](developer-guide/core-modules.md) |
+| Tests | [Testing](developer-guide/testing.md) |
+| Releases / CI | [CI/CD and Releases](developer-guide/ci-cd-and-releases.md) |
+| Extending CLI parity | [Adding Tabs and Flags](developer-guide/adding-tabs-and-flags.md) |
+| CLI / config lookup | [Reference](reference/cli-command-mapping.md) |
+| Security model | [Security & Privacy](user-guide/security-and-privacy.md) |
+
+Agent-oriented project notes also live in [`AGENTS.md`](https://github.com/shitan198u/immich-go-gui/blob/master/.agents/AGENTS.md); keep them aligned when you change architecture or CI conventions.
+
+## Setting up for local development
+
+1. **Install prerequisites**
+   - Python **3.13** (`>=3.13.0, <3.14`)
+   - [`uv`](https://docs.astral.sh/uv/getting-started/installation/) package manager
+
+2. **Fork & clone**
+
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/immich-go-gui.git
+   cd immich-go-gui
+   ```
+
+3. **Install dependencies**
+
+   ```bash
+   uv sync --dev
+   ```
+
+   This installs PySide6, pytest, pre-commit, Nuitka (dev), and related tools.
+
+4. **Run the application**
+
+   ```bash
+   uv run app.py
+   ```
+
+5. **(Optional) Enable pre-commit hooks**
+
+   ```bash
+   uv run pre-commit install
+   uv run pre-commit run --all-files
+   ```
+
+## Testing your changes
+
+```bash
+uv run pytest
+```
+
+Linux headless (matches CI):
+
+```bash
+QT_QPA_PLATFORM=offscreen xvfb-run uv run pytest
+```
+
+When adding behavior:
+
+- Prefer tests in `tests/test_app.py`
+- Use `_norm_argv()` for path comparisons
+- Update golden fixtures under `tests/fixtures/` when command output changes
+- After upgrading immich-go, run `uv run scripts/capture_cli_help.py`
+
+Details: [Testing guide](developer-guide/testing.md).
+
+## Making a pull request
+
+1. Branch from **`staging`**: `git checkout -b feature-or-bugfix-name`
+2. Make focused commits (see commit style below)
+3. Push and open a PR **targeting `staging`**
+4. Fill out the PR template (platforms tested, docs updated, tests run)
+
+### Commit message style
+
+This repo uses [Release Please](https://github.com/googleapis/release-please) with [Conventional Commits](https://www.conventionalcommits.org/):
+
+| Prefix | Changelog section |
+|--------|-------------------|
+| `feat:` | Features |
+| `fix:` | Bug fixes |
+| `docs:` | Documentation |
+| `sec:` | Security |
+| `refactor:` | Refactoring |
+| `test:` / `ci:` / `chore:` | Usually hidden from user-facing notes |
+
+Examples:
+
+```text
+feat: add preferred terminal override for Linux
+fix: auto-disable pause-immich-jobs without admin key
+docs: document admin API key and job pausing
+```
+
+## Branching policy
+
+| Branch | Role |
+|--------|------|
+| `staging` | Active development; **all contributor PRs land here** |
+| `master` | Production; advanced by Release Please after squash merge from `staging` |
+
+Do not open routine feature PRs directly against `master`.
+
+## Design rules worth knowing early
+
+- **`core/` is Qt-free.** Business logic stays testable without a display server.
+- **Secrets never go in argv.** Use env delivery via `build_environment()`.
+- **Serverless archive tabs** must never emit `--server`, `--api-key`, or `--client-timeout`.
+- **Flag allowlists** in `TAB_ALLOWED_FLAGS` are the source of truth for what each tab may emit.
+- Prefer small PRs with tests over large unscoped rewrites.
+
+## Building executables (optional)
+
+Local Nuitka smoke builds:
+
+**Windows:**
+
+```bash
+uv run python -m nuitka --assume-yes-for-downloads --onefile --windows-console-mode=disable --enable-plugin=pyside6 --include-data-files=immich-go-gui.png=immich-go-gui.png app.py
+```
+
+**macOS:**
+
+```bash
+uv run python -m nuitka --assume-yes-for-downloads --macos-create-app-bundle --enable-plugin=pyside6 --include-data-files=immich-go-gui.png=immich-go-gui.png app.py
+```
+
+**Linux:**
+
+```bash
+uv run python -m nuitka --assume-yes-for-downloads --standalone --enable-plugin=pyside6 --include-data-files=immich-go-gui.png=immich-go-gui.png app.py
+```
+
+Official multi-format packages are produced by `.github/workflows/release.yml`. See [CI/CD and Releases](developer-guide/ci-cd-and-releases.md).
+
+## Documentation contributions
+
+When you change user-visible behavior, update the matching page under `docs/`:
+
+| Change type | Update |
+|-------------|--------|
+| New tab / flag | User workflow page + CLI mapping + advanced flags + tests |
+| Config field | `configuration.md` + `config-schema.md` |
+| Secret / env handling | `security-and-privacy.md` + `environment-variables.md` |
+| Install artifact names | `platform-notes.md` + README + getting-started |
+| CI / branching | `ci-cd-and-releases.md` + CONTRIBUTING |
+
+Keep the [docs hub](README.md) table of contents in sync when adding new pages.
+
+Thank you for contributing!
+
+
+
+================================================================================
+FILE 6 / 35: docs/README.md (Lines 1-327)
+================================================================================
+---
+hide:
+  - navigation
+  - toc
+---
+
+<div class="hero" markdown="1">
+
+<span class="hero-badge">✨ Desktop GUI · Open Source · Cross-platform</span>
+
+# 📸 Immich-Go GUI
+
+<p class="hero-lead">
+A beautiful desktop GUI for <a href="https://github.com/simulot/immich-go">immich-go</a> —
+bulk upload, archive, and stack your media with <a href="https://immich.app/">Immich</a>.
+</p>
+
+<div class="hero-actions" markdown="1">
+
+[🚀 Get Started](user-guide/getting-started.md){ .md-button .md-button--primary }
+[🧭 Choose Your Workflow](user-guide/choose-your-workflow.md){ .md-button }
+[⬇️ Downloads](https://github.com/shitan198u/immich-go-gui/releases/latest){ .md-button }
+
+</div>
+
+<div class="hero-meta">
+<span>🪟 Windows &nbsp;·&nbsp; 🍎 macOS &nbsp;·&nbsp; 🐧 Linux</span>
+</div>
+
+</div>
+
+Immich-Go GUI is a cross-platform desktop application (PySide6/Qt) that wraps the [immich-go](https://github.com/simulot/immich-go) CLI. Configure jobs with forms, preview the exact command, and launch bulk media operations against your [Immich](https://immich.app/) server — without memorizing a forest of flags.
+
+## Why Immich-Go GUI?
+
+<div class="feature-grid">
+  <div class="feature-card">
+    <div class="icon">⬆️</div>
+    <h3>Full workflow coverage</h3>
+    <p>Eleven tabs for every upload, archive, and stack path — folder, Google Photos, iCloud, Picasa, Immich→Immich, and more.</p>
+  </div>
+  <div class="feature-card">
+    <div class="icon">🔐</div>
+    <h3>Secrets done right</h3>
+    <p>API keys live in the OS keyring, travel as environment variables, and stay masked in previews and logs.</p>
+  </div>
+  <div class="feature-card">
+    <div class="icon">👤</div>
+    <h3>Multi-server profiles</h3>
+    <p>Home vs work, staging vs production — switch Immich targets without re-entering credentials each time.</p>
+  </div>
+  <div class="feature-card">
+    <div class="icon">✅</div>
+    <h3>Pre-flight safety</h3>
+    <p>Connection tests, dry-run, process locks, and SHA256-verified binary downloads before long jobs start.</p>
+  </div>
+  <div class="feature-card">
+    <div class="icon">🎛️</div>
+    <h3>Simple & advanced modes</h3>
+    <p>Friendly defaults for common fields, with a full flag surface when you need power-user control.</p>
+  </div>
+  <div class="feature-card">
+    <div class="icon">💻</div>
+    <h3>Real terminal launches</h3>
+    <p>Jobs open in your preferred terminal so progress, errors, and resumes stay visible and inspectable.</p>
+  </div>
+</div>
+
+## See it in action
+
+<div class="shot-gallery">
+  <a href="assets/screenshot-1.png">
+    <img src="assets/screenshot-1.png" alt="Immich-Go GUI main window" />
+    <span class="shot-label">Main Window</span>
+  </a>
+  <a href="assets/screenshot-2.png">
+    <img src="assets/screenshot-2.png" alt="Workflow configuration tab" />
+    <span class="shot-label">Workflow Tab</span>
+  </a>
+  <a href="assets/screenshot-3.png">
+    <img src="assets/screenshot-3.png" alt="Command preview pane" />
+    <span class="shot-label">Command Preview</span>
+  </a>
+</div>
+
+## Start here
+
+<p class="section-intro">Pick the path that matches what you need right now.</p>
+
+<div class="card-grid">
+  <a class="link-card" data-accent="coral" href="user-guide/getting-started/">
+    <span class="card-kicker">First run</span>
+    <strong>🚀 Getting Started</strong>
+    <span class="card-desc">Install binaries or run from source, then take the first-run tour.</span>
+  </a>
+  <a class="link-card" data-accent="indigo" href="user-guide/choose-your-workflow/">
+    <span class="card-kicker">Decision help</span>
+    <strong>🧭 Choose Your Workflow</strong>
+    <span class="card-desc">Decision tree and recipes for folder, cloud takeouts, and server-to-server.</span>
+  </a>
+  <a class="link-card" data-accent="amber" href="user-guide/troubleshooting/">
+    <span class="card-kicker">Stuck?</span>
+    <strong>🐛 Troubleshooting</strong>
+    <span class="card-desc">Locks, terminals, SSL, antivirus, and 403s — fix it fast.</span>
+  </a>
+  <a class="link-card" data-accent="emerald" href="user-guide/security-and-privacy/">
+    <span class="card-kicker">Trust</span>
+    <strong>🔒 Security & Privacy</strong>
+    <span class="card-desc">Keyring, env secrets, SSL, and the threat model explained clearly.</span>
+  </a>
+  <a class="link-card" data-accent="violet" href="developer-guide/architecture/">
+    <span class="card-kicker">Contributors</span>
+    <strong>🏗️ Architecture</strong>
+    <span class="card-desc">UI vs core split, data flow, and how to extend the app safely.</span>
+  </a>
+  <a class="link-card" data-accent="sky" href="reference/cli-command-mapping/">
+    <span class="card-kicker">Lookup</span>
+    <strong>⌨️ CLI Mapping</strong>
+    <span class="card-desc">Every GUI tab mapped to immich-go subcommands and flags.</span>
+  </a>
+</div>
+
+## System architecture
+
+```mermaid
+flowchart TB
+    classDef userStyle fill:#6366f1,stroke:#4338ca,color:#fff,stroke-width:2px
+    classDef guiStyle fill:#0ea5e9,stroke:#0369a1,color:#fff,stroke-width:2px
+    classDef coreStyle fill:#8b5cf6,stroke:#6d28d9,color:#fff,stroke-width:2px
+    classDef runStyle fill:#f59e0b,stroke:#b45309,color:#fff,stroke-width:2px
+    classDef extStyle fill:#10b981,stroke:#047857,color:#fff,stroke-width:2px
+
+    User([👤 User]):::userStyle
+
+    subgraph GUILayer["🖥️  Immich-Go GUI"]
+        direction TB
+        Config[Config Manager]:::coreStyle
+        Builder[Command Builder]:::coreStyle
+        Validator[Input Validator]:::coreStyle
+        BinMgr[Binary Manager]:::coreStyle
+        Process[Process Runner]:::runStyle
+    end
+
+    subgraph External["☁️  External"]
+        direction TB
+        Binary[immich-go CLI]:::extStyle
+        Server[(Immich Server)]:::extStyle
+    end
+
+    User --> GUILayer
+    Config --> Process
+    Builder --> Process
+    BinMgr --> Binary
+    Process -->|launch with argv + secrets| Binary
+    Binary -->|upload / archive / stack| Server
+```
+
+## Suggested reading order
+
+### New users
+
+<ol class="reading-path">
+  <li><a href="user-guide/getting-started/">Getting Started</a> — install and first launch</li>
+  <li><a href="user-guide/platform-notes/">Platform Notes</a> — OS-specific paths and quirks</li>
+  <li><a href="user-guide/configuration/">Configuration</a> — server, keys, binary, themes</li>
+  <li><a href="user-guide/choose-your-workflow/">Choose Your Workflow</a> — pick the right tab</li>
+  <li>Your workflow page — Upload / Archive / Stack</li>
+  <li><a href="user-guide/troubleshooting/">Troubleshooting</a> &amp; <a href="user-guide/faq/">FAQ</a> — keep bookmarked</li>
+</ol>
+
+### Contributors
+
+<ol class="reading-path">
+  <li><a href="developer-guide/architecture/">Architecture</a></li>
+  <li><a href="developer-guide/core-modules/">Core Modules</a></li>
+  <li><a href="developer-guide/testing/">Testing</a></li>
+  <li><a href="developer-guide/adding-tabs-and-flags/">Adding Tabs and Flags</a></li>
+  <li><a href="developer-guide/ci-cd-and-releases/">CI/CD and Releases</a></li>
+</ol>
+
+---
+
+## Documentation map
+
+### 📖 User Guide
+
+<div class="card-grid">
+  <a class="link-card" data-accent="coral" href="user-guide/getting-started/">
+    <span class="card-kicker">Setup</span>
+    <strong>Getting Started</strong>
+    <span class="card-desc">Install binaries or run from source; first-run tour.</span>
+  </a>
+  <a class="link-card" data-accent="indigo" href="user-guide/platform-notes/">
+    <span class="card-kicker">OS</span>
+    <strong>Platform Notes</strong>
+    <span class="card-desc">Windows / macOS / Linux install quirks and paths.</span>
+  </a>
+  <a class="link-card" data-accent="sky" href="user-guide/choose-your-workflow/">
+    <span class="card-kicker">Recipes</span>
+    <strong>Choose Your Workflow</strong>
+    <span class="card-desc">Decision tree and common library recipes.</span>
+  </a>
+  <a class="link-card" data-accent="violet" href="user-guide/configuration/">
+    <span class="card-kicker">Settings</span>
+    <strong>Configuration</strong>
+    <span class="card-desc">Server, API keys, binary manager, themes, admin key.</span>
+  </a>
+  <a class="link-card" data-accent="emerald" href="user-guide/profiles/">
+    <span class="card-kicker">Multi-env</span>
+    <strong>Profiles</strong>
+    <span class="card-desc">Multi-server and multi-environment setups.</span>
+  </a>
+  <a class="link-card" data-accent="coral" href="user-guide/upload-workflows/">
+    <span class="card-kicker">Import</span>
+    <strong>Upload Workflows</strong>
+    <span class="card-desc">Folder, Google Photos, iCloud, Picasa, Immich→Immich.</span>
+  </a>
+  <a class="link-card" data-accent="amber" href="user-guide/archive-workflows/">
+    <span class="card-kicker">Export</span>
+    <strong>Archive Workflows</strong>
+    <span class="card-desc">Local export tabs plus Archive from Immich.</span>
+  </a>
+  <a class="link-card" data-accent="violet" href="user-guide/stack/">
+    <span class="card-kicker">Server</span>
+    <strong>Stack</strong>
+    <span class="card-desc">Burst / RAW / HEIC stacking on the Immich server.</span>
+  </a>
+  <a class="link-card" data-accent="indigo" href="user-guide/advanced-flags/">
+    <span class="card-kicker">Power user</span>
+    <strong>Advanced Flags</strong>
+    <span class="card-desc">Simple vs advanced mode; per-tab flag reference.</span>
+  </a>
+  <a class="link-card" data-accent="emerald" href="user-guide/security-and-privacy/">
+    <span class="card-kicker">Safety</span>
+    <strong>Security & Privacy</strong>
+    <span class="card-desc">Keyring, env secrets, SSL, threat model.</span>
+  </a>
+  <a class="link-card" data-accent="amber" href="user-guide/troubleshooting/">
+    <span class="card-kicker">Support</span>
+    <strong>Troubleshooting</strong>
+    <span class="card-desc">Locks, terminals, SSL, antivirus, 403s.</span>
+  </a>
+  <a class="link-card" data-accent="sky" href="user-guide/faq/">
+    <span class="card-kicker">Q&A</span>
+    <strong>FAQ</strong>
+    <span class="card-desc">Short answers to the most common questions.</span>
+  </a>
+  <a class="link-card" data-accent="violet" href="user-guide/glossary/">
+    <span class="card-kicker">Terms</span>
+    <strong>Glossary</strong>
+    <span class="card-desc">Shared vocabulary for the project and Immich.</span>
+  </a>
+</div>
+
+### 🛠️ Developer Guide
+
+<div class="card-grid">
+  <a class="link-card" data-accent="violet" href="developer-guide/architecture/">
+    <span class="card-kicker">Overview</span>
+    <strong>Architecture</strong>
+    <span class="card-desc">UI vs core split, data flow, security model.</span>
+  </a>
+  <a class="link-card" data-accent="indigo" href="developer-guide/core-modules/">
+    <span class="card-kicker">Code</span>
+    <strong>Core Modules</strong>
+    <span class="card-desc">Module-by-module <code>core/</code> reference.</span>
+  </a>
+  <a class="link-card" data-accent="coral" href="developer-guide/adding-tabs-and-flags/">
+    <span class="card-kicker">Extend</span>
+    <strong>Adding Tabs & Flags</strong>
+    <span class="card-desc">Grow CLI parity without breaking safety.</span>
+  </a>
+  <a class="link-card" data-accent="emerald" href="developer-guide/testing/">
+    <span class="card-kicker">Quality</span>
+    <strong>Testing</strong>
+    <span class="card-desc">pytest, fixtures, headless Qt, <code>_norm_argv</code>.</span>
+  </a>
+  <a class="link-card" data-accent="amber" href="developer-guide/ci-cd-and-releases/">
+    <span class="card-kicker">Ship</span>
+    <strong>CI/CD & Releases</strong>
+    <span class="card-desc">Branching, Release Please, packaging.</span>
+  </a>
+  <a class="link-card" data-accent="sky" href="developer-guide/scripts/">
+    <span class="card-kicker">Tooling</span>
+    <strong>Scripts</strong>
+    <span class="card-desc">CLI help capture and review utilities.</span>
+  </a>
+</div>
+
+### 📋 Reference
+
+<div class="card-grid">
+  <a class="link-card" data-accent="indigo" href="reference/config-schema/">
+    <span class="card-kicker">Config</span>
+    <strong>Config Schema</strong>
+    <span class="card-desc">TOML fields, OS paths, and overrides.</span>
+  </a>
+  <a class="link-card" data-accent="coral" href="reference/environment-variables/">
+    <span class="card-kicker">Env</span>
+    <strong>Environment Variables</strong>
+    <span class="card-desc"><code>IMMICH_GO_*</code> secret and server env map.</span>
+  </a>
+  <a class="link-card" data-accent="sky" href="reference/cli-command-mapping/">
+    <span class="card-kicker">CLI</span>
+    <strong>CLI Command Mapping</strong>
+    <span class="card-desc">11 GUI tabs → immich-go subcommands.</span>
+  </a>
+  <a class="link-card" data-accent="emerald" href="reference/immich-go-compatibility/">
+    <span class="card-kicker">Versions</span>
+    <strong>immich-go Compatibility</strong>
+    <span class="card-desc">Tested versions, download, SHA256 checks.</span>
+  </a>
+</div>
+
+### Related project files
+
+| File | Purpose |
+|------|---------|
+| [README](https://github.com/shitan198u/immich-go-gui/blob/master/README.md) | Project landing page |
+| [CONTRIBUTING](CONTRIBUTING.md) | How to contribute |
+| [CHANGELOG](CHANGELOG.md) | Version history |
+| [LICENSE](https://github.com/shitan198u/immich-go-gui/blob/master/LICENSE.txt) | MIT license |
+
+<div class="version-banner">
+  <strong>Version note:</strong>
+  <span>Docs track the application as of <strong>v1.1.2</strong>, tested with <strong>immich-go 0.32.0</strong>. If something in the UI disagrees with a page, prefer the running app and open an issue or PR.</span>
+</div>
+
+
+
+================================================================================
+FILE 7 / 35: docs/assets/bmc-logo.svg (Lines 1-1)
+================================================================================
+<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>Buy Me A Coffee</title><path d="M20.216 6.415l-.132-.666c-.119-.598-.388-1.163-1.001-1.379-.197-.069-.42-.098-.57-.241-.152-.143-.196-.366-.231-.572-.065-.378-.125-.756-.192-1.133-.057-.325-.102-.69-.25-.987-.195-.4-.597-.634-.996-.788a5.723 5.723 0 00-.626-.194c-1-.263-2.05-.36-3.077-.416a25.834 25.834 0 00-3.7.062c-.915.083-1.88.184-2.75.5-.318.116-.646.256-.888.501-.297.302-.393.77-.177 1.146.154.267.415.456.692.58.36.162.737.284 1.123.366 1.075.238 2.189.331 3.287.37 1.218.05 2.437.01 3.65-.118.299-.033.598-.073.896-.119.352-.054.578-.513.474-.834-.124-.383-.457-.531-.834-.473-.466.074-.96.108-1.382.146-1.177.08-2.358.082-3.536.006a22.228 22.228 0 01-1.157-.107c-.086-.01-.18-.025-.258-.036-.243-.036-.484-.08-.724-.13-.111-.027-.111-.185 0-.212h.005c.277-.06.557-.108.838-.147h.002c.131-.009.263-.032.394-.048a25.076 25.076 0 013.426-.12c.674.019 1.347.067 2.017.144l.228.031c.267.04.533.088.798.145.392.085.895.113 1.07.542.055.137.08.288.111.431l.319 1.484a.237.237 0 01-.199.284h-.003c-.037.006-.075.01-.112.015a36.704 36.704 0 01-4.743.295 37.059 37.059 0 01-4.699-.304c-.14-.017-.293-.042-.417-.06-.326-.048-.649-.108-.973-.161-.393-.065-.768-.032-1.123.161-.29.16-.527.404-.675.701-.154.316-.199.66-.267 1-.069.34-.176.707-.135 1.056.087.753.613 1.365 1.37 1.502a39.69 39.69 0 0011.343.376.483.483 0 01.535.53l-.071.697-1.018 9.907c-.041.41-.047.832-.125 1.237-.122.637-.553 1.028-1.182 1.171-.577.131-1.165.2-1.756.205-.656.004-1.31-.025-1.966-.022-.699.004-1.556-.06-2.095-.58-.475-.458-.54-1.174-.605-1.793l-.731-7.013-.322-3.094c-.037-.351-.286-.695-.678-.678-.336.015-.718.3-.678.679l.228 2.185.949 9.112c.147 1.344 1.174 2.068 2.446 2.272.742.12 1.503.144 2.257.156.966.016 1.942.053 2.892-.122 1.408-.258 2.465-1.198 2.616-2.657.34-3.332.683-6.663 1.024-9.995l.215-2.087a.484.484 0 01.39-.426c.402-.078.787-.212 1.074-.518.455-.488.546-1.124.385-1.766zm-1.478.772c-.145.137-.363.201-.578.233-2.416.359-4.866.54-7.308.46-1.748-.06-3.477-.254-5.207-.498-.17-.024-.353-.055-.47-.18-.22-.236-.111-.71-.054-.995.052-.26.152-.609.463-.646.484-.057 1.046.148 1.526.22.577.088 1.156.159 1.737.212 2.48.226 5.002.19 7.472-.14.45-.06.899-.13 1.345-.21.399-.072.84-.206 1.08.206.166.281.188.657.162.974a.544.544 0 01-.169.364zm-6.159 3.9c-.862.37-1.84.788-3.109.788a5.884 5.884 0 01-1.569-.217l.877 9.004c.065.78.717 1.38 1.5 1.38 0 0 1.243.065 1.658.065.447 0 1.786-.065 1.786-.065.783 0 1.434-.6 1.499-1.38l.94-9.95a3.996 3.996 0 00-1.322-.238c-.826 0-1.491.284-2.26.613z"/></svg>
+
+
+================================================================================
+FILE 8 / 35: docs/assets/css/custom.css (Lines 1-1130)
+================================================================================
+/* ==========================================================================
+   Immich-Go GUI Docs — Premium Theme
+   Coral accent · midnight slate · glass surfaces · luminous CTAs
+   ========================================================================== */
+
+/* ---------- Design tokens ---------- */
+:root {
+  --igg-coral: #e9533f;
+  --igg-coral-bright: #ff6e59;
+  --igg-coral-deep: #c93d2c;
+  --igg-coral-glow: rgba(233, 83, 63, 0.45);
+  --igg-coral-soft: rgba(233, 83, 63, 0.14);
+  --igg-indigo: #4e5ba6;
+  --igg-indigo-soft: #6b78c9;
+  --igg-slate-950: #0c0e14;
+  --igg-slate-900: #11131a;
+  --igg-slate-850: #14161d;
+  --igg-slate-800: #1a1d26;
+  --igg-slate-700: #212538;
+  --igg-slate-600: #2a2f45;
+  --igg-slate-500: #3b457a;
+  --igg-text: #e8eaef;
+  --igg-text-muted: #9ca3af;
+  --igg-radius-sm: 8px;
+  --igg-radius: 12px;
+  --igg-radius-lg: 18px;
+  --igg-radius-xl: 24px;
+  --igg-shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.28);
+  --igg-shadow-lift: 0 16px 48px rgba(0, 0, 0, 0.4);
+  --igg-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --igg-font-display: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  --md-primary-fg-color: #212538;
+  --md-primary-fg-color--light: #343b56;
+  --md-primary-fg-color--dark: #161824;
+  --md-accent-fg-color: #e9533f;
+  --md-accent-fg-color--transparent: rgba(233, 83, 63, 0.12);
+  --md-accent-fg-color--light: #ff6e59;
+}
+
+/* ---------- Light mode ---------- */
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #2f3660;
+  --md-accent-fg-color: #e9533f;
+  --md-typeset-a-color: #d43d2a;
+  --md-default-bg-color: #f6f7fb;
+  --md-code-bg-color: #eef0f7;
+  --igg-surface: #ffffff;
+  --igg-surface-2: #f0f2f8;
+  --igg-border: rgba(33, 37, 56, 0.1);
+  --igg-card-shadow: 0 4px 20px rgba(33, 37, 56, 0.08);
+  --igg-card-hover-shadow: 0 14px 40px rgba(33, 37, 56, 0.14);
+  --igg-hero-text: #ffffff;
+  --igg-muted: #5b6478;
+}
+
+/* ---------- Dark mode ---------- */
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #0f1117;
+  --md-default-fg-color: #e8eaef;
+  --md-default-fg-color--light: #9ca3af;
+  --md-default-fg-color--lighter: #6b7280;
+  --md-code-bg-color: #181b24;
+  --md-typeset-a-color: #ff7a66;
+  --md-footer-bg-color: #0a0c11;
+  --md-footer-bg-color--dark: #07080c;
+  --igg-surface: #171a23;
+  --igg-surface-2: #1e2230;
+  --igg-border: rgba(255, 255, 255, 0.08);
+  --igg-card-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  --igg-card-hover-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  --igg-hero-text: #ffffff;
+  --igg-muted: #9ca3af;
+}
+
+/* ---------- Base polish ---------- */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+.md-typeset {
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3 {
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  scroll-margin-top: 5rem;
+}
+
+.md-typeset h1 {
+  font-size: 2rem;
+  background: linear-gradient(135deg, var(--md-default-fg-color) 0%, var(--igg-coral-bright) 160%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+[data-md-color-scheme="slate"] .md-typeset h1 {
+  color: transparent;
+}
+
+[data-md-color-scheme="default"] .md-typeset h1 {
+  background: none;
+  color: var(--md-default-fg-color);
+}
+
+.md-typeset h2 {
+  border-bottom: 1px solid var(--igg-border);
+  padding-bottom: 0.35em;
+  margin-top: 2em;
+}
+
+.md-typeset h2::after {
+  content: "";
+  display: block;
+  width: 48px;
+  height: 3px;
+  margin-top: 0.55em;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--igg-coral), transparent);
+}
+
+/* ---------- Header ---------- */
+.md-header {
+  background: rgba(12, 14, 20, 0.88) !important;
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 1px 0 rgba(233, 83, 63, 0.15), 0 8px 32px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Explicit flex order: Logo | Title | Search ··· Sponsors | Toggle | GitHub */
+.md-header__inner {
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* Logo button */
+.md-header__button.md-logo { order: 1 !important; }
+/* Hamburger/back */
+.md-header__button:not(.md-logo):not(.md-icon) { order: 2 !important; }
+/* Site title */
+.md-header__title { order: 3 !important; flex: 1 !important; min-width: 0; }
+/* Search */
+.md-search { order: 4 !important; }
+/* Our sponsor wrapper (injected by JS) */
+.igg-sponsor-wrapper { order: 9 !important; }
+/* Dark mode toggle */
+.md-header__option { order: 10 !important; margin-left: 0 !important; }
+/* GitHub source widget */
+.md-header__source { order: 11 !important; }
+
+.md-header__title {
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.md-header__button.md-logo img,
+.md-header__button.md-logo svg {
+  height: 1.7rem;
+  width: auto;
+  filter: drop-shadow(0 0 8px rgba(233, 83, 63, 0.35));
+}
+
+/* ---------- Tabs (Pill Style, Zero Line Glitch) ---------- */
+.md-tabs {
+  background: #14161f !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.md-tabs__list {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.3rem !important;
+  padding: 0.4rem 0 !important;
+}
+
+.md-tabs__item {
+  height: auto !important;
+}
+
+.md-tabs__link {
+  opacity: 0.75 !important;
+  font-weight: 550 !important;
+  font-size: 0.82rem !important;
+  padding: 0.4rem 0.8rem !important;
+  margin: 0 !important;
+  border-radius: 6px !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  transition: all 0.2s var(--igg-ease) !important;
+  text-decoration: none !important;
+  border: none !important;
+  background: transparent !important;
+}
+
+.md-tabs__link:hover {
+  opacity: 1 !important;
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.md-tabs__link--active,
+.md-tabs__item--active .md-tabs__link {
+  opacity: 1 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  background: rgba(233, 83, 63, 0.22) !important;
+  border: 1px solid rgba(233, 83, 63, 0.45) !important;
+  box-shadow: 0 2px 8px rgba(233, 83, 63, 0.2) !important;
+}
+
+/* Kill all default full-width tab indicator lines and pseudo elements */
+.md-tabs__indicator,
+.md-tabs__indicator::after,
+.md-tabs__indicator::before,
+.md-tabs::after,
+.md-tabs::before,
+.md-tabs__list::after,
+.md-tabs__item::after,
+.md-tabs__link::after,
+.md-tabs__item--active .md-tabs__link::after,
+.md-tabs__link--active::after {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* ── Header Sponsor & Coffee Pills ── */
+.igg-sponsor-wrapper {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  margin: 0 0.75rem !important;
+  flex-shrink: 0 !important;
+  order: 9 !important;
+}
+
+.igg-sponsor-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.38em !important;
+  padding: 0.3em 0.82em !important;
+  font-size: 0.76rem !important;
+  font-weight: 650 !important;
+  line-height: 1 !important;
+  border-radius: 999px !important;
+  text-decoration: none !important;
+  letter-spacing: 0.01em !important;
+  white-space: nowrap !important;
+  transition: background 0.22s ease, box-shadow 0.22s ease, transform 0.18s ease, color 0.18s ease !important;
+}
+
+.igg-sponsor-btn svg {
+  flex-shrink: 0 !important;
+}
+
+/* GitHub Sponsor — coral */
+.igg-sponsor-btn--github {
+  background: rgba(233, 83, 63, 0.14) !important;
+  color: #ff7060 !important;
+  border: 1px solid rgba(233, 83, 63, 0.38) !important;
+}
+
+.igg-sponsor-btn--github:hover {
+  background: #e9533f !important;
+  color: #fff !important;
+  border-color: transparent !important;
+  box-shadow: 0 3px 12px rgba(233, 83, 63, 0.55), 0 0 0 3px rgba(233, 83, 63, 0.15) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Buy Me a Coffee — official BMC yellow (#FFDD00) */
+.igg-sponsor-btn--bmc {
+  background: rgba(255, 221, 0, 0.12) !important;
+  color: #e8c800 !important;
+  border: 1px solid rgba(255, 221, 0, 0.36) !important;
+}
+
+.igg-sponsor-btn--bmc:hover {
+  background: #FFDD00 !important;
+  color: #0d0c22 !important;
+  border-color: transparent !important;
+  box-shadow: 0 3px 12px rgba(255, 221, 0, 0.5), 0 0 0 3px rgba(255, 221, 0, 0.15) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* ---------- Search ---------- */
+.md-search__form {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.md-search__form:hover,
+.md-search__form:focus-within {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(233, 83, 63, 0.45);
+  box-shadow: 0 0 0 3px rgba(233, 83, 63, 0.15);
+}
+
+.md-search__input {
+  color: #ffffff !important;
+}
+
+.md-search__input::placeholder {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* ---------- Sidebar ---------- */
+.md-nav__link {
+  border-radius: 8px;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.md-nav__link:hover {
+  background: var(--igg-coral-soft);
+  color: var(--igg-coral-bright) !important;
+}
+
+.md-nav__link--active {
+  font-weight: 700;
+  color: var(--igg-coral-bright) !important;
+  background: var(--igg-coral-soft);
+}
+
+.md-nav__item .md-nav__link--active {
+  box-shadow: inset 3px 0 0 var(--igg-coral);
+}
+
+/* ---------- Global buttons (site-wide pop) ---------- */
+.md-typeset .md-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  padding: 0.7em 1.55em !important;
+  margin: 0.35em 0.35em 0.35em 0;
+  font-weight: 700 !important;
+  font-size: 0.85rem !important;
+  letter-spacing: 0.01em;
+  border-radius: 12px !important;
+  border: 2px solid transparent !important;
+  text-decoration: none !important;
+  transition: transform 0.22s var(--igg-ease), box-shadow 0.22s var(--igg-ease),
+    background 0.22s var(--igg-ease), border-color 0.22s var(--igg-ease), color 0.22s var(--igg-ease);
+  position: relative;
+  overflow: hidden;
+}
+
+.md-typeset .md-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.18) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.55s var(--igg-ease);
+}
+
+.md-typeset .md-button:hover::before {
+  transform: translateX(120%);
+}
+
+.md-typeset .md-button--primary {
+  background: linear-gradient(135deg, var(--igg-coral) 0%, #ff5a42 50%, var(--igg-coral-bright) 100%) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+  box-shadow:
+    0 4px 16px var(--igg-coral-glow),
+    0 0 0 1px rgba(255, 255, 255, 0.12) inset,
+    0 1px 0 rgba(255, 255, 255, 0.2) inset !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+
+.md-typeset .md-button--primary:hover,
+.md-typeset .md-button--primary:focus {
+  background: linear-gradient(135deg, #ff5a42 0%, var(--igg-coral-bright) 100%) !important;
+  color: #ffffff !important;
+  transform: translateY(-3px) scale(1.02);
+  box-shadow:
+    0 10px 28px rgba(233, 83, 63, 0.55),
+    0 0 40px rgba(233, 83, 63, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.18) inset !important;
+}
+
+.md-typeset .md-button--primary:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+.md-typeset .md-button:not(.md-button--primary) {
+  background: transparent !important;
+  color: var(--igg-coral) !important;
+  border: 2px solid var(--igg-coral) !important;
+  box-shadow: 0 0 0 0 transparent;
+}
+
+.md-typeset .md-button:not(.md-button--primary):hover,
+.md-typeset .md-button:not(.md-button--primary):focus {
+  background: var(--igg-coral-soft) !important;
+  color: var(--igg-coral-bright) !important;
+  border-color: var(--igg-coral-bright) !important;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 22px rgba(233, 83, 63, 0.22);
+}
+
+/* ---------- Hero ---------- */
+.hero {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 80% 70% at 15% 20%, rgba(233, 83, 63, 0.28) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 85% 75%, rgba(78, 91, 166, 0.35) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 40% at 50% 100%, rgba(233, 83, 63, 0.12) 0%, transparent 60%),
+    linear-gradient(145deg, #121520 0%, #1a1f35 42%, #2a1f30 100%) !important;
+  color: #ffffff;
+  border-radius: var(--igg-radius-xl);
+  padding: 3.75em 2.5em 3.25em;
+  margin: 0 0 2.75em;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    var(--igg-shadow-lift),
+    0 0 0 1px rgba(233, 83, 63, 0.08) inset,
+    0 0 80px rgba(233, 83, 63, 0.08);
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(ellipse 70% 70% at 50% 40%, black 20%, transparent 75%);
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  top: -80px;
+  right: -40px;
+  background: radial-gradient(circle, rgba(255, 110, 89, 0.35) 0%, transparent 70%);
+  filter: blur(20px);
+  pointer-events: none;
+  animation: hero-orb 8s ease-in-out infinite alternate;
+}
+
+@keyframes hero-orb {
+  from { transform: translate(0, 0) scale(1); opacity: 0.7; }
+  to   { transform: translate(-30px, 40px) scale(1.15); opacity: 1; }
+}
+
+.hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.hero .hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  padding: 0.35em 0.95em;
+  margin-bottom: 1.25em;
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ffd4cc;
+  background: rgba(233, 83, 63, 0.18);
+  border: 1px solid rgba(255, 110, 89, 0.35);
+  border-radius: 99px;
+  box-shadow: 0 0 24px rgba(233, 83, 63, 0.2);
+  backdrop-filter: blur(8px);
+}
+
+.hero h1 {
+  color: #ffffff !important;
+  background: none !important;
+  -webkit-text-fill-color: #ffffff;
+  font-size: clamp(2rem, 5vw, 2.85em);
+  margin: 0 0 0.45em;
+  font-weight: 850;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.35);
+}
+
+.hero .hero-lead,
+.hero > p {
+  font-size: clamp(1.05rem, 2.2vw, 1.28em);
+  opacity: 0.92;
+  margin: 0 auto 1.85em;
+  color: #d8dce8 !important;
+  max-width: 640px;
+  line-height: 1.55;
+  font-weight: 450;
+}
+
+.hero .hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.85em;
+  margin-bottom: 0.25em;
+}
+
+/* Hero buttons — extra luminous */
+.hero a.md-button {
+  margin: 0 !important;
+  padding: 0.9em 2em !important;
+  font-size: 1rem !important;
+  border-radius: 14px !important;
+  min-width: 10.5em;
+}
+
+.hero .md-button--primary {
+  background: linear-gradient(135deg, #e9533f 0%, #ff634d 55%, #ff8a6e 100%) !important;
+  box-shadow:
+    0 6px 24px rgba(233, 83, 63, 0.55),
+    0 0 48px rgba(233, 83, 63, 0.25),
+    0 1px 0 rgba(255, 255, 255, 0.25) inset !important;
+  animation: cta-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes cta-pulse {
+  0%, 100% { box-shadow: 0 6px 24px rgba(233, 83, 63, 0.5), 0 0 40px rgba(233, 83, 63, 0.2), 0 1px 0 rgba(255,255,255,0.25) inset; }
+  50%      { box-shadow: 0 8px 32px rgba(233, 83, 63, 0.7), 0 0 60px rgba(233, 83, 63, 0.35), 0 1px 0 rgba(255,255,255,0.25) inset; }
+}
+
+.hero .md-button--primary:hover {
+  animation: none;
+  transform: translateY(-4px) scale(1.03);
+}
+
+.hero .md-button:not(.md-button--primary) {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #ffffff !important;
+  border: 2px solid rgba(255, 255, 255, 0.28) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.hero .md-button:not(.md-button--primary):hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  transform: translateY(-4px);
+}
+
+.hero .hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6em 1.25em;
+  margin-top: 1.75em;
+  font-size: 0.82rem;
+  color: rgba(232, 234, 239, 0.7);
+}
+
+.hero .hero-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
+.hero .hero-meta span::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--igg-coral-bright);
+  box-shadow: 0 0 8px var(--igg-coral-glow);
+}
+
+/* ---------- Feature cards grid ---------- */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.15rem;
+  margin: 1.5em 0 2.5em;
+}
+
+.feature-card {
+  position: relative;
+  background: var(--igg-surface);
+  border: 1px solid var(--igg-border);
+  border-radius: var(--igg-radius-lg);
+  padding: 1.45em 1.35em 1.35em;
+  box-shadow: var(--igg-card-shadow);
+  transition: transform 0.3s var(--igg-ease), box-shadow 0.3s var(--igg-ease), border-color 0.3s ease;
+  overflow: hidden;
+}
+
+.feature-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--igg-coral), var(--igg-indigo-soft));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--igg-card-hover-shadow);
+  border-color: rgba(233, 83, 63, 0.35);
+}
+
+.feature-card:hover::before {
+  opacity: 1;
+}
+
+.feature-card .icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  margin-bottom: 0.9em;
+  font-size: 1.35rem;
+  border-radius: 12px;
+  background: linear-gradient(145deg, var(--igg-coral-soft), rgba(78, 91, 166, 0.12));
+  border: 1px solid rgba(233, 83, 63, 0.2);
+  box-shadow: 0 4px 14px rgba(233, 83, 63, 0.12);
+}
+
+.feature-card h3 {
+  margin: 0 0 0.4em !important;
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  border: none !important;
+  padding: 0 !important;
+  letter-spacing: -0.015em;
+}
+
+.feature-card h3::after {
+  display: none !important;
+}
+
+.feature-card p {
+  margin: 0;
+  color: var(--igg-muted);
+  font-size: 0.9em;
+  line-height: 1.55;
+}
+
+/* ---------- Link cards (start-here / guides) ---------- */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  margin: 1.25em 0 2.25em;
+}
+
+.card-grid a.link-card {
+  display: block;
+  padding: 1.25em 1.3em;
+  background: var(--igg-surface);
+  border: 1px solid var(--igg-border);
+  border-radius: var(--igg-radius);
+  box-shadow: var(--igg-card-shadow);
+  text-decoration: none !important;
+  color: inherit !important;
+  transition: transform 0.25s var(--igg-ease), box-shadow 0.25s var(--igg-ease), border-color 0.25s ease;
+  position: relative;
+}
+
+.card-grid a.link-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(233, 83, 63, 0.4);
+  box-shadow: var(--igg-card-hover-shadow), 0 0 0 1px rgba(233, 83, 63, 0.08);
+  color: inherit !important;
+}
+
+.card-grid a.link-card .card-kicker {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--igg-coral);
+  margin-bottom: 0.4em;
+}
+
+.card-grid a.link-card strong {
+  display: block;
+  font-size: 1.02rem;
+  font-weight: 700;
+  margin-bottom: 0.35em;
+  color: var(--md-default-fg-color);
+}
+
+.card-grid a.link-card span.card-desc {
+  display: block;
+  font-size: 0.88em;
+  color: var(--igg-muted);
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+.card-grid a.link-card::after {
+  content: "→";
+  position: absolute;
+  top: 1.2em;
+  right: 1.2em;
+  font-size: 1.1rem;
+  color: var(--igg-coral);
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.2s ease, transform 0.25s var(--igg-ease);
+}
+
+.card-grid a.link-card:hover::after {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Accent variants */
+.link-card[data-accent="coral"] { border-top: 3px solid var(--igg-coral); }
+.link-card[data-accent="indigo"] { border-top: 3px solid var(--igg-indigo); }
+.link-card[data-accent="emerald"] { border-top: 3px solid #10b981; }
+.link-card[data-accent="amber"] { border-top: 3px solid #f59e0b; }
+.link-card[data-accent="violet"] { border-top: 3px solid #8b5cf6; }
+.link-card[data-accent="sky"] { border-top: 3px solid #0ea5e9; }
+
+/* ---------- Screenshot gallery ---------- */
+.shot-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin: 1.5em 0 2.5em;
+}
+
+@media (max-width: 800px) {
+  .shot-gallery {
+    grid-template-columns: 1fr;
+  }
+}
+
+.shot-gallery a {
+  display: block;
+  border-radius: var(--igg-radius);
+  overflow: hidden;
+  border: 1px solid var(--igg-border);
+  box-shadow: var(--igg-card-shadow);
+  background: var(--igg-surface-2);
+  transition: transform 0.3s var(--igg-ease), box-shadow 0.3s var(--igg-ease);
+  text-decoration: none !important;
+}
+
+.shot-gallery a:hover {
+  transform: translateY(-6px) scale(1.015);
+  box-shadow: var(--igg-card-hover-shadow), 0 0 0 1px rgba(233, 83, 63, 0.25);
+}
+
+.shot-gallery img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  transition: transform 0.4s var(--igg-ease);
+}
+
+.shot-gallery a:hover img {
+  transform: scale(1.03);
+}
+
+.shot-gallery .shot-label {
+  display: block;
+  padding: 0.65em 0.9em;
+  font-size: 0.8rem;
+  font-weight: 650;
+  text-align: center;
+  color: var(--md-default-fg-color);
+  background: var(--igg-surface);
+  border-top: 1px solid var(--igg-border);
+}
+
+/* ---------- Section intro ---------- */
+.section-intro {
+  color: var(--igg-muted);
+  font-size: 1.05em;
+  max-width: 52em;
+  margin-bottom: 0.5em !important;
+}
+
+/* ---------- Reading path ---------- */
+.reading-path {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 1.25em 0 2em;
+  padding: 0;
+  list-style: none;
+  counter-reset: path;
+}
+
+.reading-path li {
+  counter-increment: path;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9em;
+  padding: 0.85em 1.1em;
+  background: var(--igg-surface);
+  border: 1px solid var(--igg-border);
+  border-radius: var(--igg-radius);
+  box-shadow: var(--igg-card-shadow);
+  transition: border-color 0.2s ease, transform 0.2s var(--igg-ease);
+}
+
+.reading-path li:hover {
+  border-color: rgba(233, 83, 63, 0.35);
+  transform: translateX(4px);
+}
+
+.reading-path li::before {
+  content: counter(path);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 0.85rem;
+  color: #fff;
+  background: linear-gradient(135deg, var(--igg-coral), var(--igg-coral-bright));
+  box-shadow: 0 4px 12px var(--igg-coral-glow);
+}
+
+.reading-path li a {
+  font-weight: 650;
+}
+
+/* ---------- Stats strip ---------- */
+.stats-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.85rem;
+  margin: 0 0 2.5em;
+}
+
+.stat-pill {
+  text-align: center;
+  padding: 1.1em 0.75em;
+  background: var(--igg-surface);
+  border: 1px solid var(--igg-border);
+  border-radius: var(--igg-radius);
+  box-shadow: var(--igg-card-shadow);
+}
+
+.stat-pill .stat-value {
+  display: block;
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, var(--igg-coral), var(--igg-coral-bright));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  line-height: 1.15;
+}
+
+.stat-pill .stat-label {
+  display: block;
+  margin-top: 0.25em;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--igg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ---------- Tables ---------- */
+.md-typeset table:not([class]) {
+  border-radius: var(--igg-radius);
+  overflow: hidden;
+  border: 1px solid var(--igg-border);
+  box-shadow: var(--igg-card-shadow);
+  display: table;
+  width: 100%;
+}
+
+.md-typeset table:not([class]) th {
+  background: linear-gradient(180deg, var(--igg-slate-700) 0%, #1a1e30 100%) !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  border-bottom: 2px solid rgba(233, 83, 63, 0.55);
+  letter-spacing: 0.02em;
+}
+
+[data-md-color-scheme="default"] .md-typeset table:not([class]) th {
+  background: linear-gradient(180deg, #3b457a 0%, #2f3660 100%) !important;
+}
+
+.md-typeset table:not([class]) td {
+  border-top: 1px solid var(--igg-border);
+}
+
+.md-typeset table:not([class]) tr:hover td {
+  background: var(--igg-coral-soft);
+}
+
+/* ---------- Admonitions ---------- */
+.admonition,
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: var(--igg-radius) !important;
+  box-shadow: var(--igg-card-shadow);
+  border-width: 0 0 0 4px !important;
+  overflow: hidden;
+}
+
+.admonition.tip,
+.md-typeset .admonition.tip {
+  border-left-color: #10b981 !important;
+}
+
+.admonition.warning,
+.md-typeset .admonition.warning {
+  border-left-color: var(--igg-coral) !important;
+}
+
+.admonition.danger,
+.md-typeset .admonition.danger {
+  border-left-color: #ef4444 !important;
+}
+
+.admonition.note,
+.md-typeset .admonition.note {
+  border-left-color: var(--igg-indigo) !important;
+}
+
+.admonition.info,
+.md-typeset .admonition.info {
+  border-left-color: #0ea5e9 !important;
+}
+
+/* ---------- Code ---------- */
+.md-typeset pre > code {
+  border-radius: 0 0 var(--igg-radius-sm) var(--igg-radius-sm);
+}
+
+.md-typeset .highlight {
+  border-radius: var(--igg-radius);
+  border: 1px solid var(--igg-border);
+  overflow: hidden;
+}
+
+.md-clipboard {
+  color: var(--igg-coral-bright) !important;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.md-clipboard:hover {
+  color: #fff !important;
+  transform: scale(1.08);
+}
+
+/* ---------- Images ---------- */
+.md-typeset img {
+  border-radius: var(--igg-radius);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+  max-width: 100%;
+  height: auto;
+}
+
+/* ---------- Mermaid ---------- */
+.mermaid {
+  text-align: center;
+  margin: 1.8em 0;
+  padding: 1.25em;
+  background: var(--igg-surface);
+  border: 1px solid var(--igg-border);
+  border-radius: var(--igg-radius-lg);
+  box-shadow: var(--igg-card-shadow);
+}
+
+/* ---------- Footer ---------- */
+.md-footer {
+  background: linear-gradient(180deg, #11131a 0%, #0a0c11 100%) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.md-footer-meta {
+  background: transparent !important;
+}
+
+.md-social__link {
+  transition: transform 0.2s var(--igg-ease), color 0.2s ease;
+}
+
+.md-social__link:hover {
+  transform: translateY(-3px) scale(1.1);
+  color: var(--igg-coral-bright) !important;
+}
+
+/* ---------- Content actions (edit/view) ---------- */
+.md-content__button {
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.md-content__button:hover {
+  color: var(--igg-coral-bright) !important;
+  transform: scale(1.1);
+}
+
+/* ---------- Scroll top button ---------- */
+.md-top {
+  background: linear-gradient(135deg, var(--igg-coral), var(--igg-coral-bright)) !important;
+  color: #fff !important;
+  border-radius: 12px !important;
+  box-shadow: 0 6px 20px var(--igg-coral-glow) !important;
+  transition: transform 0.2s var(--igg-ease), box-shadow 0.2s ease !important;
+}
+
+.md-top:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 10px 28px rgba(233, 83, 63, 0.55) !important;
+}
+
+/* ---------- Tabbed content ---------- */
+.md-typeset .tabbed-labels > label {
+  border-radius: 8px 8px 0 0;
+  font-weight: 600;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.md-typeset .tabbed-labels > label:hover {
+  color: var(--igg-coral-bright) !important;
+}
+
+.md-typeset .tabbed-set > input:checked + label {
+  color: var(--igg-coral) !important;
+  border-color: var(--igg-coral) !important;
+}
+
+/* ---------- Homepage-only spacing when nav/toc hidden ---------- */
+.md-content[data-md-component="content"] article > .hero:first-child {
+  margin-top: 0.5em;
+}
+
+/* ---------- Version note banner ---------- */
+.version-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75em 1.25em;
+  margin: 2.5em 0 1em;
+  padding: 1em 1.25em;
+  background: linear-gradient(135deg, var(--igg-coral-soft), rgba(78, 91, 166, 0.1));
+  border: 1px solid rgba(233, 83, 63, 0.25);
+  border-radius: var(--igg-radius);
+  font-size: 0.92em;
+}
+
+.version-banner strong {
+  color: var(--igg-coral);
+}
+
+/* ---------- Horizontal rule polish ---------- */
+.md-typeset hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--igg-border) 15%, var(--igg-border) 85%, transparent);
+  margin: 2.5em 0;
+}
+
+/* ---------- Selection ---------- */
+::selection {
+  background: rgba(233, 83, 63, 0.35);
+  color: inherit;
+}
+
+/* ---------- Focus visible for a11y ---------- */
+.md-typeset a:focus-visible,
+.md-typeset .md-button:focus-visible,
+.md-nav__link:focus-visible {
+  outline: 2px solid var(--igg-coral-bright);
+  outline-offset: 3px;
+}
+
+/* ---------- Mobile tweaks ---------- */
+@media (max-width: 600px) {
+  .hero {
+    padding: 2.5em 1.35em 2.25em;
+    border-radius: var(--igg-radius-lg);
+  }
+
+  .hero a.md-button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .hero .hero-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .feature-grid,
+  .card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+
+================================================================================
+FILE 9 / 35: docs/assets/js/sponsor-header.js (Lines 1-32)
+================================================================================
+document.addEventListener("DOMContentLoaded", function () {
+  if (document.querySelector(".igg-sponsor-wrapper")) return;
+
+  // Simple-icons clean single-path SVGs (both use currentColor)
+  const sponsorSVG = `<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M17.625 1.499c-2.32 0-4.354 1.203-5.625 3.03-1.271-1.827-3.305-3.03-5.625-3.03C3.129 1.499 0 4.253 0 8.249c0 4.275 3.068 7.847 5.828 10.227a33.14 33.14 0 0 0 5.616 3.876l.028.017.008.003-.001.003c.163.085.342.126.521.125.179.001.358-.041.521-.125l-.001-.003.008-.003.028-.017a33.14 33.14 0 0 0 5.616-3.876C20.932 16.096 24 12.524 24 8.249c0-3.996-3.129-6.75-6.375-6.75zm-.919 15.275a30.766 30.766 0 0 1-4.703 3.316l-.004-.002-.004.002a30.955 30.955 0 0 1-4.703-3.316c-2.677-2.307-5.047-5.298-5.047-8.523 0-2.754 2.121-4.5 4.125-4.5 2.06 0 3.914 1.479 4.544 3.684.143.495.596.797 1.086.796.49.001.943-.302 1.085-.796.63-2.205 2.484-3.684 4.544-3.684 2.004 0 4.125 1.746 4.125 4.5 0 3.225-2.37 6.216-5.048 8.523z"/></svg>`;
+
+  const bmcSVG = `<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M20.216 6.415l-.132-.666c-.119-.598-.388-1.163-1.001-1.379-.197-.069-.42-.098-.57-.241-.152-.143-.196-.366-.231-.572-.065-.378-.125-.756-.192-1.133-.057-.325-.102-.69-.25-.987-.195-.4-.597-.634-.996-.788a5.723 5.723 0 00-.626-.194c-1-.263-2.05-.36-3.077-.416a25.834 25.834 0 00-3.7.062c-.915.083-1.88.184-2.75.5-.318.116-.646.256-.888.501-.297.302-.393.77-.177 1.146.154.267.415.456.692.58.36.162.737.284 1.123.366 1.075.238 2.189.331 3.287.37 1.218.05 2.437.01 3.65-.118.299-.033.598-.073.896-.119.352-.054.578-.513.474-.834-.124-.383-.457-.531-.834-.473-.466.074-.96.108-1.382.146-1.177.08-2.358.082-3.536.006a22.228 22.228 0 01-1.157-.107c-.086-.01-.18-.025-.258-.036-.243-.036-.484-.08-.724-.13-.111-.027-.111-.185 0-.212h.005c.277-.06.557-.108.838-.147h.002c.131-.009.263-.032.394-.048a25.076 25.076 0 013.426-.12c.674.019 1.347.067 2.017.144l.228.031c.267.04.533.088.798.145.392.085.895.113 1.07.542.055.137.08.288.111.431l.319 1.484a.237.237 0 01-.199.284h-.003c-.037.006-.075.01-.112.015a36.704 36.704 0 01-4.743.295 37.059 37.059 0 01-4.699-.304c-.14-.017-.293-.042-.417-.06-.326-.048-.649-.108-.973-.161-.393-.065-.768-.032-1.123.161-.29.16-.527.404-.675.701-.154.316-.199.66-.267 1-.069.34-.176.707-.135 1.056.087.753.613 1.365 1.37 1.502a39.69 39.69 0 0011.343.376.483.483 0 01.535.53l-.071.697-1.018 9.907c-.041.41-.047.832-.125 1.237-.122.637-.553 1.028-1.182 1.171-.577.131-1.165.2-1.756.205-.656.004-1.31-.025-1.966-.022-.699.004-1.556-.06-2.095-.58-.475-.458-.54-1.174-.605-1.793l-.731-7.013-.322-3.094c-.037-.351-.286-.695-.678-.678-.336.015-.718.3-.678.679l.228 2.185.949 9.112c.147 1.344 1.174 2.068 2.446 2.272.742.12 1.503.144 2.257.156.966.016 1.942.053 2.892-.122 1.408-.258 2.465-1.198 2.616-2.657.34-3.332.683-6.663 1.024-9.995l.215-2.087a.484.484 0 01.39-.426c.402-.078.787-.212 1.074-.518.455-.488.546-1.124.385-1.766zm-1.478.772c-.145.137-.363.201-.578.233-2.416.359-4.866.54-7.308.46-1.748-.06-3.477-.254-5.207-.498-.17-.024-.353-.055-.47-.18-.22-.236-.111-.71-.054-.995.052-.26.152-.609.463-.646.484-.057 1.046.148 1.526.22.577.088 1.156.159 1.737.212 2.48.226 5.002.19 7.472-.14.45-.06.899-.13 1.345-.21.399-.072.84-.206 1.08.206.166.281.188.657.162.974a.544.544 0 01-.169.364zm-6.159 3.9c-.862.37-1.84.788-3.109.788a5.884 5.884 0 01-1.569-.217l.877 9.004c.065.78.717 1.38 1.5 1.38 0 0 1.243.065 1.658.065.447 0 1.786-.065 1.786-.065.783 0 1.434-.6 1.499-1.38l.94-9.95a3.996 3.996 0 00-1.322-.238c-.826 0-1.491.284-2.26.613z"/></svg>`;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "igg-sponsor-wrapper";
+  wrapper.innerHTML = `
+    <a href="https://github.com/sponsors/shitan198u"
+       target="_blank" rel="noopener"
+       class="igg-sponsor-btn igg-sponsor-btn--github"
+       title="Sponsor on GitHub ♥">
+      ${sponsorSVG}
+      <span>Sponsor</span>
+    </a>
+    <a href="https://www.buymeacoffee.com/shivashitan"
+       target="_blank" rel="noopener"
+       class="igg-sponsor-btn igg-sponsor-btn--bmc"
+       title="Buy Me a Coffee">
+      ${bmcSVG}
+      <span>Coffee</span>
+    </a>
+  `;
+
+  const sourceWidget = document.querySelector(".md-header__source");
+  if (sourceWidget && sourceWidget.parentNode) {
+    sourceWidget.parentNode.insertBefore(wrapper, sourceWidget);
+  }
+});
+
+
+
+================================================================================
+FILE 10 / 35: docs/assets/logo.svg (Lines 1-24)
+================================================================================
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a1f35"/>
+      <stop offset="45%" stop-color="#3b457a"/>
+      <stop offset="100%" stop-color="#e9533f"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#e9533f" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="100" height="100" rx="24" fill="url(#grad)"/>
+  <rect width="100" height="100" rx="24" fill="url(#shine)"/>
+  <g filter="url(#soft)" fill="none" stroke="#ffffff" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M28 36 C28 32.5 30.5 30 34 30 L66 30 C69.5 30 72 32.5 72 36 L72 66 C72 69.5 69.5 72 66 72 L34 72 C30.5 72 28 69.5 28 66 Z" stroke-width="5"/>
+    <circle cx="50" cy="51" r="13" stroke-width="5"/>
+    <circle cx="64" cy="38" r="3.5" fill="#ffffff" stroke="none"/>
+    <path d="M22 70 L34 56 L44 66 L58 48 L80 72" stroke-width="4" opacity="0.55"/>
+  </g>
+</svg>
+
+
+
+================================================================================
+FILE 11 / 35: docs/assets/sponsor-heart.svg (Lines 1-1)
+================================================================================
+<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><title>GitHub Sponsors</title><path d="M17.625 1.499c-2.32 0-4.354 1.203-5.625 3.03-1.271-1.827-3.305-3.03-5.625-3.03C3.129 1.499 0 4.253 0 8.249c0 4.275 3.068 7.847 5.828 10.227a33.14 33.14 0 0 0 5.616 3.876l.028.017.008.003-.001.003c.163.085.342.126.521.125.179.001.358-.041.521-.125l-.001-.003.008-.003.028-.017a33.14 33.14 0 0 0 5.616-3.876C20.932 16.096 24 12.524 24 8.249c0-3.996-3.129-6.75-6.375-6.75zm-.919 15.275a30.766 30.766 0 0 1-4.703 3.316l-.004-.002-.004.002a30.955 30.955 0 0 1-4.703-3.316c-2.677-2.307-5.047-5.298-5.047-8.523 0-2.754 2.121-4.5 4.125-4.5 2.06 0 3.914 1.479 4.544 3.684.143.495.596.797 1.086.796.49.001.943-.302 1.085-.796.63-2.205 2.484-3.684 4.544-3.684 2.004 0 4.125 1.746 4.125 4.5 0 3.225-2.37 6.216-5.048 8.523z"/></svg>
+
+
+================================================================================
+FILE 12 / 35: docs/developer-guide/adding-tabs-and-flags.md (Lines 1-150)
+================================================================================
+# Adding Tabs and Flags
+
+This guide covers extending the GUI when immich-go adds new subcommands or flags.
+
+## Adding a New Tab
+
+Adding a tab requires changes across schema, UI, tests, and fixtures. Follow this checklist:
+
+### 1. Define the tab key in `core/cli_schema.py`
+
+```python
+TAB_KEYS.append("upload-newsource")  # Add to TAB_KEYS list
+
+TAB_COMMANDS["upload-newsource"] = ["upload", "from-newsource"]
+
+UPLOAD_TABS.add("upload-newsource")  # Or ARCHIVE_TABS
+
+# If server credentials required:
+SERVER_REQUIRED_TABS.add("upload-newsource")
+# If serverless archive:
+SERVERLESS_TABS.add("upload-newsource")
+```
+
+### 2. Add allowed flags
+
+Capture CLI help for the new subcommand (see [Scripts](scripts.md)), then add the flag set:
+
+```python
+TAB_ALLOWED_FLAGS["upload-newsource"] = frozenset({
+    "server", "dry-run", "log-level",
+    # ... all flags from immich-go --help
+})
+```
+
+### 3. Add environment variable mapping (if secrets involved)
+
+```python
+ENV_KEY_MAP["upload-newsource"] = {
+    "server": "IMMICH_GO_UPLOAD_SERVER",
+    "api_key": "IMMICH_GO_UPLOAD_API_KEY",
+}
+```
+
+### 4. Define advanced flags in `core/advanced_flags.py`
+
+Add entries to `ADVANCED_FLAGS` for the new tab with correct `FlagDef` kinds and scopes.
+
+### 5. Build the UI tab in `app.py`
+
+- Add sidebar entry and stacked page
+- Create form widgets for simple-mode fields
+- Wire save/load to `form_state` under the tab key
+- Connect Run button to `run_command()` with the tab key
+
+### 6. Add tests and fixtures
+
+In `tests/test_app.py`:
+
+- Add golden JSON state fixture in `tests/fixtures/command_states/`
+- Add test asserting `build_plan_from_state()` produces expected argv
+- Use `_norm_argv()` for cross-platform path comparisons
+
+### 7. Capture CLI help fixture
+
+```bash
+uv run scripts/capture_cli_help.py
+```
+
+Run `check_fixtures()` tests to verify allowlist parity.
+
+## Adding a Flag to an Existing Tab
+
+### 1. Verify the flag exists in immich-go
+
+Run the binary's `--help` for the relevant subcommand.
+
+### 2. Add to `TAB_ALLOWED_FLAGS`
+
+```python
+TAB_ALLOWED_FLAGS["upload-folder"] = frozenset({
+    # existing flags...
+    "new-flag-name",
+})
+```
+
+### 3. Add to `ADVANCED_FLAGS` in `core/advanced_flags.py`
+
+```python
+FlagDef(
+    name="new-flag-name",
+    kind="bool",  # or str, int, enum, etc.
+    scope="subcommand",
+    default=False,
+)
+```
+
+Associate the flag with the correct tab in the `ADVANCED_FLAGS` registry structure.
+
+### 4. Add UI widget (if simple mode)
+
+For high-frequency flags, add a control in simple mode section of the tab builder in `app.py`. Advanced-only flags are auto-generated from `ADVANCED_FLAGS`.
+
+### 5. Update tests
+
+- Extend golden fixture JSON if the flag affects command output
+- Add validation test if the flag has constraints
+
+## Serverless Tab Rule
+
+For tabs in `SERVERLESS_TABS`, the command builder must never emit:
+
+- `--server`
+- `--api-key`
+- `--client-timeout`
+
+Add a test asserting these flags are absent from the built plan.
+
+## Secret Flag Handling
+
+If a new flag carries a secret value:
+
+1. Mark `secret=True` in `FlagDef`
+2. Add to `SECRET_FLAGS` if it appears in argv (prefer env delivery instead)
+3. Map to an env var in `ENV_KEY_MAP`
+4. Verify `mask_command_for_display()` redacts it
+
+**Never** pass secrets via argv. Use `build_environment()` to inject env vars.
+
+## Version Compatibility
+
+When immich-go releases a new version:
+
+1. Capture new CLI help fixtures
+2. Update `TAB_ALLOWED_FLAGS` for any flag changes
+3. Update `COMPATIBILITY_MATRIX` and `VERSION_NOTES` in `cli_schema.py` / `binary_manager.py`
+4. Update `TESTED_IMMICH_GO_VERSIONS` after full test pass
+5. Document changes in `CHANGELOG.md`
+
+See [immich-go Compatibility](../reference/immich-go-compatibility.md).
+
+## Validation Checklist
+
+Before opening a PR:
+
+- [ ] Tab appears in sidebar and saves form state
+- [ ] Command preview shows correct masked output
+- [ ] Run launches immich-go with expected argv/env
+- [ ] Serverless tabs omit server flags
+- [ ] Tests pass: `uv run pytest`
+- [ ] CLI fixtures updated if immich-go version changed
+
+
+
+================================================================================
+FILE 13 / 35: docs/developer-guide/architecture.md (Lines 1-221)
+================================================================================
+# Architecture
+
+Immich-Go GUI is a desktop application with a deliberate separation between Qt UI code and testable business logic.
+
+## High-Level Overview
+
+```mermaid
+flowchart TB
+    classDef userStyle fill:#6366f1,stroke:#4338ca,color:#fff,stroke-width:2px
+    classDef uiStyle fill:#0ea5e9,stroke:#0369a1,color:#fff,stroke-width:2px
+    classDef coreStyle fill:#8b5cf6,stroke:#6d28d9,color:#fff,stroke-width:2px
+    classDef runStyle fill:#f59e0b,stroke:#b45309,color:#fff,stroke-width:2px
+    classDef extStyle fill:#10b981,stroke:#047857,color:#fff,stroke-width:2px
+    classDef storStyle fill:#ec4899,stroke:#be185d,color:#fff,stroke-width:2px
+
+    User([👤 User]):::userStyle
+
+    subgraph UI["🖥️  UI Layer — app.py / theme.py"]
+        direction TB
+        AppPy[app.py\nTabs · Widgets · Events]:::uiStyle
+        ThemePy[theme.py\nPalette · Icons]:::uiStyle
+    end
+
+    subgraph Core["⚙️  core/ — Qt-free business logic"]
+        direction LR
+        Builder[command_builder\nCommandPlan]:::coreStyle
+        Config[config_manager\nTOML + keyring]:::coreStyle
+        BinMgr[binary_manager\nGitHub Releases]:::coreStyle
+        Validator[validation]:::coreStyle
+        Tracker[process_tracker\nLock files]:::coreStyle
+        Terminal[terminal_launcher]:::runStyle
+    end
+
+    subgraph Ext["☁️  External"]
+        direction LR
+        ImmichGo[immich-go CLI]:::extStyle
+        ImmichAPI[(Immich Server)]:::extStyle
+        GitHub[(GitHub Releases)]:::extStyle
+    end
+
+    User -->|interact| UI
+    AppPy --> Builder
+    AppPy --> Config
+    AppPy --> BinMgr
+    AppPy --> Tracker
+    Builder -->|argv + masked env| Terminal
+    Terminal -->|launch subprocess| ImmichGo
+    BinMgr -->|download / verify SHA256| GitHub
+    Config -->|pre-flight ping| ImmichAPI
+    ImmichGo -->|upload / archive / stack| ImmichAPI
+```
+
+## High-Level Structure
+
+```text
+immich-go-gui/
+├── app.py                 # Qt UI: tabs, widgets, run/save/load orchestration
+├── theme.py               # Theming: Fusion style, palettes, SVG icons
+├── core/                  # Qt-free business logic (testable without GUI)
+│   ├── models.py          # Dataclasses / enums
+│   ├── cli_schema.py      # Tab keys, allowlists, env maps
+│   ├── advanced_flags.py  # Advanced flag registry
+│   ├── command_builder.py # state → CommandPlan
+│   ├── config_manager.py  # TOML + keyring secrets
+│   ├── profile_manager.py # Multi-profile index
+│   ├── binary_manager.py  # immich-go download / versions
+│   ├── network.py         # Pre-flight Immich checks
+│   ├── process_tracker.py # Run locks
+│   ├── terminal_launcher.py
+│   ├── validation.py
+│   ├── cli_help.py / cli_contract.py
+│   └── __init__.py        # Public re-exports
+├── tests/                 # pytest + pytest-qt + fixtures
+├── scripts/               # CLI help capture, review bundles
+├── docs/                  # User + developer + reference docs
+├── packaging/             # Linux nfpm + Windows Inno Setup
+└── assets/icons/          # Sidebar SVG icons
+```
+
+## Layer Responsibilities
+
+| Layer | Files | Responsibility |
+|-------|-------|----------------|
+| **UI** | `app.py`, `theme.py` | Widgets, layouts, user input, visual feedback |
+| **Core** | `core/*.py` | CLI schema, command building, config, binary mgmt, process locks |
+| **External** | immich-go CLI, Immich API, GitHub Releases | Runtime dependencies |
+
+The `core/` package MUST NOT import PySide6 or Qt. All network, file I/O, subprocess, and keyring operations live here so unit tests can run headlessly.
+
+## Data Flow
+
+```mermaid
+flowchart LR
+    subgraph ui [UI Layer]
+        AppPy[app.py]
+        ThemePy[theme.py]
+    end
+    subgraph corePkg [core package]
+        Schema[cli_schema]
+        Builder[command_builder]
+        Config[config_manager]
+        Binary[binary_manager]
+        Terminal[terminal_launcher]
+        Lock[process_tracker]
+    end
+    subgraph external [External]
+        ImmichAPI[Immich REST API]
+        GitHubAPI[GitHub Releases]
+        ImmichGoCLI[immich-go CLI]
+    end
+    AppPy --> Schema
+    AppPy --> Builder
+    AppPy --> Config
+    AppPy --> Binary
+    AppPy --> Terminal
+    AppPy --> Lock
+    Builder --> ImmichGoCLI
+    Binary --> GitHubAPI
+    Config --> ImmichAPI
+    Terminal --> ImmichGoCLI
+```
+
+### Typical Run Sequence
+
+```mermaid
+sequenceDiagram
+
+participant User
+participant GUI
+participant Builder
+participant Process
+participant Immich
+
+User->>GUI: Configure Import
+
+GUI->>Builder: Build Command
+
+Builder-->>GUI: Generated Command
+
+User->>GUI: Start
+
+GUI->>Process: Launch Process
+
+Process->>Immich: Execute immich-go
+
+Immich-->>Process: Progress
+
+Process-->>GUI: Live Logs
+
+GUI-->>User: Status Updates
+```
+
+1. User fills form fields on a workflow tab in `app.py`.
+2. `build_plan_from_state()` in `core/command_builder.py` validates input and produces a `CommandPlan` (argv + env + masked display).
+3. Pre-flight check calls `core/network.py` for server-required tabs.
+4. `core/process_tracker.py` creates a lock file to prevent concurrent runs.
+5. `core/terminal_launcher.py` opens an external terminal running immich-go with the constructed argv and env.
+6. Lock is released when the process exits (Windows uses a heartbeat helper for cleanup).
+
+## CLI Parity Model
+
+The GUI maintains **11/11 parity** with immich-go subcommands:
+
+- 5 upload tabs
+- 5 archive tabs
+- 1 stack tab
+
+Each tab maps to a fixed command token list in `core/cli_schema.py` (`TAB_COMMANDS`). Allowed flags per tab are defined in `TAB_ALLOWED_FLAGS` and validated at build time.
+
+### Serverless Tab Rule
+
+These archive tabs are classified as `SERVERLESS_TABS`:
+
+- `archive-folder`, `archive-gp`, `archive-icloud`, `archive-picasa`
+
+They must **never** emit `--server`, `--api-key`, or `--client-timeout` flags.
+
+## Security Model
+
+| Concern | Implementation |
+|---------|----------------|
+| Secret storage | OS keyring via `keyring` library; scoped per profile |
+| Secret delivery | Environment variables in `subprocess.Popen` env dict — never argv |
+| Disk scripts | Launch scripts must NOT write secrets to shell files |
+| Preview redaction | `mask_command_for_display()` masks `--api-key`, `--from-api-key`, etc. |
+| SSL bypass | Inline warning banner when `--skip-verify-ssl` is enabled |
+
+See [Environment Variables](../reference/environment-variables.md) for the env var map.
+
+## Configuration Persistence
+
+- Per-profile TOML files via `core/config_manager.py` and `core/profile_manager.py`
+- Form field values stored in `form_state` dict within config
+- Legacy QSettings migration for API keys handled once on startup
+
+## Process Lock Lifecycle
+
+Lock files live in `{config_dir}/locks/run_{id}.lock` as JSON documents tracking GUI PID, tab key, and command summary.
+
+- **POSIX:** Launcher uses a temporary run directory with safe `$HOME` fallback to avoid CWD deletion errors.
+- **Windows:** `.bat` launcher runs a background `.heartbeat` process to clean `.lock` files if the terminal is killed abruptly.
+
+## Entry Point
+
+```python
+# app.py
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    set_fusion_style()
+    window = ImmichGoGUI()
+    window.show()
+    sys.exit(app.exec())
+```
+
+Run with: `uv run app.py`
+
+## Further Reading
+
+- [Core Modules](core-modules.md) — Detailed module reference
+- [Adding Tabs and Flags](adding-tabs-and-flags.md) — Extension guide
+- [Testing](testing.md) — Test infrastructure
+
+
+
+================================================================================
+FILE 14 / 35: docs/developer-guide/ci-cd-and-releases.md (Lines 1-97)
+================================================================================
+# CI/CD and Releases
+
+## Branching Policy
+
+| Branch | Purpose |
+|--------|---------|
+| `master` | Production; updated via Release Please PR merges only |
+| `staging` | Active development and integration |
+| Feature branches | Target `staging` via pull request |
+
+Pull requests to `master` come from `staging`. Merges from `staging` into `master` **must use squash merge** to keep Release Please commit history clean.
+
+## GitHub Actions Workflows
+
+| Workflow | File | Trigger | Purpose |
+|----------|------|---------|---------|
+| CI Checks | `.github/workflows/ci.yml` | Push to `master` | Multi-OS pytest |
+| PR Fast Feedback | `.github/workflows/pr-fast-feedback.yml` | PR to `master`/`staging` | Tests, CodeQL, Nuitka smoke, PR comments |
+| CodeQL | `.github/workflows/codeql.yml` | Push/PR/schedule | Python security scanning |
+| Release Please | `.github/workflows/release-please.yml` | Push to `master` | Automated version bump PR |
+| Release Build | `.github/workflows/release.yml` | Tag `v*` or manual | Build and publish release artifacts |
+| Manual Prerelease | `.github/workflows/manual-prerelease.yml` | Manual dispatch | Pre-release builds |
+
+## Release Please
+
+Configuration files:
+
+- `.github/release-please-config.json`
+- `.github/.release-please-manifest.json`
+
+When merging to `master`, Release Please opens a version bump PR. On merge, it creates a GitHub Release and triggers the release build workflow.
+
+**Important:** Update `.github/.release-please-manifest.json` when performing manual version bumps so Release Please tracks the correct baseline.
+
+Current version is defined in `pyproject.toml` (e.g. `1.1.2`).
+
+## Release Artifacts
+
+Built with Nuitka (directives embedded at top of `app.py`):
+
+| Platform | Formats |
+|----------|---------|
+| Windows | Setup `.exe`, portable `.exe` |
+| macOS | `.dmg` app bundle |
+| Linux | AppImage, `.deb`, `.rpm`, `.tar.gz` |
+
+### Artifact Naming Convention
+
+All packages include version and architecture:
+
+```text
+Immich-Go-GUI-{VERSION}-{OS}-{ARCH}.{ext}
+```
+
+Examples:
+
+- `Immich-Go-GUI-1.1.0-Windows-x86_64-Setup.exe`
+- `Immich-Go-GUI-1.1.0-Linux-x86_64.AppImage`
+
+## Packaging Configs
+
+| Platform | Config |
+|----------|--------|
+| Windows | `packaging/windows/installer.iss` (Inno Setup) |
+| Linux DEB/RPM | `packaging/linux/nfpm.yaml` |
+| Linux desktop entry | `packaging/linux/immich-go-gui.desktop` |
+
+### Build Rules
+
+- **App icon:** `immich-go-gui.ico` is committed in repo root. Do not add PIL conversion scripts.
+- **Inno Setup output:** `OutputDir=..\..\` — release workflow moves `.exe` files back to workspace root before artifact upload.
+- **AppImageTool:** Uses continuous release from AppImageKit with `--appimage-extract-and-run`.
+
+## Local Nuitka Builds
+
+See [CONTRIBUTING](../CONTRIBUTING.md) for per-OS Nuitka commands.
+
+## Tooling Conventions
+
+- **Package manager:** Always use `uv` (`uv sync`, `uv run pytest`, `uv run app.py`)
+- **GitHub CLI:** Use standard user auth for `gh` commands locally; do not pass `GITHUB_TOKEN`/`GH_TOKEN` overrides
+- **Lint/format:** Ruff via pre-commit
+
+## Dependabot
+
+Configured in `.github/dependabot.yml` for dependency update PRs (open PR limit currently 15).
+
+## Conventional commits
+
+Release Please groups commits by type. Prefer:
+
+```text
+feat: …    fix: …    docs: …    sec: …    refactor: …
+test: …    ci: …     chore: …
+```
+
+See [CONTRIBUTING](../CONTRIBUTING.md) for the full contributor workflow.
+
+
+
+================================================================================
+FILE 15 / 35: docs/developer-guide/core-modules.md (Lines 1-161)
+================================================================================
+# Core Modules
+
+The `core/` package contains all business logic. It is imported by `app.py` and fully testable without Qt.
+
+Public API exports are defined in `core/__init__.py`.
+
+## Module Reference
+
+### `core/models.py`
+
+Pure dataclasses and enums. No I/O.
+
+| Type | Purpose |
+|------|---------|
+| `AppConfig` | User configuration model (server, theme, form_state, etc.) |
+| `CommandPlan` | Resolved argv, env, display_argv, warnings, errors |
+| `ValidationResult` | Form validation errors and warnings |
+| `BinaryStatus` | immich-go binary health display data |
+| `UpdateDecision` | Binary update allow/block decision |
+| `VersionSupport` | Enum: tested, untested, unsupported, unknown |
+
+### `core/cli_schema.py`
+
+Stable metadata constants and compatibility matrices.
+
+| Export | Purpose |
+|--------|---------|
+| `TAB_KEYS` | All 12 internal tab keys (including `config`) |
+| `TAB_COMMANDS` | Tab key → immich-go command tokens |
+| `UPLOAD_TABS`, `ARCHIVE_TABS` | Tab set constants |
+| `SERVER_REQUIRED_TABS`, `SERVERLESS_TABS` | Server credential requirements |
+| `ENV_KEY_MAP` | Tab key → env var names for secrets |
+| `SECRET_FLAGS` | Flags masked in previews |
+| `TAB_ALLOWED_FLAGS` | Per-tab flag allowlist (from CLI help fixtures) |
+| `COMPATIBILITY_MATRIX` | Version-specific flag change notes |
+| `flag_allowed_for_tab()` | Runtime allowlist check |
+
+### `core/advanced_flags.py`
+
+Advanced flag definitions (`ADVANCED_FLAGS`) and validation logic (~1,500 lines). Defines flag kinds (bool, str, int, enum, date_range, path, etc.) and generates the advanced-mode form rows.
+
+### `core/command_builder.py`
+
+Builds `CommandPlan` from GUI form state.
+
+| Function | Purpose |
+|----------|---------|
+| `build_plan_from_state()` | Main entry: state dict → CommandPlan |
+| `build_environment()` | Construct env dict with secrets |
+| `validate_state()` | Validate form before run |
+| `mask_command_for_display()` | Redact secrets for preview |
+| `normalize_server_url()` | URL normalization |
+| `validate_date_range()` | Date range validation |
+| `collect_paths()` | Gather filesystem paths from state |
+
+### `core/config_manager.py`
+
+TOML configuration and secret management.
+
+| Function / Class | Purpose |
+|----------------|---------|
+| `SecretStore` | Keyring read/write scoped by profile |
+| `load_config()` / `save_config()` | TOML persistence |
+| `load_secrets()` / `save_secrets()` | Plaintext secrets.toml fallback |
+| `default_config_dir()` | OS-specific config directory |
+| `default_config_path()` | Active profile config.toml path |
+
+Config paths:
+
+- Linux: `~/.config/immich-go-gui/`
+- macOS: `~/Library/Application Support/immich-go-gui/`
+- Windows: `%APPDATA%/immich-go-gui/`
+
+### `core/profile_manager.py`
+
+Multi-profile management.
+
+| Function | Purpose |
+|----------|---------|
+| `list_profiles()` | List all profiles with active flag |
+| `create_profile()` | Create (optionally copy from existing) |
+| `duplicate_profile()` | Clone profile |
+| `rename_profile()` / `delete_profile()` | Profile lifecycle |
+| `active_profile_name()` / `set_active_profile_name()` | Active profile tracking |
+| `migrate_single_config_to_default()` | Legacy config migration |
+
+### `core/binary_manager.py`
+
+immich-go binary lifecycle.
+
+| Constant / Class | Purpose |
+|------------------|---------|
+| `RECOMMENDED_IMMICH_GO_VERSION` | Currently `0.32.0` |
+| `TESTED_IMMICH_GO_VERSIONS` | Frozenset of tested versions |
+| `BinaryManager` | Download, verify, update binary |
+| `get_version_support()` | Classify version compatibility |
+| `BINARY_BASE_DIR` | `~/.immich-go-gui/bin/` |
+
+Downloads from GitHub Releases with SHA256 verification.
+
+### `core/network.py`
+
+Immich server connectivity.
+
+| Function | Purpose |
+|----------|---------|
+| `test_immich_connection()` | GET `{server}/api/server/about` |
+| `check_preflight_server_connection()` | Pre-run validation wrapper |
+
+Uses `x-api-key` header; respects SSL skip setting.
+
+### `core/process_tracker.py`
+
+Run lock files to prevent concurrent immich-go executions.
+
+| Function | Purpose |
+|----------|---------|
+| `create_lock()` | Create JSON lock in `{config_dir}/locks/` |
+| `release_lock()` | Remove lock on completion |
+| `is_lock_active()` | Check if lock PID is alive |
+| `cleanup_stale_locks()` | Remove orphaned locks |
+| `scan_locks()` | List active locks |
+
+### `core/terminal_launcher.py`
+
+Cross-platform external terminal launch.
+
+| Function | Purpose |
+|----------|---------|
+| `launch_external_terminal()` | Open terminal with immich-go command |
+
+Platform-specific: gnome-terminal/konsole/xterm on Linux, Terminal.app on macOS, cmd.exe batch on Windows with heartbeat cleanup.
+
+### `core/cli_help.py` / `core/cli_contract.py`
+
+CLI help parsing and compatibility checking against versioned fixtures in `tests/fixtures/cli_help/`.
+
+| Function | Purpose |
+|----------|---------|
+| `parse_help_flags()` | Parse `--help` output into flag names |
+| `load_help_fixture()` | Load captured help for a tab |
+| `check_fixtures()` | Verify fixtures match allowlists |
+| `check_binary_help()` | Compare live binary help to fixtures |
+
+### `core/validation.py`
+
+Shared validation helpers for dates, paths, and destination folders.
+
+## Dependency Rules
+
+```text
+app.py  →  core/*  →  (stdlib, keyring, requests, packaging, psutil, tomli-w)
+core/*  ↛  PySide6, Qt
+tests/  →  app.py, core/*
+```
+
+## Further Reading
+
+- [Adding Tabs and Flags](adding-tabs-and-flags.md)
+- [Config Schema](../reference/config-schema.md)
+- [CLI Command Mapping](../reference/cli-command-mapping.md)
+
+
+
+================================================================================
+FILE 16 / 35: docs/developer-guide/scripts.md (Lines 1-77)
+================================================================================
+# Scripts
+
+Maintenance scripts in `scripts/` are Qt-free Python utilities. Run them with `uv`:
+
+```bash
+uv run scripts/<script>.py
+```
+
+## capture_cli_help.py
+
+Captures immich-go `--help` output into versioned test fixtures.
+
+**Purpose:** Keep `TAB_ALLOWED_FLAGS` and CLI contract tests aligned with the installed immich-go binary.
+
+**Usage:**
+
+```bash
+uv run scripts/capture_cli_help.py
+```
+
+**What it does:**
+
+1. Locates the immich-go binary via `core/binary_manager.get_binary_path()`
+2. Runs `--help` for each target subcommand (upload, archive, stack variants)
+3. Writes text files to `tests/fixtures/cli_help/{version}/`
+4. Generates a manifest JSON with capture metadata
+
+**Target commands** include root, all upload/archive subcommands, and stack — matching the 11 GUI tabs.
+
+**When to run:** After upgrading immich-go or when adding a new tab/subcommand.
+
+## bundle_codebase.py
+
+Bundles Python source files into a single text file for LLM code review.
+
+**Usage:**
+
+```bash
+uv run scripts/bundle_codebase.py [output_path]
+```
+
+Default output: `immichgo_modules_bundle.txt`
+
+**Bundled files:**
+
+- All `core/*.py` modules
+- `tests/test_app.py`
+- Other `scripts/*.py` (excluding itself)
+
+## generate_diff_bundle.py
+
+Generates a git diff bundle for code review.
+
+**Usage:**
+
+```bash
+uv run scripts/generate_diff_bundle.py
+```
+
+Useful for sharing changes with reviewers or AI assistants without exposing the full repository.
+
+## convert_markdown.py
+
+Converts Markdown files to interactive HTML.
+
+**Usage:**
+
+```bash
+uv run scripts/convert_markdown.py <input.md> [output.html]
+```
+
+Utility for rendering documentation or changelogs as standalone HTML pages.
+
+## Related Documentation
+
+- [Testing](testing.md) — Fixture regeneration workflow
+- [Adding Tabs and Flags](adding-tabs-and-flags.md) — When to capture new CLI help
+
+
+
+================================================================================
+FILE 17 / 35: docs/developer-guide/testing.md (Lines 1-132)
+================================================================================
+# Testing
+
+The test suite lives in `tests/test_app.py` (~100 tests) using pytest and pytest-qt.
+
+## Running Tests
+
+```bash
+uv sync --dev
+uv run pytest
+```
+
+### Headless Linux
+
+CI runs Linux tests with offscreen Qt and xvfb:
+
+```bash
+QT_QPA_PLATFORM=offscreen xvfb-run uv run pytest
+```
+
+Required system packages on Ubuntu (see `.github/workflows/ci.yml`):
+
+- `xvfb`, `libxkbcommon-x11-0`, `libxcb-cursor0`, and related XCB libraries
+
+macOS and Windows run `uv run pytest` directly without xvfb.
+
+## Test Categories
+
+### Golden Command Tests
+
+Verify that form state produces the expected `CommandPlan` argv and env for each tab. Fixtures live in `tests/fixtures/command_states/`.
+
+Example pattern:
+
+```python
+def test_golden_upload_folder(gui):
+    gui.toggle_advanced(False)
+    gui.inputs["upload-folder"]["path"].setText("/photos")
+    plan = gui.build_plan(dry_run=False)
+    assert _norm_argv(plan.argv) == _norm_argv([...])
+    assert plan.env.get("IMMICH_GO_UPLOAD_API_KEY") == "test-key"
+    assert not any("--api-key" in p for p in plan.argv)
+```
+
+Key assertions:
+
+- Correct command tokens for the tab
+- Secrets in env, not argv
+- Serverless tabs omit server flags
+
+### Cross-Platform Path Normalization
+
+All argv comparisons MUST use `_norm_argv()`:
+
+```python
+def _norm_argv(argv):
+    # Strips Windows drive letters (C:, D:)
+    # Normalizes backslashes to forward slashes
+    ...
+```
+
+This ensures tests pass on Linux, macOS, and Windows CI runners.
+
+### Headless Terminal Mocks
+
+Launcher tests mock platform and terminal detection:
+
+```python
+with patch("sys.platform", "linux"):
+    with patch("shutil.which", return_value="/usr/bin/gnome-terminal"):
+        result = launch_external_terminal(...)
+```
+
+This prevents CI failures when no terminal emulator is installed.
+
+### CLI Contract Tests
+
+`core/cli_contract.py` compares:
+
+- `TAB_ALLOWED_FLAGS` against captured CLI help fixtures
+- Live binary `--help` output (when binary present)
+
+Fixtures are stored in `tests/fixtures/cli_help/{version}/`.
+
+## Fixtures
+
+| Directory | Contents |
+|-----------|----------|
+| `tests/fixtures/cli_help/` | Captured `--help` text per immich-go version |
+| `tests/fixtures/command_states/` | Golden JSON form states per tab |
+
+## Regenerating CLI Help Fixtures
+
+When immich-go releases a new version:
+
+1. Install or download the new binary to `~/.immich-go-gui/bin/`
+2. Run the capture script:
+
+```bash
+uv run scripts/capture_cli_help.py
+```
+
+3. Update `TAB_ALLOWED_FLAGS` in `core/cli_schema.py` if flags changed
+4. Run tests and fix any golden fixture drift
+
+See [Scripts](scripts.md) for script details.
+
+## Writing New Tests
+
+1. Use the `gui` pytest fixture (pytest-qt) for widget interaction
+2. Call `gui.build_plan()` rather than clicking Run (avoids subprocess)
+3. Always `_norm_argv()` when comparing paths in argv
+4. Mock network, subprocess, and keyring for unit tests
+5. Use `pyfakefs` for filesystem tests where applicable
+
+## Pre-commit
+
+Local lint/format checks via pre-commit:
+
+```bash
+uv run pre-commit run --all-files
+```
+
+Configured in `.pre-commit-config.yaml`: trailing whitespace, YAML check, Ruff lint/format.
+
+## CI Matrix
+
+| Workflow | Trigger | Platforms |
+|----------|---------|-----------|
+| `ci.yml` | Push to `master` | ubuntu-22.04, macos-latest, windows-latest |
+| `pr-fast-feedback.yml` | PR to `master`/`staging` | Same + Nuitka smoke build, CodeQL |
+
+See [CI/CD and Releases](ci-cd-and-releases.md).
+
+
+
+================================================================================
+FILE 18 / 35: docs/overrides/main.html (Lines 1-5)
+================================================================================
+{% extends "base.html" %}
+
+{% block header %}
+  {{ super() }}
+{% endblock %}
+
+
+
+================================================================================
+FILE 19 / 35: docs/reference/cli-command-mapping.md (Lines 1-118)
+================================================================================
+# CLI Command Mapping
+
+The GUI exposes 11 immich-go subcommands across Upload, Archive, and Stack sections. Each tab has a stable internal key used in code, config, and tests.
+
+## Tab Key → Command Mapping
+
+| Internal tab key | GUI section | immich-go command | Server required |
+|------------------|-------------|-------------------|-----------------|
+| `upload-folder` | Upload | `upload from-folder` | Yes |
+| `upload-gp` | Upload | `upload from-google-photos` | Yes |
+| `upload-icloud` | Upload | `upload from-icloud` | Yes |
+| `upload-picasa` | Upload | `upload from-picasa` | Yes |
+| `upload-immich` | Upload | `upload from-immich` | Yes (source + destination) |
+| `archive-folder` | Archive | `archive from-folder` | No (serverless) |
+| `archive-gp` | Archive | `archive from-google-photos` | No (serverless) |
+| `archive-icloud` | Archive | `archive from-icloud` | No (serverless) |
+| `archive-picasa` | Archive | `archive from-picasa` | No (serverless) |
+| `archive-immich` | Archive | `archive from-immich` | Yes (source only) |
+| `stack` | Stack | `stack` | Yes |
+
+Defined in `core/cli_schema.py` as `TAB_COMMANDS`.
+
+## Tab Sets
+
+| Set | Tab keys |
+|-----|----------|
+| `UPLOAD_TABS` | `upload-folder`, `upload-gp`, `upload-icloud`, `upload-picasa`, `upload-immich` |
+| `ARCHIVE_TABS` | `archive-folder`, `archive-gp`, `archive-icloud`, `archive-picasa`, `archive-immich` |
+| `SERVER_REQUIRED_TABS` | All upload tabs + `archive-immich` + `stack` |
+| `SERVERLESS_TABS` | `archive-folder`, `archive-gp`, `archive-icloud`, `archive-picasa` |
+
+## Serverless Rule
+
+Tabs in `SERVERLESS_TABS` must never emit these flags:
+
+- `--server`
+- `--api-key`
+- `--client-timeout`
+
+## Example Constructed Commands
+
+Server URL may appear on argv as `--server=…`. **API keys never do** — they are injected via environment variables.
+
+### Upload from Folder (simple)
+
+```text
+immich-go upload from-folder --server=https://immich.example.com /path/to/photos
+```
+
+Also set in the process environment:
+
+- `IMMICH_GO_UPLOAD_SERVER`
+- `IMMICH_GO_UPLOAD_API_KEY` (never shown in argv / preview)
+
+### Archive from Folder (serverless)
+
+```text
+immich-go archive from-folder /source/path --write-to-folder /dest/path
+```
+
+No server or API env vars.
+
+### Upload from Immich
+
+```text
+immich-go upload from-immich --server=https://dest.example.com --from-server=https://source.example.com
+```
+
+Source secrets via `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_*` env vars; destination via `IMMICH_GO_UPLOAD_*`.
+
+### Stack
+
+```text
+immich-go stack --server=https://immich.example.com --manage-burst=Stack
+```
+
+API key via `IMMICH_GO_STACK_API_KEY`.
+
+## Allowed Flags Per Tab
+
+Each tab has an allowlist in `TAB_ALLOWED_FLAGS`. The command builder rejects flags not in the set for the active tab.
+
+Flag counts against the **0.32.0** fixture set (exact; regenerate after CLI upgrades):
+
+| Tab | Allowed flags |
+|-----|---------------|
+| `upload-folder` | 30 |
+| `upload-gp` | 33 |
+| `upload-icloud` | 31 |
+| `upload-picasa` | 31 |
+| `upload-immich` | 45 |
+| `archive-folder` | 17 |
+| `archive-gp` | 20 |
+| `archive-icloud` | 18 |
+| `archive-picasa` | 18 |
+| `archive-immich` | 31 |
+| `stack` | 16 |
+
+See [Advanced Flags](../user-guide/advanced-flags.md) for user-facing flag descriptions.
+
+## Config Tab
+
+The `config` tab key is used internally for the settings page. It does not map to an immich-go subcommand.
+
+## Source Reference
+
+Authoritative definitions: `core/cli_schema.py`
+
+- `TAB_KEYS` — all tab identifiers
+- `TAB_COMMANDS` — command token mapping
+- `TAB_ALLOWED_FLAGS` — per-tab flag allowlists
+- `ENV_KEY_MAP` — secret environment variable mapping
+
+## Related
+
+- [Upload Workflows](../user-guide/upload-workflows.md)
+- [Archive Workflows](../user-guide/archive-workflows.md)
+- [Environment Variables](environment-variables.md)
+
+
+
+================================================================================
+FILE 20 / 35: docs/reference/config-schema.md (Lines 1-148)
+================================================================================
+# Config Schema
+
+Immich-Go GUI stores configuration in TOML files. API keys are stored in the OS keyring by default, not in these files.
+
+## Directory Layout
+
+```text
+{config_dir}/
+├── profiles.toml              # Profile index
+├── locks/                     # Run lock files (runtime)
+└── profiles/
+    └── {profile_name}/
+        ├── config.toml        # Settings and form state
+        └── secrets.toml       # Plaintext secrets (fallback only)
+```
+
+## Config Directory Paths
+
+| Platform | Default path |
+|----------|--------------|
+| Linux | `~/.config/immich-go-gui/` |
+| Linux (XDG) | `$XDG_CONFIG_HOME/immich-go-gui/` |
+| macOS | `~/Library/Application Support/immich-go-gui/` |
+| Windows | `%APPDATA%\immich-go-gui\` |
+
+### Environment Override
+
+| Variable | Effect |
+|----------|--------|
+| `IMMICH_GO_GUI_CONFIG` | Path to a specific `config.toml` file. Config directory is derived from the file's parent. |
+
+## profiles.toml
+
+Profile index file at `{config_dir}/profiles.toml`:
+
+```toml
+schema_version = 1
+active_profile = "default"
+
+[[profiles]]
+name = "default"
+created_at = "2026-01-01T00:00:00+00:00"
+```
+
+## config.toml Schema
+
+Current schema version: **2**
+
+```toml
+schema_version = 2
+
+[general]
+theme = "system"                    # "system" | "light" | "dark"
+advanced_mode = false
+allow_untested_updates = false
+preferred_terminal = "auto"
+
+[server]
+url = "https://immich.example.com"
+skip_ssl = false
+
+[secrets]
+provider = "keyring"                # "keyring" | "file"
+
+[advanced]
+client_timeout_minutes = 20
+concurrent_tasks = 0                # 0 = auto
+device_uuid = ""
+on_errors = "stop"                  # "stop" | "continue" | "custom"
+on_errors_tolerance = 10
+pause_immich_jobs = true
+
+[form_state]
+# Tab-keyed form field values (dynamic keys)
+"upload-folder" = { path = "/photos", dry_run = false }
+"stack" = { date_from = "2020-01-01" }
+```
+
+### Section Reference
+
+| Section | Field | Type | Default | Description |
+|---------|-------|------|---------|-------------|
+| `general` | `theme` | string | `"system"` | UI theme |
+| `general` | `advanced_mode` | bool | `false` | Show advanced flag rows |
+| `general` | `allow_untested_updates` | bool | `false` | Allow immich-go versions outside tested range |
+| `general` | `preferred_terminal` | string | `"auto"` | Terminal emulator preference |
+| `server` | `url` | string | `""` | Immich server base URL |
+| `server` | `skip_ssl` | bool | `false` | Skip TLS verification |
+| `secrets` | `provider` | string | `"keyring"` | Secret storage backend |
+| `advanced` | `client_timeout_minutes` | int | `20` | HTTP timeout |
+| `advanced` | `concurrent_tasks` | int | `0` | Parallel task count |
+| `advanced` | `device_uuid` | string | `""` | Device identifier |
+| `advanced` | `on_errors` | string | `"stop"` | Error handling mode |
+| `advanced` | `on_errors_tolerance` | int | `10` | Custom error tolerance |
+| `advanced` | `pause_immich_jobs` | bool | `true` | Pause Immich jobs during runs |
+| `form_state` | *(tab keys)* | dict | `{}` | Per-tab saved field values |
+
+## secrets.toml (Fallback)
+
+Used when keyring is unavailable and `secrets.provider = "file"`:
+
+```toml
+api_key = "your-api-key"
+admin_api_key = "optional-admin-key"
+```
+
+Prefer keyring storage. Plaintext secrets are a fallback only.
+
+## Keyring Storage
+
+Service name: `immich-go-gui`
+
+User key format: `{profile_name}:{key}` (e.g. `default:api_key`)
+
+Legacy key `immich_api_key` is migrated non-destructively to `default:api_key`.
+
+## Binary Storage
+
+Separate from config directory:
+
+| Path | Contents |
+|------|----------|
+| `~/.immich-go-gui/bin/` | Downloaded immich-go binary |
+| `~/.immich-go-gui/bin/metadata.json` | Version and download metadata |
+
+## Qt Settings (Legacy)
+
+Theme and legacy API key may exist in `QSettings("Shitan198u", "ImmichGoGUI")`. API keys are migrated to keyring on first read.
+
+## Lock Files
+
+Runtime lock files in `{config_dir}/locks/run_{id}.lock`:
+
+```json
+{
+  "run_id": "abc12345",
+  "gui_pid": 12345,
+  "started_at": "2026-01-01T00:00:00+00:00",
+  "tab_key": "upload-folder",
+  "command_summary": "upload from-folder /photos",
+  "binary_path": "/home/user/.immich-go-gui/bin/immich-go"
+}
+```
+
+## Related
+
+- [Profiles](../user-guide/profiles.md)
+- [Environment Variables](environment-variables.md)
+
+
+
+================================================================================
+FILE 21 / 35: docs/reference/environment-variables.md (Lines 1-85)
+================================================================================
+# Environment Variables
+
+Immich-Go GUI passes server URLs and API keys to immich-go through environment variables rather than command-line arguments. This prevents secrets from appearing in process listings and shell history.
+
+## GUI Configuration Override
+
+| Variable | Purpose |
+|----------|---------|
+| `IMMICH_GO_GUI_CONFIG` | Absolute path to a specific `config.toml` file, overriding the default config location |
+
+## immich-go Secret Variables
+
+Mapped in `core/cli_schema.py` (`ENV_KEY_MAP`). Each tab uses a distinct prefix to avoid collisions when multiple credential sets are needed.
+
+### Upload Tabs (folder, gp, icloud, picasa)
+
+| State key | Environment variable |
+|-----------|---------------------|
+| `server` | `IMMICH_GO_UPLOAD_SERVER` |
+| `api_key` | `IMMICH_GO_UPLOAD_API_KEY` |
+| `admin_api_key` | `IMMICH_GO_UPLOAD_ADMIN_API_KEY` |
+
+Applies to: `upload-folder`, `upload-gp`, `upload-icloud`, `upload-picasa`
+
+### Upload from Immich
+
+Uses upload destination vars plus source ("from") vars:
+
+| State key | Environment variable |
+|-----------|---------------------|
+| `server` | `IMMICH_GO_UPLOAD_SERVER` |
+| `api_key` | `IMMICH_GO_UPLOAD_API_KEY` |
+| `admin_api_key` | `IMMICH_GO_UPLOAD_ADMIN_API_KEY` |
+| `from_server` | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_SERVER` |
+| `from_api_key` | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_API_KEY` |
+| `from_admin_api_key` | `IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY` |
+
+### Archive from Immich
+
+Source-only credentials (no destination server env vars):
+
+| State key | Environment variable |
+|-----------|---------------------|
+| `from_server` | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_SERVER` |
+| `from_api_key` | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_API_KEY` |
+| `from_admin_api_key` | `IMMICH_GO_ARCHIVE_FROM_IMMICH_FROM_ADMIN_API_KEY` |
+
+### Stack
+
+| State key | Environment variable |
+|-----------|---------------------|
+| `server` | `IMMICH_GO_STACK_SERVER` |
+| `api_key` | `IMMICH_GO_STACK_API_KEY` |
+| `admin_api_key` | `IMMICH_GO_STACK_ADMIN_API_KEY` |
+
+### Serverless Archive Tabs
+
+No environment variables for server credentials. These tabs do not use `ENV_KEY_MAP` entries:
+
+- `archive-folder`
+- `archive-gp`
+- `archive-icloud`
+- `archive-picasa`
+
+## Secret Delivery Rules
+
+1. Secrets are injected into the subprocess environment dict at launch time
+2. Secrets are **never** written to disk shell scripts (`.bat`, `.sh`)
+3. Command preview masks all secret values as `***`
+4. Secret CLI flags (`--api-key`, `--from-api-key`, etc.) are excluded from argv when env delivery is used
+
+## Masked Preview Flags
+
+These flag names are always redacted in the command preview (`SECRET_FLAGS`):
+
+- `--api-key`
+- `--admin-api-key`
+- `--from-api-key`
+- `--from-admin-api-key`
+
+## Related
+
+- [Configuration](../user-guide/configuration.md)
+- [Architecture](../developer-guide/architecture.md) — Security model
+- [CLI Command Mapping](cli-command-mapping.md)
+
+
+
+================================================================================
+FILE 22 / 35: docs/reference/immich-go-compatibility.md (Lines 1-93)
+================================================================================
+# immich-go Compatibility
+
+The GUI is built and tested against specific immich-go versions. Version compatibility is enforced in `core/binary_manager.py` and surfaced in the Config tab.
+
+## Current Version Policy
+
+| Constant | Value |
+|----------|-------|
+| Recommended version | `0.32.0` |
+| Tested versions | `0.32.0` |
+| Minimum supported | `0.32.0` |
+| Maximum known compatible | `0.32.0` |
+
+## Version Support Classification
+
+| Status | Meaning | GUI behavior |
+|--------|---------|--------------|
+| **TESTED** | Version in `TESTED_IMMICH_GO_VERSIONS` | No warnings; full support expected |
+| **UNTESTED_BUT_MAY_WORK** | Between min and max, not in tested set | Informational warning |
+| **UNTESTED_NEW** | Above `MAX_KNOWN_COMPATIBLE` | Warning; may require confirmation |
+| **UNSUPPORTED_OLD** | Below `MIN_SUPPORTED` | Blocked or strong warning |
+| **UNKNOWN** | Unparseable version string | Warning |
+
+Enable **Allow untested updates** in config to proceed with newer versions after confirmation.
+
+## Version 0.32.0 Notes
+
+From `VERSION_NOTES` and `COMPATIBILITY_MATRIX`:
+
+- GUI-tested version
+- Upstream removed the ReplaceAsset API
+- The `asset.replace` API-key permission is no longer required
+- No known immich-go CLI flag breakage for this GUI
+
+## Binary Management
+
+### Storage
+
+| Path | Purpose |
+|------|---------|
+| `~/.immich-go-gui/bin/` | Downloaded binary |
+| `~/.immich-go-gui/bin/metadata.json` | Version, download date, SHA256 |
+
+### Download Process
+
+1. GUI queries [GitHub Releases](https://github.com/simulot/immich-go/releases) for the target version
+2. Downloads platform-appropriate archive (`.tar.gz` or `.zip`)
+3. Verifies SHA256 checksum
+4. Extracts binary to `~/.immich-go-gui/bin/`
+5. Updates `metadata.json`
+
+### Version Detection
+
+The GUI runs `immich-go version` and parses output via `parse_version_output()`. Version strings are normalized (leading `v` stripped, build info removed).
+
+## Updating immich-go
+
+From the Config tab:
+
+1. Check current version and support status
+2. Click download/update if a newer recommended version is available
+3. Review compatibility warnings before proceeding
+
+For manual updates, place the binary in `~/.immich-go-gui/bin/` and update `metadata.json`.
+
+## CLI Fixture Workflow
+
+When immich-go releases a new version, maintainers should:
+
+1. Download the new binary
+2. Run `uv run scripts/capture_cli_help.py`
+3. Update `TAB_ALLOWED_FLAGS` for any flag changes
+4. Update version constants in `binary_manager.py` and `cli_schema.py`
+5. Run full test suite: `uv run pytest`
+6. Update `CHANGELOG.md` and this document
+
+See [Testing](../developer-guide/testing.md) and [Scripts](../developer-guide/scripts.md).
+
+## Breaking Change Detection
+
+`binary_manager.py` scans release notes for breaking change indicators:
+
+- "breaking change", "BREAKING"
+- "removed flag", "renamed flag"
+- "incompatible", "deprecated"
+
+Release notes matching these patterns trigger stronger update warnings.
+
+## Related
+
+- [Configuration](../user-guide/configuration.md) — Binary management UI
+- [Troubleshooting](../user-guide/troubleshooting.md) — Version warning issues
+- [immich-go releases](https://github.com/simulot/immich-go/releases)
+
+
+
+================================================================================
+FILE 23 / 35: docs/user-guide/advanced-flags.md (Lines 1-114)
+================================================================================
+# Advanced Flags
+
+Immich-Go GUI exposes immich-go CLI flags through form controls. The visibility of these controls depends on **Advanced mode**, toggled on the Config tab.
+
+## Simple vs Advanced Mode
+
+| Mode | Behavior |
+|------|----------|
+| **Simple** | Shows high-frequency inputs only: paths, date filters, dry run, and common options |
+| **Advanced** | Dynamically generates additional flag rows from the allowed flag registry for the active tab |
+
+Advanced mode is saved per profile in `config.toml` under `general.advanced_mode`.
+
+## How Flags Are Built
+
+When you click Run, the GUI:
+
+1. Collects form state for the active tab
+2. Validates paths, dates, and required fields
+3. Builds an argv list with only flags allowed for that tab (`TAB_ALLOWED_FLAGS` in the codebase)
+4. Passes secrets through environment variables, not argv
+5. Masks secrets in the command preview
+
+If a flag is not in the allowlist for a tab, it cannot be emitted — this prevents invalid cross-tab flag combinations.
+
+## Secret Flags
+
+These flags are never shown with real values in the preview:
+
+- `--api-key`
+- `--admin-api-key`
+- `--from-api-key`
+- `--from-admin-api-key`
+
+They appear as `***` in the command preview.
+
+## Global Flags (Most Server Tabs)
+
+Available on upload tabs, Stack, and server-connected archive tabs:
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `server` | URL | Immich server (via env var on most tabs) |
+| `skip-verify-ssl` | bool | Disable TLS verification |
+| `client-timeout` | duration | HTTP timeout |
+| `dry-run` | bool | Simulate without changes |
+| `concurrent-tasks` | int | Parallelism (0 = auto) |
+| `overwrite` | bool | Overwrite existing assets |
+| `pause-immich-jobs` | bool | Pause Immich background jobs (**needs Admin API key**; auto-disabled otherwise) |
+| `on-errors` | enum | `stop`, `continue`, or custom tolerance |
+| `session-tag` / `tag` | string | Add tags to processed assets |
+| `device-uuid` | string | Device identifier |
+| `log-level` | enum | Logging verbosity |
+| `api-trace` | bool | Trace API calls |
+| `time-zone` | string | Timezone for date operations |
+
+## Serverless Archive Flags
+
+Serverless archive tabs use a reduced flag set centered on local I/O:
+
+| Flag | Description |
+|------|-------------|
+| `write-to-folder` | Destination directory (required) |
+| `dry-run` | Preview mode |
+| `log-level` | Logging |
+| `concurrent-tasks` | Parallelism |
+| `on-errors` | Error handling |
+
+No `server`, `api-key`, or `client-timeout` flags are available on these tabs.
+
+## Per-Tab Flag Highlights
+
+### Upload / Archive Folder
+
+`recursive`, `date-from-name`, `ignore-sidecar-files`, `include-extensions`, `exclude-extensions`, `include-type`, `ban-file`, `date-range`, `folder-as-album`, `folder-as-tags`, `album-path-joiner`, `into-album`
+
+### Upload / Archive Google Photos
+
+`from-album-name`, `include-archived`, `include-partner`, `include-trashed`, `include-unmatched`, `include-untitled-albums`, `partner-shared-album`, `people-tag`, `sync-albums`, `takeout-tag`
+
+### Upload / Archive iCloud
+
+`memories`, plus folder-style album and filter flags
+
+### Upload / Archive Picasa
+
+`album-picasa`, plus folder-style flags
+
+### Upload / Archive from Immich
+
+`from-server`, `from-api-key`, `from-albums`, `from-tags`, `from-people`, `from-date-range`, `from-favorite`, `from-archived`, `from-trash`, `from-city`, `from-state`, `from-country`, `from-make`, `from-model`, and related `from-*` filters
+
+### Stack
+
+`manage-burst`, `manage-raw-jpeg`, `manage-heic-jpeg`, `manage-epson-fastfoto`, `date-range`, `device-uuid`
+
+## On Errors Behavior
+
+| Value | Description |
+|-------|-------------|
+| `stop` | Halt on first error |
+| `continue` | Keep processing despite errors |
+| `custom` | Continue until error count exceeds tolerance (Config tab sets tolerance) |
+
+## Compatibility Notes
+
+The allowed flag set is tied to the tested immich-go version (currently **0.32.0**). New immich-go releases may add, rename, or remove flags. The GUI shows version compatibility warnings when your binary differs from the tested version.
+
+See [immich-go Compatibility](../reference/immich-go-compatibility.md) and [CLI Command Mapping](../reference/cli-command-mapping.md) for the authoritative allowlists.
+
+## Further Reading
+
+- [Configuration](configuration.md) — Toggle advanced mode
+- [Developer: Adding Tabs and Flags](../developer-guide/adding-tabs-and-flags.md) — For contributors extending flags
+
+
+
+================================================================================
+FILE 24 / 35: docs/user-guide/archive-workflows.md (Lines 1-107)
+================================================================================
+# Archive Workflows
+
+Archive tabs export media **from** a source **to** a local folder. They do not upload to Immich (except Archive from Immich, which reads from a remote Immich server).
+
+| Tab | immich-go command | Server required? |
+|-----|-------------------|------------------|
+| Folder | `archive from-folder` | No (serverless) |
+| Google Photos | `archive from-google-photos` | No (serverless) |
+| iCloud | `archive from-icloud` | No (serverless) |
+| Picasa | `archive from-picasa` | No (serverless) |
+| Immich | `archive from-immich` | Yes (source server only) |
+
+## Serverless vs Server-Required
+
+### Serverless archive tabs
+
+These four tabs operate entirely on local files or exports. They **never** send `--server`, `--api-key`, or `--client-timeout` flags:
+
+- Archive from Folder
+- Archive from Google Photos
+- Archive from iCloud
+- Archive from Picasa
+
+You do not need Immich server credentials configured to run them. The primary output destination is a **local write folder**.
+
+### Archive from Immich
+
+This tab connects to a **source Immich server** to download/export assets. It requires:
+
+- **From server URL**
+- **From API key** (and optionally from admin API key)
+
+It does not use your main Config-tab destination server for the archive source — only the "from" credentials.
+
+## Common Fields
+
+| Field | Description |
+|-------|-------------|
+| **Source path** | Takeout folder, iCloud export, or local directory |
+| **Write to folder** | Destination directory for archived files |
+| **Dry run** | Preview without writing files |
+| **Date range** | Limit by capture date |
+| **Include / exclude extensions** | File type filters |
+
+## Archive from Folder
+
+**Command:** `immich-go archive from-folder <path> --write-to-folder <dest>`
+
+Copy or organize local media into an archive directory structure.
+
+**Notable options:** `recursive`, `folder-as-album`, `folder-as-tags`, `date-from-name`, `into-album`
+
+## Archive from Google Photos
+
+**Command:** `immich-go archive from-google-photos <takeout-path> --write-to-folder <dest>`
+
+Extract media from a Google Takeout export to a local folder.
+
+**Notable options:** `sync-albums`, `include-archived`, `include-partner`, `takeout-tag`, `people-tag`
+
+## Archive from iCloud
+
+**Command:** `immich-go archive from-icloud <path> --write-to-folder <dest>`
+
+Archive from an iCloud Photos export.
+
+**Notable options:** `memories`, `folder-as-album`, `recursive`
+
+## Archive from Picasa
+
+**Command:** `immich-go archive from-picasa <path> --write-to-folder <dest>`
+
+Archive from Picasa-compatible exports.
+
+**Notable options:** `album-picasa`, `folder-as-album`
+
+## Archive from Immich
+
+**Command:** `immich-go archive from-immich --write-to-folder <dest>`
+
+Download assets from a remote Immich server to a local folder.
+
+**Required credentials:**
+
+| Field | Description |
+|-------|-------------|
+| From server URL | Source Immich instance |
+| From API key | Source API key |
+
+**Notable options:** `from-albums`, `from-tags`, `from-people`, `from-date-range`, `from-favorite`, `from-archived`, `from-trash`
+
+## Running an Archive
+
+1. Select the archive sub-tab matching your source type.
+2. Set source and destination paths.
+3. For **Archive from Immich**, configure from-server credentials.
+4. Review the command preview — serverless tabs will not show server/API flags.
+5. Click **Run**.
+
+Serverless tabs skip the Immich pre-flight connection check.
+
+## Further Reading
+
+- [Choose Your Workflow](choose-your-workflow.md) — When to archive vs upload
+- [Upload Workflows](upload-workflows.md) — Upload counterpart for each source
+- [CLI Command Mapping](../reference/cli-command-mapping.md)
+- [Advanced Flags](advanced-flags.md)
+
+
+
+================================================================================
+FILE 25 / 35: docs/user-guide/choose-your-workflow.md (Lines 1-171)
+================================================================================
+# Choose Your Workflow
+
+Not sure which tab to open? Start here. Immich-Go GUI maps each use case to a specific immich-go subcommand so you do not have to memorize CLI flags.
+
+## Operation Lifecycle
+
+```mermaid
+flowchart LR
+    classDef startEnd fill:#6366f1,stroke:#4338ca,color:#fff,stroke-width:2px
+    classDef source fill:#0ea5e9,stroke:#0369a1,color:#fff,stroke-width:2px
+    classDef config fill:#8b5cf6,stroke:#6d28d9,color:#fff,stroke-width:2px
+    classDef preview fill:#f59e0b,stroke:#b45309,color:#fff,stroke-width:2px
+    classDef run fill:#ec4899,stroke:#be185d,color:#fff,stroke-width:2px
+    classDef done fill:#10b981,stroke:#047857,color:#fff,stroke-width:2px
+
+    Start([▶ Start]):::startEnd
+    Select[Select Source]:::source
+
+    subgraph Sources["📂 Import Sources"]
+        Folder[Local Folder]:::source
+        Takeout[Google Takeout]:::source
+        iCloud[iCloud]:::source
+        Archive[Archive]:::source
+        Stack[Stack]:::source
+    end
+
+    Configure[⚙️ Configure Options]:::config
+    Preview[👁 Preview Command]:::preview
+    Run[🚀 Execute immich-go]:::run
+    Progress[📊 Live Progress]:::run
+    Done([✅ Done]):::done
+
+    Start --> Select
+    Select --> Sources
+    Sources -->|user fills form| Configure
+    Configure -->|validate inputs| Preview
+    Preview -->|user confirms| Run
+    Run --> Progress
+    Progress --> Done
+```
+
+## Quick Decision Tree
+
+```text
+What do you want to do?
+│
+├─ Put media INTO Immich ─────────────────────────────── Upload
+│   ├─ Photos already on disk / NAS / external drive ─── Upload → Folder
+│   ├─ Google Takeout zip/folder export ──────────────── Upload → Google Photos
+│   ├─ iCloud Photos export ──────────────────────────── Upload → iCloud
+│   ├─ Picasa / legacy Google Photos export ──────────── Upload → Picasa
+│   └─ Another Immich server (migration) ─────────────── Upload → Immich
+│
+├─ Export / reorganize media LOCALLY ─────────────────── Archive
+│   ├─ Local folder → organized archive folder ───────── Archive → Folder
+│   ├─ Google Takeout → local archive ────────────────── Archive → Google Photos
+│   ├─ iCloud export → local archive ─────────────────── Archive → iCloud
+│   ├─ Picasa export → local archive ─────────────────── Archive → Picasa
+│   └─ Download from Immich to disk ──────────────────── Archive → Immich
+│
+└─ Group related assets already ON Immich ────────────── Stack
+    (burst, RAW+JPEG, HEIC+JPEG, Epson FastFoto)
+```
+
+## Upload vs Archive vs Stack
+
+| Goal | Section | Needs Immich server? | Result |
+|------|---------|----------------------|--------|
+| Import media **into** Immich | **Upload** | Yes (destination) | Assets appear in Immich |
+| Copy/export media **to a local folder** | **Archive** | Usually no* | Files written on disk |
+| Group related assets **already on the server** | **Stack** | Yes | Stacks created in Immich |
+
+\* Archive from Immich is the exception: it needs a **source** Immich server.
+
+## Common Recipes
+
+### 1. First-time import from a photo drive
+
+1. Config → set server URL + API key → **Test Connection**
+2. Upload → **Folder**
+3. Set source path (drag-and-drop works)
+4. Optional: enable advanced mode for `folder-as-album` or date filters
+5. Review preview → **Run**
+
+See [Upload Workflows](upload-workflows.md#upload-from-folder).
+
+### 2. Leave Google Photos for Immich
+
+1. Create a [Google Takeout](https://takeout.google.com/) of Google Photos
+2. Extract the archive so you have a folder of Takeout data
+3. Upload → **Google Photos** → point at the Takeout folder
+4. Keep album sync / partner / archived options as needed (advanced mode)
+5. Prefer a dry run first on a small sample
+
+See [Upload Workflows](upload-workflows.md#upload-from-google-photos).
+
+### 3. Offline cleanup before uploading
+
+Use **Archive** first when you want a clean local tree without touching Immich:
+
+1. Archive → matching source tab (Folder / Google Photos / iCloud / Picasa)
+2. Set **Write to folder**
+3. Run dry run, then real archive
+4. Later upload the cleaned archive with Upload → Folder
+
+### 4. Migrate between Immich instances
+
+1. Config tab = **destination** server + API key
+2. Upload → **Immich**
+3. Fill **From server** / **From API key** for the source
+4. Filter with albums, tags, people, or date range if needed
+5. Dry run, then full migration
+
+See [Upload Workflows](upload-workflows.md#upload-from-immich).
+
+### 5. Download a backup from Immich
+
+1. Archive → **Immich**
+2. Set source server credentials (not necessarily the Config-tab destination)
+3. Choose write folder and filters
+4. Run
+
+See [Archive Workflows](archive-workflows.md#archive-from-immich).
+
+### 6. Stack RAW + JPEG / bursts already uploaded
+
+1. Config → server + API key
+2. Stack tab → enable management options in advanced mode
+3. Optional date range to limit scope
+4. Dry run on a small window first
+
+See [Stack](stack.md).
+
+## When to Use Dry Run
+
+Always dry-run when:
+
+- You are unsure about filters or date ranges
+- You enable stacking modes that can discard non-cover frames (`KeepJPG`, `KeepRaw`, burst stackers)
+- You are migrating production libraries between Immich servers
+- You just upgraded immich-go and want to confirm the command still looks right
+
+Dry run still opens a terminal and runs immich-go — it just asks immich-go not to apply changes.
+
+## Admin API Key: When Do You Need It?
+
+| Situation | Admin API key needed? |
+|-----------|------------------------|
+| Normal upload / stack with job pausing **off** | No |
+| Pause Immich background jobs during upload/stack (`pause-immich-jobs`) | **Yes** |
+| Most read/write library operations with a user key | No |
+
+If pausing is enabled but no Admin API key is set, the GUI **auto-disables** job pausing and shows a warning so uploads are not aborted with `403 Forbidden`. Details: [Configuration](configuration.md#admin-api-key-and-job-pausing).
+
+## Profiles Tip
+
+Create separate profiles for:
+
+- Home vs work Immich servers
+- Staging vs production
+- Experiments with advanced flags (duplicate a known-good profile first)
+
+See [Profiles](profiles.md).
+
+## Next Steps
+
+- [Getting Started](getting-started.md) — install and first run
+- [Upload Workflows](upload-workflows.md)
+- [Archive Workflows](archive-workflows.md)
+- [FAQ](faq.md)
+- [Troubleshooting](troubleshooting.md)
+
+
+
+================================================================================
+FILE 26 / 35: docs/user-guide/configuration.md (Lines 1-145)
+================================================================================
+# Configuration
+
+The **Config** tab holds global settings shared across workflow tabs: Immich server credentials, theme, terminal preference, and immich-go binary management.
+
+## Immich Server
+
+| Field | Description |
+|-------|-------------|
+| **Server URL** | Base URL of your Immich instance (e.g. `https://immich.local`). Used by upload tabs, Stack, and Archive from Immich. |
+| **Skip SSL verification** | Bypass TLS certificate validation. Shows an inline warning when enabled. Use only for local/self-signed setups. |
+| **API Key** | Your Immich user API key. Stored in the OS keychain by default — never written to plain TOML. |
+| **Admin API Key** | Optional elevated key. Required only if you want Immich background jobs paused during upload/stack. Also stored in the keychain. |
+
+### Connection Testing
+
+Use **Test Connection** on the Config tab to call `{server}/api/server/about` with your API key. The same endpoint is used as a **pre-flight check** before server-required runs; a failure blocks launch and shows an error.
+
+Server-required tabs: all Upload tabs, Archive from Immich, and Stack. See [CLI Command Mapping](../reference/cli-command-mapping.md).
+
+### Admin API Key and Job Pausing
+
+Immich can pause background jobs while immich-go runs (`pause-immich-jobs`, enabled by default for upload/stack). That API call needs an **admin** key.
+
+| Admin key set? | Pause jobs preference | What the GUI does |
+|----------------|----------------------|-------------------|
+| Yes | On (default) | Jobs can be paused during the run |
+| No | On (default) | **Auto-disables** pausing and adds a warning — avoids a hard `403 Forbidden` abort |
+| Any | Off | Emits pause disabled; no admin key needed |
+
+**Recommendation:** create an admin API key in Immich if you upload large libraries and want Immich to stop thumbnail/metadata jobs from competing for I/O. Otherwise leave the admin field empty and accept that pausing stays off.
+
+## Configuration Lifecycle
+
+```mermaid
+stateDiagram-v2
+
+    [*] --> Default
+
+    Default --> Modified
+
+    Modified --> Saved
+
+    Saved --> Loaded
+
+    Loaded --> Modified
+
+    Saved --> Deleted
+
+    Deleted --> Default
+```
+
+## Secret Storage
+
+API keys are handled securely:
+
+1. **OS Keychain (default)** — macOS Keychain, Windows Credential Manager, or Linux Secret Service via the `keyring` library.
+2. **Plaintext fallback** — If keyring is unavailable, secrets may be stored in `secrets.toml` inside the profile directory (see [Config Schema](../reference/config-schema.md)).
+
+Secrets are passed to immich-go through **environment variables**, not command-line arguments. The command preview masks all secret values.
+
+## Advanced Settings (Config Tab)
+
+These defaults apply globally and can be overridden per tab in advanced mode:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Client timeout | 20 minutes | HTTP timeout for Immich API calls |
+| Concurrent tasks | 0 (auto) | Parallel upload/task count |
+| Device UUID | empty | Device identifier sent to Immich |
+| On errors | stop | Behavior when errors occur (`stop`, `continue`, or custom tolerance) |
+| Pause Immich jobs | enabled | Pause background Immich jobs during upload |
+
+## immich-go Binary Management
+
+```mermaid
+flowchart TD
+    classDef startEnd fill:#6366f1,stroke:#4338ca,color:#fff,stroke-width:2px
+    classDef check fill:#f59e0b,stroke:#b45309,color:#fff,stroke-width:2px
+    classDef download fill:#0ea5e9,stroke:#0369a1,color:#fff,stroke-width:2px
+    classDef run fill:#8b5cf6,stroke:#6d28d9,color:#fff,stroke-width:2px
+    classDef done fill:#10b981,stroke:#047857,color:#fff,stroke-width:2px
+
+    Start([🚀 Launch Requested]):::startEnd
+    Check{🔍 Binary found\nin ~/.immich-go-gui/bin/}:::check
+    Download[📥 Download from\nGitHub Releases]:::download
+    Verify[🔐 Verify SHA256\nchecksum]:::download
+    Launch[⚡ Prepare argv\n+ env secrets]:::run
+    Execute[🖥️ Open terminal\n+ run immich-go]:::run
+    Done([✅ Process Running]):::done
+
+    Start --> Check
+    Check -- Yes --> Launch
+    Check -- No --> Download
+    Download -->|fetch archive| Verify
+    Verify -->|checksum OK| Launch
+    Launch --> Execute
+    Execute --> Done
+```
+
+The GUI bundles no immich-go binary inside the app. On first use it can download one from [GitHub Releases](https://github.com/simulot/immich-go/releases).
+
+| Location | Path |
+|----------|------|
+| Binary directory | `~/.immich-go-gui/bin/` |
+| Metadata file | `~/.immich-go-gui/bin/metadata.json` |
+
+The Config tab shows:
+
+- Installed version and support status (tested, untested, unsupported)
+- Option to download or update the binary
+- Compatibility warnings for versions outside the tested range
+
+See [immich-go Compatibility](../reference/immich-go-compatibility.md) for version details.
+
+## Theme and Terminal
+
+| Setting | Options | Description |
+|---------|---------|-------------|
+| Theme | System / Light / Dark | UI appearance |
+| Preferred terminal | Auto or specific emulator | Which terminal opens when you click Run (platform-dependent) |
+
+## Saving Configuration
+
+Configuration is saved automatically when you change settings or switch tabs. Each profile has its own `config.toml`. Form field values for workflow tabs are stored in the `form_state` section of that file.
+
+### Config File Locations
+
+| Platform | Default directory |
+|----------|-------------------|
+| Linux | `~/.config/immich-go-gui/` |
+| macOS | `~/Library/Application Support/immich-go-gui/` |
+| Windows | `%APPDATA%\immich-go-gui\` |
+
+Override the config file path with the `IMMICH_GO_GUI_CONFIG` environment variable. See [Config Schema](../reference/config-schema.md).
+
+## Simple vs Advanced Mode
+
+Toggle **Advanced mode** in the Config tab to show additional flag rows on workflow tabs. Simple mode keeps the UI focused on high-frequency options; advanced mode exposes the full immich-go flag surface allowed for each tab. See [Advanced Flags](advanced-flags.md).
+
+## Related
+
+- [Security & Privacy](security-and-privacy.md) — Keyring, env delivery, SSL
+- [Profiles](profiles.md) — Multi-server setups
+- [Platform Notes](platform-notes.md) — Config paths per OS
+- [Choose Your Workflow](choose-your-workflow.md)
+
+
+
+================================================================================
+FILE 27 / 35: docs/user-guide/faq.md (Lines 1-139)
+================================================================================
+# FAQ
+
+Short answers to questions users and contributors ask most often.
+
+## General
+
+### What is Immich-Go GUI?
+
+A desktop GUI for [immich-go](https://github.com/simulot/immich-go). It builds, previews, and launches immich-go commands for upload, archive, and stack workflows against [Immich](https://immich.app/).
+
+### Does the GUI replace immich-go?
+
+No. The GUI is a front-end. All heavy lifting still happens in the immich-go CLI process that runs in an external terminal.
+
+### Why open an external terminal instead of logging inside the app?
+
+immich-go is interactive and long-running. A real terminal gives you live progress, copy-pasteable errors, and the ability to stop the job by closing the window. The GUI tracks the process and re-enables Run when it finishes.
+
+### Which immich-go version should I use?
+
+The GUI is tested against **0.32.0**. Use the Config tab binary manager to download the recommended version. See [immich-go Compatibility](../reference/immich-go-compatibility.md).
+
+### Is my API key stored in plain text?
+
+By default, no — keys go in the OS keyring (macOS Keychain, Windows Credential Manager, or Linux Secret Service). A `secrets.toml` fallback exists only when keyring is unavailable. See [Security & Privacy](security-and-privacy.md).
+
+## Installation & Platforms
+
+### Which package should I download?
+
+| Platform | Recommended | Alternatives |
+|----------|-------------|--------------|
+| Windows | `…-Windows-x86_64-Setup.exe` | `…-Portable.zip` |
+| macOS | `…-macOS-x86_64.dmg` | — |
+| Linux desktop | `…-Linux-x86_64.AppImage` | `.deb`, `.rpm`, portable `.tar.gz` |
+
+Full notes: [Platform Notes](platform-notes.md).
+
+### Windows Defender flags the app. Is it malware?
+
+Almost always a **false positive** on unsigned Nuitka builds. Prefer official GitHub Releases only, or run from source. Details: [Troubleshooting](troubleshooting.md#windows-antivirus-false-positives).
+
+### Can I run it without installing Python?
+
+Yes — use pre-built binaries. Python 3.13 is only required when running from source.
+
+### Why is Python pinned to 3.13?
+
+Release builds use Nuitka with a Python 3.13 pin for compatibility. From-source development uses the same range: `>=3.13.0, <3.14`.
+
+## Configuration & Profiles
+
+### Do I need an Admin API key?
+
+Only if you want Immich background jobs paused during upload/stack. Without it, the GUI auto-disables pausing and warns you. See [Configuration](configuration.md#admin-api-key-and-job-pausing).
+
+### Can I manage multiple Immich servers?
+
+Yes — create a [profile](profiles.md) per server or environment. API keys are scoped per profile in the keyring.
+
+### Where are my settings stored?
+
+| OS | Config directory |
+|----|------------------|
+| Linux | `~/.config/immich-go-gui/` |
+| macOS | `~/Library/Application Support/immich-go-gui/` |
+| Windows | `%APPDATA%\immich-go-gui\` |
+
+Override with `IMMICH_GO_GUI_CONFIG`. Schema: [Config Schema](../reference/config-schema.md).
+
+### Why does the command preview show `***`?
+
+Secrets are masked on purpose. Real keys are injected via environment variables at launch. This is expected.
+
+## Workflows
+
+### Which tab do I pick?
+
+See [Choose Your Workflow](choose-your-workflow.md) for a decision tree and recipes.
+
+### What is the difference between Upload and Archive?
+
+- **Upload** → media ends up **in Immich**
+- **Archive** → media ends up **in a local folder** (except Archive from Immich, which downloads *from* Immich to disk)
+
+### Can I archive without an Immich server?
+
+Yes for Folder, Google Photos, iCloud, and Picasa archive tabs (serverless). Archive from Immich needs source credentials.
+
+### Should I dry-run first?
+
+Yes for large libraries, migrations, and any stacking option that may discard non-cover frames.
+
+### Does drag-and-drop work?
+
+Yes on path fields. Drop onto the input, not empty chrome. Wayland compositors can be finicky — use the browse button if drops fail.
+
+## Runtime Problems
+
+### Run is disabled / "process already running"
+
+Close the immich-go terminal window and wait a few seconds. On Windows, lock cleanup is heartbeat-based. Last resort: remove stale files under `{config_dir}/locks/` only when no job is running. See [Troubleshooting](troubleshooting.md#run-button-disabled-process-already-running).
+
+### Upload fails with 403 when pausing jobs
+
+Provide an **Admin API key**, or turn off job pausing. The GUI tries to auto-disable pausing when the admin key is missing; older versions did not. See [Troubleshooting](troubleshooting.md#403-forbidden-when-pausing-immich-jobs).
+
+### Terminal never opens on Linux
+
+Install a terminal emulator (`gnome-terminal`, `konsole`, `xfce4-terminal`, `xterm`, …) or set Preferred Terminal in Config.
+
+## Contributing & Development
+
+### Where should pull requests target?
+
+Always open PRs against **`staging`**, not `master`. See [CONTRIBUTING](../CONTRIBUTING.md).
+
+### How do I run tests?
+
+```bash
+uv sync --dev
+uv run pytest
+```
+
+On Linux CI-style headless:
+
+```bash
+QT_QPA_PLATFORM=offscreen xvfb-run uv run pytest
+```
+
+### How do I add support for a new immich-go flag?
+
+Follow [Adding Tabs and Flags](../developer-guide/adding-tabs-and-flags.md). Capture CLI help fixtures after upgrading immich-go.
+
+## Still stuck?
+
+1. [Troubleshooting](troubleshooting.md)
+2. [immich-go issues](https://github.com/simulot/immich-go/issues) for CLI errors in the terminal
+3. [immich-go-gui issues](https://github.com/shitan198u/immich-go-gui/issues) — include OS, GUI version, immich-go version, **masked** command preview, and terminal output (never paste real API keys)
+
+
+
+================================================================================
+FILE 28 / 35: docs/user-guide/getting-started.md (Lines 1-99)
+================================================================================
+# Getting Started
+
+## What Is Immich-Go GUI?
+
+Immich-Go GUI is a graphical front-end for [immich-go](https://github.com/simulot/immich-go), a command-line tool for bulk media operations with [Immich](https://github.com/immich-app/immich). The GUI lets you:
+
+- Configure server credentials and paths through forms instead of memorizing CLI flags
+- Preview the constructed command before running it
+- Launch immich-go in an external terminal window
+- Save and reload settings across sessions using profiles
+
+The application does not run immich-go inside the GUI window. It builds the command, opens your system terminal, and tracks the process until it finishes.
+
+## Installation Options
+
+### Pre-built Binaries (Recommended)
+
+1. Go to the [Releases page](https://github.com/shitan198u/immich-go-gui/releases/latest).
+2. Download the package for your operating system:
+   - **Windows**: `Immich-Go-GUI-{VERSION}-Windows-x86_64-Setup.exe` or `…-Portable.zip`
+   - **macOS**: `Immich-Go-GUI-{VERSION}-macOS-x86_64.dmg`
+   - **Linux**: AppImage, `.deb`, `.rpm`, or portable `.tar.gz`
+3. Run the executable. No Python installation is required.
+
+OS-specific tips (Gatekeeper, AppImage permissions, Defender): **[Platform Notes](platform-notes.md)**.
+
+!!! warning "Windows Antivirus Note"
+    Windows Defender or VirusTotal may flag the Nuitka-compiled executable as suspicious (`Trojan:Win32/Wacatac.B!ml`). This is a common false positive for unsigned standalone apps. See [Troubleshooting](troubleshooting.md#windows-antivirus-false-positives) for details.
+
+### Running from Source
+
+Use this method if you prefer to run from source or need to develop the application.
+
+**Prerequisites:**
+
+- Python **3.13** (`>=3.13.0, <3.14`)
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) package manager
+
+**Steps:**
+
+```bash
+git clone https://github.com/shitan198u/immich-go-gui.git
+cd immich-go-gui
+uv sync --dev
+uv run app.py
+```
+
+On first launch, the GUI can automatically download a compatible `immich-go` binary for your platform. See [Configuration](configuration.md#immich-go-binary-management).
+
+## Five-Minute First Run
+
+1. **Open the Config tab** (sidebar, gear icon).
+2. **Enter your Immich server URL** (e.g. `https://photos.example.com`).
+3. **Enter your API key** — stored in your OS keychain, not in plain config files.
+4. Click **Test Connection** — fix URL/key/SSL issues before a long job.
+5. (Optional) Enter an **Admin API key** if you want Immich background jobs paused during uploads. Without it, the GUI auto-disables job pausing. See [Configuration](configuration.md#admin-api-key-and-job-pausing).
+6. Confirm an immich-go binary is installed (Config tab can download **0.32.0**).
+7. **Pick a workflow** — if unsure, open [Choose Your Workflow](choose-your-workflow.md).
+8. **Fill required fields** (source path, write folder, etc.). Drag-and-drop works on path inputs.
+9. **Review the command preview** (secrets appear as `***`).
+10. **Click Run** — immich-go opens in a new terminal window.
+
+While a command is running, the Run button is disabled and the GUI shows a status indicator. Close the terminal window when the job completes before starting another run.
+
+!!! tip "Pro Tip"
+    Use **Dry run** the first time you try a new source or advanced stacking option.
+
+## User Interface Overview
+
+The main window has three areas:
+
+### Sidebar Navigation
+
+- **Config** — Server settings, profiles, theme, binary management
+- **Upload** — Five sub-tabs for uploading to Immich from different sources
+- **Archive** — Five sub-tabs for exporting media to local folders
+- **Stack** — Deduplicate/stack assets on the Immich server
+
+### Stacked Pages
+
+Each sidebar section opens a page with its own sub-tabs and form fields. Simple mode shows the most common options; advanced mode exposes additional immich-go flags.
+
+### Command Preview
+
+Every workflow tab shows a read-only preview of the constructed CLI command. API keys and other secrets are masked in the preview.
+
+## Themes
+
+The Config tab lets you choose **System**, **Light**, or **Dark** theme. The choice is saved per profile and applied on next launch.
+
+## Next Steps
+
+- [Platform Notes](platform-notes.md) — OS-specific install and paths
+- [Choose Your Workflow](choose-your-workflow.md) — Decision tree and recipes
+- [Configuration](configuration.md) — Server, API keys, and binary setup
+- [Security & Privacy](security-and-privacy.md) — How credentials are handled
+- [Profiles](profiles.md) — Multiple Immich servers or environments
+- [FAQ](faq.md) — Short answers
+- [Troubleshooting](troubleshooting.md) — Common issues
+
+
+
+================================================================================
+FILE 29 / 35: docs/user-guide/glossary.md (Lines 1-42)
+================================================================================
+# Glossary
+
+Terms used throughout Immich-Go GUI documentation and the immich-go ecosystem.
+
+| Term | Meaning |
+|------|---------|
+| **Immich** | Self-hosted photo and video backup platform. The server this GUI talks to. |
+| **immich-go** | Community CLI that bulk-uploads, archives, and stacks media for Immich. The GUI launches this binary. |
+| **Immich-Go GUI** | This project — a PySide6 desktop front-end for immich-go. |
+| **Upload** | Workflow that **sends** media **to** an Immich server. |
+| **Archive** | Workflow that **writes** media **to a local folder** (or downloads from Immich to disk). |
+| **Stack** | Group related assets on Immich (burst sequences, RAW+JPEG pairs, HEIC+JPEG, etc.). |
+| **Serverless tab** | Archive tab that never contacts Immich and never emits server/API flags. |
+| **Server-required tab** | Tab that needs Immich credentials (all upload tabs, Stack, Archive from Immich). |
+| **Profile** | Named set of settings + secrets (server URL, theme, form state, API keys). |
+| **form_state** | Per-tab saved field values inside `config.toml`. |
+| **Advanced mode** | Config toggle that reveals extra immich-go flags on workflow tabs. |
+| **Command preview** | Read-only view of the argv that will run, with secrets masked. |
+| **CommandPlan** | Internal object: argv + env + display argv + validation errors/warnings. |
+| **Dry run** | immich-go mode that simulates actions without applying changes. |
+| **Pre-flight check** | GUI HTTP check to `{server}/api/server/about` before launching server jobs. |
+| **API key** | Immich user access token used for normal library operations. |
+| **Admin API key** | Elevated Immich key needed for job-pausing and some admin operations. |
+| **Keyring** | OS secret store (Keychain / Credential Manager / Secret Service). |
+| **Takeout** | Google account export archive (often used for Google Photos migrations). |
+| **iCloud export** | Local export of an iCloud Photos library used as an import source. |
+| **Picasa** | Legacy Google Photos / Picasa Web Albums export layout. |
+| **TAB key** | Stable internal id such as `upload-folder` or `archive-gp` (not the keyboard key). |
+| **Allowlist** | Per-tab set of CLI flags the GUI is allowed to emit (`TAB_ALLOWED_FLAGS`). |
+| **Golden fixture** | Checked-in expected command state used by tests. |
+| **Process lock** | File under `{config_dir}/locks/` preventing concurrent GUI-launched jobs. |
+| **Nuitka** | Python compiler used to produce standalone release binaries. |
+| **Release Please** | Automation that versions the project and updates `CHANGELOG.md` from conventional commits. |
+| **staging / master** | Development vs production branches; PRs target `staging`. |
+| **SHA256 verification** | Checksum validation when downloading immich-go releases. |
+| **Skip SSL verification** | Disables TLS certificate validation — lab/self-signed only. |
+
+## Related
+
+- [Choose Your Workflow](choose-your-workflow.md)
+- [CLI Command Mapping](../reference/cli-command-mapping.md)
+- [Architecture](../developer-guide/architecture.md)
+
+
+
+================================================================================
+FILE 30 / 35: docs/user-guide/platform-notes.md (Lines 1-175)
+================================================================================
+# Platform Notes
+
+Install and runtime quirks by operating system. For a general first-run walkthrough, see [Getting Started](getting-started.md).
+
+## Artifact Names
+
+Release assets follow:
+
+```text
+Immich-Go-GUI-{VERSION}-{OS}-x86_64.{ext}
+```
+
+| Platform | Files |
+|----------|-------|
+| Windows | `…-Windows-x86_64-Setup.exe`, `…-Windows-x86_64-Portable.zip` |
+| macOS | `…-macOS-x86_64.dmg` |
+| Linux | `…-Linux-x86_64.AppImage`, `…-Linux-x86_64.deb`, `…-Linux-x86_64.rpm`, `…-Linux-x86_64-Portable.tar.gz` |
+
+Download only from the official [Releases page](https://github.com/shitan198u/immich-go-gui/releases/latest).
+
+---
+
+## Windows
+
+### Installer vs portable
+
+| Package | Best for |
+|---------|----------|
+| **Setup.exe** | Normal desktop install with Start Menu entry |
+| **Portable.zip** | USB / no-admin / side-by-side versions |
+
+Extract the portable zip and run `Immich-Go-GUI.exe` inside.
+
+### SmartScreen / antivirus
+
+Unsigned Nuitka builds often trigger SmartScreen or Defender heuristics (`Wacatac`, etc.). This is a known false-positive class for many Python→native apps.
+
+**Safer workflow:**
+
+1. Confirm the release tag and publisher on GitHub
+2. Unblock the file if Windows marked it (Properties → Unblock)
+3. Or run from source with `uv` if your environment blocks unsigned binaries
+
+See [Troubleshooting](troubleshooting.md#windows-antivirus-false-positives).
+
+### Terminals and locks
+
+- Jobs launch in a `cmd.exe` window
+- Closing the window should release the GUI run lock quickly
+- If Run stays disabled, wait a few seconds, then restart the GUI; only delete `locks/` files when nothing is running
+
+### Paths
+
+Config: `%APPDATA%\immich-go-gui\`  
+immich-go binary: `%USERPROFILE%\.immich-go-gui\bin\`
+
+---
+
+## macOS
+
+### Opening the DMG
+
+1. Open the `.dmg`
+2. Drag the app to Applications (or run in place)
+3. On first launch, if Gatekeeper blocks it: **System Settings → Privacy & Security → Open Anyway**, or right-click → Open
+
+### Terminal
+
+Uses Terminal.app (or another terminal available on PATH). Keep Terminal permissions intact if macOS prompts for Automation access.
+
+### Paths
+
+Config: `~/Library/Application Support/immich-go-gui/`  
+immich-go binary: `~/.immich-go-gui/bin/`
+
+### Architecture note
+
+Current release builds target **x86_64**. On Apple Silicon, the app runs under Rosetta if available. If you prefer native arm64, run from source until arm64 release artifacts are published.
+
+---
+
+## Linux
+
+### AppImage (recommended for most desktops)
+
+```bash
+chmod +x Immich-Go-GUI-*-Linux-x86_64.AppImage
+./Immich-Go-GUI-*-Linux-x86_64.AppImage
+```
+
+If your system mounts AppImages via FUSE and launch fails, install FUSE support for your distro, or extract with:
+
+```bash
+./Immich-Go-GUI-*-Linux-x86_64.AppImage --appimage-extract
+./squashfs-root/AppRun
+```
+
+### DEB / RPM
+
+```bash
+# Debian / Ubuntu
+sudo apt install ./Immich-Go-GUI-*-Linux-x86_64.deb
+
+# Fedora / RHEL-like
+sudo rpm -i Immich-Go-GUI-*-Linux-x86_64.rpm
+```
+
+A desktop entry is included via packaging metadata (`immich-go-gui.desktop`).
+
+### Portable tarball
+
+```bash
+tar -xzf Immich-Go-GUI-*-Linux-x86_64-Portable.tar.gz
+cd <extracted-dir>
+./Immich-Go-GUI
+```
+
+### Terminal emulator required
+
+The GUI launches an external terminal. Install at least one of:
+
+- `gnome-terminal`
+- `konsole`
+- `xfce4-terminal`
+- `xterm`
+- `alacritty` / `kitty` (if detected by your preferred-terminal setting)
+
+Set **Preferred terminal** on the Config tab if Auto fails.
+
+### Keyring on headless / minimal desktops
+
+API keys need a Secret Service provider for keyring mode:
+
+- GNOME Keyring
+- KWallet
+- Other `libsecret` backends
+
+If none is available, the GUI may fall back to `secrets.toml`. See [Security & Privacy](security-and-privacy.md).
+
+### Wayland drag-and-drop
+
+Some compositors restrict DnD into Qt apps. Use the file picker buttons if drops do not populate path fields.
+
+### Paths
+
+Config: `~/.config/immich-go-gui/` (or `$XDG_CONFIG_HOME/immich-go-gui/`)  
+immich-go binary: `~/.immich-go-gui/bin/`
+
+---
+
+## Running from Source (All Platforms)
+
+```bash
+git clone https://github.com/shitan198u/immich-go-gui.git
+cd immich-go-gui
+uv sync --dev
+uv run app.py
+```
+
+Requires **Python 3.13** and [uv](https://docs.astral.sh/uv/).
+
+## Environment Overrides
+
+| Variable | Effect |
+|----------|--------|
+| `IMMICH_GO_GUI_CONFIG` | Absolute path to a specific `config.toml` |
+
+Useful for portable setups or parallel profiles outside the default OS path.
+
+## Related
+
+- [Getting Started](getting-started.md)
+- [Configuration](configuration.md)
+- [Troubleshooting](troubleshooting.md)
+- [FAQ](faq.md)
+
+
+
+================================================================================
+FILE 31 / 35: docs/user-guide/profiles.md (Lines 1-84)
+================================================================================
+# Profiles
+
+Profiles let you maintain separate configurations for different Immich servers, environments, or use cases. Each profile has its own settings, form state, and API keys.
+
+## Profile Layout
+
+Profiles are stored under the config directory:
+
+```text
+~/.config/immich-go-gui/          (Linux example)
+├── profiles.toml                 # Index: active profile, profile list
+└── profiles/
+    ├── default/
+    │   ├── config.toml           # Settings and form state
+    │   └── secrets.toml          # Plaintext secrets (fallback only)
+    └── work/
+        ├── config.toml
+        └── secrets.toml
+```
+
+The **default** profile is created automatically on first run. It cannot be renamed or deleted.
+
+## Managing Profiles
+
+From the Config tab you can:
+
+| Action | Description |
+|--------|-------------|
+| **Switch profile** | Select a different active profile; the GUI reloads its settings |
+| **Create** | New empty profile or copy from an existing one |
+| **Duplicate** | Clone an existing profile including config and keyring secrets |
+| **Rename** | Change profile name (not available for `default`) |
+| **Delete** | Remove a profile and its files (not available for `default`) |
+
+When you duplicate or create from an existing profile, API keys are copied in the OS keyring under the new profile name.
+
+## Profile Naming Rules
+
+Profile names must:
+
+- Start with a letter or number
+- Contain only letters, numbers, spaces, hyphens, or underscores
+- Be at most 64 characters
+- Be unique (case-insensitive)
+
+Invalid characters such as `/` or `\` are rejected.
+
+## What Is Stored Per Profile
+
+Each profile's `config.toml` includes:
+
+- Server URL and SSL settings
+- Theme and advanced mode preference
+- Global advanced defaults (timeout, concurrent tasks, etc.)
+- **form_state** — Saved field values for every workflow tab (paths, checkboxes, advanced flags)
+
+API keys are stored separately in the keyring (or `secrets.toml` as fallback), scoped by profile name.
+
+## Migration from Legacy Config
+
+If you upgraded from an older single-file layout, the GUI automatically migrates:
+
+- `config.toml` → `profiles/default/config.toml`
+- `secrets.toml` → `profiles/default/secrets.toml`
+
+Original files are renamed with a `.pre-profile.bak` suffix.
+
+## Environment Override
+
+Set `IMMICH_GO_GUI_CONFIG` to point at a specific config file. The profile directory is derived from that file's parent path. See [Config Schema](../reference/config-schema.md).
+
+## Tips
+
+- Use **work** / **home** profiles when you manage multiple Immich instances.
+- Duplicate a working profile before experimenting with advanced flags.
+- Switching profiles reloads all tab fields — save any in-progress changes first if needed.
+- Keep a **staging** profile pointed at a test Immich server for dry-runs of large Takeouts.
+- Profile names are case-insensitive for uniqueness — `Home` and `home` collide.
+
+## Related
+
+- [Configuration](configuration.md)
+- [Security & Privacy](security-and-privacy.md)
+- [Config Schema](../reference/config-schema.md)
+
+
+
+================================================================================
+FILE 32 / 35: docs/user-guide/security-and-privacy.md (Lines 1-116)
+================================================================================
+# Security & Privacy
+
+Immich-Go GUI is designed so credentials never need to live in shell history, process argv listings, or committed config files.
+
+## Threat Model (Practical)
+
+| Risk | How the GUI mitigates it |
+|------|--------------------------|
+| API keys in config files | Stored in OS keyring by default |
+| Keys visible in command preview | Masked as `***` |
+| Keys in `ps` / Task Manager argv | Passed via environment variables, not `--api-key` flags |
+| Keys written to `.bat` / `.sh` launch scripts | Launch scripts must not embed secrets; env is set in-process |
+| Accidental TLS intercept on self-hosted setups | Optional skip-SSL with **visible warning banners** |
+| Concurrent overlapping jobs | Process locks prevent double-runs |
+
+This is **not** a formal audit. Treat it as an engineering design summary.
+
+## Credential Lifecycle
+
+```text
+You paste API key
+        │
+        ▼
+ OS keyring (preferred)
+   or secrets.toml fallback
+        │
+        ▼
+ GUI loads key into memory for the active profile
+        │
+        ▼
+ build_environment() injects IMMICH_GO_* vars
+        │
+        ▼
+ External terminal process inherits env
+        │
+        ▼
+ immich-go authenticates to Immich
+```
+
+### Storage backends
+
+1. **OS keyring (default)** — service name `immich-go-gui`, keys like `default:api_key`
+2. **File fallback** — `profiles/{name}/secrets.toml` when keyring is missing or fails
+
+Prefer fixing keyring on Linux (GNOME Keyring / KWallet) over leaving keys on disk.
+
+## What Goes Through Environment Variables
+
+Server URLs and API keys for server-required tabs are injected as `IMMICH_GO_*` variables. Full map: [Environment Variables](../reference/environment-variables.md).
+
+**Never** put real keys into issues, screenshots of unmasked previews, or shared logs.
+
+## What Still Appears on the Command Line
+
+Non-secret flags and paths appear in argv (and therefore in the preview), for example:
+
+- Source / destination paths
+- `--server` for destination server (URL only — not the API key)
+- Filters, dry-run, stacking options
+
+Paths can still be sensitive (home directory layout, album names). Share previews carefully.
+
+## SSL Verification
+
+| Setting | When to use |
+|---------|-------------|
+| **Skip SSL verification off** (default) | Production, public HTTPS, valid certs |
+| **Skip SSL verification on** | Local lab / self-signed only |
+
+!!! danger "SSL Verification Warning"
+    When **Skip SSL verification** is enabled:
+    
+    - The Config tab shows a prominent warning banner.
+    - Command plans add a warning indicator before execution.
+    - Traffic can be inspected by any device on the network path — only use this in trusted local lab environments.
+
+## Admin API Key
+
+The optional Admin API key is stored like the user key. It is required only for operations that pause Immich background jobs. Without it, the GUI disables job pausing rather than sending a request that would fail with `403`.
+
+## Profiles Isolate Secrets
+
+Each profile has its own keyring entries and config. Switching profiles reloads credentials so you do not accidentally upload home photos to a work server (or the reverse).
+
+## What the App Does *Not* Do
+
+- Does not phone home except for:
+  - Immich server checks you initiate
+  - GitHub Releases when downloading immich-go
+- Does not upload your media itself — immich-go does, to **your** Immich server
+- Does not store photo contents in the config directory
+- Does not share telemetry
+
+## Hardening Checklist
+
+- [ ] Use HTTPS with a valid certificate on Immich
+- [ ] Prefer keyring over `secrets.toml`
+- [ ] Use separate profiles for separate servers
+- [ ] Leave Skip SSL off outside trusted lab networks
+- [ ] Keep immich-go on the tested version from the Config tab
+- [ ] Download GUI binaries only from official [GitHub Releases](https://github.com/shitan198u/immich-go-gui/releases)
+- [ ] Never paste live API keys into GitHub issues
+
+## Developer Pointers
+
+Security-sensitive code lives in:
+
+| Area | Module |
+|------|--------|
+| Secret storage | `core/config_manager.py` (`SecretStore`) |
+| Env injection | `core/command_builder.py` (`build_environment`) |
+| Preview redaction | `mask_command_for_display()` |
+| Terminal launch | `core/terminal_launcher.py` |
+| Connection checks | `core/network.py` |
+
+Architecture overview: [Architecture — Security Model](../developer-guide/architecture.md#security-model).
+
+
+
+================================================================================
+FILE 33 / 35: docs/user-guide/stack.md (Lines 1-65)
+================================================================================
+# Stack
+
+The **Stack** tab runs immich-go's `stack` command against your Immich server. Stacking groups related assets (burst photos, RAW+JPEG pairs, HEIC+JPEG, Epson FastFoto sequences) into a single stack on the server.
+
+**Command:** `immich-go stack`
+
+## Requirements
+
+Stack requires a configured Immich server and API key on the Config tab. The GUI performs a pre-flight connection check before launch.
+
+| Credential | Purpose |
+|------------|---------|
+| Server URL | Target Immich instance |
+| API key | Authentication for stack operations |
+| Admin API key | Optional; required only if you want Immich background jobs paused during stacking |
+
+Secrets are passed via environment variables (`IMMICH_GO_STACK_SERVER`, `IMMICH_GO_STACK_API_KEY`, etc.). See [Environment Variables](../reference/environment-variables.md).
+
+Without an admin key, the GUI auto-disables job pausing and warns instead of failing with `403`. See [Configuration](configuration.md#admin-api-key-and-job-pausing).
+
+## Common Fields
+
+| Field | Description |
+|-------|-------------|
+| **Dry run** | Preview stacking actions without modifying the server |
+| **Date range** | Limit stacking to assets within a date window |
+| **Device UUID** | Filter or tag by device identifier |
+
+## Stack Management Options (Advanced)
+
+These flags control how immich-go detects and groups assets:
+
+| Flag | Description |
+|------|-------------|
+| `manage-burst` | Stack burst/sequence photos |
+| `manage-raw-jpeg` | Pair RAW files with JPEG previews |
+| `manage-heic-jpeg` | Pair HEIC with JPEG counterparts |
+| `manage-epson-fastfoto` | Handle Epson FastFoto scan sequences |
+
+Enable the options matching your library content. See [Advanced Flags](advanced-flags.md) for the full list.
+
+## Other Advanced Options
+
+- `concurrent-tasks` — Parallel processing count
+- `pause-immich-jobs` — Pause background Immich jobs during stacking
+- `on-errors` — Error handling behavior
+- `log-level`, `api-trace` — Logging verbosity
+- `time-zone` — Timezone for date-based filtering
+- `skip-verify-ssl` — Bypass TLS verification (shows warning)
+
+## Running Stack
+
+1. Configure server and API key on the Config tab.
+2. Open the Stack tab.
+3. Set date range or management options as needed.
+4. Review the command preview.
+5. Click **Run**.
+
+Stack operations can take considerable time on large libraries. Monitor progress in the terminal window.
+
+## Further Reading
+
+- [Configuration](configuration.md) — Server and API key setup
+- [Troubleshooting](troubleshooting.md) — Connection and lock issues
+- [immich-go stack documentation](https://github.com/simulot/immich-go/)
+
+
+
+================================================================================
+FILE 34 / 35: docs/user-guide/troubleshooting.md (Lines 1-152)
+================================================================================
+# Troubleshooting
+
+Common issues and how to resolve them. For short Q&A, see the [FAQ](faq.md). For install quirks, see [Platform Notes](platform-notes.md).
+
+## Quick triage
+
+| Symptom | Jump to |
+|---------|---------|
+| Defender / VirusTotal flag | [Windows antivirus](#windows-antivirus-false-positives) |
+| Run button grayed out | [Process already running](#run-button-disabled-process-already-running) |
+| No terminal window | [Terminal does not open](#terminal-does-not-open) |
+| Cannot reach Immich | [Server connection failed](#server-connection-failed) |
+| `403` during upload | [403 when pausing jobs](#403-forbidden-when-pausing-immich-jobs) |
+| Version warning on Config | [immich-go version warnings](#immich-go-version-warnings) |
+| API key empty after restart | [API key not saved](#api-key-not-saved) |
+| TLS errors | [SSL / certificate errors](#ssl-certificate-errors) |
+
+## Windows Antivirus False Positives
+
+**Symptom:** Windows Defender or VirusTotal flags the executable (e.g. `Trojan:Win32/Wacatac.B!ml`).
+
+**Cause:** The app is compiled with Nuitka into a standalone executable without a paid code-signing certificate. This triggers heuristic detections.
+
+**Solutions:**
+
+- Run from source: `uv sync --dev && uv run app.py`
+- Add an exclusion in Windows Defender for the install directory
+- Verify the download came from the official [GitHub Releases](https://github.com/shitan198u/immich-go-gui/releases) page
+
+## Run Button Disabled / Process Already Running
+
+**Symptom:** The Run button stays grayed out with a message about an active process.
+
+**Cause:** The GUI tracks running immich-go jobs via lock files in `{config_dir}/locks/`. A lock remains while the terminal job is active or if a previous run did not clean up.
+
+**Solutions:**
+
+1. Close the terminal window running immich-go and wait a few seconds for lock cleanup.
+2. On Windows, the launcher uses a heartbeat process to clean locks when the terminal is killed abruptly — wait briefly and retry.
+3. Restart the GUI application.
+4. As a last resort, delete stale lock files in your config directory's `locks/` folder (only when no immich-go process is running).
+
+## Terminal Does Not Open
+
+**Symptom:** Clicking Run does nothing or shows a terminal launch error.
+
+**Solutions:**
+
+- **Linux:** Ensure a terminal emulator is installed (`gnome-terminal`, `konsole`, `xterm`, etc.). Set preferred terminal in Config if Auto detection fails.
+- **macOS:** Terminal.app or iTerm should be available on PATH.
+- **Windows:** cmd.exe is used by default; verify it is accessible.
+- Check file permissions on the immich-go binary in `~/.immich-go-gui/bin/`.
+
+## Server Connection Failed
+
+**Symptom:** Pre-flight check fails or immich-go cannot reach Immich.
+
+**Checklist:**
+
+- Verify server URL includes scheme (`https://` or `http://`) and has no trailing junk path
+- Confirm API key is valid and has required permissions
+- Click **Test Connection** on the Config tab
+- Test the server in a browser: `{server}/api/server/about`
+- For self-signed certificates, enable **Skip SSL verification** (shows a warning banner)
+- Check firewall/proxy settings between your machine and the Immich server
+- Confirm you are on the correct [profile](profiles.md) (home vs work server)
+
+## 403 Forbidden When Pausing Immich Jobs
+
+**Symptom:** Terminal shows `403 Forbidden` related to pausing jobs, or uploads abort immediately after start.
+
+**Cause:** `pause-immich-jobs` requires an **Admin API key**. A normal user key cannot pause Immich background jobs.
+
+**Solutions:**
+
+1. Add an **Admin API Key** on the Config tab, or
+2. Disable job pausing (advanced / config advanced settings), or
+3. Upgrade to GUI **≥ 1.1.2**, which auto-disables pausing when no admin key is present and warns instead of failing hard
+
+See [Configuration — Admin API Key and Job Pausing](configuration.md#admin-api-key-and-job-pausing).
+
+## immich-go Version Warnings
+
+**Symptom:** Config tab shows untested or unsupported version warnings.
+
+**Details:**
+
+- **Tested:** v0.32.0 (recommended)
+- **Unsupported old:** Versions below 0.32.0
+- **Untested new:** Versions above 0.32.0
+
+**Solutions:**
+
+- Download the recommended version from the Config tab binary manager
+- Enable "allow untested updates" in advanced settings if you intentionally use a newer binary
+- See [immich-go Compatibility](../reference/immich-go-compatibility.md)
+
+## API Key Not Saved
+
+**Symptom:** API key field is empty after restart.
+
+**Cause:** Keyring backend unavailable on Linux (no Secret Service), or permission denied.
+
+**Solutions:**
+
+- Install and unlock a Secret Service provider (GNOME Keyring, KWallet)
+- Check `secrets.toml` in your profile directory for plaintext fallback storage
+- Re-enter the API key on the Config tab
+
+## SSL / Certificate Errors
+
+**Symptom:** Connection fails with TLS or certificate errors.
+
+**Solutions:**
+
+- Use a valid certificate on your Immich server (Let's Encrypt recommended)
+- For local development only: enable **Skip SSL verification** — an inline warning is displayed
+- Do not disable SSL verification on production servers
+
+## Command Preview Shows `***` for Secrets
+
+**This is expected behavior.** API keys are masked in the preview for security. The real values are passed to immich-go via environment variables at runtime.
+
+## Config Not Found or Wrong Profile
+
+**Symptom:** Settings reset or wrong server appears.
+
+**Check:**
+
+- Active profile on the Config tab
+- Whether `IMMICH_GO_GUI_CONFIG` environment variable overrides the default path
+- Config directory for your OS (see [Config Schema](../reference/config-schema.md))
+
+## Drag and Drop Not Working
+
+**Symptom:** Dropped files do not populate path fields.
+
+**Solutions:**
+
+- Drop folders onto path input fields (not empty areas)
+- On Linux Wayland, some compositors restrict drag-and-drop — try selecting via the file picker button
+
+## Getting Help
+
+1. Skim the [FAQ](faq.md) and [Choose Your Workflow](choose-your-workflow.md)
+2. Check [immich-go issues](https://github.com/simulot/immich-go/issues) for CLI-specific errors shown in the terminal
+3. Open a [GUI issue](https://github.com/shitan198u/immich-go-gui/issues) with:
+   - OS and GUI version
+   - immich-go version (from Config tab)
+   - Active profile name (if relevant)
+   - Masked command preview (never paste real API keys)
+   - Terminal error output
+
+
+
+================================================================================
+FILE 35 / 35: docs/user-guide/upload-workflows.md (Lines 1-127)
+================================================================================
+# Upload Workflows
+
+Upload tabs send media **to** your Immich server. All five upload workflows require a configured server URL and API key.
+
+| Tab | immich-go command | Source |
+|-----|-------------------|--------|
+| Folder | `upload from-folder` | Local directory on disk |
+| Google Photos | `upload from-google-photos` | Google Takeout export |
+| iCloud | `upload from-icloud` | iCloud export / library |
+| Picasa | `upload from-picasa` | Picasa / Google Photos legacy export |
+| Immich | `upload from-immich` | Another Immich server (migration) |
+
+See [CLI Command Mapping](../reference/cli-command-mapping.md) for the full mapping.
+
+## Common Fields (All Upload Tabs)
+
+These appear in Simple mode on most upload tabs:
+
+| Field | Description |
+|-------|-------------|
+| **Source path** | Folder or file containing media to upload. Supports drag-and-drop. |
+| **Dry run** | Preview what would happen without uploading |
+| **Date range** | Limit uploads to files within a date window |
+| **Include / exclude extensions** | Filter by file type (e.g. `.jpg`, `.mp4`) |
+| **Include type** | Filter by media type (image, video, etc.) |
+
+Global settings from the Config tab (server, timeout, concurrent tasks, on-errors behavior) apply unless overridden in advanced mode.
+
+## Upload from Folder
+
+**Command:** `immich-go upload from-folder <path>`
+
+Upload photos and videos from a local directory tree.
+
+**Typical use:** Bulk import from an external drive, NAS export, or organized photo library.
+
+**Notable options (advanced):**
+
+- `recursive` — Include subdirectories
+- `folder-as-album` / `folder-as-tags` — Map directory structure to Immich albums or tags
+- `date-from-name` — Parse dates from filenames
+- `manage-burst`, `manage-raw-jpeg`, `manage-heic-jpeg` — Burst and RAW/HEIC pairing
+
+## Upload from Google Photos
+
+**Command:** `immich-go upload from-google-photos <takeout-path>`
+
+Import from a [Google Takeout](https://takeout.google.com/) archive.
+
+**Typical use:** Migrating from Google Photos after exporting your library.
+
+**Notable options (advanced):**
+
+- `include-archived`, `include-trashed`, `include-partner` — Include non-default album content
+- `sync-albums` — Sync album structure to Immich
+- `takeout-tag` — Tag imported items
+- `from-album-name`, `partner-shared-album` — Filter by album
+
+## Upload from iCloud
+
+**Command:** `immich-go upload from-icloud <path>`
+
+Import from an iCloud Photos export or compatible folder layout.
+
+**Notable options (advanced):**
+
+- `memories` — Handle iCloud Memories
+- `folder-as-album`, `into-album` — Album mapping
+- Same folder/recursive/date filters as folder upload
+
+## Upload from Picasa
+
+**Command:** `immich-go upload from-picasa <path>`
+
+Import from Picasa Web Albums exports or legacy Google Photos Picasa-compatible layouts.
+
+**Notable options (advanced):**
+
+- `album-picasa` — Target specific Picasa albums
+- Folder and extension filters similar to folder upload
+
+## Upload from Immich
+
+**Command:** `immich-go upload from-immich`
+
+Copy assets from **another Immich server** to your configured destination server. Requires credentials for both source and destination.
+
+**Additional fields:**
+
+| Field | Description |
+|-------|-------------|
+| **From server URL** | Source Immich instance |
+| **From API key** | Source instance API key (keyring-stored) |
+| **From admin API key** | Optional source admin key |
+
+**Notable options (advanced):**
+
+- `from-albums`, `from-tags`, `from-people` — Filter source assets
+- `from-date-range`, `from-favorite`, `from-archived` — Further source filters
+- `from-partners` — Include partner-shared assets
+
+## Running an Upload
+
+1. Configure server and API key on the Config tab (use **Test Connection**).
+2. Optionally set an **Admin API key** if you want background Immich jobs paused during the upload.
+3. Select the appropriate upload sub-tab.
+4. Set the source path (drag-and-drop supported).
+5. Adjust filters and options as needed — prefer **Dry run** on first attempt.
+6. Review the masked command preview.
+7. Click **Run** — a terminal window opens running immich-go.
+
+The GUI performs a pre-flight server connection check before launch.
+
+### Large library tips
+
+- Start with a date range or a single folder before the full Takeout
+- Use a dedicated [profile](profiles.md) when testing against a staging Immich instance
+- Watch the terminal for immich-go progress; close it only when finished so the GUI lock clears
+- See [Choose Your Workflow](choose-your-workflow.md) for migration recipes
+
+## Further Reading
+
+- [Choose Your Workflow](choose-your-workflow.md) — Decision tree and recipes
+- [Advanced Flags](advanced-flags.md) — Full flag reference per tab
+- [Security & Privacy](security-and-privacy.md) — How secrets are passed
+- [Environment Variables](../reference/environment-variables.md)
+- [immich-go upstream docs](https://github.com/simulot/immich-go/) — CLI behavior details
+
+

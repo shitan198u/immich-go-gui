@@ -80,8 +80,8 @@ See [Choose Your Workflow](choose-your-workflow.md) for a decision tree and reci
 
 ### What is the difference between Upload and Archive?
 
-- **Upload** → media ends up **in Immich**
-- **Archive** → media ends up **in a local folder** (except Archive from Immich, which downloads *from* Immich to disk)
+- **Upload** puts media **into Immich**
+- **Archive** writes media **to a local folder** (except Archive from Immich, which downloads *from* Immich to disk)
 
 ### Can I archive without an Immich server?
 

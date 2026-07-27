@@ -26,10 +26,10 @@ Stable metadata constants and compatibility matrices.
 | Export | Purpose |
 |--------|---------|
 | `TAB_KEYS` | All 12 internal tab keys (including `config`) |
-| `TAB_COMMANDS` | Tab key → immich-go command tokens |
+| `TAB_COMMANDS` | Tab key to immich-go command tokens |
 | `UPLOAD_TABS`, `ARCHIVE_TABS` | Tab set constants |
 | `SERVER_REQUIRED_TABS`, `SERVERLESS_TABS` | Server credential requirements |
-| `ENV_KEY_MAP` | Tab key → env var names for secrets |
+| `ENV_KEY_MAP` | Tab key to env var names for secrets |
 | `SECRET_FLAGS` | Flags masked in previews |
 | `TAB_ALLOWED_FLAGS` | Per-tab flag allowlist (from CLI help fixtures) |
 | `COMPATIBILITY_MATRIX` | Version-specific flag change notes |
@@ -45,7 +45,7 @@ Builds `CommandPlan` from GUI form state.
 
 | Function | Purpose |
 |----------|---------|
-| `build_plan_from_state()` | Main entry: state dict → CommandPlan |
+| `build_plan_from_state()` | Main entry: state dict produces a CommandPlan |
 | `build_environment()` | Construct env dict with secrets |
 | `validate_state()` | Validate form before run |
 | `mask_command_for_display()` | Redact secrets for preview |

@@ -80,13 +80,13 @@ flowchart TD
     classDef run fill:#8b5cf6,stroke:#6d28d9,color:#fff,stroke-width:2px
     classDef done fill:#10b981,stroke:#047857,color:#fff,stroke-width:2px
 
-    Start([🚀 Launch Requested]):::startEnd
-    Check{🔍 Binary found\nin ~/.immich-go-gui/bin/}:::check
-    Download[📥 Download from\nGitHub Releases]:::download
-    Verify[🔐 Verify SHA256\nchecksum]:::download
-    Launch[⚡ Prepare argv\n+ env secrets]:::run
-    Execute[🖥️ Open terminal\n+ run immich-go]:::run
-    Done([✅ Process Running]):::done
+    Start([Launch Requested]):::startEnd
+    Check{Binary found\nin ~/.immich-go-gui/bin/}:::check
+    Download[Download from\nGitHub Releases]:::download
+    Verify[Verify SHA256\nchecksum]:::download
+    Launch[Prepare argv\n+ env secrets]:::run
+    Execute[Open terminal\n+ run immich-go]:::run
+    Done([Process Running]):::done
 
     Start --> Check
     Check -- Yes --> Launch

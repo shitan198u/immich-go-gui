@@ -13,15 +13,15 @@ flowchart TB
     classDef extStyle fill:#10b981,stroke:#047857,color:#fff,stroke-width:2px
     classDef storStyle fill:#ec4899,stroke:#be185d,color:#fff,stroke-width:2px
 
-    User([👤 User]):::userStyle
+    User([User]):::userStyle
 
-    subgraph UI["🖥️  UI Layer — app.py / theme.py"]
+    subgraph UI["UI Layer — app.py / theme.py"]
         direction TB
         AppPy[app.py\nTabs · Widgets · Events]:::uiStyle
         ThemePy[theme.py\nPalette · Icons]:::uiStyle
     end
 
-    subgraph Core["⚙️  core/ — Qt-free business logic"]
+    subgraph Core["core/ — Qt-free business logic"]
         direction LR
         Builder[command_builder\nCommandPlan]:::coreStyle
         Config[config_manager\nTOML + keyring]:::coreStyle
@@ -31,7 +31,7 @@ flowchart TB
         Terminal[terminal_launcher]:::runStyle
     end
 
-    subgraph Ext["☁️  External"]
+    subgraph Ext["External"]
         direction LR
         ImmichGo[immich-go CLI]:::extStyle
         ImmichAPI[(Immich Server)]:::extStyle
@@ -60,7 +60,7 @@ immich-go-gui/
 │   ├── models.py          # Dataclasses / enums
 │   ├── cli_schema.py      # Tab keys, allowlists, env maps
 │   ├── advanced_flags.py  # Advanced flag registry
-│   ├── command_builder.py # state → CommandPlan
+│   ├── command_builder.py # state dict produces a CommandPlan
 │   ├── config_manager.py  # TOML + keyring secrets
 │   ├── profile_manager.py # Multi-profile index
 │   ├── binary_manager.py  # immich-go download / versions

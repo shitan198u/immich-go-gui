@@ -58,13 +58,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.1] - 2026-02-18
+## [1.0.1] - 2026-07-21
 
 ### Fixed
 - Fixed PySide6 theme resolution and fusion style application.
 - Improved terminal launcher error messages on Linux and macOS.
 
-## [1.0.0] - 2025-02-18
+## [1.0.0] - 2026-07-21
 
 ### Added
 - Initial release of Immich-Go GUI with PySide6 interface.

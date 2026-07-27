@@ -39,6 +39,20 @@ jobs:
       - name: Build docs
         run: uv run mkdocs build --strict
 
+      # mkdocs --strict validates markdown links, not image src attributes.
+      # lychee catches missing local assets (favicon, screenshots) and broken URLs.
+      - name: Link and asset check
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --offline
+            --include-fragments
+            --exclude-path site/assets/javascripts
+            --exclude-path site/assets/stylesheets
+            --exclude-path site/search
+            'site/**/*.html'
+          fail: true
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

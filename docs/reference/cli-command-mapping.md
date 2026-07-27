@@ -2,7 +2,7 @@
 
 The GUI exposes 11 immich-go subcommands across Upload, Archive, and Stack sections. Each tab has a stable internal key used in code, config, and tests.
 
-## Tab Key → Command Mapping
+## Tab Key to Command Mapping
 
 | Internal tab key | GUI section | immich-go command | Server required |
 |------------------|-------------|-------------------|-----------------|

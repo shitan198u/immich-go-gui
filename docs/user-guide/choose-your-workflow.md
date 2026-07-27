@@ -13,22 +13,22 @@ flowchart LR
     classDef run fill:#ec4899,stroke:#be185d,color:#fff,stroke-width:2px
     classDef done fill:#10b981,stroke:#047857,color:#fff,stroke-width:2px
 
-    Start([▶ Start]):::startEnd
+    Start([Start]):::startEnd
     Select[Select Source]:::source
 
-    subgraph Sources["📂 Import Sources"]
+    subgraph Sources["Import Sources"]
         Folder[Local Folder]:::source
         Takeout[Google Takeout]:::source
         iCloud[iCloud]:::source
-        Archive[Archive]:::source
-        Stack[Stack]:::source
+        Picasa[Picasa]:::source
+        ImmichSrc[Another Immich]:::source
     end
 
-    Configure[⚙️ Configure Options]:::config
-    Preview[👁 Preview Command]:::preview
-    Run[🚀 Execute immich-go]:::run
-    Progress[📊 Live Progress]:::run
-    Done([✅ Done]):::done
+    Configure[Configure Options]:::config
+    Preview[Preview Command]:::preview
+    Run[Execute immich-go]:::run
+    Progress[Live Progress]:::run
+    Done([Done]):::done
 
     Start --> Select
     Select --> Sources

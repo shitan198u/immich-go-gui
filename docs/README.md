@@ -6,9 +6,9 @@ hide:
 
 <div class="hero" markdown="1">
 
-<span class="hero-badge">✨ Desktop GUI · Open Source · Cross-platform</span>
+<span class="hero-badge">Desktop GUI · Open Source · Cross-platform</span>
 
-# 📸 Immich-Go GUI
+# Immich-Go GUI
 
 <p class="hero-lead">
 A beautiful desktop GUI for <a href="https://github.com/simulot/immich-go">immich-go</a> —
@@ -17,14 +17,14 @@ bulk upload, archive, and stack your media with <a href="https://immich.app/">Im
 
 <div class="hero-actions" markdown="1">
 
-[🚀 Get Started](user-guide/getting-started.md){ .md-button .md-button--primary }
-[🧭 Choose Your Workflow](user-guide/choose-your-workflow.md){ .md-button }
-[⬇️ Downloads](https://github.com/shitan198u/immich-go-gui/releases/latest){ .md-button }
+[Get Started](user-guide/getting-started.md){ .md-button .md-button--primary }
+[Choose Your Workflow](user-guide/choose-your-workflow.md){ .md-button }
+[Downloads](https://github.com/shitan198u/immich-go-gui/releases/latest){ .md-button }
 
 </div>
 
-<div class="hero-meta">
-<span>🪟 Windows &nbsp;·&nbsp; 🍎 macOS &nbsp;·&nbsp; 🐧 Linux</span>
+<div class="hero-meta" markdown="1">
+:fontawesome-brands-windows: Windows · :fontawesome-brands-apple: macOS · :fontawesome-brands-linux: Linux
 </div>
 
 </div>
@@ -35,32 +35,32 @@ Immich-Go GUI is a cross-platform desktop application (PySide6/Qt) that wraps th
 
 <div class="feature-grid">
   <div class="feature-card">
-    <div class="icon">⬆️</div>
+    <div class="icon">:fontawesome-solid-upload:</div>
     <h3>Full workflow coverage</h3>
-    <p>Eleven tabs for every upload, archive, and stack path — folder, Google Photos, iCloud, Picasa, Immich→Immich, and more.</p>
+    <p>Eleven tabs for every upload, archive, and stack path — folder, Google Photos, iCloud, Picasa, Immich-to-Immich, and more.</p>
   </div>
   <div class="feature-card">
-    <div class="icon">🔐</div>
+    <div class="icon">:fontawesome-solid-key:</div>
     <h3>Secrets done right</h3>
     <p>API keys live in the OS keyring, travel as environment variables, and stay masked in previews and logs.</p>
   </div>
   <div class="feature-card">
-    <div class="icon">👤</div>
+    <div class="icon">:fontawesome-solid-users:</div>
     <h3>Multi-server profiles</h3>
     <p>Home vs work, staging vs production — switch Immich targets without re-entering credentials each time.</p>
   </div>
   <div class="feature-card">
-    <div class="icon">✅</div>
+    <div class="icon">:fontawesome-solid-circle-check:</div>
     <h3>Pre-flight safety</h3>
     <p>Connection tests, dry-run, process locks, and SHA256-verified binary downloads before long jobs start.</p>
   </div>
   <div class="feature-card">
-    <div class="icon">🎛️</div>
+    <div class="icon">:fontawesome-solid-sliders:</div>
     <h3>Simple & advanced modes</h3>
     <p>Friendly defaults for common fields, with a full flag surface when you need power-user control.</p>
   </div>
   <div class="feature-card">
-    <div class="icon">💻</div>
+    <div class="icon">:fontawesome-solid-terminal:</div>
     <h3>Real terminal launches</h3>
     <p>Jobs open in your preferred terminal so progress, errors, and resumes stay visible and inspectable.</p>
   </div>
@@ -90,32 +90,32 @@ Immich-Go GUI is a cross-platform desktop application (PySide6/Qt) that wraps th
 <div class="card-grid">
   <a class="link-card" data-accent="coral" href="user-guide/getting-started/">
     <span class="card-kicker">First run</span>
-    <strong>🚀 Getting Started</strong>
+    <strong>Getting Started</strong>
     <span class="card-desc">Install binaries or run from source, then take the first-run tour.</span>
   </a>
   <a class="link-card" data-accent="indigo" href="user-guide/choose-your-workflow/">
     <span class="card-kicker">Decision help</span>
-    <strong>🧭 Choose Your Workflow</strong>
+    <strong>Choose Your Workflow</strong>
     <span class="card-desc">Decision tree and recipes for folder, cloud takeouts, and server-to-server.</span>
   </a>
   <a class="link-card" data-accent="amber" href="user-guide/troubleshooting/">
     <span class="card-kicker">Stuck?</span>
-    <strong>🐛 Troubleshooting</strong>
+    <strong>Troubleshooting</strong>
     <span class="card-desc">Locks, terminals, SSL, antivirus, and 403s — fix it fast.</span>
   </a>
   <a class="link-card" data-accent="emerald" href="user-guide/security-and-privacy/">
     <span class="card-kicker">Trust</span>
-    <strong>🔒 Security & Privacy</strong>
+    <strong>Security & Privacy</strong>
     <span class="card-desc">Keyring, env secrets, SSL, and the threat model explained clearly.</span>
   </a>
   <a class="link-card" data-accent="violet" href="developer-guide/architecture/">
     <span class="card-kicker">Contributors</span>
-    <strong>🏗️ Architecture</strong>
+    <strong>Architecture</strong>
     <span class="card-desc">UI vs core split, data flow, and how to extend the app safely.</span>
   </a>
   <a class="link-card" data-accent="sky" href="reference/cli-command-mapping/">
     <span class="card-kicker">Lookup</span>
-    <strong>⌨️ CLI Mapping</strong>
+    <strong>CLI Command Mapping</strong>
     <span class="card-desc">Every GUI tab mapped to immich-go subcommands and flags.</span>
   </a>
 </div>
@@ -130,9 +130,9 @@ flowchart TB
     classDef runStyle fill:#f59e0b,stroke:#b45309,color:#fff,stroke-width:2px
     classDef extStyle fill:#10b981,stroke:#047857,color:#fff,stroke-width:2px
 
-    User([👤 User]):::userStyle
+    User([User]):::userStyle
 
-    subgraph GUILayer["🖥️  Immich-Go GUI"]
+    subgraph GUILayer["Immich-Go GUI"]
         direction TB
         Config[Config Manager]:::coreStyle
         Builder[Command Builder]:::coreStyle
@@ -141,7 +141,7 @@ flowchart TB
         Process[Process Runner]:::runStyle
     end
 
-    subgraph External["☁️  External"]
+    subgraph External["External"]
         direction TB
         Binary[immich-go CLI]:::extStyle
         Server[(Immich Server)]:::extStyle
@@ -182,7 +182,7 @@ flowchart TB
 
 ## Documentation map
 
-### 📖 User Guide
+### User Guide
 
 <div class="card-grid">
   <a class="link-card" data-accent="coral" href="user-guide/getting-started/">
@@ -213,7 +213,7 @@ flowchart TB
   <a class="link-card" data-accent="coral" href="user-guide/upload-workflows/">
     <span class="card-kicker">Import</span>
     <strong>Upload Workflows</strong>
-    <span class="card-desc">Folder, Google Photos, iCloud, Picasa, Immich→Immich.</span>
+    <span class="card-desc">Folder, Google Photos, iCloud, Picasa, Immich-to-Immich.</span>
   </a>
   <a class="link-card" data-accent="amber" href="user-guide/archive-workflows/">
     <span class="card-kicker">Export</span>
@@ -252,7 +252,7 @@ flowchart TB
   </a>
 </div>
 
-### 🛠️ Developer Guide
+### Developer Guide
 
 <div class="card-grid">
   <a class="link-card" data-accent="violet" href="developer-guide/architecture/">
@@ -287,7 +287,7 @@ flowchart TB
   </a>
 </div>
 
-### 📋 Reference
+### Reference
 
 <div class="card-grid">
   <a class="link-card" data-accent="indigo" href="reference/config-schema/">
@@ -303,7 +303,7 @@ flowchart TB
   <a class="link-card" data-accent="sky" href="reference/cli-command-mapping/">
     <span class="card-kicker">CLI</span>
     <strong>CLI Command Mapping</strong>
-    <span class="card-desc">11 GUI tabs → immich-go subcommands.</span>
+    <span class="card-desc">Maps all 11 GUI tabs to immich-go subcommands.</span>
   </a>
   <a class="link-card" data-accent="emerald" href="reference/immich-go-compatibility/">
     <span class="card-kicker">Versions</span>
@@ -319,7 +319,7 @@ flowchart TB
 | [README](https://github.com/shitan198u/immich-go-gui/blob/master/README.md) | Project landing page |
 | [CONTRIBUTING](CONTRIBUTING.md) | How to contribute |
 | [CHANGELOG](CHANGELOG.md) | Version history |
-| [LICENSE](https://github.com/shitan198u/immich-go-gui/blob/master/LICENSE.txt) | MIT license |
+| [LICENSE](https://github.com/shitan198u/immich-go-gui/blob/master/LICENSE) | MIT license |
 
 <div class="version-banner">
   <strong>Version note:</strong>

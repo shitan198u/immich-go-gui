@@ -33,12 +33,12 @@ Extract the portable zip and run `Immich-Go-GUI.exe` inside.
 
 ### SmartScreen / antivirus
 
-Unsigned Nuitka builds often trigger SmartScreen or Defender heuristics (`Wacatac`, etc.). This is a known false-positive class for many Python→native apps.
+Unsigned Nuitka builds often trigger SmartScreen or Defender heuristics (`Wacatac`, etc.). This is a known false-positive class for many Python-to-native apps.
 
 **Safer workflow:**
 
 1. Confirm the release tag and publisher on GitHub
-2. Unblock the file if Windows marked it (Properties → Unblock)
+2. Unblock the file if Windows marked it (Properties > Unblock)
 3. Or run from source with `uv` if your environment blocks unsigned binaries
 
 See [Troubleshooting](troubleshooting.md#windows-antivirus-false-positives).
@@ -62,7 +62,7 @@ immich-go binary: `%USERPROFILE%\.immich-go-gui\bin\`
 
 1. Open the `.dmg`
 2. Drag the app to Applications (or run in place)
-3. On first launch, if Gatekeeper blocks it: **System Settings → Privacy & Security → Open Anyway**, or right-click → Open
+3. On first launch, if Gatekeeper blocks it: **System Settings > Privacy & Security > Open Anyway**, or right-click and select **Open**
 
 ### Terminal
 

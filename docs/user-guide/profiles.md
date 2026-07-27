@@ -60,8 +60,8 @@ API keys are stored separately in the keyring (or `secrets.toml` as fallback), s
 
 If you upgraded from an older single-file layout, the GUI automatically migrates:
 
-- `config.toml` → `profiles/default/config.toml`
-- `secrets.toml` → `profiles/default/secrets.toml`
+- `config.toml` to `profiles/default/config.toml`
+- `secrets.toml` to `profiles/default/secrets.toml`
 
 Original files are renamed with a `.pre-profile.bak` suffix.
 
