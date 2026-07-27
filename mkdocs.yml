@@ -1,0 +1,161 @@
+site_name: Immich-Go GUI Documentation
+site_description: Complete documentation for Immich-Go GUI — a desktop GUI for immich-go bulk media operations.
+site_author: shitan198u
+site_url: https://shitan198u.github.io/immich-go-gui/
+repo_url: https://github.com/shitan198u/immich-go-gui
+repo_name: shitan198u/immich-go-gui
+edit_uri: edit/docs/comprehensive-documentation/docs/
+
+validation:
+  links:
+    absolute_links: warn
+    anchors: warn
+    unrecognized_links: warn
+    not_found: warn
+
+theme:
+  name: material
+  custom_dir: docs/overrides
+  logo: assets/logo.svg
+  favicon: assets/favicon.png
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: slate
+      accent: slate
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: slate
+      accent: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - search.highlight
+    - search.suggest
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.action.edit
+    - content.action.view
+    - toc.follow
+    - header.autohide
+  icon:
+    repo: fontawesome/brands/github
+    admonition:
+      note: octicons/tag-16
+      abstract: octicons/checklist-16
+      info: octicons/info-16
+      tip: octicons/squirrel-16
+      success: octicons/check-16
+      question: octicons/question-16
+      warning: octicons/alert-16
+      failure: octicons/x-circle-16
+      danger: octicons/zap-16
+      bug: octicons/bug-16
+      example: octicons/beaker-16
+      quote: octicons/quote-16
+
+nav:
+  - 🏠 Home: README.md
+  - 📖 User Guide:
+      - 🚀 Getting Started: user-guide/getting-started.md
+      - 💻 Platform Notes: user-guide/platform-notes.md
+      - 🧭 Choose Your Workflow: user-guide/choose-your-workflow.md
+      - ⚙️ Configuration: user-guide/configuration.md
+      - 👤 Profiles: user-guide/profiles.md
+      - ⬆️ Upload Workflows: user-guide/upload-workflows.md
+      - 📦 Archive Workflows: user-guide/archive-workflows.md
+      - 🗂️ Stack: user-guide/stack.md
+      - 🔧 Advanced Flags: user-guide/advanced-flags.md
+      - 🔒 Security & Privacy: user-guide/security-and-privacy.md
+      - 🐛 Troubleshooting: user-guide/troubleshooting.md
+      - ❓ FAQ: user-guide/faq.md
+      - 📚 Glossary: user-guide/glossary.md
+  - 🛠️ Developer Guide:
+      - 🏗️ Architecture: developer-guide/architecture.md
+      - 📦 Core Modules: developer-guide/core-modules.md
+      - ➕ Adding Tabs & Flags: developer-guide/adding-tabs-and-flags.md
+      - 🧪 Testing: developer-guide/testing.md
+      - 🔄 CI/CD & Releases: developer-guide/ci-cd-and-releases.md
+      - 📜 Scripts: developer-guide/scripts.md
+  - 📋 Reference:
+      - ⌨️ CLI Command Mapping: reference/cli-command-mapping.md
+      - 📐 Config Schema: reference/config-schema.md
+      - 🔑 Environment Variables: reference/environment-variables.md
+      - 🔗 immich-go Compatibility: reference/immich-go-compatibility.md
+  - 🤝 Contributing: CONTRIBUTING.md
+  - 📜 Changelog: CHANGELOG.md
+
+docs_dir: docs
+site_dir: site
+
+plugins:
+  - search
+  - social:
+      cards: true
+      cards_layout_options:
+        background_color: "#121520"
+        color: "#ffffff"
+        background_image: null
+  - autorefs
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: timeago
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      permalink_title: Anchor link to this section
+
+extra_css:
+  - assets/css/custom.css
+
+extra_javascript:
+  - https://unpkg.com/mermaid@10/dist/mermaid.min.js
+  - assets/js/sponsor-header.js
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/shitan198u/immich-go-gui
+      name: GitHub Repository
+    - icon: fontawesome/solid/heart
+      link: https://github.com/sponsors/shitan198u
+      name: Sponsor on GitHub
+    - icon: fontawesome/solid/mug-hot
+      link: https://www.buymeacoffee.com/shivashitan
+      name: Buy Me a Coffee
+    - icon: fontawesome/brands/discord
+      link: https://discord.immich.app
+      name: Immich Discord
+
+copyright: |
+  Copyright &copy; 2024–2026 shitan198u
