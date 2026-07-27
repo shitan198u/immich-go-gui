@@ -34,5 +34,7 @@ Refinement*
 .kilo/
 .vscode/
 .agents/
-.cache/
+
+# MkDocs build output & Cache
 site/
+.cache/
