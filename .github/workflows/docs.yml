@@ -47,6 +47,9 @@ jobs:
           args: >-
             --offline
             --include-fragments
+            --root-dir site
+            --remap 'https://shitan198u.github.io/immich-go-gui/ site/'
+            --remap '/immich-go-gui/ site/'
             --exclude-path site/assets/javascripts
             --exclude-path site/assets/stylesheets
             --exclude-path site/search
@@ -55,11 +58,13 @@ jobs:
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/master'
         with:
           path: site/
 
   deploy:
     needs: build
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
