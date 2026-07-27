@@ -1079,11 +1079,14 @@ body {
   color: #fff !important;
   border-radius: 9999px !important;
   box-shadow: 0 6px 20px var(--igg-coral-glow) !important;
-  transition: transform 0.2s var(--igg-ease), opacity 0.2s ease, box-shadow 0.2s ease !important;
+  /* Only transition opacity/shadow — do NOT touch transform here.
+     Material JS controls show/hide via transform: translateY and opacity;
+     any competing transform causes the jitter/glitch. */
+  transition: opacity 0.2s ease, box-shadow 0.2s ease !important;
 }
 
+/* Keep hover subtle — elevation only, no translateY to stay clear of MkDocs animations */
 .md-top:hover {
-  transform: translateY(-3px) !important;
   box-shadow: 0 10px 28px rgba(233, 83, 63, 0.55) !important;
 }
 
