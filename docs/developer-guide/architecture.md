@@ -11,23 +11,22 @@ flowchart TB
     classDef coreStyle fill:#8b5cf6,stroke:#6d28d9,color:#fff,stroke-width:2px
     classDef runStyle fill:#f59e0b,stroke:#b45309,color:#fff,stroke-width:2px
     classDef extStyle fill:#10b981,stroke:#047857,color:#fff,stroke-width:2px
-    classDef storStyle fill:#ec4899,stroke:#be185d,color:#fff,stroke-width:2px
 
     User([User]):::userStyle
 
     subgraph UI["UI Layer — app.py / theme.py"]
-        direction TB
-        AppPy[app.py\nTabs · Widgets · Events]:::uiStyle
-        ThemePy[theme.py\nPalette · Icons]:::uiStyle
+        direction LR
+        AppPy[app.py<br/>Tabs · Widgets · Events]:::uiStyle
+        ThemePy[theme.py<br/>Palette · Icons]:::uiStyle
     end
 
     subgraph Core["core/ — Qt-free business logic"]
         direction LR
-        Builder[command_builder\nCommandPlan]:::coreStyle
-        Config[config_manager\nTOML + keyring]:::coreStyle
-        BinMgr[binary_manager\nGitHub Releases]:::coreStyle
+        Builder[command_builder<br/>CommandPlan]:::coreStyle
         Validator[validation]:::coreStyle
-        Tracker[process_tracker\nLock files]:::coreStyle
+        Config[config_manager<br/>TOML + keyring]:::coreStyle
+        BinMgr[binary_manager<br/>GitHub Releases]:::coreStyle
+        Tracker[process_tracker<br/>Lock files]:::coreStyle
         Terminal[terminal_launcher]:::runStyle
     end
 
@@ -38,12 +37,15 @@ flowchart TB
         GitHub[(GitHub Releases)]:::extStyle
     end
 
-    User -->|interact| UI
+    User -->|interact| AppPy
+    AppPy --> ThemePy
     AppPy --> Builder
+    Builder --> Validator
     AppPy --> Config
     AppPy --> BinMgr
     AppPy --> Tracker
-    Builder -->|argv + masked env| Terminal
+    Builder -->|argv + env| Terminal
+    Tracker -->|lock gates launch| Terminal
     Terminal -->|launch subprocess| ImmichGo
     BinMgr -->|download / verify SHA256| GitHub
     Config -->|pre-flight ping| ImmichAPI
@@ -91,33 +93,12 @@ The `core/` package MUST NOT import PySide6 or Qt. All network, file I/O, subpro
 
 ```mermaid
 flowchart LR
-    subgraph ui [UI Layer]
-        AppPy[app.py]
-        ThemePy[theme.py]
-    end
-    subgraph corePkg [core package]
-        Schema[cli_schema]
-        Builder[command_builder]
-        Config[config_manager]
-        Binary[binary_manager]
-        Terminal[terminal_launcher]
-        Lock[process_tracker]
-    end
-    subgraph external [External]
-        ImmichAPI[Immich REST API]
-        GitHubAPI[GitHub Releases]
-        ImmichGoCLI[immich-go CLI]
-    end
-    AppPy --> Schema
-    AppPy --> Builder
-    AppPy --> Config
-    AppPy --> Binary
-    AppPy --> Terminal
-    AppPy --> Lock
-    Builder --> ImmichGoCLI
-    Binary --> GitHubAPI
-    Config --> ImmichAPI
-    Terminal --> ImmichGoCLI
+    State[form_state dict] --> Build[build_plan_from_state<br/>validates + builds]
+    Build --> Plan[CommandPlan<br/>argv · env · warnings]
+    Plan --> Mask[mask_command_for_display]
+    Mask --> Preview[Preview pane]
+    Plan --> Launch[terminal_launcher]
+    Launch --> Terminal[External terminal<br/>argv + env]
 ```
 
 ### Typical Run Sequence

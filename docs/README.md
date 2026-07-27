@@ -125,7 +125,6 @@ Immich-Go GUI is a cross-platform desktop application (PySide6/Qt) that wraps th
 ```mermaid
 flowchart TB
     classDef userStyle fill:#6366f1,stroke:#4338ca,color:#fff,stroke-width:2px
-    classDef guiStyle fill:#0ea5e9,stroke:#0369a1,color:#fff,stroke-width:2px
     classDef coreStyle fill:#8b5cf6,stroke:#6d28d9,color:#fff,stroke-width:2px
     classDef runStyle fill:#f59e0b,stroke:#b45309,color:#fff,stroke-width:2px
     classDef extStyle fill:#10b981,stroke:#047857,color:#fff,stroke-width:2px
@@ -147,9 +146,12 @@ flowchart TB
         Server[(Immich Server)]:::extStyle
     end
 
-    User --> GUILayer
-    Config --> Process
+    User -->|configure| Config
+    User -->|fill form| Builder
+    Builder --> Validator
+    Validator --> Process
     Builder --> Process
+    Config --> Process
     BinMgr --> Binary
     Process -->|launch with argv + secrets| Binary
     Binary -->|upload / archive / stack| Server

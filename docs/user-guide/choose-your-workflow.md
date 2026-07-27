@@ -5,7 +5,7 @@ Not sure which tab to open? Start here. Immich-Go GUI maps each use case to a sp
 ## Operation Lifecycle
 
 ```mermaid
-flowchart LR
+flowchart TB
     classDef startEnd fill:#6366f1,stroke:#4338ca,color:#fff,stroke-width:2px
     classDef source fill:#0ea5e9,stroke:#0369a1,color:#fff,stroke-width:2px
     classDef config fill:#8b5cf6,stroke:#6d28d9,color:#fff,stroke-width:2px
@@ -14,9 +14,10 @@ flowchart LR
     classDef done fill:#10b981,stroke:#047857,color:#fff,stroke-width:2px
 
     Start([Start]):::startEnd
-    Select[Select Source]:::source
+    Select[Select source tab]:::source
 
-    subgraph Sources["Import Sources"]
+    subgraph Sources["Import sources"]
+        direction LR
         Folder[Local Folder]:::source
         Takeout[Google Takeout]:::source
         iCloud[iCloud]:::source
@@ -24,10 +25,10 @@ flowchart LR
         ImmichSrc[Another Immich]:::source
     end
 
-    Configure[Configure Options]:::config
-    Preview[Preview Command]:::preview
+    Configure[Configure options]:::config
+    Preview[Preview command]:::preview
     Run[Execute immich-go]:::run
-    Progress[Live Progress]:::run
+    Progress[Live progress in terminal]:::run
     Done([Done]):::done
 
     Start --> Select
