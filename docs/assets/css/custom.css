@@ -1069,11 +1069,17 @@ body {
 
 /* ---------- Scroll top button ---------- */
 .md-top {
+  position: fixed !important;
+  bottom: 2rem !important;
+  right: 2rem !important;
+  top: auto !important;
+  left: auto !important;
+  z-index: 100 !important;
   background: linear-gradient(135deg, var(--igg-coral), var(--igg-coral-bright)) !important;
   color: #fff !important;
-  border-radius: 12px !important;
+  border-radius: 9999px !important;
   box-shadow: 0 6px 20px var(--igg-coral-glow) !important;
-  transition: transform 0.2s var(--igg-ease), box-shadow 0.2s ease !important;
+  transition: transform 0.2s var(--igg-ease), opacity 0.2s ease, box-shadow 0.2s ease !important;
 }
 
 .md-top:hover {
