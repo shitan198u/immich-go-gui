@@ -3,6 +3,10 @@
    Coral accent · midnight slate · glass surfaces · luminous CTAs
    ========================================================================== */
 
+.md-content__action {
+  display: none !important;
+}
+
 /* ---------- Design tokens ---------- */
 :root {
   --igg-coral: #e9533f;

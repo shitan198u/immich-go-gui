@@ -35,32 +35,32 @@ Immich-Go GUI is a cross-platform desktop application (PySide6/Qt) that wraps th
 
 <div class="feature-grid">
   <div class="feature-card">
-    <div class="icon">:fontawesome-solid-upload:</div>
+    <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
     <h3>Full workflow coverage</h3>
     <p>Eleven tabs for every upload, archive, and stack path — folder, Google Photos, iCloud, Picasa, Immich-to-Immich, and more.</p>
   </div>
   <div class="feature-card">
-    <div class="icon">:fontawesome-solid-key:</div>
+    <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
     <h3>Secrets done right</h3>
     <p>API keys live in the OS keyring, travel as environment variables, and stay masked in previews and logs.</p>
   </div>
   <div class="feature-card">
-    <div class="icon">:fontawesome-solid-users:</div>
+    <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
     <h3>Multi-server profiles</h3>
     <p>Home vs work, staging vs production — switch Immich targets without re-entering credentials each time.</p>
   </div>
   <div class="feature-card">
-    <div class="icon">:fontawesome-solid-circle-check:</div>
+    <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
     <h3>Pre-flight safety</h3>
     <p>Connection tests, dry-run, process locks, and SHA256-verified binary downloads before long jobs start.</p>
   </div>
   <div class="feature-card">
-    <div class="icon">:fontawesome-solid-sliders:</div>
+    <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></div>
     <h3>Simple & advanced modes</h3>
     <p>Friendly defaults for common fields, with a full flag surface when you need power-user control.</p>
   </div>
   <div class="feature-card">
-    <div class="icon">:fontawesome-solid-terminal:</div>
+    <div class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg></div>
     <h3>Real terminal launches</h3>
     <p>Jobs open in your preferred terminal so progress, errors, and resumes stay visible and inspectable.</p>
   </div>
