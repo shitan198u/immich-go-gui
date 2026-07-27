@@ -23,10 +23,17 @@ def bundle_website(output_path: Path):
         if cfg_path.exists():
             files_to_bundle.append(cfg_path)
 
-    # 2. All text files inside docs/ directory
+    # 2. Template overrides directory
+    overrides_dir = repo_root / "overrides"
+    text_extensions = {".md", ".css", ".js", ".html", ".svg", ".yml", ".yaml", ".json", ".txt"}
+    if overrides_dir.exists():
+        for p in sorted(overrides_dir.rglob("*")):
+            if p.is_file() and p.suffix.lower() in text_extensions:
+                files_to_bundle.append(p)
+
+    # 3. All text files inside docs/ directory
     docs_dir = repo_root / "docs"
     if docs_dir.exists():
-        text_extensions = {".md", ".css", ".js", ".html", ".svg", ".yml", ".yaml", ".json", ".txt"}
         for p in sorted(docs_dir.rglob("*")):
             if p.is_file() and p.suffix.lower() in text_extensions:
                 files_to_bundle.append(p)
