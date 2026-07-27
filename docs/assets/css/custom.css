@@ -3,10 +3,6 @@
    Coral accent · midnight slate · glass surfaces · luminous CTAs
    ========================================================================== */
 
-.md-content__action {
-  display: none !important;
-}
-
 /* ---------- Design tokens ---------- */
 :root {
   --igg-coral: #e9533f;
@@ -247,7 +243,6 @@ body {
   gap: 0.5rem !important;
   margin: 0 0.75rem !important;
   flex-shrink: 0 !important;
-  order: 9 !important;
 }
 
 .igg-sponsor-btn {
@@ -613,21 +608,6 @@ body {
   color: rgba(232, 234, 239, 0.7);
 }
 
-.hero .hero-meta span {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4em;
-}
-
-.hero .hero-meta span::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--igg-coral-bright);
-  box-shadow: 0 0 8px var(--igg-coral-glow);
-}
-
 /* ---------- Feature cards grid ---------- */
 .feature-grid {
   display: grid;
@@ -894,44 +874,7 @@ body {
   font-weight: 650;
 }
 
-/* ---------- Stats strip ---------- */
-.stats-strip {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 0.85rem;
-  margin: 0 0 2.5em;
-}
 
-.stat-pill {
-  text-align: center;
-  padding: 1.1em 0.75em;
-  background: var(--igg-surface);
-  border: 1px solid var(--igg-border);
-  border-radius: var(--igg-radius);
-  box-shadow: var(--igg-card-shadow);
-}
-
-.stat-pill .stat-value {
-  display: block;
-  font-size: 1.55rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  background: linear-gradient(135deg, var(--igg-coral), var(--igg-coral-bright));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  line-height: 1.15;
-}
-
-.stat-pill .stat-label {
-  display: block;
-  margin-top: 0.25em;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--igg-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
 
 /* ---------- Tables ---------- */
 .md-typeset table:not([class]) {
