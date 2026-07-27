@@ -47,12 +47,13 @@ jobs:
           args: >-
             --offline
             --include-fragments
-            --root-dir site
-            --remap 'https://shitan198u.github.io/immich-go-gui/ site/'
-            --remap '/immich-go-gui/ site/'
+            --root-dir ${{ github.workspace }}/site
+            --index-files index.html,.
+            --remap '^file://.*/site/immich-go-gui(/.*)?$ file://${{ github.workspace }}/site$1'
             --exclude-path site/assets/javascripts
             --exclude-path site/assets/stylesheets
             --exclude-path site/search
+            --exclude 'https://shitan198u.github.io/immich-go-gui/.*'
             'site/**/*.html'
           fail: true
 
