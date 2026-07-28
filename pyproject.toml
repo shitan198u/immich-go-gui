@@ -5,11 +5,13 @@ description = "Cross-platform desktop GUI for immich-go — configure, preview, 
 readme = "README.md"
 requires-python = ">=3.13.0, <3.14"
 dependencies = [
+    "idna>=3.15",
     "keyring>=25.0.0",
     "packaging>=24.0.0",
     "pyside6>=6.8.2",
-    "requests>=2.32.3",
+    "requests>=2.33.0",
     "tomli-w>=1.2.0",
+    "urllib3>=2.7.0",
 ]
 
 [dependency-groups]
