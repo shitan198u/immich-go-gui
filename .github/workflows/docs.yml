@@ -58,7 +58,7 @@ jobs:
           fail: true
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/master'
         with:
           path: site/
