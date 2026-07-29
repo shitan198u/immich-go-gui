@@ -263,21 +263,12 @@ class ImmichGoGUI(
                 event.ignore()
                 return
 
-        if self.has_unsaved_server_details():
-            reply = self._prompt_save_server_details()
-            if reply == QMessageBox.StandardButton.Cancel:
-                event.ignore()
-                return
-            if reply == QMessageBox.StandardButton.Save:
-                self.save_server_details(show_popup=False)
-
-        if self.has_unsaved_changes():
-            reply = self._prompt_save_app_settings()
-            if reply == QMessageBox.StandardButton.Cancel:
-                event.ignore()
-                return
-            if reply == QMessageBox.StandardButton.Save:
-                self.save_configuration(show_popup=False)
+        reply = self._prompt_save_pending_configuration("closing")
+        if reply == QMessageBox.StandardButton.Cancel:
+            event.ignore()
+            return
+        if reply == QMessageBox.StandardButton.Save:
+            self.save_configuration(show_popup=False)
 
         if hasattr(self, "log"):
             self.log.info("GUI closed")

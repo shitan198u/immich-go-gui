@@ -7,6 +7,7 @@ from core.config_manager import (
     load_config,
     save_config,
     save_secret_with_fallback,
+    save_server_url,
 )
 from core.models import AppConfig
 
@@ -60,6 +61,86 @@ def test_save_server_details_marks_clean(gui, monkeypatch):
     assert gui.has_unsaved_server_details() is True
     gui.save_server_details(show_popup=False)
     assert gui.has_unsaved_server_details() is False
+
+
+def test_unified_save_prompt_both_tracks_dirty(gui, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+
+    captured = {}
+
+    def fake_question(widget, title, body, buttons, default):
+        captured["title"] = title
+        captured["body"] = body
+        return QMessageBox.StandardButton.Save
+
+    monkeypatch.setattr("gui.mixins.persistence.QMessageBox.question", fake_question)
+    gui._mark_configuration_clean()
+    gui._mark_server_details_clean()
+    gui.inputs["config"]["api_key"].setText("changed-key")
+    gui.inputs["config"]["client_timeout_minutes"].setValue(120)
+
+    reply = gui._prompt_save_pending_configuration("closing")
+    assert reply == QMessageBox.StandardButton.Save
+    assert captured["title"] == "Save configuration?"
+    assert "Server connection and other settings" in captured["body"]
+
+
+def test_save_server_details_preserves_other_server_fields(tmp_path, monkeypatch, gui):
+    cfg_file = tmp_path / "config.toml"
+    monkeypatch.setenv("IMMICH_GO_GUI_CONFIG", str(cfg_file))
+    cfg_file.write_text(
+        """
+schema_version = 3
+
+[general]
+theme = "system"
+
+[server]
+url = "http://original:2283"
+skip_ssl = true
+client_timeout_minutes = 90
+
+[secrets]
+provider = "keyring"
+""".strip(),
+        encoding="utf-8",
+    )
+
+    gui.load_configuration()
+    gui._mark_server_details_clean()
+    gui.inputs["config"]["client_timeout_minutes"].setValue(30)
+    gui.inputs["config"]["skip-ssl"].setChecked(False)
+    gui.inputs["config"]["api_key"].setText("new-api-key")
+
+    gui.save_server_details(show_popup=False)
+
+    loaded = load_config()
+    assert loaded.server_url == gui.inputs["config"]["server"].text()
+    assert loaded.skip_ssl is True
+    assert loaded.client_timeout_minutes == 90
+
+
+def test_save_server_url_merge_write(tmp_path, monkeypatch):
+    cfg_file = tmp_path / "config.toml"
+    monkeypatch.setenv("IMMICH_GO_GUI_CONFIG", str(cfg_file))
+    cfg_file.write_text(
+        """
+schema_version = 3
+
+[server]
+url = "http://old:2283"
+skip_ssl = true
+client_timeout_minutes = 75
+""".strip(),
+        encoding="utf-8",
+    )
+
+    save_server_url("http://new:2283", path=cfg_file)
+
+    loaded = load_config()
+    assert loaded.server_url == "http://new:2283"
+    assert loaded.skip_ssl is True
+    assert loaded.client_timeout_minutes == 75
 
 
 def test_save_marks_configuration_clean(gui, monkeypatch):

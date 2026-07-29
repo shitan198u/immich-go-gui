@@ -12,6 +12,7 @@ from core import (
     load_config,
     save_config,
     save_secret_with_fallback,
+    save_server_url,
     set_api_key,
 )
 from theme import THEME_SYSTEM, normalize_theme_mode
@@ -169,12 +170,12 @@ class PersistenceMixin:
         return self._collect_server_snapshot() != self._server_clean_snapshot
 
     def save_server_details(self, show_popup: bool = True):
-        self.app_config.server_url = self.inputs["config"]["server"].text()
-        cfg_path = default_config_path(
-            getattr(self.app_config, "profile_name", "default")
-        )
+        server_url = self.inputs["config"]["server"].text()
+        self.app_config.server_url = server_url
+        prof_name = getattr(self.app_config, "profile_name", "default")
+        cfg_path = default_config_path(prof_name)
         try:
-            save_config(self.app_config)
+            save_server_url(server_url, path=cfg_path, profile_name=prof_name)
         except OSError as exc:
             QMessageBox.critical(
                 cast(QWidget, self),
@@ -319,6 +320,41 @@ class PersistenceMixin:
             self.lbl_secret_status.setStyleSheet("color: #E5C07B;")
         else:
             self.lbl_secret_status.setText("")
+
+    def _prompt_save_pending_configuration(
+        self, context: str
+    ) -> QMessageBox.StandardButton | None:
+        """Single save prompt when any configuration track is dirty."""
+        server_dirty = self.has_unsaved_server_details()
+        app_dirty = self.has_unsaved_changes()
+        if not server_dirty and not app_dirty:
+            return None
+
+        if server_dirty and app_dirty:
+            body = (
+                "Server connection and other settings changed. "
+                f"Save before {context}?"
+            )
+        elif server_dirty:
+            body = (
+                "Server URL or API key changed. "
+                f"Save connection details before {context}?"
+            )
+        else:
+            body = (
+                "Theme, timeout, or other settings changed. "
+                f"Save before {context}?"
+            )
+
+        return QMessageBox.question(
+            cast(QWidget, self),
+            "Save configuration?",
+            body,
+            QMessageBox.StandardButton.Save
+            | QMessageBox.StandardButton.Discard
+            | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Save,
+        )
 
     def _prompt_save_server_details(self) -> QMessageBox.StandardButton:
         return QMessageBox.question(
