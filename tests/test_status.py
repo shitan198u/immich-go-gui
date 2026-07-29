@@ -28,25 +28,39 @@ def test_running_process_boolean_state(gui):
 def test_close_event_save_prompt(gui, monkeypatch):
     from PySide6.QtGui import QCloseEvent
 
-    calls = {"save": 0, "question": 0}
+    calls = {"save_server": 0, "save_config": 0, "question": 0}
 
     def fake_question(*args, **kwargs):
         calls["question"] += 1
-        return QMessageBox.StandardButton.Save
+        title = args[1] if len(args) > 1 else kwargs.get("title", "")
+        if "server connection" in str(title).lower():
+            return QMessageBox.StandardButton.Save
+        return QMessageBox.StandardButton.Discard
 
     monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.question", fake_question)
     monkeypatch.setattr(
         gui,
+        "save_server_details",
+        lambda show_popup=True: calls.__setitem__(
+            "save_server", calls["save_server"] + 1
+        ),
+    )
+    monkeypatch.setattr(
+        gui,
         "save_configuration",
-        lambda show_popup=True: calls.__setitem__("save", calls["save"] + 1),
+        lambda show_popup=True: calls.__setitem__(
+            "save_config", calls["save_config"] + 1
+        ),
     )
     monkeypatch.setattr("gui.main_window.scan_locks", list)
     gui._mark_configuration_clean()
+    gui._mark_server_details_clean()
     gui.inputs["config"]["server"].setText("http://changed:2283")
     event = QCloseEvent()
     gui.closeEvent(event)
     assert calls["question"] == 1
-    assert calls["save"] == 1
+    assert calls["save_server"] == 1
+    assert calls["save_config"] == 0
     assert event.isAccepted()
 
 
@@ -59,11 +73,17 @@ def test_close_event_cancel_ignores(gui, monkeypatch):
     )
     monkeypatch.setattr(
         gui,
+        "save_server_details",
+        lambda show_popup=True: (_ for _ in ()).throw(AssertionError("save")),
+    )
+    monkeypatch.setattr(
+        gui,
         "save_configuration",
         lambda show_popup=True: (_ for _ in ()).throw(AssertionError("save")),
     )
     monkeypatch.setattr("gui.main_window.scan_locks", list)
     gui._mark_configuration_clean()
+    gui._mark_server_details_clean()
     gui.inputs["config"]["server"].setText("http://changed:2283")
     event = QCloseEvent()
     gui.closeEvent(event)
@@ -73,7 +93,7 @@ def test_close_event_cancel_ignores(gui, monkeypatch):
 def test_close_event_discard_no_save(gui, monkeypatch):
     from PySide6.QtGui import QCloseEvent
 
-    calls = {"save": 0, "question": 0}
+    calls = {"save_server": 0, "save_config": 0, "question": 0}
 
     def fake_question(*args, **kwargs):
         calls["question"] += 1
@@ -82,16 +102,27 @@ def test_close_event_discard_no_save(gui, monkeypatch):
     monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.question", fake_question)
     monkeypatch.setattr(
         gui,
+        "save_server_details",
+        lambda show_popup=True: calls.__setitem__(
+            "save_server", calls["save_server"] + 1
+        ),
+    )
+    monkeypatch.setattr(
+        gui,
         "save_configuration",
-        lambda show_popup=True: calls.__setitem__("save", calls["save"] + 1),
+        lambda show_popup=True: calls.__setitem__(
+            "save_config", calls["save_config"] + 1
+        ),
     )
     monkeypatch.setattr("gui.main_window.scan_locks", list)
     gui._mark_configuration_clean()
+    gui._mark_server_details_clean()
     gui.inputs["config"]["server"].setText("http://changed:2283")
     event = QCloseEvent()
     gui.closeEvent(event)
     assert calls["question"] == 1
-    assert calls["save"] == 0
+    assert calls["save_server"] == 0
+    assert calls["save_config"] == 0
     assert event.isAccepted()
 
 

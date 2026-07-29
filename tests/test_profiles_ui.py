@@ -59,13 +59,27 @@ def test_profile_name_validation():
 
 def test_profile_switch_save_discard_cancel(gui, monkeypatch):
     actions = []
+    prompts = []
 
-    def fake_question(*args, **kwargs):
+    def fake_prompt_server():
+        prompts.append("server")
         return actions[-1]
 
-    monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.question", fake_question)
+    def fake_prompt_app():
+        prompts.append("app")
+        return actions[-1]
+
+    monkeypatch.setattr(gui, "_prompt_save_server_details", fake_prompt_server)
+    monkeypatch.setattr(gui, "_prompt_save_app_settings", fake_prompt_app)
     monkeypatch.setattr(
-        gui, "save_configuration", lambda show_popup=True: actions.append("saved")
+        gui,
+        "save_server_details",
+        lambda show_popup=True: actions.append("saved_server"),
+    )
+    monkeypatch.setattr(
+        gui,
+        "save_configuration",
+        lambda show_popup=True: actions.append("saved_config"),
     )
     monkeypatch.setattr(
         "gui.mixins.profiles_ui.set_active_profile_name",
@@ -78,30 +92,39 @@ def test_profile_switch_save_discard_cancel(gui, monkeypatch):
 
     actions.append(QMessageBox.StandardButton.Cancel)
     gui._mark_configuration_clean()
+    gui._mark_server_details_clean()
     gui.inputs["config"]["server"].setText("http://changed:2283")
     gui.switch_profile("work")
     assert "active:work" not in actions
+    assert prompts == ["server"]
 
     actions.clear()
+    prompts.clear()
     gui._mark_configuration_clean()
+    gui._mark_server_details_clean()
     gui.switch_profile("work")
-    assert "saved" not in actions
+    assert "saved_server" not in actions
+    assert "saved_config" not in actions
     assert "active:work" in actions
     assert "loaded" in actions
 
     actions.clear()
+    prompts.clear()
     actions.append(QMessageBox.StandardButton.Discard)
     gui._mark_configuration_clean()
+    gui._mark_server_details_clean()
     gui.inputs["config"]["server"].setText("http://changed:2283")
     gui.switch_profile("home")
-    assert "saved" not in actions
+    assert "saved_server" not in actions
     assert "active:home" in actions
     assert "loaded" in actions
 
     actions.clear()
+    prompts.clear()
     actions.append(QMessageBox.StandardButton.Save)
     gui._mark_configuration_clean()
+    gui._mark_server_details_clean()
     gui.inputs["config"]["server"].setText("http://save-me:2283")
     gui.switch_profile("office")
-    assert "saved" in actions
+    assert "saved_server" in actions
     assert "active:office" in actions
