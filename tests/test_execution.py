@@ -38,14 +38,11 @@ def test_on_errors_emitted_when_configured(gui):
 
 
 def test_client_timeout_emitted(gui):
-    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
     gui.upload_tabs.setCurrentIndex(0)  # upload-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
-    gui.adv_rows["upload-folder"]["client-timeout"].set_state(
-        {"enabled": True, "value": 60}
-    )
+    gui.inputs["config"]["client_timeout_minutes"].setValue(60)
     gui.inputs["upload-folder"]["path"].setText("/photos")
     opts = gui.build_command(dry_run=False)
     assert "--client-timeout=60m" in opts
@@ -88,18 +85,16 @@ def test_api_trace_on_stack(gui):
 
 
 def test_from_client_timeout(gui):
-    gui.toggle_advanced(True)
     gui.stacked_widget.setCurrentIndex(1)  # upload page
     gui.upload_tabs.setCurrentIndex(4)  # upload-immich
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["config"]["client_timeout_minutes"].setValue(60)
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
     gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
-    gui.adv_rows["upload-immich"]["from-client-timeout"].set_state(
-        {"enabled": True, "value": 60}
-    )
     opts = gui.build_command(dry_run=False)
     assert "--from-client-timeout=60m" in opts
+    assert "--client-timeout=60m" in opts
 
 
 def test_gp_multi_path(gui):

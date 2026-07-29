@@ -3,7 +3,8 @@
   "config_state": {
     "server": "http://new-immich:2283",
     "api_key": "target-secret-key",
-    "admin_api_key": "admin_key"
+    "admin_api_key": "admin_key",
+    "client_timeout_minutes": 60
   },
   "tab_state": {
     "from-server": "http://old-immich:2283",
@@ -12,13 +13,21 @@
     "from-albums": "Vacation, Favorites"
   },
   "advanced_state": {
-    "from-favorite": { "enabled": true, "value": true },
-    "from-archived": { "enabled": true, "value": true }
+    "from-favorite": {
+      "enabled": true,
+      "value": true
+    },
+    "from-archived": {
+      "enabled": true,
+      "value": true
+    }
   },
   "expected_argv": [
     "upload",
     "from-immich",
     "--server=http://new-immich:2283",
+    "--from-client-timeout=60m",
+    "--client-timeout=60m",
     "--from-server=http://old-immich:2283",
     "--from-date-range=2021-01-01,2023-01-01",
     "--from-albums=Vacation",

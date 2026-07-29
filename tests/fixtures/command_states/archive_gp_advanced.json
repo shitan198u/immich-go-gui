@@ -6,7 +6,10 @@
     "write-to": "/backup/takeout"
   },
   "advanced_state": {
-    "include-unmatched": { "enabled": true, "value": true }
+    "include-unmatched": {
+      "enabled": true,
+      "value": true
+    }
   },
   "expected_argv": [
     "archive",

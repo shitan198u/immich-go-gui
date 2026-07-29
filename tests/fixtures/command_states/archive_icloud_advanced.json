@@ -6,7 +6,10 @@
     "write-to": "/backup/icloud"
   },
   "advanced_state": {
-    "memories": { "enabled": true, "value": true }
+    "memories": {
+      "enabled": true,
+      "value": true
+    }
   },
   "expected_argv": [
     "archive",

@@ -143,14 +143,6 @@ default = false
 mode = "simple"
 
 [[flags.upload-folder]]
-key = "client-timeout"
-flag = "client-timeout"
-label = "Client timeout"
-kind = "duration_minutes"
-mode = "advanced"
-
-default = 20
-[[flags.upload-folder]]
 key = "dry-run"
 flag = "dry-run"
 label = "Dry run mode"
@@ -287,6 +279,15 @@ placeholder = ".thm,.xmp"
 mode = "advanced"
 
 [[flags.upload-folder]]
+key = "client-timeout"
+flag = "client-timeout"
+label = "Client timeout"
+kind = "duration_minutes"
+mode = "advanced"
+hidden = true
+default = 60
+
+[[flags.upload-folder]]
 key = "ban-file"
 flag = "ban-file"
 label = "Skip files matching patterns"
@@ -402,14 +403,6 @@ kind = "bool"
 default = false
 mode = "simple"
 
-[[flags.upload-gp]]
-key = "client-timeout"
-flag = "client-timeout"
-label = "Client timeout"
-kind = "duration_minutes"
-mode = "advanced"
-
-default = 20
 [[flags.upload-gp]]
 key = "dry-run"
 flag = "dry-run"
@@ -586,6 +579,15 @@ placeholder = ".thm,.xmp"
 mode = "advanced"
 
 [[flags.upload-gp]]
+key = "client-timeout"
+flag = "client-timeout"
+label = "Client timeout"
+kind = "duration_minutes"
+mode = "advanced"
+hidden = true
+default = 60
+
+[[flags.upload-gp]]
 key = "ban-file"
 flag = "ban-file"
 label = "Skip files matching patterns"
@@ -684,14 +686,6 @@ kind = "bool"
 default = false
 mode = "simple"
 
-[[flags.upload-icloud]]
-key = "client-timeout"
-flag = "client-timeout"
-label = "Client timeout"
-kind = "duration_minutes"
-mode = "advanced"
-
-default = 20
 [[flags.upload-icloud]]
 key = "dry-run"
 flag = "dry-run"
@@ -854,6 +848,15 @@ default = "all"
 mode = "advanced"
 
 [[flags.upload-icloud]]
+key = "client-timeout"
+flag = "client-timeout"
+label = "Client timeout"
+kind = "duration_minutes"
+mode = "advanced"
+hidden = true
+default = 60
+
+[[flags.upload-icloud]]
 key = "ban-file"
 flag = "ban-file"
 label = "Skip files matching patterns"
@@ -953,14 +956,6 @@ kind = "bool"
 default = false
 mode = "simple"
 
-[[flags.upload-picasa]]
-key = "client-timeout"
-flag = "client-timeout"
-label = "Client timeout"
-kind = "duration_minutes"
-mode = "advanced"
-
-default = 20
 [[flags.upload-picasa]]
 key = "dry-run"
 flag = "dry-run"
@@ -1091,6 +1086,15 @@ default = "all"
 mode = "advanced"
 
 [[flags.upload-picasa]]
+key = "client-timeout"
+flag = "client-timeout"
+label = "Client timeout"
+kind = "duration_minutes"
+mode = "advanced"
+hidden = true
+default = 60
+
+[[flags.upload-picasa]]
 key = "ban-file"
 flag = "ban-file"
 label = "Skip files matching patterns"
@@ -1207,6 +1211,24 @@ kind = "text"
 mode = "simple"
 
 [[flags.upload-immich]]
+key = "from-client-timeout"
+flag = "from-client-timeout"
+label = "Source client timeout"
+kind = "duration_minutes"
+mode = "advanced"
+hidden = true
+default = 60
+
+[[flags.upload-immich]]
+key = "client-timeout"
+flag = "client-timeout"
+label = "Client timeout"
+kind = "duration_minutes"
+mode = "advanced"
+hidden = true
+default = 60
+
+[[flags.upload-immich]]
 key = "from-api-key"
 flag = ""
 label = "Source API key"
@@ -1229,14 +1251,6 @@ kind = "bool"
 default = false
 mode = "simple"
 
-[[flags.upload-immich]]
-key = "client-timeout"
-flag = "client-timeout"
-label = "Client timeout"
-kind = "duration_minutes"
-mode = "advanced"
-
-default = 20
 [[flags.upload-immich]]
 key = "dry-run"
 flag = "dry-run"
@@ -1284,14 +1298,6 @@ label = "Source admin API key"
 kind = "text"
 mode = "advanced"
 secret_env = "IMMICH_GO_UPLOAD_FROM_IMMICH_FROM_ADMIN_API_KEY"
-
-[[flags.upload-immich]]
-key = "from-client-timeout"
-flag = "from-client-timeout"
-label = "Source client timeout"
-kind = "duration_minutes"
-default = 20
-mode = "advanced"
 
 [[flags.upload-immich]]
 key = "from-favorite"
@@ -2198,6 +2204,15 @@ kind = "text"
 mode = "simple"
 
 [[flags.archive-immich]]
+key = "from-client-timeout"
+flag = "from-client-timeout"
+label = "Source client timeout"
+kind = "duration_minutes"
+mode = "advanced"
+hidden = true
+default = 60
+
+[[flags.archive-immich]]
 key = "from-api-key"
 flag = ""
 label = "Source API key"
@@ -2379,14 +2394,6 @@ kind = "text"
 mode = "advanced"
 
 [[flags.archive-immich]]
-key = "from-client-timeout"
-flag = "from-client-timeout"
-label = "Source client timeout"
-kind = "duration_minutes"
-default = 20
-mode = "advanced"
-
-[[flags.archive-immich]]
 key = "from-skip-ssl"
 flag = "from-skip-verify-ssl"
 label = "Source skip SSL verification"
@@ -2447,6 +2454,15 @@ kind = "text"
 mode = "simple"
 
 [[flags.stack]]
+key = "client-timeout"
+flag = "client-timeout"
+label = "Client timeout"
+kind = "duration_minutes"
+mode = "advanced"
+hidden = true
+default = 60
+
+[[flags.stack]]
 key = "skip-ssl"
 flag = "skip-verify-ssl"
 label = "Skip SSL verification"
@@ -2454,14 +2470,6 @@ kind = "bool"
 default = false
 mode = "simple"
 
-[[flags.stack]]
-key = "client-timeout"
-flag = "client-timeout"
-label = "Client timeout"
-kind = "duration_minutes"
-mode = "advanced"
-
-default = 20
 [[flags.stack]]
 key = "dry-run"
 flag = "dry-run"

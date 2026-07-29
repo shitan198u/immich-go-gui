@@ -4,22 +4,33 @@
     "server": "http://localhost:2283",
     "api_key": "secret_key_123",
     "admin_api_key": "admin_key",
-    "skip-ssl": true
+    "skip-ssl": true,
+    "client_timeout_minutes": 60
   },
   "tab_state": {
     "path": "/takeout/takeout-001.zip",
     "manage-burst": "Stack"
   },
   "advanced_state": {
-    "include-untitled-albums": { "enabled": true, "value": true },
-    "date-range": { "enabled": true, "value": "2022" },
-    "tag": { "enabled": true, "value": "GooglePhotos" }
+    "include-untitled-albums": {
+      "enabled": true,
+      "value": true
+    },
+    "date-range": {
+      "enabled": true,
+      "value": "2022"
+    },
+    "tag": {
+      "enabled": true,
+      "value": "GooglePhotos"
+    }
   },
   "expected_argv": [
     "upload",
     "from-google-photos",
     "--server=http://localhost:2283",
     "--skip-verify-ssl",
+    "--client-timeout=60m",
     "--manage-burst=Stack",
     "--include-untitled-albums",
     "--date-range=2022",

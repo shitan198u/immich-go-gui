@@ -4,7 +4,8 @@
     "server": "http://localhost:2283",
     "api_key": "secret_key_123",
     "admin_api_key": "admin_key",
-    "skip-ssl": false
+    "skip-ssl": false,
+    "client_timeout_minutes": 30
   },
   "tab_state": {
     "path": "/data/photos",
@@ -12,24 +13,50 @@
     "manage-burst": "Stack"
   },
   "advanced_state": {
-    "client-timeout": { "enabled": true, "value": 30 },
-    "concurrent-tasks": { "enabled": true, "value": 4 },
-    "include-type": { "enabled": true, "value": "IMAGE" },
-    "overwrite": { "enabled": true, "value": true },
-    "date-range": { "enabled": true, "value": "2023-01-01,2023-12-31" },
-    "include-ext": { "enabled": true, "value": ".jpg,.png" },
-    "exclude-ext": { "enabled": true, "value": ".tmp" },
-    "ignore-sidecar": { "enabled": true, "value": true },
-    "tag": { "enabled": true, "value": "Imported, 2023" },
-    "session-tag": { "enabled": true, "value": true }
+    "concurrent-tasks": {
+      "enabled": true,
+      "value": 4
+    },
+    "include-type": {
+      "enabled": true,
+      "value": "IMAGE"
+    },
+    "overwrite": {
+      "enabled": true,
+      "value": true
+    },
+    "date-range": {
+      "enabled": true,
+      "value": "2023-01-01,2023-12-31"
+    },
+    "include-ext": {
+      "enabled": true,
+      "value": ".jpg,.png"
+    },
+    "exclude-ext": {
+      "enabled": true,
+      "value": ".tmp"
+    },
+    "ignore-sidecar": {
+      "enabled": true,
+      "value": true
+    },
+    "tag": {
+      "enabled": true,
+      "value": "Imported, 2023"
+    },
+    "session-tag": {
+      "enabled": true,
+      "value": true
+    }
   },
   "expected_argv": [
     "upload",
     "from-folder",
     "--server=http://localhost:2283",
+    "--client-timeout=30m",
     "--folder-as-album=PATH",
     "--manage-burst=Stack",
-    "--client-timeout=30m",
     "--concurrent-tasks=4",
     "--ignore-sidecar-files",
     "--date-range=2023-01-01,2023-12-31",

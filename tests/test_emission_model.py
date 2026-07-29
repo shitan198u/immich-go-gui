@@ -4,7 +4,7 @@ from tests.conftest import _norm_argv
 
 
 def test_simple_mode_no_optional_flags(gui):
-    """Simple mode emits only connection + positional path."""
+    """Simple mode emits connection, global timeout, and positional path."""
     gui.toggle_advanced(False)
     gui.stacked_widget.setCurrentIndex(1)
     gui.upload_tabs.setCurrentIndex(0)
@@ -14,7 +14,7 @@ def test_simple_mode_no_optional_flags(gui):
     opts = gui.build_command(dry_run=False)
     assert "--server=http://local:2283" in opts
     assert "/photos" in _norm_argv(opts)
-    assert not any("--client-timeout" in o for o in opts)
+    assert "--client-timeout=60m" in opts
     assert not any("--log-level" in o for o in opts)
     assert not any("--on-errors" in o for o in opts)
 
@@ -47,18 +47,15 @@ def test_advanced_mode_disabled_row_skips(gui):
     assert not any("--on-errors" in o for o in opts)
 
 
-def test_advanced_mode_client_timeout_emits(gui):
-    gui.toggle_advanced(True)
+def test_config_client_timeout_emits(gui):
     gui.stacked_widget.setCurrentIndex(1)
     gui.upload_tabs.setCurrentIndex(0)
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
+    gui.inputs["config"]["client_timeout_minutes"].setValue(90)
     gui.inputs["upload-folder"]["path"].setText("/photos")
-    gui.adv_rows["upload-folder"]["client-timeout"].set_state(
-        {"enabled": True, "value": 60}
-    )
     opts = gui.build_command(dry_run=False)
-    assert "--client-timeout=60m" in opts
+    assert "--client-timeout=90m" in opts
 
 
 def test_advanced_mode_log_level_row_emits(gui):

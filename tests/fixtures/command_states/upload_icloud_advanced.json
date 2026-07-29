@@ -3,18 +3,23 @@
   "config_state": {
     "server": "http://localhost:2283",
     "api_key": "secret_key_123",
-    "admin_api_key": "admin_key"
+    "admin_api_key": "admin_key",
+    "client_timeout_minutes": 60
   },
   "tab_state": {
     "path": "/data/icloud"
   },
   "advanced_state": {
-    "memories": { "enabled": true, "value": true }
+    "memories": {
+      "enabled": true,
+      "value": true
+    }
   },
   "expected_argv": [
     "upload",
     "from-icloud",
     "--server=http://localhost:2283",
+    "--client-timeout=60m",
     "--memories",
     "/data/icloud"
   ]
