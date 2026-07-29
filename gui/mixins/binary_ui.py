@@ -73,7 +73,7 @@ class BinaryUIMixin:
         if hasattr(self, "status_card"):
             self.status_card.set_binary(state, card_text)
         if hasattr(self, "lbl_binary_version"):
-            self.lbl_binary_version.setText(f"Current Version: {version_text}")
+            self.lbl_binary_version.setText(version_text)
         if hasattr(self, "lbl_binary_path"):
             self.lbl_binary_path.setText(getattr(self, "binary_path", ""))
 

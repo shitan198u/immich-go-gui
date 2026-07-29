@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
+from PySide6.QtWidgets import QMessageBox
+
 from core.app_update import (
     GuiReleaseInfo,
     clean_gui_release_version,
@@ -78,6 +80,7 @@ def test_check_for_application_updates_up_to_date(monkeypatch):
             html_url="https://example.com/release",
         ),
     )
+    monkeypatch.setattr("gui.mixins.app_update.QMessageBox", MagicMock())
     host.check_for_application_updates()
     assert host.lbl_app_update_status.text().startswith("Up to date")
     assert host.app_update_status_state() == "ok"
@@ -116,9 +119,59 @@ def test_check_for_application_updates_dev_build(monkeypatch):
             html_url="https://example.com/release",
         ),
     )
+    monkeypatch.setattr("gui.mixins.app_update.QMessageBox", MagicMock())
     host.check_for_application_updates()
-    assert host.lbl_app_update_status.text() == "Development build"
+    assert host.lbl_app_update_status.text().startswith("Development build")
+    assert "1.2.0" in host.lbl_app_update_status.text()
     assert host.app_update_status_state() == "default"
+
+
+def test_check_for_application_updates_network_error(monkeypatch):
+    host = _UpdateHost()
+    monkeypatch.setattr(
+        "gui.mixins.app_update._gui_version",
+        lambda: "1.2.0",
+    )
+    monkeypatch.setattr(
+        "gui.mixins.app_update.get_latest_gui_release",
+        lambda: None,
+    )
+    monkeypatch.setattr("gui.mixins.app_update.QMessageBox", MagicMock())
+    host.check_for_application_updates()
+    assert host.lbl_app_update_status.text() == "Could not check for updates."
+    assert host.app_update_status_state() == "err"
+
+
+def test_check_for_application_updates_opens_download_page(monkeypatch):
+    host = _UpdateHost()
+    monkeypatch.setattr(
+        "gui.mixins.app_update._gui_version",
+        lambda: "1.1.0",
+    )
+    release_url = "https://example.com/release"
+    monkeypatch.setattr(
+        "gui.mixins.app_update.get_latest_gui_release",
+        lambda: GuiReleaseInfo(
+            tag="v1.2.0",
+            version="1.2.0",
+            html_url=release_url,
+        ),
+    )
+    open_mock = MagicMock()
+    monkeypatch.setattr("gui.mixins.app_update.webbrowser.open", open_mock)
+
+    msgbox_mock = MagicMock()
+    msgbox_mock.ButtonRole = QMessageBox.ButtonRole
+    msgbox_mock.StandardButton = QMessageBox.StandardButton
+    msg = MagicMock()
+    open_btn = MagicMock()
+    msg.addButton.return_value = open_btn
+    msg.clickedButton.return_value = open_btn
+    msgbox_mock.return_value = msg
+    monkeypatch.setattr("gui.mixins.app_update.QMessageBox", msgbox_mock)
+
+    host.check_for_application_updates()
+    open_mock.assert_called_once_with(release_url)
 
 
 def test_clean_display_version_strips_v_prefix():

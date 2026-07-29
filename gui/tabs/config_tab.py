@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -69,12 +70,19 @@ def build_config_tab(host) -> QWidget:
     host.btn_save_server_details.clicked.connect(
         lambda: host.save_server_details(show_popup=True)
     )
-    conn_btn_row = QHBoxLayout()
+    conn_btn_container = QWidget()
+    conn_btn_row = QHBoxLayout(conn_btn_container)
+    conn_btn_row.setContentsMargins(0, 0, 0, 0)
     conn_btn_row.setSpacing(8)
+    host.btn_test_connection.setSizePolicy(
+        QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+    )
+    host.btn_save_server_details.setSizePolicy(
+        QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+    )
     conn_btn_row.addWidget(host.btn_test_connection)
     conn_btn_row.addWidget(host.btn_save_server_details)
-    conn_btn_row.addStretch()
-    form.add_row("", conn_btn_row)
+    form.add_row("", conn_btn_container)
 
     card.layout.addLayout(form)
     page.addWidget(card)
@@ -128,33 +136,42 @@ def build_config_tab(host) -> QWidget:
     host.btn_check_app_updates.clicked.connect(host.check_for_application_updates)
     app_form.add_row("", host.btn_check_app_updates)
 
-    app_form.add_row(
-        "",
-        QLabel("Downloads from GitHub Releases."),
-        "Releases are published at github.com/shitan198u/immich-go-gui.",
+    releases_hint_container = QWidget()
+    releases_hint_layout = QVBoxLayout(releases_hint_container)
+    releases_hint_layout.setContentsMargins(0, 0, 0, 0)
+    releases_hint_layout.setSpacing(4)
+    releases_hint = QLabel("Downloads from GitHub Releases.")
+    releases_hint.setObjectName("Hint")
+    releases_link = QLabel(
+        "<a href='https://github.com/shitan198u/immich-go-gui/releases'>"
+        "github.com/shitan198u/immich-go-gui/releases</a>"
     )
+    releases_link.setObjectName("Hint")
+    releases_link.setTextInteractionFlags(
+        Qt.TextInteractionFlag.TextBrowserInteraction
+    )
+    releases_link.setOpenExternalLinks(True)
+    releases_hint_layout.addWidget(releases_hint)
+    releases_hint_layout.addWidget(releases_link)
+    app_form.add_row("", releases_hint_container)
     card_app.layout.addLayout(app_form)
     page.addWidget(card_app)
 
     card2 = Card("Binary Management")
-    row = QHBoxLayout()
-    row.setSpacing(16)
-    row.setAlignment(Qt.AlignmentFlag.AlignTop)
-    info = QVBoxLayout()
-    info.setSpacing(2)
+    binary_form = FormSection()
     host.lbl_binary_version = QLabel("Checking version…")
     host.lbl_binary_version.setObjectName("FieldLabel")
     host.lbl_binary_version.setWordWrap(True)
+    binary_form.add_row("Current Version", host.lbl_binary_version)
+
     host.lbl_binary_path = ElidingLabel("", Qt.TextElideMode.ElideMiddle)
     host.lbl_binary_path.setObjectName("Hint")
-    info.addWidget(host.lbl_binary_version)
-    info.addWidget(host.lbl_binary_path)
-    row.addLayout(info, 1)
-    btn_check = QPushButton("Check for Updates")
-    host.btn_check_updates = btn_check
-    btn_check.clicked.connect(host.check_for_updates)
-    row.addWidget(btn_check, 0, Qt.AlignmentFlag.AlignTop)
-    card2.layout.addLayout(row)
+    binary_form.add_row("Binary Path", host.lbl_binary_path)
+
+    host.btn_check_updates = QPushButton("Check for Updates")
+    host.btn_check_updates.clicked.connect(host.check_for_updates)
+    binary_form.add_row("", host.btn_check_updates)
+    card2.layout.addLayout(binary_form)
 
     manual_form = FormSection()
     host.manual_binary_edit = QLineEdit()

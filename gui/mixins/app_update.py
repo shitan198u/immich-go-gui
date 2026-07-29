@@ -55,13 +55,31 @@ class AppUpdateMixin:
 
     def check_for_application_updates(self) -> None:
         installed = _gui_version()
-        if not is_parseable_semver(installed):
-            self._set_app_update_status("Development build", "default")
-            return
+        is_dev = not is_parseable_semver(installed)
 
         release = get_latest_gui_release()
         if release is None:
             self._set_app_update_status("Could not check for updates.", "err")
+            QMessageBox.warning(
+                self,
+                "Update Check Failed",
+                "Could not reach GitHub to check for updates.\n"
+                "Check your network connection and try again.",
+            )
+            return
+
+        if is_dev:
+            self._set_app_update_status(
+                f"Development build — latest release is v{release.version}",
+                "default",
+            )
+            QMessageBox.information(
+                self,
+                "Development Build",
+                f"You are running a development build ({installed}).\n"
+                "Version comparison was skipped.\n"
+                f"The latest published release is v{release.version}.",
+            )
             return
 
         if is_update_available(installed, release.version):
@@ -85,6 +103,11 @@ class AppUpdateMixin:
 
         display = clean_display_version(installed)
         self._set_app_update_status(f"Up to date (v{display})", "ok")
+        QMessageBox.information(
+            self,
+            "Update Check",
+            f"You are on the latest release (v{display}).",
+        )
 
     def app_update_status_state(self) -> str:
         if not hasattr(self, "lbl_app_update_status"):
