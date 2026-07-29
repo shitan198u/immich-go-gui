@@ -49,6 +49,11 @@ class PersistenceMixin:
         if "skip-ssl" in self.inputs["config"]:
             self.inputs["config"]["skip-ssl"].setChecked(self.app_config.skip_ssl)
 
+        if "client_timeout_minutes" in self.inputs["config"]:
+            self.inputs["config"]["client_timeout_minutes"].setValue(
+                self.app_config.client_timeout_minutes
+            )
+
         if "secret_provider" in self.inputs["config"]:
             idx = self.inputs["config"]["secret_provider"].findData(
                 self.app_config.secrets_provider
@@ -84,8 +89,6 @@ class PersistenceMixin:
                 self.app_config.preferred_terminal
             )
 
-        self.apply_form_state(self.app_config.form_state)
-
         self.theme_mode = normalize_theme_mode(self.app_config.theme_mode)
 
         if hasattr(self, "theme_mode_combo"):
@@ -103,17 +106,29 @@ class PersistenceMixin:
         self.update_window_title()
         self._update_secret_status()
         self._mark_configuration_clean()
+        self._mark_server_details_clean()
 
-    def _collect_persisted_state(self) -> dict:
-        """Snapshot of widget state that save_configuration would persist."""
+    def _collect_server_snapshot(self) -> dict:
         config_inputs = self.inputs.get("config", {})
-        state = {
+        return {
             "server_url": config_inputs.get("server").text()
             if config_inputs.get("server")
             else "",
+            "api_key": config_inputs.get("api_key").text().strip()
+            if config_inputs.get("api_key")
+            else "",
+        }
+
+    def _collect_persisted_state(self) -> dict:
+        """Snapshot of application settings (track B) saved by save_configuration."""
+        config_inputs = self.inputs.get("config", {})
+        state = {
             "skip_ssl": config_inputs["skip-ssl"].isChecked()
             if config_inputs.get("skip-ssl")
             else False,
+            "client_timeout_minutes": config_inputs["client_timeout_minutes"].value()
+            if config_inputs.get("client_timeout_minutes")
+            else 60,
             "secrets_provider": config_inputs["secret_provider"].currentData()
             if config_inputs.get("secret_provider")
             else "keyring",
@@ -129,13 +144,9 @@ class PersistenceMixin:
             if hasattr(self, "theme_mode_combo")
             else normalize_theme_mode(self.theme_mode),
             "advanced_mode": bool(getattr(self, "is_advanced", False)),
-            "api_key": config_inputs.get("api_key").text().strip()
-            if config_inputs.get("api_key")
-            else "",
             "admin_api_key": config_inputs.get("admin_api_key").text().strip()
             if config_inputs.get("admin_api_key")
             else "",
-            "form_state": self.collect_form_state(),
         }
         if state["secrets_provider"] is None:
             state["secrets_provider"] = "keyring"
@@ -144,16 +155,66 @@ class PersistenceMixin:
     def _mark_configuration_clean(self) -> None:
         self._config_clean_snapshot = self._collect_persisted_state()
 
+    def _mark_server_details_clean(self) -> None:
+        self._server_clean_snapshot = self._collect_server_snapshot()
+
     def has_unsaved_changes(self) -> bool:
         if not hasattr(self, "_config_clean_snapshot"):
             return False
         return self._collect_persisted_state() != self._config_clean_snapshot
+
+    def has_unsaved_server_details(self) -> bool:
+        if not hasattr(self, "_server_clean_snapshot"):
+            return False
+        return self._collect_server_snapshot() != self._server_clean_snapshot
+
+    def save_server_details(self, show_popup: bool = True):
+        self.app_config.server_url = self.inputs["config"]["server"].text()
+        cfg_path = default_config_path(
+            getattr(self.app_config, "profile_name", "default")
+        )
+        try:
+            save_config(self.app_config)
+        except OSError as exc:
+            QMessageBox.critical(
+                cast(QWidget, self),
+                "Save Failed",
+                f"Could not write configuration to:\n{cfg_path}\n\n{exc}",
+            )
+            return
+
+        prof_name = getattr(self.app_config, "profile_name", "default")
+        api_key = self.inputs["config"]["api_key"].text().strip()
+        res_api = save_secret_with_fallback(
+            profile_name=prof_name,
+            key="api_key",
+            value=api_key,
+            provider=self.app_config.secrets_provider,
+        )
+
+        if show_popup:
+            msg = "Server connection saved."
+            if res_api.message:
+                msg += f"\n\nNote (API Key): {res_api.message}"
+            QMessageBox.information(
+                cast(QWidget, self),
+                "Saved",
+                msg,
+                QMessageBox.StandardButton.Ok,
+            )
+        self._update_secret_status()
+        self._mark_server_details_clean()
 
     def save_configuration(self, show_popup: bool = True):
         self.app_config.server_url = self.inputs["config"]["server"].text()
 
         if "skip-ssl" in self.inputs["config"]:
             self.app_config.skip_ssl = self.inputs["config"]["skip-ssl"].isChecked()
+
+        if "client_timeout_minutes" in self.inputs["config"]:
+            self.app_config.client_timeout_minutes = self.inputs["config"][
+                "client_timeout_minutes"
+            ].value()
 
         if "secret_provider" in self.inputs["config"]:
             self.app_config.secrets_provider = self.inputs["config"][
@@ -173,7 +234,8 @@ class PersistenceMixin:
         if hasattr(self, "theme_mode_combo"):
             self.app_config.theme_mode = self.theme_mode_combo.currentText()
 
-        self.app_config.form_state = self.collect_form_state()
+        self.app_config.advanced_mode = bool(getattr(self, "is_advanced", False))
+
         cfg_path = default_config_path(
             getattr(self.app_config, "profile_name", "default")
         )
@@ -223,6 +285,7 @@ class PersistenceMixin:
             )
         self._update_secret_status()
         self._mark_configuration_clean()
+        self._mark_server_details_clean()
 
     def _probe_keyring(self) -> bool:
         """One-time check: can we actually talk to the keyring?"""
@@ -256,3 +319,25 @@ class PersistenceMixin:
             self.lbl_secret_status.setStyleSheet("color: #E5C07B;")
         else:
             self.lbl_secret_status.setText("")
+
+    def _prompt_save_server_details(self) -> QMessageBox.StandardButton:
+        return QMessageBox.question(
+            cast(QWidget, self),
+            "Save server connection?",
+            "Server URL or API key changed. Save connection details before closing?",
+            QMessageBox.StandardButton.Save
+            | QMessageBox.StandardButton.Discard
+            | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Save,
+        )
+
+    def _prompt_save_app_settings(self) -> QMessageBox.StandardButton:
+        return QMessageBox.question(
+            cast(QWidget, self),
+            "Save settings?",
+            "Theme, timeout, or other configuration settings changed. Save before closing?",
+            QMessageBox.StandardButton.Save
+            | QMessageBox.StandardButton.Discard
+            | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Save,
+        )

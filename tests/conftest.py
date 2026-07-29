@@ -58,6 +58,8 @@ def gui(qapp):
             g._conn_test_debounce.timeout.disconnect()
         g._auto_test_connection = lambda: None
         g._mark_configuration_clean()
+        if hasattr(g, "_mark_server_details_clean"):
+            g._mark_server_details_clean()
         yield g
         g._force_close = True
         g.close()
