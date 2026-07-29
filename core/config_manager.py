@@ -157,16 +157,29 @@ def default_config_dir() -> Path:
         return Path.home() / ".config" / "immich-go-gui"
 
 
+def resolve_profile_name(
+    profile_name: str | None = None, config: AppConfig | None = None
+) -> str:
+    """Resolve a non-empty profile name for config path and persistence."""
+    from .profile_manager import active_profile_name
+
+    candidate = profile_name
+    if not candidate and config is not None:
+        candidate = config.profile_name
+    if not candidate:
+        candidate = active_profile_name()
+    return candidate or "default"
+
+
 def default_config_path(profile_name: str | None = None) -> Path:
     """Returns the path to the config TOML file for the given or active profile."""
     env_override = os.environ.get("IMMICH_GO_GUI_CONFIG", "").strip()
     if env_override:
         return Path(env_override)
 
-    from .profile_manager import active_profile_name, profile_config_path
+    from .profile_manager import profile_config_path
 
-    target_profile = profile_name or active_profile_name()
-    return profile_config_path(target_profile)
+    return profile_config_path(resolve_profile_name(profile_name))
 
 
 def default_secrets_path(profile_name: str | None = None) -> Path:
@@ -221,9 +234,7 @@ def load_config(path: Path | None = None, profile_name: str | None = None) -> Ap
         path = default_config_path(profile_name)
 
     cfg = AppConfig()
-    from .profile_manager import active_profile_name
-
-    cfg.profile_name = profile_name or active_profile_name()
+    cfg.profile_name = resolve_profile_name(profile_name)
 
     if not path.exists():
         return cfg
@@ -314,7 +325,8 @@ def save_config(
     config: AppConfig, path: Path | None = None, profile_name: str | None = None
 ) -> None:
     """Saves AppConfig to user-level TOML file."""
-    target_prof = profile_name or config.profile_name
+    target_prof = resolve_profile_name(profile_name, config)
+    config.profile_name = target_prof
     if path is None:
         path = default_config_path(target_prof)
 

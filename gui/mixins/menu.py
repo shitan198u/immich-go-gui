@@ -22,7 +22,7 @@ class MenuMixin:
         menu_bar = self.menuBar()
         file_menu = menu_bar.addMenu("File")
         save_action = QAction("Save Configuration", self)
-        save_action.triggered.connect(lambda: self.save_configuration())
+        save_action.triggered.connect(self._save_from_menu)
         file_menu.addAction(save_action)
         load_action = QAction("Load Configuration", self)
         load_action.triggered.connect(self.load_configuration)

@@ -41,7 +41,6 @@ def gui(qapp):
     """
     with (
         patch.object(ImmichGoGUI, "check_binary_version"),
-        patch.object(ImmichGoGUI, "load_configuration"),
         patch.object(ImmichGoGUI, "_probe_keyring", return_value=True),
         patch("PySide6.QtWidgets.QMessageBox.warning"),
         patch(
@@ -49,7 +48,10 @@ def gui(qapp):
             return_value=QMessageBox.StandardButton.Discard,
         ),
     ):
-        g = ImmichGoGUI()
+        # Only skip load during construction; other tests may instantiate ImmichGoGUI
+        # and need the real load_configuration implementation.
+        with patch.object(ImmichGoGUI, "load_configuration"):
+            g = ImmichGoGUI()
         g.binary_path = "./immich-go"
         # Never fire silent connection tests during the suite — they hit the
         # network with a 4s timeout and dominate wall time when Qt processes events.
@@ -84,6 +86,18 @@ def suppress_qt_dialogs(monkeypatch):
         "PySide6.QtWidgets.QMessageBox.question",
         MagicMock(return_value=QMessageBox.StandardButton.Discard),
     )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_user_config(tmp_path, monkeypatch):
+    """Keep tests off the developer's real ~/.config/immich-go-gui directory."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
+    monkeypatch.delenv("IMMICH_GO_GUI_CONFIG", raising=False)
+    from core.profile_manager import clear_profiles_cache
+
+    clear_profiles_cache()
+    yield
+    clear_profiles_cache()
 
 
 @pytest.fixture(autouse=True)

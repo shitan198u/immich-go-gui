@@ -47,7 +47,7 @@ def test_running_process_boolean_state(gui):
 def test_close_event_save_prompt(gui, monkeypatch):
     from PySide6.QtGui import QCloseEvent
 
-    calls = {"save_config": 0, "prompt": 0}
+    calls = {"pending": 0, "prompt": 0}
 
     def fake_prompt(context):
         calls["prompt"] += 1
@@ -56,9 +56,9 @@ def test_close_event_save_prompt(gui, monkeypatch):
     monkeypatch.setattr(gui, "_prompt_save_pending_configuration", fake_prompt)
     monkeypatch.setattr(
         gui,
-        "save_configuration",
-        lambda show_popup=True: calls.__setitem__(
-            "save_config", calls["save_config"] + 1
+        "_save_pending_configuration",
+        lambda show_popup=False: calls.__setitem__(
+            "pending", calls["pending"] + 1
         ),
     )
     monkeypatch.setattr("gui.main_window.scan_locks", list)
@@ -68,14 +68,14 @@ def test_close_event_save_prompt(gui, monkeypatch):
     event = QCloseEvent()
     gui.closeEvent(event)
     assert calls["prompt"] == 1
-    assert calls["save_config"] == 1
+    assert calls["pending"] == 1
     assert event.isAccepted()
 
 
 def test_close_event_both_tracks_dirty_single_prompt(gui, monkeypatch):
     from PySide6.QtGui import QCloseEvent
 
-    calls = {"save_config": 0, "prompt": 0}
+    calls = {"pending": 0, "prompt": 0}
 
     def fake_prompt(context):
         calls["prompt"] += 1
@@ -84,9 +84,9 @@ def test_close_event_both_tracks_dirty_single_prompt(gui, monkeypatch):
     monkeypatch.setattr(gui, "_prompt_save_pending_configuration", fake_prompt)
     monkeypatch.setattr(
         gui,
-        "save_configuration",
-        lambda show_popup=True: calls.__setitem__(
-            "save_config", calls["save_config"] + 1
+        "_save_pending_configuration",
+        lambda show_popup=False: calls.__setitem__(
+            "pending", calls["pending"] + 1
         ),
     )
     monkeypatch.setattr("gui.main_window.scan_locks", list)
@@ -97,7 +97,7 @@ def test_close_event_both_tracks_dirty_single_prompt(gui, monkeypatch):
     event = QCloseEvent()
     gui.closeEvent(event)
     assert calls["prompt"] == 1
-    assert calls["save_config"] == 1
+    assert calls["pending"] == 1
     assert event.isAccepted()
 
 
@@ -111,8 +111,8 @@ def test_close_event_cancel_ignores(gui, monkeypatch):
     )
     monkeypatch.setattr(
         gui,
-        "save_configuration",
-        lambda show_popup=True: (_ for _ in ()).throw(AssertionError("save")),
+        "_save_pending_configuration",
+        lambda show_popup=False: (_ for _ in ()).throw(AssertionError("save")),
     )
     monkeypatch.setattr("gui.main_window.scan_locks", list)
     gui._mark_configuration_clean()
@@ -126,7 +126,7 @@ def test_close_event_cancel_ignores(gui, monkeypatch):
 def test_close_event_discard_no_save(gui, monkeypatch):
     from PySide6.QtGui import QCloseEvent
 
-    calls = {"save_config": 0, "prompt": 0}
+    calls = {"pending": 0, "prompt": 0}
 
     def fake_prompt(context):
         calls["prompt"] += 1
@@ -135,9 +135,9 @@ def test_close_event_discard_no_save(gui, monkeypatch):
     monkeypatch.setattr(gui, "_prompt_save_pending_configuration", fake_prompt)
     monkeypatch.setattr(
         gui,
-        "save_configuration",
-        lambda show_popup=True: calls.__setitem__(
-            "save_config", calls["save_config"] + 1
+        "_save_pending_configuration",
+        lambda show_popup=False: calls.__setitem__(
+            "pending", calls["pending"] + 1
         ),
     )
     monkeypatch.setattr("gui.main_window.scan_locks", list)
@@ -147,7 +147,7 @@ def test_close_event_discard_no_save(gui, monkeypatch):
     event = QCloseEvent()
     gui.closeEvent(event)
     assert calls["prompt"] == 1
-    assert calls["save_config"] == 0
+    assert calls["pending"] == 0
     assert event.isAccepted()
 
 

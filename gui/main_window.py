@@ -268,7 +268,7 @@ class ImmichGoGUI(
             event.ignore()
             return
         if reply == QMessageBox.StandardButton.Save:
-            self.save_configuration(show_popup=False)
+            self._save_pending_configuration(show_popup=False)
 
         if hasattr(self, "log"):
             self.log.info("GUI closed")
