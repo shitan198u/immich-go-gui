@@ -4,7 +4,12 @@ from importlib.metadata import version as _pkg_version
 
 from PySide6.QtWidgets import QMessageBox
 
-from core.app_update import get_latest_gui_release, is_update_available
+from core.app_update import (
+    clean_gui_release_version,
+    get_latest_gui_release,
+    is_parseable_semver,
+    is_update_available,
+)
 
 
 def _gui_version() -> str:
@@ -21,9 +26,13 @@ class AppUpdateMixin:
     _APP_UPDATE_COLOR_ERR = "#EF4444"
 
     def _init_app_update_ui(self) -> None:
+        installed = _gui_version()
         if hasattr(self, "lbl_app_version"):
-            self.lbl_app_version.setText(f"Current Version: {_gui_version()}")
-        self._set_app_update_status(self._APP_UPDATE_STATUS_DEFAULT, "default")
+            self.lbl_app_version.setText(installed)
+        if not is_parseable_semver(installed):
+            self._set_app_update_status("Development build", "default")
+        else:
+            self._set_app_update_status(self._APP_UPDATE_STATUS_DEFAULT, "default")
 
     def _set_app_update_status(self, text: str, state: str) -> None:
         if not hasattr(self, "lbl_app_update_status"):
@@ -46,6 +55,10 @@ class AppUpdateMixin:
 
     def check_for_application_updates(self) -> None:
         installed = _gui_version()
+        if not is_parseable_semver(installed):
+            self._set_app_update_status("Development build", "default")
+            return
+
         release = get_latest_gui_release()
         if release is None:
             self._set_app_update_status("Could not check for updates.", "err")
@@ -87,6 +100,4 @@ class AppUpdateMixin:
 
 
 def clean_display_version(version: str) -> str:
-    from core.binary_manager import clean_version
-
-    return clean_version(version) or version
+    return clean_gui_release_version(version) or version

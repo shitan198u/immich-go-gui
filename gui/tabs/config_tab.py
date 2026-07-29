@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 from core import default_secrets_path, load_binary_metadata
+from gui.mixins.app_update import _gui_version
 from gui.widgets import BasePage, Card, ElidingLabel, FormSection
 from theme import THEME_DARK, THEME_LIGHT, THEME_SYSTEM
 
@@ -92,6 +93,40 @@ def build_config_tab(host) -> QWidget:
     card_sec.layout.addLayout(sec_form)
     page.addWidget(card_sec)
 
+    card_app = Card("Application")
+    app_form = FormSection()
+    host.lbl_app_version = QLabel(_gui_version())
+    host.lbl_app_version.setObjectName("FieldLabel")
+    host.lbl_app_version.setWordWrap(True)
+    app_form.add_row("Current Version", host.lbl_app_version)
+
+    host.lbl_app_update_status = QLabel("Check for updates to see status.")
+    host.lbl_app_update_status.setObjectName("AppUpdateStatus")
+    app_form.add_row("Status", host.lbl_app_update_status)
+
+    host.btn_check_app_updates = QPushButton("Check for Updates")
+    host.btn_check_app_updates.clicked.connect(host.check_for_application_updates)
+    app_form.add_row("", host.btn_check_app_updates)
+
+    releases_hint_container = QWidget()
+    releases_hint_layout = QVBoxLayout(releases_hint_container)
+    releases_hint_layout.setContentsMargins(0, 0, 0, 0)
+    releases_hint_layout.setSpacing(4)
+    releases_hint = QLabel("Downloads from GitHub Releases.")
+    releases_hint.setObjectName("Hint")
+    releases_link = QLabel(
+        "<a href='https://github.com/shitan198u/immich-go-gui/releases'>"
+        "github.com/shitan198u/immich-go-gui/releases</a>"
+    )
+    releases_link.setObjectName("Hint")
+    releases_link.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+    releases_link.setOpenExternalLinks(True)
+    releases_hint_layout.addWidget(releases_hint)
+    releases_hint_layout.addWidget(releases_link)
+    app_form.add_row("", releases_hint_container)
+    card_app.layout.addLayout(app_form)
+    page.addWidget(card_app)
+
     card2 = Card("Binary Management")
     row = QHBoxLayout()
     row.setSpacing(16)
@@ -168,6 +203,9 @@ def build_config_tab(host) -> QWidget:
     adv_card.setVisible(False)
     page.addWidget(adv_card)
     host.adv_frames.append(adv_card)
+
+    if hasattr(host, "_init_app_update_ui"):
+        host._init_app_update_ui()
 
     page.addStretch()
     return page
