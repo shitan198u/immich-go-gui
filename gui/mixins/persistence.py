@@ -45,7 +45,37 @@ class PersistenceMixin:
                 self._migrate_legacy_qsettings_to_config()
             self.app_config = load_config()
 
-        self.inputs["config"]["server"].setText(self.app_config.server_url)
+        config_inputs = self.inputs["config"]
+        secret_widgets = ("server", "api_key", "admin_api_key")
+        for key in secret_widgets:
+            widget = config_inputs.get(key)
+            if widget is not None:
+                widget.blockSignals(True)
+        try:
+            config_inputs["server"].setText(self.app_config.server_url)
+
+            prof_name = getattr(self.app_config, "profile_name", "default")
+            config_inputs["api_key"].setText(
+                get_secret_with_fallback(
+                    profile_name=prof_name,
+                    key="api_key",
+                    provider=self.app_config.secrets_provider,
+                )
+            )
+
+            if "admin_api_key" in config_inputs:
+                config_inputs["admin_api_key"].setText(
+                    get_secret_with_fallback(
+                        profile_name=prof_name,
+                        key="admin_api_key",
+                        provider=self.app_config.secrets_provider,
+                    )
+                )
+        finally:
+            for key in secret_widgets:
+                widget = config_inputs.get(key)
+                if widget is not None:
+                    widget.blockSignals(False)
 
         if "skip-ssl" in self.inputs["config"]:
             self.inputs["config"]["skip-ssl"].setChecked(self.app_config.skip_ssl)
@@ -61,24 +91,6 @@ class PersistenceMixin:
             )
             if idx >= 0:
                 self.inputs["config"]["secret_provider"].setCurrentIndex(idx)
-
-        prof_name = getattr(self.app_config, "profile_name", "default")
-        self.inputs["config"]["api_key"].setText(
-            get_secret_with_fallback(
-                profile_name=prof_name,
-                key="api_key",
-                provider=self.app_config.secrets_provider,
-            )
-        )
-
-        if "admin_api_key" in self.inputs["config"]:
-            self.inputs["config"]["admin_api_key"].setText(
-                get_secret_with_fallback(
-                    profile_name=prof_name,
-                    key="admin_api_key",
-                    provider=self.app_config.secrets_provider,
-                )
-            )
 
         if "allow_untested_updates" in self.inputs["config"]:
             self.inputs["config"]["allow_untested_updates"].setChecked(
@@ -206,8 +218,27 @@ class PersistenceMixin:
         self._update_secret_status()
         self._mark_server_details_clean()
 
+    def _save_pending_configuration(self, show_popup: bool = False) -> None:
+        """Persist whichever configuration tracks are dirty."""
+        if self.has_unsaved_server_details():
+            self.save_server_details(show_popup=show_popup)
+        if self.has_unsaved_changes():
+            self.save_configuration(show_popup=show_popup)
+
+    def _save_from_menu(self) -> None:
+        """File → Save Configuration: persist server details when dirty, then app settings."""
+        if self.has_unsaved_server_details():
+            self.save_server_details(show_popup=False)
+        self.save_configuration(show_popup=True)
+
     def save_configuration(self, show_popup: bool = True):
-        self.app_config.server_url = self.inputs["config"]["server"].text()
+        prof_name = getattr(self.app_config, "profile_name", "default") or "default"
+        # Server URL is track A; use the widget when that track is dirty, otherwise
+        # keep the on-disk URL so app-settings-only saves cannot wipe credentials.
+        if self.has_unsaved_server_details():
+            self.app_config.server_url = self.inputs["config"]["server"].text()
+        else:
+            self.app_config.server_url = load_config(profile_name=prof_name).server_url
 
         if "skip-ssl" in self.inputs["config"]:
             self.app_config.skip_ssl = self.inputs["config"]["skip-ssl"].isChecked()
@@ -237,11 +268,10 @@ class PersistenceMixin:
 
         self.app_config.advanced_mode = bool(getattr(self, "is_advanced", False))
 
-        cfg_path = default_config_path(
-            getattr(self.app_config, "profile_name", "default")
-        )
+        prof_name = getattr(self.app_config, "profile_name", "default") or "default"
+        cfg_path = default_config_path(prof_name)
         try:
-            save_config(self.app_config)
+            save_config(self.app_config, path=cfg_path, profile_name=prof_name)
         except OSError as exc:
             QMessageBox.critical(
                 cast(QWidget, self),
@@ -251,19 +281,12 @@ class PersistenceMixin:
             return
 
         prof_name = getattr(self.app_config, "profile_name", "default")
-        api_key = self.inputs["config"]["api_key"].text().strip()
         admin_key = (
             self.inputs["config"]["admin_api_key"].text().strip()
             if "admin_api_key" in self.inputs["config"]
             else ""
         )
 
-        res_api = save_secret_with_fallback(
-            profile_name=prof_name,
-            key="api_key",
-            value=api_key,
-            provider=self.app_config.secrets_provider,
-        )
         res_admin = save_secret_with_fallback(
             profile_name=prof_name,
             key="admin_api_key",
@@ -272,8 +295,6 @@ class PersistenceMixin:
         )
 
         msg = f"Configuration saved to:\n{cfg_path}"
-        if res_api.message:
-            msg += f"\n\nNote (API Key): {res_api.message}"
         if res_admin.message:
             msg += f"\n\nNote (Admin Key): {res_admin.message}"
 

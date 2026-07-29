@@ -18,7 +18,7 @@ except ModuleNotFoundError:
 
 import tomli_w
 
-from .config_manager import SecretStore, _atomic_write_text, default_config_dir
+from .config_manager import SecretStore, _atomic_write_text
 
 _log = logging.getLogger(__name__)
 
@@ -36,11 +36,15 @@ _PROFILE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _-]{0,63}$")
 
 def profiles_root() -> Path:
     """Returns the base directory for profile storage."""
+    from .config_manager import default_config_dir
+
     return default_config_dir() / "profiles"
 
 
 def global_profiles_path() -> Path:
     """Returns the path to the global profiles.toml index file."""
+    from .config_manager import default_config_dir
+
     return default_config_dir() / "profiles.toml"
 
 
@@ -149,6 +153,8 @@ def migrate_single_config_to_default() -> None:
     env_override = os.environ.get("IMMICH_GO_GUI_CONFIG", "").strip()
     if env_override:
         return
+
+    from .config_manager import default_config_dir
 
     base_dir = default_config_dir()
     old_config = base_dir / "config.toml"

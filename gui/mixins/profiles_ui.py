@@ -25,7 +25,7 @@ class ProfilesUIMixin:
         if reply == QMessageBox.StandardButton.Cancel:
             return False
         if reply == QMessageBox.StandardButton.Save:
-            self.save_configuration(show_popup=False)
+            self._save_pending_configuration(show_popup=False)
         return True
 
     def switch_profile(self, target_name: str):
