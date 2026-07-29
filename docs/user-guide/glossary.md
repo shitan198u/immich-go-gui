@@ -12,8 +12,8 @@ Terms used throughout Immich-Go GUI documentation and the immich-go ecosystem.
 | **Stack** | Group related assets on Immich (burst sequences, RAW+JPEG pairs, HEIC+JPEG, etc.). |
 | **Serverless tab** | Archive tab that never contacts Immich and never emits server/API flags. |
 | **Server-required tab** | Tab that needs Immich credentials (all upload tabs, Stack, Archive from Immich). |
-| **Profile** | Named set of settings + secrets (server URL, theme, form state, API keys). |
-| **form_state** | Per-tab saved field values inside `config.toml`. |
+| **Profile** | Named set of Configuration-tab settings + secrets (server URL, theme, timeout, API keys). |
+| **form_state** | Runtime widget snapshot used to build commands; **not** persisted to `config.toml` (schema v3). |
 | **Advanced mode** | Config toggle that reveals extra immich-go flags on workflow tabs. |
 | **Command preview** | Read-only view of the argv that will run, with secrets masked. |
 | **CommandPlan** | Internal object: argv + env + display argv + validation errors/warnings. |

@@ -1,6 +1,6 @@
 # Profiles
 
-Profiles let you maintain separate configurations for different Immich servers, environments, or use cases. Each profile has its own settings, form state, and API keys.
+Profiles let you maintain separate configurations for different Immich servers, environments, or use cases. Each profile has its own Configuration-tab settings and API keys.
 
 ## Profile Layout
 
@@ -11,7 +11,7 @@ Profiles are stored under the config directory:
 ├── profiles.toml                 # Index: active profile, profile list
 └── profiles/
     ├── default/
-    │   ├── config.toml           # Settings and form state
+    │   ├── config.toml           # Configuration-page settings
     │   └── secrets.toml          # Plaintext secrets (fallback only)
     └── work/
         ├── config.toml
@@ -22,11 +22,11 @@ The **default** profile is created automatically on first run. It cannot be rena
 
 ## Managing Profiles
 
-From the Config tab you can:
+From the **Profiles** menu you can:
 
 | Action | Description |
 |--------|-------------|
-| **Switch profile** | Select a different active profile; the GUI reloads its settings |
+| **Switch profile** | Select a different active profile; the GUI reloads its settings (prompts to save pending changes first) |
 | **Create** | New empty profile or copy from an existing one |
 | **Duplicate** | Clone an existing profile including config and keyring secrets |
 | **Rename** | Change profile name (not available for `default`) |
@@ -47,11 +47,13 @@ Invalid characters such as `/` or `\` are rejected.
 
 ## What Is Stored Per Profile
 
-Each profile's `config.toml` includes:
+Each profile's `config.toml` includes (schema v3):
 
-- Server URL and SSL settings
-- Theme and advanced mode preference
-- **form_state** — Per-tab field values and advanced-row enablement (timeout, concurrent tasks, on-errors, etc. are per-tab, not global)
+- Server URL, skip SSL, and **client timeout**
+- Theme, advanced mode, preferred terminal, allow untested updates
+- Secret provider preference
+
+Workflow tab fields and per-tab advanced rows are **not** stored per profile — they are session-only.
 
 API keys are stored separately in the keyring (or `secrets.toml` as fallback), scoped by profile name.
 
@@ -72,7 +74,8 @@ Set `IMMICH_GO_GUI_CONFIG` to point at a specific config file. The profile direc
 
 - Use **work** / **home** profiles when you manage multiple Immich instances.
 - Duplicate a working profile before experimenting with advanced flags.
-- Switching profiles reloads all tab fields — save any in-progress changes first if needed.
+- Switching profiles reloads Configuration settings; workflow tab fields reset to defaults.
+- If Configuration settings are unsaved, the GUI prompts once before switching.
 - Keep a **staging** profile pointed at a test Immich server for dry-runs of large Takeouts.
 - Profile names are case-insensitive for uniqueness — `Home` and `home` collide.
 

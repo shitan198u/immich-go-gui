@@ -12,7 +12,7 @@ Pure dataclasses and enums. No I/O.
 
 | Type | Purpose |
 |------|---------|
-| `AppConfig` | User configuration model (server, theme, form_state, etc.) |
+| `AppConfig` | User configuration model (server, theme, client timeout, etc.) |
 | `CommandPlan` | Resolved argv, env, display_argv, warnings, errors, `emission_log` |
 | `ValidationResult` | Form validation errors and warnings |
 | `BinaryStatus` | immich-go binary health display data |
@@ -117,6 +117,19 @@ immich-go binary lifecycle.
 | `BINARY_BASE_DIR` | `~/.immich-go-gui/bin/` (versioned subdirs: `bin/{version}/immich-go`) |
 
 Downloads from GitHub Releases with SHA256 verification.
+
+### `core/app_update.py`
+
+Immich-Go **GUI** release checks (not immich-go CLI).
+
+| Function | Purpose |
+|----------|---------|
+| `get_latest_gui_release()` | Fetch latest tag from `shitan198u/immich-go-gui` releases API |
+| `clean_gui_release_version()` | Normalize Release Please tags (`immich-go-gui-v1.2.0` → `1.2.0`) |
+| `is_update_available()` | Compare installed vs latest semver |
+| `is_parseable_semver()` | Detect `dev` / non-release builds |
+
+UI handler lives in `gui/mixins/app_update.py`.
 
 ### `core/network.py`
 

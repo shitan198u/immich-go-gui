@@ -71,7 +71,8 @@ immich-go-gui/
 │   ├── mixins/            # Focused QMainWindow mixins (all ≤300 lines)
 │   │   ├── layout.py      # Main layout & tab assembly
 │   │   ├── form_helpers.py# Inline field errors & helper controls
-│   │   ├── form_state.py  # State collection & restoration
+│   │   ├── form_state.py  # Runtime state collection for command building
+│   │   ├── app_update.py  # GUI release check UI
 │   │   ├── execution.py   # Command building & terminal execution
 │   │   ├── confirm_dialog.py # Run confirmation dialog
 │   │   ├── persistence.py # TOML config & secret store persistence
@@ -125,7 +126,7 @@ The `core/` package MUST NOT import PySide6 or Qt. All network, file I/O, subpro
 
 ```mermaid
 flowchart LR
-    State[form_state dict] --> Build[build_plan_from_state<br/>validates + builds]
+    WidgetState[collect_form_state<br/>runtime only] --> Build[build_plan_from_state<br/>validates + builds]
     Build --> Plan[CommandPlan<br/>argv · env · warnings]
     Plan --> Mask[mask_command_for_display]
     Mask --> Preview[Preview pane]
@@ -202,9 +203,10 @@ See [Environment Variables](../reference/environment-variables.md) for the env v
 
 ## Configuration Persistence
 
-- Per-profile TOML files via `core/config_manager.py` and `core/profile_manager.py`
-- Form field values stored in `form_state` dict within config
-- Legacy QSettings migration for API keys handled once on startup
+- Per-profile TOML files via `core/config_manager.py` and `core/profile_manager.py` (schema v3)
+- **Persisted:** Configuration-tab fields only (server URL, timeout, theme, advanced card, etc.)
+- **Session-only:** Workflow tab widgets and per-tab advanced rows (`collect_form_state()` at run time; not written to disk)
+- Legacy QSettings and v2 `form_state` migration handled on startup
 
 ## Process Lock Lifecycle
 
