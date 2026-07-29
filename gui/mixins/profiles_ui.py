@@ -19,20 +19,13 @@ class ProfilesUIMixin:
 
     def _prompt_profile_switch_saves(self, active: str) -> bool:
         """Return True to continue switching, False to cancel."""
-        if self.has_unsaved_server_details():
-            reply = self._prompt_save_server_details()
-            if reply == QMessageBox.StandardButton.Cancel:
-                return False
-            if reply == QMessageBox.StandardButton.Save:
-                self.save_server_details(show_popup=False)
-
-        if self.has_unsaved_changes():
-            reply = self._prompt_save_app_settings()
-            if reply == QMessageBox.StandardButton.Cancel:
-                return False
-            if reply == QMessageBox.StandardButton.Save:
-                self.save_configuration(show_popup=False)
-
+        reply = self._prompt_save_pending_configuration("switching profile")
+        if reply is None:
+            return True
+        if reply == QMessageBox.StandardButton.Cancel:
+            return False
+        if reply == QMessageBox.StandardButton.Save:
+            self.save_configuration(show_popup=False)
         return True
 
     def switch_profile(self, target_name: str):
