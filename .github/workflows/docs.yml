@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - docs/comprehensive-documentation
-      - staging
       - master
   workflow_dispatch:
 

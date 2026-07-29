@@ -8,7 +8,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  actions: write
 
 jobs:
   release-please:
@@ -21,11 +20,6 @@ jobs:
           manifest-file: .github/.release-please-manifest.json
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Trigger Release Build
-        if: ${{ steps.release.outputs.release_created == 'true' }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG_NAME="${{ steps.release.outputs.tag_name }}"
-          VERSION="${TAG_NAME#v}"
-          gh workflow run release.yml --repo ${{ github.repository }} --ref "$TAG_NAME" -f version="$VERSION"
+      # Release Please creates the semver tag (e.g. v1.2.0); release.yml already
+      # triggers on tag push v[0-9]*. Do not also dispatch release.yml here —
+      # that caused duplicate production builds for the same version.

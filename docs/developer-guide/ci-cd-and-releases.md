@@ -4,21 +4,20 @@
 
 | Branch | Purpose |
 |--------|---------|
-| `master` | Production; updated via Release Please PR merges only |
-| `staging` | Active development and integration |
-| Feature branches | Target `staging` via pull request |
+| `master` | Production; primary target for pull requests and Release Please version bumps |
+| Feature branches | Target `master` via pull request |
 
-Pull requests to `master` come from `staging`. Merges from `staging` into `master` **must use squash merge** to keep Release Please commit history clean.
+Pull requests go directly to `master`. Use **squash merge** when appropriate to keep Release Please commit history clean.
 
 ## GitHub Actions Workflows
 
 | Workflow | File | Trigger | Purpose |
 |----------|------|---------|---------|
 | CI Checks | `.github/workflows/ci.yml` | Push to `master` | Multi-OS pytest |
-| PR Fast Feedback | `.github/workflows/pr-fast-feedback.yml` | PR to `master`/`staging` | Tests, CodeQL, Nuitka smoke, PR comments |
+| PR Fast Feedback | `.github/workflows/pr-fast-feedback.yml` | PR to `master` | Tests, version sync, security audit, PR comments |
 | CodeQL | `.github/workflows/codeql.yml` | Push/PR/schedule | Python security scanning |
 | Release Please | `.github/workflows/release-please.yml` | Push to `master` | Automated version bump PR |
-| Release Build | `.github/workflows/release.yml` | Tag `v*` or manual | Build and publish release artifacts |
+| Release Build | `.github/workflows/release.yml` | Tag `v[0-9]*` or manual | Build and publish release artifacts |
 | Manual Prerelease | `.github/workflows/manual-prerelease.yml` | Manual dispatch | Pre-release builds |
 
 ## Release Please
@@ -28,7 +27,7 @@ Configuration files:
 - `.github/release-please-config.json`
 - `.github/.release-please-manifest.json`
 
-When merging to `master`, Release Please opens a version bump PR. On merge, it creates a GitHub Release and triggers the release build workflow.
+When merging to `master`, Release Please opens a version bump PR. On merge, it creates a GitHub Release and tag; `release.yml` runs from the tag push (`v[0-9]*`).
 
 **Important:** Update `.github/.release-please-manifest.json` when performing manual version bumps so Release Please tracks the correct baseline.
 

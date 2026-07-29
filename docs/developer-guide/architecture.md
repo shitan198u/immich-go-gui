@@ -103,7 +103,7 @@ immich-go-gui/
 │   ├── validation.py
 │   ├── cli_help.py / cli_contract.py
 │   └── __init__.py        # Public re-exports
-├── tests/                 # Focused Pytest modules (18 modules, ~217 tests)
+├── tests/                 # Focused Pytest modules (20 modules, ~260 tests)
 ├── scripts/               # CLI help capture, review bundles, icon generator
 ├── docs/                  # User + developer + reference docs
 ├── packaging/             # Linux nfpm + Windows Inno Setup

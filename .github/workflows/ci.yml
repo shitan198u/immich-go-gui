@@ -23,6 +23,9 @@ jobs:
       - name: Version Sync Check
         run: uv run python scripts/sync_version.py --check
 
+      - name: Test Count Sync Check
+        run: uv run python scripts/sync_test_count.py --check
+
       - name: Pre-commit
         run: uv run pre-commit run --all-files --show-diff-on-failure
 

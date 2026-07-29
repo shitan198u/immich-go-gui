@@ -1,6 +1,6 @@
 # Testing
 
-The test suite lives in `tests/test_app.py` (205 tests) using pytest and pytest-qt.
+The test suite lives in `tests/` (260 tests across 20 modules) using `pytest` and `pytest-qt`.
 
 ## Running Tests
 

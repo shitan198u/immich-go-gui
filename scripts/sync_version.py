@@ -63,7 +63,11 @@ def resolve_target_version() -> str:
 
 
 def check_or_update_file(
-    file_path: Path, pattern: str, replacement_fmt: str, target_ver: str, check_only: bool
+    file_path: Path,
+    pattern: str,
+    replacement_fmt: str,
+    target_ver: str,
+    check_only: bool,
 ) -> bool:
     """Check or update a file matching regex pattern with replacement_fmt.format(version=target_ver)."""
     if not file_path.is_file():
@@ -72,10 +76,13 @@ def check_or_update_file(
 
     content = file_path.read_text(encoding="utf-8")
     expected_str = replacement_fmt.format(version=target_ver)
-    
+
     match = re.search(pattern, content, re.MULTILINE)
     if not match:
-        print(f"Error: Pattern '{pattern}' not found in {file_path.relative_to(ROOT_DIR)}", file=sys.stderr)
+        print(
+            f"Error: Pattern '{pattern}' not found in {file_path.relative_to(ROOT_DIR)}",
+            file=sys.stderr,
+        )
         return False
 
     current_found = match.group(0)
@@ -98,10 +105,20 @@ def check_or_update_file(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Synchronize or check version across codebase files.")
+    parser = argparse.ArgumentParser(
+        description="Synchronize or check version across codebase files."
+    )
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--sync", action="store_true", help="Update all files to target version (default).")
-    group.add_argument("--check", action="store_true", help="Verify all files match target version without writing.")
+    group.add_argument(
+        "--sync",
+        action="store_true",
+        help="Update all files to target version (default).",
+    )
+    group.add_argument(
+        "--check",
+        action="store_true",
+        help="Verify all files match target version without writing.",
+    )
     args = parser.parse_args()
 
     check_only = args.check
@@ -129,6 +146,11 @@ def main() -> int:
             r"Current version is defined in `pyproject.toml` \(e\.g\. `[^`]+`\)\.",
             "Current version is defined in `pyproject.toml` (e.g. `{version}`).",
         ),
+        (
+            ROOT_DIR / "docs" / "developer-guide" / "ci-cd-and-releases.md",
+            r"Tag `v[^`]+` or manual",
+            "Tag `v[0-9]*` or manual",
+        ),
     ]
 
     all_ok = True
@@ -139,7 +161,10 @@ def main() -> int:
 
     if not all_ok:
         if check_only:
-            print("\nVersion synchronization check failed! Run `uv run python scripts/sync_version.py --sync` to fix.", file=sys.stderr)
+            print(
+                "\nVersion synchronization check failed! Run `uv run python scripts/sync_version.py --sync` to fix.",
+                file=sys.stderr,
+            )
         return 1
 
     print("Version synchronization check passed.")

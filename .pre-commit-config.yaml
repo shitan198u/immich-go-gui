@@ -26,3 +26,9 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: test-count-sync-check
+        name: test-count-sync-check
+        entry: uv run python scripts/sync_test_count.py --check
+        language: system
+        pass_filenames: false
+        always_run: true
