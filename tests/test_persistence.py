@@ -451,31 +451,13 @@ def test_linux_xdg_save_server_details_roundtrip(tmp_path, monkeypatch):
     """Regression: GUI save must persist server URL under Linux XDG profile paths."""
     from unittest.mock import patch
 
-    from core.profile_manager import clear_profiles_cache, profile_config_path
+    from core.profile_manager import profile_config_path
     from gui import ImmichGoGUI
 
     xdg = tmp_path / "xdg-config"
     monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg))
     monkeypatch.delenv("IMMICH_GO_GUI_CONFIG", raising=False)
-    clear_profiles_cache()
 
-    with (
-        patch.object(ImmichGoGUI, "check_binary_version"),
-        patch.object(ImmichGoGUI, "_probe_keyring", return_value=True),
-        patch("PySide6.QtWidgets.QMessageBox.warning"),
-    ):
-        gui = ImmichGoGUI()
-        gui.inputs["config"]["server"].setText("http://linux-host:2283")
-        gui.inputs["config"]["api_key"].setText("roundtrip-key")
-        gui.save_server_details(show_popup=False)
-        gui._force_close = True
-        gui.close()
-
-    cfg_path = profile_config_path("default")
-    assert cfg_path == xdg / "immich-go-gui" / "profiles" / "default" / "config.toml"
-    assert load_config(cfg_path).server_url == "http://linux-host:2283"
-
-    clear_profiles_cache()
     with (
         patch.object(ImmichGoGUI, "check_binary_version"),
         patch.object(ImmichGoGUI, "_probe_keyring", return_value=True),
@@ -485,13 +467,21 @@ def test_linux_xdg_save_server_details_roundtrip(tmp_path, monkeypatch):
             return_value="roundtrip-key",
         ),
     ):
-        gui2 = ImmichGoGUI()
-        gui2.load_configuration()
+        gui = ImmichGoGUI()
+        gui.inputs["config"]["server"].setText("http://linux-host:2283")
+        gui.inputs["config"]["api_key"].setText("roundtrip-key")
+        gui.save_server_details(show_popup=False)
 
-    assert gui2.inputs["config"]["server"].text() == "http://linux-host:2283"
-    assert gui2.inputs["config"]["api_key"].text() == "roundtrip-key"
-    gui2._force_close = True
-    gui2.close()
+        cfg_path = profile_config_path("default")
+        assert cfg_path == xdg / "immich-go-gui" / "profiles" / "default" / "config.toml"
+        assert load_config(cfg_path).server_url == "http://linux-host:2283"
+
+        gui.inputs["config"]["server"].clear()
+        gui.inputs["config"]["api_key"].clear()
+        gui.load_configuration()
+
+        assert gui.inputs["config"]["server"].text() == "http://linux-host:2283"
+        assert gui.inputs["config"]["api_key"].text() == "roundtrip-key"
 
 
 def test_linux_xdg_save_configuration_roundtrip(tmp_path, monkeypatch):
