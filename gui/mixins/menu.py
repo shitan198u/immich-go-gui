@@ -52,6 +52,12 @@ class MenuMixin:
 
         file_menu.addSeparator()
 
+        app_update_action = QAction("Check for Application Updates…", self)
+        app_update_action.triggered.connect(self.check_for_application_updates)
+        file_menu.addAction(app_update_action)
+
+        file_menu.addSeparator()
+
         exit_action = QAction("Exit", self)
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
