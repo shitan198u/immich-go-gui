@@ -1,6 +1,8 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout
 
+from gui.widgets.eliding_label import ElidingLabel
+
 
 class StatusCard(QFrame):
     _DOT = {
@@ -23,7 +25,7 @@ class StatusCard(QFrame):
     def _row(self, lay, text):
         dot = QLabel()
         dot.setFixedSize(10, 10)
-        txt = QLabel(text)
+        txt = ElidingLabel(text, Qt.TextElideMode.ElideMiddle)
         txt.setObjectName("StatusText")
         r = QHBoxLayout()
         r.setSpacing(8)
@@ -40,7 +42,9 @@ class StatusCard(QFrame):
     def set_binary(self, state, text):
         self._paint(self.dot_b, state)
         self.txt_b.setText(text)
+        self.txt_b.setToolTip(text)
 
     def set_server(self, state, text):
         self._paint(self.dot_s, state)
         self.txt_s.setText(text)
+        self.txt_s.setToolTip(text)
