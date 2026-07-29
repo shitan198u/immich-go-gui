@@ -1,6 +1,8 @@
 name: Deploy Docs to GitHub Pages
 
 on:
+  schedule:
+    - cron: '0 0 * * *'
   push:
     branches:
       - docs/comprehensive-documentation

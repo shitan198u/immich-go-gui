@@ -146,6 +146,9 @@ markdown_extensions:
 extra_css:
   - assets/css/custom.css
 
+extra_javascript:
+  - assets/js/github-stats.js
+
 # Mermaid is loaded by Material when it sees the superfences mermaid fence.
 # Do not add a third-party unpkg mermaid CDN (double-init race + unpinned major).
 
