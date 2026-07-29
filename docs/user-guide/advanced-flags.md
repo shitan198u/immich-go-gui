@@ -17,7 +17,7 @@ A flag reaches the CLI **if and only if** the user explicitly asked for it:
 
 | Source | Rule |
 |--------|------|
-| **Structural** | Always emitted: `server`, `skip-verify-ssl`, `dry-run` (and `from-dry-run` on Immich tabs) |
+| **Structural** | Always emitted: `server`, `skip-verify-ssl`, `client-timeout` / `from-client-timeout` (from Config tab), `dry-run` (and `from-dry-run` on Immich tabs) |
 | **Simple widget** | Emitted when value ≠ TOML default |
 | **Advanced row** | Emitted when the row is enabled |
 | **Safety** | `pause-immich-jobs=false` auto-emitted on upload/stack when no Admin API key is configured |
@@ -48,13 +48,18 @@ These flags are never shown with real values in the preview:
 
 They appear as `***` in the command preview.
 
+## Global connection options (Config tab)
+
+| Setting | Description |
+|---------|-------------|
+| `client_timeout_minutes` | HTTP timeout (minutes) for all server-connected tabs. Emitted as `--client-timeout` and, on Immich-to-Immich tabs, `--from-client-timeout`. |
+
 ## Per-Tab Advanced Flags
 
-Global options like `client-timeout`, `concurrent-tasks`, `device-uuid`, `on-errors`, `pause-immich-jobs`, and `log-level` are configured per tab via Advanced Flags rows (not the Config tab).
+Per-tab advanced rows include options like `concurrent-tasks`, `device-uuid`, `on-errors`, `pause-immich-jobs`, and `log-level`.
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `client-timeout` | duration | HTTP timeout (minutes) |
 | `concurrent-tasks` | int | Parallelism |
 | `device-uuid` | text | Device identifier |
 | `on-errors` | text | `stop`, `continue`, or a max error count (e.g. `10`) |

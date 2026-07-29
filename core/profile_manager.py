@@ -3,6 +3,7 @@
 Pure Python module, Qt-free.
 """
 
+import logging
 import os
 import re
 import shutil
@@ -18,6 +19,8 @@ except ModuleNotFoundError:
 import tomli_w
 
 from .config_manager import SecretStore, _atomic_write_text, default_config_dir
+
+_log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -164,20 +167,64 @@ def migrate_single_config_to_default() -> None:
     default_p_dir.mkdir(parents=True, exist_ok=True)
 
     if old_config.exists() and not default_cfg.exists():
-        shutil.copy2(old_config, default_cfg)
         try:
+            shutil.copy2(old_config, default_cfg)
+            if not default_cfg.exists():
+                _log.error(
+                    "Profile migration failed: copy of %s did not create %s",
+                    old_config,
+                    default_cfg,
+                )
+                return
+            if default_cfg.read_text(encoding="utf-8") != old_config.read_text(
+                encoding="utf-8"
+            ):
+                _log.error(
+                    "Profile migration failed: copied config at %s does not match source",
+                    default_cfg,
+                )
+                default_cfg.unlink(missing_ok=True)
+                return
             bak = base_dir / "config.toml.pre-profile.bak"
             old_config.rename(bak)
-        except Exception:
-            pass
+            _log.info(
+                "Migrated legacy config %s -> %s",
+                old_config,
+                default_cfg,
+            )
+        except Exception as exc:
+            _log.error(
+                "Profile migration failed copying %s to %s: %s",
+                old_config,
+                default_cfg,
+                exc,
+            )
+            return
 
     if old_secrets.exists() and not default_sec.exists():
-        shutil.copy2(old_secrets, default_sec)
         try:
+            shutil.copy2(old_secrets, default_sec)
+            if not default_sec.exists():
+                _log.error(
+                    "Profile migration failed: copy of %s did not create %s",
+                    old_secrets,
+                    default_sec,
+                )
+                return
             sbak = base_dir / "secrets.toml.pre-profile.bak"
             old_secrets.rename(sbak)
-        except Exception:
-            pass
+            _log.info(
+                "Migrated legacy secrets %s -> %s",
+                old_secrets,
+                default_sec,
+            )
+        except Exception as exc:
+            _log.error(
+                "Profile migration failed copying %s to %s: %s",
+                old_secrets,
+                default_sec,
+                exc,
+            )
 
     if default_cfg.exists() or default_sec.exists():
         now_iso = datetime.now(UTC).isoformat()
