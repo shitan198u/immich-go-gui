@@ -36,13 +36,36 @@ def test_secret_store_migration():
 def test_has_unsaved_changes_detects_widget_edits(gui):
     gui._mark_configuration_clean()
     assert gui.has_unsaved_changes() is False
-    gui.inputs["config"]["server"].setText("http://edited:2283")
+    gui.inputs["config"]["skip-ssl"].setChecked(True)
     assert gui.has_unsaved_changes() is True
+
+
+def test_has_unsaved_changes_ignores_server_url(gui):
+    gui._mark_configuration_clean()
+    gui._mark_server_details_clean()
+    gui.inputs["config"]["server"].setText("http://edited:2283")
+    assert gui.has_unsaved_changes() is False
+    assert gui.has_unsaved_server_details() is True
+
+
+def test_has_unsaved_server_details_detects_api_key(gui):
+    gui._mark_server_details_clean()
+    gui.inputs["config"]["api_key"].setText("new-secret-key")
+    assert gui.has_unsaved_server_details() is True
+
+
+def test_save_server_details_marks_clean(gui, monkeypatch):
+    gui._mark_server_details_clean()
+    gui.inputs["config"]["server"].setText("http://edited:2283")
+    assert gui.has_unsaved_server_details() is True
+    gui.save_server_details(show_popup=False)
+    assert gui.has_unsaved_server_details() is False
 
 
 def test_save_marks_configuration_clean(gui, monkeypatch):
     gui._mark_configuration_clean()
-    gui.inputs["config"]["server"].setText("http://edited:2283")
+    gui._mark_server_details_clean()
+    gui.inputs["config"]["skip-ssl"].setChecked(True)
     assert gui.has_unsaved_changes() is True
     gui.save_configuration(show_popup=False)
     assert gui.has_unsaved_changes() is False
