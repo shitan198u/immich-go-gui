@@ -652,6 +652,20 @@ def build_plan_from_state(
                 "Use only on trusted networks or self-hosted test servers."
             )
 
+    timeout_minutes = config_state.get("client_timeout_minutes", 60)
+    try:
+        timeout_minutes = int(timeout_minutes)
+    except (TypeError, ValueError):
+        timeout_minutes = 60
+
+    if tab_key not in SERVERLESS_TABS:
+        if tab_key in ("upload-immich", "archive-immich"):
+            emitter.add_option(
+                "from-client-timeout", f"{timeout_minutes}m", source="always"
+            )
+        if tab_key != "archive-immich":
+            emitter.add_option("client-timeout", f"{timeout_minutes}m", source="always")
+
     # ── 2. Simple-mode widgets (emit if ≠ default) ─────────────
     for flag_def in REGISTRY.flags.get(tab_key, ()):
         if flag_def.mode != "simple":

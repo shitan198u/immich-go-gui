@@ -6,8 +6,14 @@
     "write-to": "/backup/dest"
   },
   "advanced_state": {
-    "date-range": { "enabled": true, "value": "2024" },
-    "include-type": { "enabled": true, "value": "IMAGE" }
+    "date-range": {
+      "enabled": true,
+      "value": "2024"
+    },
+    "include-type": {
+      "enabled": true,
+      "value": "IMAGE"
+    }
   },
   "expected_argv": [
     "archive",

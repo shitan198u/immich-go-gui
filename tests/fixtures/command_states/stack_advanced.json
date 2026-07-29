@@ -3,7 +3,8 @@
   "config_state": {
     "server": "http://localhost:2283",
     "api_key": "secret_key",
-    "admin_api_key": "admin_key"
+    "admin_api_key": "admin_key",
+    "client_timeout_minutes": 60
   },
   "tab_state": {
     "manage-burst": "Stack",
@@ -14,6 +15,7 @@
   "expected_argv": [
     "stack",
     "--server=http://localhost:2283",
+    "--client-timeout=60m",
     "--manage-burst=Stack",
     "--manage-raw-jpeg=StackCoverRaw",
     "--manage-heic-jpeg=StackCoverJPG"

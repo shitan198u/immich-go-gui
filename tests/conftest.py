@@ -64,6 +64,14 @@ def gui(qapp):
 
 
 @pytest.fixture(autouse=True)
+def _reset_client_timeout(gui):
+    spin = gui.inputs.get("config", {}).get("client_timeout_minutes")
+    if spin is not None:
+        spin.setValue(60)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def suppress_qt_dialogs(monkeypatch):
     """Suppress modal QMessageBox dialogs during each test function."""
     monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.information", MagicMock())
@@ -91,6 +99,9 @@ def _reset_shared_config(gui):
     cfg["skip-ssl"].setChecked(False)
     if cfg.get("server"):
         cfg["server"].clear()
+    spin = cfg.get("client_timeout_minutes")
+    if spin is not None:
+        spin.setValue(60)
     gui._mark_configuration_clean()
     yield
     gui.toggle_advanced(False)

@@ -6,7 +6,10 @@
     "write-to": "/backup/picasa"
   },
   "advanced_state": {
-    "album-picasa": { "enabled": true, "value": true }
+    "album-picasa": {
+      "enabled": true,
+      "value": true
+    }
   },
   "expected_argv": [
     "archive",

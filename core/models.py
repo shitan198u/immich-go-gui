@@ -77,7 +77,7 @@ class UpdateDecision:
 class AppConfig:
     """Application user configuration model."""
 
-    schema_version: int = 2
+    schema_version: int = 3
 
     profile_name: str = "default"
     theme_mode: str = "system"
@@ -87,6 +87,7 @@ class AppConfig:
 
     server_url: str = ""
     skip_ssl: bool = False
+    client_timeout_minutes: int = 60
 
     secrets_provider: str = "keyring"
 

@@ -121,6 +121,9 @@ class FormStateMixin:
             if c.get("secret_provider")
             else "keyring",
             "skip-ssl": c.get("skip-ssl").isChecked() if c.get("skip-ssl") else False,
+            "client_timeout_minutes": c.get("client_timeout_minutes").value()
+            if c.get("client_timeout_minutes")
+            else 60,
         }
 
     def _collect_tab_state(self, tab_key: str) -> dict:

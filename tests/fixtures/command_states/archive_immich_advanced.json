@@ -2,7 +2,8 @@
   "tab_key": "archive-immich",
   "config_state": {
     "server": "http://localhost:2283",
-    "api_key": "secret_key"
+    "api_key": "secret_key",
+    "client_timeout_minutes": 60
   },
   "tab_state": {
     "write-to": "/backup/zip",
@@ -13,6 +14,7 @@
   "expected_argv": [
     "archive",
     "from-immich",
+    "--from-client-timeout=60m",
     "--from-server=http://localhost:2283",
     "--write-to-folder=/backup/zip",
     "--from-date-range=2023",

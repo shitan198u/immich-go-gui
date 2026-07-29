@@ -22,6 +22,7 @@ def test_golden_upload_folder(gui):
             "upload",
             "from-folder",
             "--server=http://localhost:2283",
+            "--client-timeout=60m",
             "/photos",
         ]
     )
@@ -46,6 +47,7 @@ def test_golden_upload_gp(gui):
             "upload",
             "from-google-photos",
             "--server=http://localhost:2283",
+            "--client-timeout=60m",
             "/takeout-001.zip",
             "/takeout-002.zip",
         ]
@@ -69,6 +71,7 @@ def test_golden_stack(gui):
         [
             "stack",
             "--server=http://localhost:2283",
+            "--client-timeout=60m",
             "--manage-burst=Stack",
         ]
     )
@@ -92,6 +95,7 @@ def test_golden_stack_advanced_with_date_range(gui):
         [
             "stack",
             "--server=http://localhost:2283",
+            "--client-timeout=60m",
             "--manage-burst=Stack",
             "--date-range=2023-01-01,2023-12-31",
         ]
@@ -140,6 +144,8 @@ def test_golden_upload_immich(gui):
             "upload",
             "from-immich",
             "--server=http://new:2283",
+            "--from-client-timeout=60m",
+            "--client-timeout=60m",
             "--from-server=http://old:2283",
         ]
     )
@@ -164,6 +170,7 @@ def test_golden_archive_immich(gui):
         [
             "archive",
             "from-immich",
+            "--from-client-timeout=60m",
             "--from-server=http://localhost:2283",
             "--write-to-folder=/backup/photos",
         ]
@@ -177,6 +184,7 @@ def test_build_plan_from_state_upload_folder_golden():
         "api_key": "test-key",
         "admin_api_key": "admin-key",
         "skip-ssl": False,
+        "client_timeout_minutes": 60,
     }
 
     tab_state = {
@@ -202,6 +210,7 @@ def test_build_plan_from_state_upload_folder_golden():
             "upload",
             "from-folder",
             "--server=http://localhost:2283",
+            "--client-timeout=60m",
             "--manage-burst=Stack",
             "/photos",
         ]
@@ -248,7 +257,13 @@ def test_golden_upload_icloud_simple(gui):
 
     plan = gui.build_plan(dry_run=False)
     assert _norm_argv(plan.argv) == _norm_argv(
-        ["upload", "from-icloud", "--server=http://localhost:2283", "/photos/icloud"]
+        [
+            "upload",
+            "from-icloud",
+            "--server=http://localhost:2283",
+            "--client-timeout=60m",
+            "/photos/icloud",
+        ]
     )
     assert plan.tab_key == "upload-icloud"
 
@@ -264,7 +279,13 @@ def test_golden_upload_picasa_simple(gui):
 
     plan = gui.build_plan(dry_run=False)
     assert _norm_argv(plan.argv) == _norm_argv(
-        ["upload", "from-picasa", "--server=http://localhost:2283", "/photos/picasa"]
+        [
+            "upload",
+            "from-picasa",
+            "--server=http://localhost:2283",
+            "--client-timeout=60m",
+            "/photos/picasa",
+        ]
     )
     assert plan.tab_key == "upload-picasa"
 
