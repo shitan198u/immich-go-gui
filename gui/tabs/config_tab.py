@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 
 from core import default_secrets_path, load_binary_metadata
 from gui.mixins.app_update import _gui_version
-from gui.widgets import BasePage, Card, ElidingLabel, FormSection
+from gui.widgets import BasePage, Card, ElidingLabel, FormSection, spin_with_unit_label
 from theme import THEME_DARK, THEME_LIGHT, THEME_SYSTEM
 
 
@@ -55,12 +55,11 @@ def build_config_tab(host) -> QWidget:
 
     host.client_timeout_spin = QSpinBox()
     host.client_timeout_spin.setRange(5, 240)
-    host.client_timeout_spin.setSuffix(" min")
     host.client_timeout_spin.setValue(60)
     host.inputs["config"]["client_timeout_minutes"] = host.client_timeout_spin
     form.add_row(
         "Client Timeout",
-        host.client_timeout_spin,
+        spin_with_unit_label(host.client_timeout_spin, "min"),
         "Low values may cause long uploads or archives to fail. Increase if jobs time out.",
     )
 

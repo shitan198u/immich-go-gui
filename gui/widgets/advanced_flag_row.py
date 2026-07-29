@@ -8,6 +8,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from gui.widgets.cards import spin_with_unit_label
+
 
 class AdvancedFlagRow(QWidget):
     def __init__(self, def_, parent=None):
@@ -29,7 +31,10 @@ class AdvancedFlagRow(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(12)
         layout.addWidget(self.enable, 0)
-        layout.addWidget(self.value_widget, 1)
+        if self.def_.kind == "duration_minutes":
+            layout.addWidget(spin_with_unit_label(self.value_widget, "min"), 1)
+        else:
+            layout.addWidget(self.value_widget, 1)
 
     def _create_value_widget(self):
         kind = self.def_.kind
@@ -63,7 +68,6 @@ class AdvancedFlagRow(QWidget):
         if kind == "duration_minutes":
             w = QSpinBox()
             w.setRange(1, 1440)
-            w.setSuffix(" minutes")
             if isinstance(self.def_.default, int):
                 w.setValue(self.def_.default)
             else:
