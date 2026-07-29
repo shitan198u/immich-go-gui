@@ -3,6 +3,25 @@ from unittest.mock import patch
 from PySide6.QtWidgets import QMessageBox
 
 from core.command_builder import validate_state_light
+from gui.widgets.status_card import StatusCard
+
+
+def test_status_card_elides_and_sets_tooltip(qtbot):
+    card = StatusCard()
+    qtbot.addWidget(card)
+    card.resize(120, 80)
+    qtbot.waitExposed(card)
+    long_text = "Server: " + "x" * 200
+    card.set_server("ok", long_text)
+    assert card.txt_s.toolTip() == long_text
+    assert card.txt_s.text() == long_text
+    w = card.txt_s.contentsRect().width() or card.txt_s.width()
+    if w > 0:
+        elided = card.txt_s.fontMetrics().elidedText(
+            long_text, card.txt_s._elide, w
+        )
+        assert len(elided) < len(long_text)
+        assert "…" in elided
 
 
 def test_running_process_boolean_state(gui):
