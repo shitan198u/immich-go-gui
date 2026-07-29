@@ -25,6 +25,7 @@ from core.process_tracker import (
 )
 from core.profile_manager import active_profile_name
 from gui.browse_dialogs import BrowseDialogsMixin
+from gui.mixins.app_update import AppUpdateMixin
 from gui.mixins.binary_ui import BinaryUIMixin
 from gui.mixins.confirm_dialog import ConfirmDialogMixin
 from gui.mixins.connection import ConnectionMixin
@@ -59,6 +60,7 @@ class ImmichGoGUI(
     ConfirmDialogMixin,
     ExecutionMixin,
     BinaryUIMixin,
+    AppUpdateMixin,
     FormStateMixin,
     PersistenceMixin,
     ProfilesUIMixin,
@@ -261,26 +263,21 @@ class ImmichGoGUI(
                 event.ignore()
                 return
 
-        if not self.has_unsaved_changes():
-            if hasattr(self, "log"):
-                self.log.info("GUI closed")
-            event.accept()
-            return
+        if self.has_unsaved_server_details():
+            reply = self._prompt_save_server_details()
+            if reply == QMessageBox.StandardButton.Cancel:
+                event.ignore()
+                return
+            if reply == QMessageBox.StandardButton.Save:
+                self.save_server_details(show_popup=False)
 
-        reply = QMessageBox.question(
-            self,
-            "Save Configuration",
-            "Save current configuration before closing?",
-            QMessageBox.StandardButton.Save
-            | QMessageBox.StandardButton.Discard
-            | QMessageBox.StandardButton.Cancel,
-            QMessageBox.StandardButton.Save,
-        )
-        if reply == QMessageBox.StandardButton.Cancel:
-            event.ignore()
-            return
-        if reply == QMessageBox.StandardButton.Save:
-            self.save_configuration(show_popup=False)
+        if self.has_unsaved_changes():
+            reply = self._prompt_save_app_settings()
+            if reply == QMessageBox.StandardButton.Cancel:
+                event.ignore()
+                return
+            if reply == QMessageBox.StandardButton.Save:
+                self.save_configuration(show_popup=False)
 
         if hasattr(self, "log"):
             self.log.info("GUI closed")

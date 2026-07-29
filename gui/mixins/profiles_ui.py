@@ -17,27 +17,33 @@ class ProfilesUIMixin:
         active = active_profile_name()
         self.setWindowTitle(f"Immich Go GUI — {active}")
 
+    def _prompt_profile_switch_saves(self, active: str) -> bool:
+        """Return True to continue switching, False to cancel."""
+        if self.has_unsaved_server_details():
+            reply = self._prompt_save_server_details()
+            if reply == QMessageBox.StandardButton.Cancel:
+                return False
+            if reply == QMessageBox.StandardButton.Save:
+                self.save_server_details(show_popup=False)
+
+        if self.has_unsaved_changes():
+            reply = self._prompt_save_app_settings()
+            if reply == QMessageBox.StandardButton.Cancel:
+                return False
+            if reply == QMessageBox.StandardButton.Save:
+                self.save_configuration(show_popup=False)
+
+        return True
+
     def switch_profile(self, target_name: str):
         active = active_profile_name()
         if target_name == active:
             return
 
-        if self.has_unsaved_changes():
-            reply = QMessageBox.question(
-                self,
-                "Switch Profile",
-                f"Save changes to current profile '{active}' before switching?",
-                QMessageBox.StandardButton.Save
-                | QMessageBox.StandardButton.Discard
-                | QMessageBox.StandardButton.Cancel,
-                QMessageBox.StandardButton.Save,
-            )
-
-            if reply == QMessageBox.StandardButton.Cancel:
+        if self.has_unsaved_server_details() or self.has_unsaved_changes():
+            if not self._prompt_profile_switch_saves(active):
                 self.update_profiles_menu()
                 return
-            if reply == QMessageBox.StandardButton.Save:
-                self.save_configuration()
 
         try:
             set_active_profile_name(target_name)
