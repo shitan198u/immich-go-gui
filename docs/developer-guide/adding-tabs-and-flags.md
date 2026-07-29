@@ -51,7 +51,7 @@ For every simple-mode bool, the TOML `default` must match the CLI default and th
 - Add sidebar entry / stacked page / sub-tab as needed
 - Create simple-mode widgets for `mode = "simple"` flags
 - Advanced rows are generated from the registry automatically
-- Wire save/load through `form_state`
+- Wire widgets into `inputs` / `adv_rows`; `collect_form_state()` gathers runtime state for `build_plan_from_state()` (not persisted to `config.toml`)
 
 ### 3. Add tests and fixtures
 

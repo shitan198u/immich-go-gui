@@ -9,11 +9,14 @@ The **Config** tab holds global settings shared across workflow tabs: Immich ser
 | **Server URL** | Base URL of your Immich instance (e.g. `https://immich.local`). Used by upload tabs, Stack, and Archive from Immich. |
 | **Skip SSL verification** | Bypass TLS certificate validation. Shows an inline warning when enabled. Use only for local/self-signed setups. |
 | **API Key** | Your Immich user API key. Stored in the OS keychain by default — never written to plain TOML. |
+| **Client Timeout** | How long each HTTP call to Immich may run (minutes). Low values may fail long uploads or archives. Applied globally as `--client-timeout` (and `--from-client-timeout` on Immich-to-Immich tabs). |
 | **Admin API Key** | Optional elevated key. Required only if you want Immich background jobs paused during upload/stack. Also stored in the keyring. |
 
-### Connection Testing
+### Connection Testing and Saving Server Details
 
-Use **Test Connection** on the Config tab to call `{server}/api/server/about` with your API key. The same endpoint is used as a **pre-flight check** before server-required runs; a failure blocks launch and shows an error.
+Use **Test Connection** to call `{server}/api/server/about` with your API key. The same endpoint is used as a **pre-flight check** before server-required runs; a failure blocks launch and shows an error.
+
+Use **Save Server Details** to persist **only** the server URL and API key (to `config.toml` and keyring). Other Config settings (theme, timeout, skip SSL, etc.) are saved separately via **File → Save Configuration**.
 
 Server-required tabs: all Upload tabs, Archive from Immich, and Stack. See [CLI Command Mapping](../reference/cli-command-mapping.md).
 
@@ -59,6 +62,21 @@ API keys are handled securely:
 2. **Plaintext fallback** — If keyring is unavailable, secrets may be stored in `secrets.toml` inside the profile directory (see [Config Schema](../reference/config-schema.md)).
 
 Secrets are passed to immich-go through **environment variables**, not command-line arguments. The command preview masks all secret values.
+
+## Application Updates (GUI)
+
+The **Application** card checks whether a newer **Immich-Go GUI** release is published on GitHub (separate from the immich-go CLI binary below).
+
+| Element | Description |
+|---------|-------------|
+| **Current Version** | Installed GUI version (or `dev` when running from source) |
+| **Status** | Green when up to date, amber when an update is available, muted for development builds |
+| **Check for Updates** | Fetches the latest release; always shows a status message and dialog |
+| **Releases link** | Opens [GitHub Releases](https://github.com/shitan198u/immich-go-gui/releases) in your browser |
+
+The GUI does **not** download or install itself. When an update is available, use **Open Download Page** in the dialog (or the releases link) and install the new package manually (installer, AppImage, DMG, etc.).
+
+The same check is available from **File → Check for Application Updates…**.
 
 ## immich-go Binary Management
 
@@ -123,7 +141,15 @@ See [immich-go Compatibility](../reference/immich-go-compatibility.md) for versi
 
 ## Saving Configuration
 
-Configuration is saved automatically when you change settings or switch tabs. Each profile has its own `config.toml`. Form field values for workflow tabs are stored in the `form_state` section of that file.
+Configuration is **not** auto-saved. Use explicit save actions:
+
+| Action | What it saves |
+|--------|----------------|
+| **Save Server Details** (Config tab) | Server URL + API key only |
+| **File → Save Configuration** | Theme, client timeout, skip SSL, secret provider, admin API key, advanced card settings, and advanced mode |
+| Close / profile switch prompt | Offers to save pending changes before continuing |
+
+Each profile has its own `config.toml` under `profiles/{name}/`. Workflow tab fields (upload paths, archive destinations, per-tab advanced rows) are **session-only** — they reset when you restart the app or switch profiles without saving Config settings.
 
 ### Config File Locations
 
