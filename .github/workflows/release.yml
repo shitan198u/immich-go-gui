@@ -9,7 +9,7 @@ on:
         default: '1.0.0-test'
   push:
     tags:
-      - 'v*'
+      - 'v[0-9]*'
 
 env:
   CREATE_DMG_VERSION: '8.1.0'
@@ -57,6 +57,8 @@ jobs:
             name: linux
           - os: windows-latest
             name: windows
+          - os: macos-13
+            name: macos
           - os: macos-latest
             name: macos
 

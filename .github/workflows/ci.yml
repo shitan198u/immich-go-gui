@@ -20,6 +20,9 @@ jobs:
       - name: Pyright (core)
         run: uv run pyright core/
 
+      - name: Version Sync Check
+        run: uv run python scripts/sync_version.py --check
+
       - name: Pre-commit
         run: uv run pre-commit run --all-files --show-diff-on-failure
 
