@@ -115,23 +115,26 @@ def build_config_tab(host) -> QWidget:
     page.addWidget(card_sec)
 
     card_app = Card("Application")
-    app_row = QHBoxLayout()
-    app_row.setSpacing(16)
-    app_row.setAlignment(Qt.AlignmentFlag.AlignTop)
-    app_info = QVBoxLayout()
-    app_info.setSpacing(2)
-    host.lbl_app_version = QLabel(f"Current Version: {_gui_version()}")
+    app_form = FormSection()
+    host.lbl_app_version = QLabel(_gui_version())
     host.lbl_app_version.setObjectName("FieldLabel")
     host.lbl_app_version.setWordWrap(True)
+    app_form.add_row("Current Version", host.lbl_app_version)
+
     host.lbl_app_update_status = QLabel("Check for updates to see status.")
     host.lbl_app_update_status.setObjectName("AppUpdateStatus")
-    app_info.addWidget(host.lbl_app_version)
-    app_info.addWidget(host.lbl_app_update_status)
-    app_row.addLayout(app_info, 1)
+    app_form.add_row("Status", host.lbl_app_update_status)
+
     host.btn_check_app_updates = QPushButton("Check for Updates")
     host.btn_check_app_updates.clicked.connect(host.check_for_application_updates)
-    app_row.addWidget(host.btn_check_app_updates, 0, Qt.AlignmentFlag.AlignTop)
-    card_app.layout.addLayout(app_row)
+    app_form.add_row("", host.btn_check_app_updates)
+
+    app_form.add_row(
+        "",
+        QLabel("Downloads from GitHub Releases."),
+        "Releases are published at github.com/shitan198u/immich-go-gui.",
+    )
+    card_app.layout.addLayout(app_form)
     page.addWidget(card_app)
 
     card2 = Card("Binary Management")
