@@ -52,6 +52,11 @@ value = 45
     assert cfg.schema_version == 3
     assert cfg.client_timeout_minutes == 45
 
+    data = tomllib.loads(cfg_path.read_text(encoding="utf-8"))
+    assert data["schema_version"] == 3
+    assert data["server"]["client_timeout_minutes"] == 45
+    assert "form_state" not in data
+
 
 def test_save_config_schema_v3_without_form_state(tmp_path, monkeypatch):
     monkeypatch.setenv("IMMICH_GO_GUI_CONFIG", str(tmp_path / "config.toml"))
