@@ -240,7 +240,8 @@ def load_config(path: Path | None = None, profile_name: str | None = None) -> Ap
         )
         return cfg
 
-    cfg.schema_version = data.get("schema_version", 2)
+    schema_version = data.get("schema_version", 2)
+    cfg.schema_version = schema_version
 
     gen = data.get("general", {})
     cfg.theme_mode = gen.get("theme", "system")
@@ -251,13 +252,54 @@ def load_config(path: Path | None = None, profile_name: str | None = None) -> Ap
     srv = data.get("server", {})
     cfg.server_url = srv.get("url", "")
     cfg.skip_ssl = srv.get("skip_ssl", False)
+    cfg.client_timeout_minutes = int(srv.get("client_timeout_minutes", 60))
 
     sec = data.get("secrets", {})
     cfg.secrets_provider = sec.get("provider", "keyring")
 
-    cfg.form_state = data.get("form_state", {})
+    if schema_version < 3:
+        form_state = data.get("form_state", {})
+        if isinstance(form_state, dict):
+            migrated_timeout = _extract_legacy_client_timeout(form_state)
+            if migrated_timeout is not None:
+                cfg.client_timeout_minutes = migrated_timeout
+            _log.info(
+                "Migrated config schema v%s -> v3 at %s (discarded legacy form_state)",
+                schema_version,
+                path,
+            )
+        cfg.schema_version = 3
+    else:
+        cfg.form_state = data.get("form_state", {})
 
+    _log.info(
+        "Loaded config profile=%s path=%s schema_version=%s",
+        cfg.profile_name,
+        path,
+        cfg.schema_version,
+    )
     return cfg
+
+
+def _extract_legacy_client_timeout(form_state: dict) -> int | None:
+    """Pull enabled client-timeout from legacy per-tab advanced form_state."""
+    advanced = form_state.get("advanced", {})
+    if not isinstance(advanced, dict):
+        return None
+    for tab_adv in advanced.values():
+        if not isinstance(tab_adv, dict):
+            continue
+        row = tab_adv.get("client-timeout")
+        if not isinstance(row, dict) or not row.get("enabled"):
+            continue
+        value = row.get("value")
+        if value is None:
+            continue
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            continue
+    return None
 
 
 def save_config(
@@ -269,7 +311,7 @@ def save_config(
         path = default_config_path(target_prof)
 
     data = {
-        "schema_version": 2,
+        "schema_version": 3,
         "general": {
             "theme": config.theme_mode,
             "advanced_mode": config.advanced_mode,
@@ -279,11 +321,11 @@ def save_config(
         "server": {
             "url": config.server_url,
             "skip_ssl": config.skip_ssl,
+            "client_timeout_minutes": config.client_timeout_minutes,
         },
         "secrets": {
             "provider": config.secrets_provider,
         },
-        "form_state": config.form_state or {},
     }
 
     text = tomli_w.dumps(data)

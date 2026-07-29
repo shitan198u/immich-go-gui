@@ -11,7 +11,7 @@ Immich-Go GUI stores configuration in TOML files. API keys are stored in the OS 
 ├── logs/                      # Rotating GUI log (immich-go-gui.log)
 └── profiles/
     └── {profile_name}/
-        ├── config.toml        # Settings and form state
+        ├── config.toml        # Configuration-page settings only
         └── secrets.toml       # Plaintext secrets (fallback only)
 ```
 
@@ -45,10 +45,10 @@ created_at = "2026-01-01T00:00:00+00:00"
 
 ## config.toml Schema
 
-Current schema version: **2**
+Current schema version: **3**
 
 ```toml
-schema_version = 2
+schema_version = 3
 
 [general]
 theme = "system"                    # "system" | "light" | "dark"
@@ -59,15 +59,13 @@ preferred_terminal = "auto"
 [server]
 url = "https://immich.example.com"
 skip_ssl = false
+client_timeout_minutes = 60
 
 [secrets]
-provider = "keyring"                # "keyring" | "file"
-
-[form_state]
-# Tab-keyed form field values (dynamic keys)
-"upload-folder" = { path = "/photos", dry_run = false }
-"stack" = { date_from = "2020-01-01" }
+provider = "keyring"                # "keyring" | "config"
 ```
+
+Workflow tab field values are **session-only** and are not written to `config.toml`.
 
 ### Section Reference
 
@@ -79,12 +77,16 @@ provider = "keyring"                # "keyring" | "file"
 | `general` | `preferred_terminal` | string | `"auto"` | Terminal emulator preference |
 | `server` | `url` | string | `""` | Immich server base URL |
 | `server` | `skip_ssl` | bool | `false` | Skip TLS verification |
+| `server` | `client_timeout_minutes` | int | `60` | Global HTTP timeout (minutes) for server-connected commands |
 | `secrets` | `provider` | string | `"keyring"` | Secret storage backend |
-| `form_state` | *(tab keys)* | dict | `{}` | Per-tab saved field values (includes `advanced` sub-keys for enabled rows) |
+
+### Schema v2 → v3 migration
+
+On load, legacy `form_state` is discarded. If a v2 config had an **enabled** per-tab `client-timeout` advanced flag, that value is migrated into `server.client_timeout_minutes`.
 
 ## secrets.toml (Fallback)
 
-Used when keyring is unavailable and `secrets.provider = "file"`:
+Used when keyring is unavailable and `secrets.provider = "config"`:
 
 ```toml
 api_key = "your-api-key"
