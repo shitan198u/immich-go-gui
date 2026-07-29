@@ -67,6 +67,7 @@ from .config_manager import (
     save_config,
     save_secret_with_fallback,
     save_secrets,
+    save_server_url,
     set_api_key,
 )
 from .flag_registry import (
@@ -158,6 +159,7 @@ __all__ = [
     "save_config",
     "save_secret_with_fallback",
     "save_secrets",
+    "save_server_url",
     "set_api_key",
     # binary_manager
     "BINARY_BASE_DIR",

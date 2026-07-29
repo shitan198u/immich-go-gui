@@ -242,6 +242,7 @@ def load_config(path: Path | None = None, profile_name: str | None = None) -> Ap
 
     schema_version = data.get("schema_version", 2)
     cfg.schema_version = schema_version
+    migrated = False
 
     gen = data.get("general", {})
     cfg.theme_mode = gen.get("theme", "system")
@@ -269,8 +270,15 @@ def load_config(path: Path | None = None, profile_name: str | None = None) -> Ap
                 path,
             )
         cfg.schema_version = 3
+        migrated = True
     else:
         cfg.form_state = data.get("form_state", {})
+
+    if migrated:
+        _log.info(
+            "Configuration format upgraded; workflow tab fields are no longer saved."
+        )
+        save_config(cfg, path=path, profile_name=cfg.profile_name)
 
     _log.info(
         "Loaded config profile=%s path=%s schema_version=%s",
@@ -327,6 +335,37 @@ def save_config(
             "provider": config.secrets_provider,
         },
     }
+
+    text = tomli_w.dumps(data)
+    _atomic_write_text(path, text, mode=0o644)
+
+
+def save_server_url(
+    server_url: str,
+    path: Path | None = None,
+    profile_name: str | None = None,
+) -> None:
+    """Update only ``[server].url`` in the config file without resetting other keys."""
+    if path is None:
+        path = default_config_path(profile_name)
+
+    if path.exists():
+        try:
+            data = tomllib.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            _log.warning(
+                "Failed to read config for server URL update %s: %s", path, exc
+            )
+            data = {}
+    else:
+        data = {}
+
+    server = data.get("server")
+    if not isinstance(server, dict):
+        server = {}
+    server["url"] = server_url
+    data["server"] = server
+    data.setdefault("schema_version", 3)
 
     text = tomli_w.dumps(data)
     _atomic_write_text(path, text, mode=0o644)
