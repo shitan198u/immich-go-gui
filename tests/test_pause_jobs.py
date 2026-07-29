@@ -148,3 +148,29 @@ class TestPauseJobsAutoDisable:
         assert len(pause_flags) == 1, (
             f"Expected exactly one pause flag; got: {pause_flags}"
         )
+
+
+def test_from_pause_jobs_warning_without_from_admin_key():
+    plan = _build_plan(
+        tab_key="upload-immich",
+        config_state={"server": "http://localhost:2283", "api_key": "k"},
+        tab_state={"from-server": "http://source:2283", "from-api-key": "sk"},
+        advanced_state={"from-pause-jobs": {"enabled": True, "value": True}},
+        binary_path="./immich-go",
+    )
+    assert any("Source job pausing enabled" in w for w in plan.warnings)
+
+
+def test_from_pause_jobs_no_warning_with_from_admin_key():
+    plan = _build_plan(
+        tab_key="upload-immich",
+        config_state={"server": "http://localhost:2283", "api_key": "k"},
+        tab_state={
+            "from-server": "http://source:2283",
+            "from-api-key": "sk",
+            "from-admin-api-key": "admin-sk",
+        },
+        advanced_state={"from-pause-jobs": {"enabled": True, "value": True}},
+        binary_path="./immich-go",
+    )
+    assert not any("Source job pausing enabled" in w for w in plan.warnings)

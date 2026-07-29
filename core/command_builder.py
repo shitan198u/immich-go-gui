@@ -565,6 +565,12 @@ _PAUSE_JOBS_WARNING = (
     "pausing of Immich background jobs during upload."
 )
 
+_FROM_PAUSE_JOBS_WARNING = (
+    "Source job pausing enabled without Source Admin API Key: "
+    "pausing jobs on the source server requires a Source Admin API Key. "
+    "If unauthorized, the source server will return a 403 Forbidden error."
+)
+
 
 def collect_safety_warnings(
     tab_key: str,
@@ -572,22 +578,40 @@ def collect_safety_warnings(
     advanced_state: dict | None = None,
 ) -> list[str]:
     """Return safety warnings (e.g. forced pause-jobs disable) without building a full plan."""
-    if tab_key not in UPLOAD_TABS and tab_key != "stack":
-        return []
+    warnings = []
+    if (tab_key in UPLOAD_TABS or tab_key == "stack") and not config_state.get("admin_api_key", "").strip():
+        user_opted_out = False
+        if isinstance(advanced_state, dict):
+            pause_entry = advanced_state.get("pause-immich-jobs", {})
+            if (
+                isinstance(pause_entry, dict)
+                and pause_entry.get("enabled")
+                and not pause_entry.get("value")
+            ):
+                user_opted_out = True
+        if not user_opted_out:
+            warnings.append(_PAUSE_JOBS_WARNING)
 
-    if config_state.get("admin_api_key", "").strip():
-        return []
-
-    if isinstance(advanced_state, dict):
-        pause_entry = advanced_state.get("pause-immich-jobs", {})
+    if tab_key in ("upload-immich", "archive-immich") and isinstance(advanced_state, dict):
+        from_pause_entry = (
+            advanced_state.get("from-pause-jobs")
+            or advanced_state.get("from-pause-immich-jobs")
+            or {}
+        )
+        from_admin_key = (
+            config_state.get("from_admin_api_key")
+            or config_state.get("from-admin-api-key")
+            or ""
+        ).strip()
         if (
-            isinstance(pause_entry, dict)
-            and pause_entry.get("enabled")
-            and not pause_entry.get("value")
+            isinstance(from_pause_entry, dict)
+            and from_pause_entry.get("enabled")
+            and from_pause_entry.get("value")
+            and not from_admin_key
         ):
-            return []
+            warnings.append(_FROM_PAUSE_JOBS_WARNING)
 
-    return [_PAUSE_JOBS_WARNING]
+    return warnings
 
 
 def build_plan_from_state(
@@ -708,6 +732,22 @@ def build_plan_from_state(
             emitter.add_bool_val("pause-immich-jobs", False, source="safety")
             if not user_set_false:
                 plan.warnings.append(_PAUSE_JOBS_WARNING)
+
+    if tab_key in ("upload-immich", "archive-immich"):
+        from_pause_active = any(
+            emitter._flag_name_from_arg(o) == "from-pause-immich-jobs"
+            and not o.endswith("=false")
+            for o in emitter.opts
+        )
+        from_admin_key = (
+            tab_state.get("from_admin_api_key")
+            or tab_state.get("from-admin-api-key")
+            or config_state.get("from_admin_api_key")
+            or config_state.get("from-admin-api-key")
+            or ""
+        ).strip()
+        if from_pause_active and not from_admin_key:
+            plan.warnings.append(_FROM_PAUSE_JOBS_WARNING)
 
     if emitter.errors:
         plan.errors.extend(emitter.errors)
