@@ -112,3 +112,52 @@ def test_auto_test_connection_executes(gui):
         mock_get.return_value = mock_resp
         ConnectionMixin._auto_test_connection(gui)
         assert gui._last_conn_test_ok is True
+
+
+def test_auto_test_connection_missing_server_sets_none(gui):
+    gui.inputs["config"]["server"].clear()
+    gui.inputs["config"]["api_key"].setText("secret_key")
+    gui._last_conn_test_ok = True
+    gui._auto_test_connection()
+    assert gui._last_conn_test_ok is None
+
+
+def test_auto_test_connection_missing_api_key_sets_none(gui):
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].clear()
+    gui._last_conn_test_ok = True
+    gui._auto_test_connection()
+    assert gui._last_conn_test_ok is None
+
+
+def test_auto_test_connection_failure_sets_false(gui):
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("secret_key")
+    with patch("requests.get", side_effect=requests.exceptions.ConnectionError):
+        gui._auto_test_connection()
+        assert gui._last_conn_test_ok is False
+
+
+def test_auto_test_connection_respects_skip_ssl(gui):
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("secret_key")
+    gui.inputs["config"]["skip-ssl"].setChecked(True)
+    with patch("requests.get") as mock_get:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"version": "v1.100.0"}
+        mock_get.return_value = mock_resp
+        gui._auto_test_connection()
+        assert gui._last_conn_test_ok is True
+        _, kwargs = mock_get.call_args
+        assert kwargs["verify"] is False
+
+
+def test_auto_test_connection_updates_status_card(gui):
+    gui.stacked_widget.setCurrentIndex(0)
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("secret_key")
+    with patch("requests.get", side_effect=requests.exceptions.ConnectionError):
+        gui._auto_test_connection()
+        assert gui._last_conn_test_ok is False
+        assert "Connection Failed" in gui.status_card.txt_s.text()
