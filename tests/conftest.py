@@ -3,9 +3,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtWidgets import QApplication, QMessageBox
-
-from gui import ImmichGoGUI
 
 
 def _norm_argv(argv):
@@ -26,6 +23,8 @@ def _norm_argv(argv):
 
 @pytest.fixture(scope="session")
 def qapp():
+    from PySide6.QtWidgets import QApplication
+
     app = QApplication.instance()
     if app is None:
         app = QApplication([])
@@ -39,6 +38,9 @@ def gui(qapp):
     Session teardown must not show Save/Discard dialogs: function-scoped
     monkeypatches are already gone when this fixture exits. Use _force_close.
     """
+    from PySide6.QtWidgets import QMessageBox
+    from gui import ImmichGoGUI
+
     with (
         patch.object(ImmichGoGUI, "check_binary_version"),
         patch.object(ImmichGoGUI, "load_configuration"),
@@ -66,6 +68,8 @@ def gui(qapp):
 @pytest.fixture(autouse=True)
 def suppress_qt_dialogs(monkeypatch):
     """Suppress modal QMessageBox dialogs during each test function."""
+    from PySide6.QtWidgets import QMessageBox
+
     monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.information", MagicMock())
     monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.warning", MagicMock())
     monkeypatch.setattr("PySide6.QtWidgets.QMessageBox.critical", MagicMock())

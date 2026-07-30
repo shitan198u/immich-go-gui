@@ -113,6 +113,8 @@ jobs:
         run: uv run python scripts/sync_version.py --check
 
       - name: Test Count Sync Check
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: uv run python scripts/sync_test_count.py --check
 
   # 4. Security Audit & Dependency Review
