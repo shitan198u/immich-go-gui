@@ -1,5 +1,7 @@
+import sys
 from unittest.mock import MagicMock, patch
 
+import pytest
 from PySide6.QtWidgets import QMessageBox
 
 from core.config_manager import (
@@ -447,6 +449,10 @@ def test_save_config_uses_profile_path_without_env_override(tmp_path, monkeypatc
     assert loaded.server_url == "http://saved:2283"
 
 
+@pytest.mark.skipif(
+    not sys.platform.startswith("linux"),
+    reason="XDG_CONFIG_HOME is honored only on Linux",
+)
 def test_linux_xdg_save_server_details_roundtrip(tmp_path, monkeypatch):
     """Regression: GUI save must persist server URL under Linux XDG profile paths."""
     from unittest.mock import patch
@@ -484,6 +490,10 @@ def test_linux_xdg_save_server_details_roundtrip(tmp_path, monkeypatch):
         assert gui.inputs["config"]["api_key"].text() == "roundtrip-key"
 
 
+@pytest.mark.skipif(
+    not sys.platform.startswith("linux"),
+    reason="XDG_CONFIG_HOME is honored only on Linux",
+)
 def test_linux_xdg_save_configuration_roundtrip(tmp_path, monkeypatch):
     """Regression: File → Save persists server URL via save_server_details when dirty."""
     from unittest.mock import patch
