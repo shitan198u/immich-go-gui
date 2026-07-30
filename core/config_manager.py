@@ -145,15 +145,16 @@ def default_config_dir() -> Path:
     if env_override:
         return Path(env_override).parent
 
+    xdg = os.environ.get("XDG_CONFIG_HOME")
+    if xdg:
+        return Path(xdg) / "immich-go-gui"
+
     if sys.platform.startswith("win"):
         base = os.environ.get("APPDATA") or os.path.expanduser("~")
         return Path(base) / "immich-go-gui"
     elif sys.platform.startswith("darwin"):
         return Path.home() / "Library" / "Application Support" / "immich-go-gui"
     else:
-        xdg = os.environ.get("XDG_CONFIG_HOME")
-        if xdg:
-            return Path(xdg) / "immich-go-gui"
         return Path.home() / ".config" / "immich-go-gui"
 
 
