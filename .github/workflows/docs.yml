@@ -35,6 +35,11 @@ jobs:
       - name: Install dependencies
         run: uv sync --dev
 
+      - name: Synchronize Test Counts in Documentation
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run python scripts/sync_test_count.py --sync
+
       - name: Build docs
         run: uv run mkdocs build --strict
 

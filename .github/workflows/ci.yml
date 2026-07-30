@@ -26,7 +26,14 @@ jobs:
         run: uv run python scripts/sync_version.py --check
 
       - name: Test Count Sync Check
-        run: uv run python scripts/sync_test_count.py --check
+        id: test-count-sync
+        continue-on-error: true
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          if ! uv run python scripts/sync_test_count.py --check; then
+            echo "::warning title=Test Count Sync Mismatch::Documentation test counts do not match collected pytest output. Run 'uv run python scripts/sync_test_count.py --sync' to synchronize."
+          fi
 
       - name: Pre-commit
         run: SKIP=version-sync-check,test-count-sync-check uv run pre-commit run --all-files --show-diff-on-failure
