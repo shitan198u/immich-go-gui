@@ -31,6 +31,20 @@ class Card(QFrame):
         self.layout.addSpacing(16)
 
 
+def spin_with_unit_label(spin: QWidget, unit: str) -> QWidget:
+    """Place a spin box beside a static unit label (suffix text is not editable)."""
+    container = QWidget()
+    row = QHBoxLayout(container)
+    row.setContentsMargins(0, 0, 0, 0)
+    row.setSpacing(6)
+    row.addWidget(spin)
+    unit_lbl = QLabel(unit)
+    unit_lbl.setObjectName("FieldLabel")
+    row.addWidget(unit_lbl)
+    row.addStretch()
+    return container
+
+
 class FormSection(QFormLayout):
     def __init__(self, parent=None):
         super().__init__(parent)

@@ -8,6 +8,18 @@ from gui.widgets import DroppablePlainTextEdit
 from gui.widgets.advanced_flag_row import AdvancedFlagRow
 
 
+def test_advanced_flag_row_duration_minutes_uses_static_unit_label(qtbot):
+    flag_def = next(
+        d
+        for defs in REGISTRY.flags.values()
+        for d in defs
+        if d.kind == "duration_minutes"
+    )
+    row = AdvancedFlagRow(flag_def)
+    qtbot.addWidget(row)
+    assert row.value_widget.suffix() == ""
+
+
 def test_advanced_flag_row_int_respects_flagdef_min_max(qtbot):
     """concurrent-tasks is 1-20 in flags.toml; UI must clamp, not 0-999999."""
     flag_def = next(
