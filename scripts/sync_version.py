@@ -32,7 +32,7 @@ def get_latest_git_release_version() -> str | None:
             match = SEMVER_TAG_PATTERN.match(tag)
             if match:
                 return match.group(1)
-    except Exception:
+    except subprocess.CalledProcessError:
         pass
     return None
 
@@ -134,7 +134,7 @@ def main() -> int:
         (
             ROOT_DIR / ".github" / ".release-please-manifest.json",
             r'"\."\s*:\s*"[^"]+"',
-            '"." : "{version}"',
+            '".": "{version}"',
         ),
         (
             ROOT_DIR / "docs" / "README.md",

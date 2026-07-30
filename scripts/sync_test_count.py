@@ -95,7 +95,7 @@ def main() -> int:
     targets = [
         (
             ROOT_DIR / "docs" / "developer-guide" / "testing.md",
-            r"\d+\s+tests\s+across\s+\d+\s+modules",
+            r"\d+\s+tests(?:\s+across\s+\d+\s+modules)?",
             f"{test_count} tests across {module_count} modules",
         ),
         (
