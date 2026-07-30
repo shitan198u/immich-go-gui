@@ -10,6 +10,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Setup uv
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
@@ -27,7 +29,7 @@ jobs:
         run: uv run python scripts/sync_test_count.py --check
 
       - name: Pre-commit
-        run: uv run pre-commit run --all-files --show-diff-on-failure
+        run: SKIP=version-sync-check,test-count-sync-check uv run pre-commit run --all-files --show-diff-on-failure
 
   test:
     needs: quality
