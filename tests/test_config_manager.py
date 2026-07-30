@@ -68,3 +68,22 @@ def test_save_config_schema_v3_without_form_state(tmp_path, monkeypatch):
     assert data["schema_version"] == 3
     assert data["server"]["client_timeout_minutes"] == 90
     assert "form_state" not in data
+
+
+def test_default_config_dir_respects_xdg_cross_platform(tmp_path, monkeypatch):
+    """Verify default_config_dir prefers XDG_CONFIG_HOME over platform defaults."""
+    from core.config_manager import default_config_dir
+
+    monkeypatch.delenv("IMMICH_GO_GUI_CONFIG", raising=False)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "custom_xdg"))
+    assert default_config_dir() == tmp_path / "custom_xdg" / "immich-go-gui"
+
+
+def test_keyring_isolation_in_pytest():
+    """Verify SecretStore operations in test suite use in-memory mock keyring."""
+    from core.config_manager import SecretStore
+
+    assert SecretStore.set_secret("test_prof", "api_key", "mock_key_value") is True
+    assert SecretStore.get_secret("test_prof", "api_key") == "mock_key_value"
+    SecretStore.clear_secret("test_prof", "api_key")
+    assert SecretStore.get_secret("test_prof", "api_key") == ""

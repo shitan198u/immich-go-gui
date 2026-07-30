@@ -121,6 +121,31 @@ def suppress_qt_dialogs(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _isolate_keyring(monkeypatch):
+    """Prevent tests from reading, writing, or deleting real OS keyring secrets."""
+    store = {}
+
+    def mock_get_password(service, username):
+        return store.get((service, username))
+
+    def mock_set_password(service, username, password):
+        store[(service, username)] = password
+
+    def mock_delete_password(service, username):
+        store.pop((service, username), None)
+
+    monkeypatch.setattr("keyring.get_password", mock_get_password)
+    monkeypatch.setattr("keyring.set_password", mock_set_password)
+    monkeypatch.setattr("keyring.delete_password", mock_delete_password)
+    monkeypatch.setattr("core.config_manager.keyring.get_password", mock_get_password)
+    monkeypatch.setattr("core.config_manager.keyring.set_password", mock_set_password)
+    monkeypatch.setattr(
+        "core.config_manager.keyring.delete_password", mock_delete_password
+    )
+    yield store
+
+
+@pytest.fixture(autouse=True)
 def _isolate_user_config(tmp_path, monkeypatch):
     """Keep tests off the developer's real ~/.config/immich-go-gui directory."""
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "xdg-config"))
