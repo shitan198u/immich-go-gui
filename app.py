@@ -37,7 +37,14 @@ from theme import set_fusion_style
 
 
 def _install_exception_hook(log: logging.Logger | None = None) -> None:
-    """Log unhandled exceptions and show a non-blocking error dialog."""
+    """
+    Install a global handler for uncaught exceptions.
+    
+    The handler logs unexpected exceptions, schedules an error dialog when a Qt application is running, and preserves the previous exception hook behavior. Keyboard interrupts are forwarded without displaying the dialog.
+    
+    Parameters:
+        log: Logger used to record uncaught exceptions. The application logger is used when omitted.
+    """
     logger = log or logging.getLogger("immich_go_gui")
     default_hook = sys.excepthook
 
@@ -68,7 +75,12 @@ def _install_exception_hook(log: logging.Logger | None = None) -> None:
 
 
 def run_self_test() -> int:
-    """Run self-test diagnostics verifying registry, command plan builder, and config directory write access."""
+    """
+    Run diagnostics for the flag registry, command plan builder, and configuration directory.
+    
+    Returns:
+        int: `0` if all diagnostics pass, `1` if any diagnostic fails.
+    """
     try:
         from core.flag_registry import REGISTRY
 

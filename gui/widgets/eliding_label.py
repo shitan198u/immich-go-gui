@@ -25,12 +25,24 @@ class ElidingLabel(QLabel):
         )
 
     def sizeHint(self):
+        """
+        Return the preferred size for displaying the label's full text.
+        
+        Returns:
+        	QSize: A size whose width is based on the full text width and current widget width, and whose height matches the font's line spacing.
+        """
         fm = self.fontMetrics()
         full_w = fm.horizontalAdvance(self._full) + 2
         w = min(full_w, max(self.width(), 200)) if self.width() > 0 else full_w
         return QSize(w, fm.lineSpacing())
 
     def minimumSizeHint(self):
+        """
+        Return the minimum size needed to display an ellipsis.
+        
+        Returns:
+        	QSize: A size based on the ellipsis width and current font line spacing.
+        """
         fm = self.fontMetrics()
         return QSize(fm.horizontalAdvance("…") + 4, fm.lineSpacing())
 
