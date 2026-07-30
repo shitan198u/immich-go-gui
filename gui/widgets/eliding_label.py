@@ -26,7 +26,9 @@ class ElidingLabel(QLabel):
 
     def sizeHint(self):
         fm = self.fontMetrics()
-        return QSize(fm.horizontalAdvance(self._full) + 2, fm.lineSpacing())
+        full_w = fm.horizontalAdvance(self._full) + 2
+        w = min(full_w, max(self.width(), 200)) if self.width() > 0 else full_w
+        return QSize(w, fm.lineSpacing())
 
     def minimumSizeHint(self):
         fm = self.fontMetrics()

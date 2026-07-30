@@ -50,14 +50,9 @@ Server URLs and API keys for server-required tabs are injected as `IMMICH_GO_*` 
 
 **Never** put real keys into issues, screenshots of unmasked previews, or shared logs.
 
-### POSIX environment inheritance
+### POSIX environment inheritance & transient script
 
-On Linux and macOS, the terminal launcher passes the GUI's full parent
-environment (`os.environ`) merged with the `IMMICH_GO_*` secret variables
-to the child process. This is standard Unix behaviour. If your shell
-profile exports unrelated sensitive variables, they will be visible to
-the immich-go process. The Windows launcher passes only the explicit
-`env` dict to `cmd.exe`.
+On Linux and macOS, because some terminal emulators or macOS `Terminal.app` drop parent environment variables, secrets are written to a transient helper script (`env.sh`, `0600` permissions) inside a restricted run directory (`0700` permissions). This script is sourced and deleted immediately by `run.sh` upon terminal execution, ensuring no persistent secret files remain on disk.
 
 ## What Still Appears on the Command Line
 

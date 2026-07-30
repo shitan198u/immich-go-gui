@@ -99,3 +99,16 @@ def test_serverless_tab_run_enabled_after_connection_failure(gui):
     gui.update_status()
     assert gui.btn_run.isEnabled() is True
     assert gui.btn_dry_run.isEnabled() is True
+
+
+def test_auto_test_connection_executes(gui):
+    from gui.mixins.connection import ConnectionMixin
+    gui.inputs["config"]["server"].setText("http://localhost:2283")
+    gui.inputs["config"]["api_key"].setText("secret_key")
+    with patch("requests.get") as mock_get:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"version": "v1.100.0"}
+        mock_get.return_value = mock_resp
+        ConnectionMixin._auto_test_connection(gui)
+        assert gui._last_conn_test_ok is True

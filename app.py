@@ -67,40 +67,45 @@ def _install_exception_hook(log: logging.Logger | None = None) -> None:
     sys.excepthook = _hook
 
 
+def run_self_test() -> int:
+    """Run self-test diagnostics verifying registry, command plan builder, and config directory write access."""
+    try:
+        from core.flag_registry import REGISTRY
+
+        if not REGISTRY.tabs:
+            print("self-test: flag registry empty", file=sys.stderr)
+            return 1
+
+        plan = build_plan_from_state(
+            tab_key="upload-folder",
+            config_state={
+                "server": "http://localhost:2283",
+                "api_key": "test-key",
+                "skip-ssl": False,
+            },
+            tab_state={"path": "/tmp"},
+            binary_path="./immich-go",
+            dry_run=True,
+        )
+        if plan.errors:
+            print(f"self-test: plan errors: {plan.errors}", file=sys.stderr)
+            return 1
+
+        cfg_dir = default_config_dir()
+        cfg_dir.mkdir(parents=True, exist_ok=True)
+        probe = cfg_dir / ".self-test-write"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+        print("self-test: ok")
+        return 0
+    except Exception as exc:
+        print(f"self-test failed: {exc}", file=sys.stderr)
+        return 1
+
+
 if __name__ == "__main__":
     if "--self-test" in sys.argv:
-        try:
-            from core.flag_registry import REGISTRY
-
-            if not REGISTRY.tabs:
-                print("self-test: flag registry empty", file=sys.stderr)
-                sys.exit(1)
-
-            plan = build_plan_from_state(
-                tab_key="upload-folder",
-                config_state={
-                    "server": "http://localhost:2283",
-                    "api_key": "test-key",
-                    "skip-ssl": False,
-                },
-                tab_state={"path": "/tmp"},
-                binary_path="./immich-go",
-                dry_run=True,
-            )
-            if plan.errors:
-                print(f"self-test: plan errors: {plan.errors}", file=sys.stderr)
-                sys.exit(1)
-
-            cfg_dir = default_config_dir()
-            cfg_dir.mkdir(parents=True, exist_ok=True)
-            probe = cfg_dir / ".self-test-write"
-            probe.write_text("ok", encoding="utf-8")
-            probe.unlink()
-            print("self-test: ok")
-            sys.exit(0)
-        except Exception as exc:
-            print(f"self-test failed: {exc}", file=sys.stderr)
-            sys.exit(1)
+        sys.exit(run_self_test())
 
     log = setup_logging()
     _install_exception_hook(log)
