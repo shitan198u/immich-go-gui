@@ -118,19 +118,6 @@ immich-go binary lifecycle.
 
 Downloads from GitHub Releases with SHA256 verification.
 
-### `core/app_update.py`
-
-Immich-Go **GUI** release checks (not immich-go CLI).
-
-| Function | Purpose |
-|----------|---------|
-| `get_latest_gui_release()` | Fetch latest tag from `shitan198u/immich-go-gui` releases API |
-| `clean_gui_release_version()` | Normalize Release Please tags (`immich-go-gui-v1.2.0` → `1.2.0`) |
-| `is_update_available()` | Compare installed vs latest semver |
-| `is_parseable_semver()` | Detect `dev` / non-release builds |
-
-UI handler lives in `gui/mixins/app_update.py`.
-
 ### `core/network.py`
 
 Immich server connectivity.

@@ -212,23 +212,15 @@ def migrate_single_config_to_default() -> None:
             shutil.copy2(old_secrets, default_sec)
             if not default_sec.exists():
                 _log.error(
-                    "Profile migration failed: copy of %s did not create %s",
-                    old_secrets,
-                    default_sec,
+                    "Profile migration failed: secrets copy did not create target file"
                 )
                 return
             sbak = base_dir / "secrets.toml.pre-profile.bak"
             old_secrets.rename(sbak)
-            _log.info(
-                "Migrated legacy secrets %s -> %s",
-                old_secrets,
-                default_sec,
-            )
+            _log.info("Migrated legacy secrets to default profile")
         except Exception as exc:
             _log.error(
-                "Profile migration failed copying %s to %s: %s",
-                old_secrets,
-                default_sec,
+                "Profile migration failed copying secrets to default profile: %s",
                 exc,
             )
 

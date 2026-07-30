@@ -87,6 +87,7 @@ class AppConfig:
 
     server_url: str = ""
     skip_ssl: bool = False
+    client_timeout_minutes: int = 60
 
     secrets_provider: str = "keyring"
 

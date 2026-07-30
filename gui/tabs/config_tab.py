@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
 )
 
 from core import default_secrets_path, load_binary_metadata
-from gui.mixins.app_update import _gui_version
 from gui.widgets import BasePage, Card, ElidingLabel, FormSection
 from theme import THEME_DARK, THEME_LIGHT, THEME_SYSTEM
 
@@ -114,26 +113,6 @@ def build_config_tab(host) -> QWidget:
     card_sec.layout.addLayout(sec_form)
     page.addWidget(card_sec)
 
-    card_app = Card("Application")
-    app_row = QHBoxLayout()
-    app_row.setSpacing(16)
-    app_row.setAlignment(Qt.AlignmentFlag.AlignTop)
-    app_info = QVBoxLayout()
-    app_info.setSpacing(2)
-    host.lbl_app_version = QLabel(f"Current Version: {_gui_version()}")
-    host.lbl_app_version.setObjectName("FieldLabel")
-    host.lbl_app_version.setWordWrap(True)
-    host.lbl_app_update_status = QLabel("Check for updates to see status.")
-    host.lbl_app_update_status.setObjectName("AppUpdateStatus")
-    app_info.addWidget(host.lbl_app_version)
-    app_info.addWidget(host.lbl_app_update_status)
-    app_row.addLayout(app_info, 1)
-    host.btn_check_app_updates = QPushButton("Check for Updates")
-    host.btn_check_app_updates.clicked.connect(host.check_for_application_updates)
-    app_row.addWidget(host.btn_check_app_updates, 0, Qt.AlignmentFlag.AlignTop)
-    card_app.layout.addLayout(app_row)
-    page.addWidget(card_app)
-
     card2 = Card("Binary Management")
     row = QHBoxLayout()
     row.setSpacing(16)
@@ -210,9 +189,6 @@ def build_config_tab(host) -> QWidget:
     adv_card.setVisible(False)
     page.addWidget(adv_card)
     host.adv_frames.append(adv_card)
-
-    if hasattr(host, "_init_app_update_ui"):
-        host._init_app_update_ui()
 
     page.addStretch()
     return page

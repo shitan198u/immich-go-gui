@@ -25,7 +25,6 @@ from core.process_tracker import (
 )
 from core.profile_manager import active_profile_name
 from gui.browse_dialogs import BrowseDialogsMixin
-from gui.mixins.app_update import AppUpdateMixin
 from gui.mixins.binary_ui import BinaryUIMixin
 from gui.mixins.confirm_dialog import ConfirmDialogMixin
 from gui.mixins.connection import ConnectionMixin
@@ -60,7 +59,6 @@ class ImmichGoGUI(
     ConfirmDialogMixin,
     ExecutionMixin,
     BinaryUIMixin,
-    AppUpdateMixin,
     FormStateMixin,
     PersistenceMixin,
     ProfilesUIMixin,

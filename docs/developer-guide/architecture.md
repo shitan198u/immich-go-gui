@@ -72,7 +72,6 @@ immich-go-gui/
 │   │   ├── layout.py      # Main layout & tab assembly
 │   │   ├── form_helpers.py# Inline field errors & helper controls
 │   │   ├── form_state.py  # Runtime state collection for command building
-│   │   ├── app_update.py  # GUI release check UI
 │   │   ├── execution.py   # Command building & terminal execution
 │   │   ├── confirm_dialog.py # Run confirmation dialog
 │   │   ├── persistence.py # TOML config & secret store persistence
