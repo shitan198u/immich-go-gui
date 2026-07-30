@@ -9,6 +9,7 @@ def test_tab_switching_updates_crumb(gui):
     gui.upload_tabs.setCurrentIndex(4)  # From Immich sub-tab
     assert gui.lbl_crumb.text() == "upload · from-immich"
 
+    gui.archive_tabs.setCurrentIndex(0)
     gui.stacked_widget.setCurrentIndex(2)  # Archive page
     gui.archive_tabs.setCurrentIndex(4)  # Archive Server sub-tab
     assert gui.lbl_crumb.text() == "archive · from-immich"

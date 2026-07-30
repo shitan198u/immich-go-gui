@@ -1,6 +1,5 @@
 """Tests for POSIX terminal environment propagation via env.sh."""
 
-import tempfile
 from datetime import UTC
 from pathlib import Path
 
@@ -40,13 +39,9 @@ def test_posix_run_sh_sources_immich_go_env(tmp_path, monkeypatch):
         mock_popen.return_value.pid = 4242
         res = launch_external_terminal(cmd, env, lock_path, preferred_terminal="auto")
         assert res.ok is True
+        run_sh = Path(mock_popen.call_args[0][0][-1])
 
-    temp_dirs = list(Path(tempfile.gettempdir()).glob("immich-go-run-*"))
-    assert temp_dirs, "Expected POSIX launcher to create a temp run directory"
-    latest_temp = max(temp_dirs, key=lambda d: d.stat().st_mtime)
-
-    env_sh = latest_temp / "env.sh"
-    run_sh = latest_temp / "run.sh"
+    env_sh = run_sh.parent / "env.sh"
     assert env_sh.exists()
     assert run_sh.exists()
 
