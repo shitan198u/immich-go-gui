@@ -377,7 +377,7 @@ def save_server_url(
         server = {}
     server["url"] = server_url
     data["server"] = server
-    data.setdefault("schema_version", 3)
+    data["schema_version"] = 3
 
     text = tomli_w.dumps(data)
     _atomic_write_text(path, text, mode=0o644)

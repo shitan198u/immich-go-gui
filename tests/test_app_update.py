@@ -14,6 +14,15 @@ from core.app_update import (
 from gui.mixins.app_update import AppUpdateMixin, clean_display_version
 
 
+def _drain_update_check() -> None:
+    """Wait for the off-thread update check to finish and deliver its result."""
+    from PySide6.QtCore import QThreadPool
+    from PySide6.QtWidgets import QApplication
+
+    QThreadPool.globalInstance().waitForDone()
+    QApplication.processEvents()
+
+
 def test_is_update_available_compares_versions():
     assert is_update_available("1.0.0", "1.1.0") is True
     assert is_update_available("1.1.0", "1.1.0") is False
@@ -82,6 +91,7 @@ def test_check_for_application_updates_up_to_date(monkeypatch):
     )
     monkeypatch.setattr("gui.mixins.app_update.QMessageBox", MagicMock())
     host.check_for_application_updates()
+    _drain_update_check()
     assert host.lbl_app_update_status.text().startswith("Up to date")
     assert host.app_update_status_state() == "ok"
 
@@ -102,6 +112,7 @@ def test_check_for_application_updates_available(monkeypatch):
     )
     monkeypatch.setattr("gui.mixins.app_update.QMessageBox", MagicMock())
     host.check_for_application_updates()
+    _drain_update_check()
     assert host.app_update_status_state() == "warn"
 
 
@@ -121,6 +132,7 @@ def test_check_for_application_updates_dev_build(monkeypatch):
     )
     monkeypatch.setattr("gui.mixins.app_update.QMessageBox", MagicMock())
     host.check_for_application_updates()
+    _drain_update_check()
     assert host.lbl_app_update_status.text().startswith("Development build")
     assert "1.2.0" in host.lbl_app_update_status.text()
     assert host.app_update_status_state() == "default"
@@ -138,6 +150,7 @@ def test_check_for_application_updates_network_error(monkeypatch):
     )
     monkeypatch.setattr("gui.mixins.app_update.QMessageBox", MagicMock())
     host.check_for_application_updates()
+    _drain_update_check()
     assert host.lbl_app_update_status.text() == "Could not check for updates."
     assert host.app_update_status_state() == "err"
 
@@ -171,6 +184,7 @@ def test_check_for_application_updates_opens_download_page(monkeypatch):
     monkeypatch.setattr("gui.mixins.app_update.QMessageBox", msgbox_mock)
 
     host.check_for_application_updates()
+    _drain_update_check()
     open_mock.assert_called_once_with(release_url)
 
 

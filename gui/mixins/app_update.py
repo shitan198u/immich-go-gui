@@ -2,6 +2,7 @@ import webbrowser
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 
+from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 from PySide6.QtWidgets import QMessageBox
 
 from core.app_update import (
@@ -17,6 +18,23 @@ def _gui_version() -> str:
         return _pkg_version("immich-go-gui")
     except PackageNotFoundError:
         return "dev"
+
+
+class _UpdateCheckSignals(QObject):
+    """Signal bridge from the update-check worker thread to the GUI thread."""
+
+    finished = Signal(object)
+
+
+class _UpdateCheckTask(QRunnable):
+    """Fetches the latest GUI release off the GUI thread to avoid freezing the UI."""
+
+    def __init__(self, signals: _UpdateCheckSignals) -> None:
+        super().__init__()
+        self._signals = signals
+
+    def run(self) -> None:
+        self._signals.finished.emit(get_latest_gui_release())
 
 
 class AppUpdateMixin:
@@ -53,11 +71,26 @@ class AppUpdateMixin:
         else:
             self.lbl_app_update_status.setStyleSheet("")
 
+    def _ensure_update_check_worker(self) -> None:
+        if not hasattr(self, "_update_check_signals"):
+            signals = _UpdateCheckSignals()
+            signals.finished.connect(self._handle_update_check_result)
+            self._update_check_signals = signals
+
     def check_for_application_updates(self) -> None:
+        self._ensure_update_check_worker()
         installed = _gui_version()
         is_dev = not is_parseable_semver(installed)
+        self._pending_update_check = (installed, is_dev)
+        if hasattr(self, "btn_check_app_updates"):
+            self.btn_check_app_updates.setEnabled(False)
+        self._set_app_update_status("Checking for updates…", "default")
+        QThreadPool.globalInstance().start(_UpdateCheckTask(self._update_check_signals))
 
-        release = get_latest_gui_release()
+    def _handle_update_check_result(self, release) -> None:
+        installed, is_dev = getattr(self, "_pending_update_check", ("dev", True))
+        if hasattr(self, "btn_check_app_updates"):
+            self.btn_check_app_updates.setEnabled(True)
         if release is None:
             self._set_app_update_status("Could not check for updates.", "err")
             QMessageBox.warning(

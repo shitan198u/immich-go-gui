@@ -198,12 +198,20 @@ class PersistenceMixin:
 
         prof_name = getattr(self.app_config, "profile_name", "default")
         api_key = self.inputs["config"]["api_key"].text().strip()
-        res_api = save_secret_with_fallback(
-            profile_name=prof_name,
-            key="api_key",
-            value=api_key,
-            provider=self.app_config.secrets_provider,
-        )
+        try:
+            res_api = save_secret_with_fallback(
+                profile_name=prof_name,
+                key="api_key",
+                value=api_key,
+                provider=self.app_config.secrets_provider,
+            )
+        except OSError as exc:
+            QMessageBox.critical(
+                cast(QWidget, self),
+                "Save Failed",
+                f"Could not save API key:\n{exc}",
+            )
+            return
 
         if show_popup:
             msg = "Server connection saved."
@@ -222,6 +230,8 @@ class PersistenceMixin:
         """Persist whichever configuration tracks are dirty."""
         if self.has_unsaved_server_details():
             self.save_server_details(show_popup=show_popup)
+            if self.has_unsaved_server_details():
+                return  # server-details save failed; avoid a redundant error dialog
         if self.has_unsaved_changes():
             self.save_configuration(show_popup=show_popup)
 
@@ -229,6 +239,8 @@ class PersistenceMixin:
         """File → Save Configuration: persist server details when dirty, then app settings."""
         if self.has_unsaved_server_details():
             self.save_server_details(show_popup=False)
+            if self.has_unsaved_server_details():
+                return
         self.save_configuration(show_popup=True)
 
     def save_configuration(self, show_popup: bool = True):
@@ -287,12 +299,20 @@ class PersistenceMixin:
             else ""
         )
 
-        res_admin = save_secret_with_fallback(
-            profile_name=prof_name,
-            key="admin_api_key",
-            value=admin_key,
-            provider=self.app_config.secrets_provider,
-        )
+        try:
+            res_admin = save_secret_with_fallback(
+                profile_name=prof_name,
+                key="admin_api_key",
+                value=admin_key,
+                provider=self.app_config.secrets_provider,
+            )
+        except OSError as exc:
+            QMessageBox.critical(
+                cast(QWidget, self),
+                "Save Failed",
+                f"Could not save admin API key:\n{exc}",
+            )
+            return
 
         msg = f"Configuration saved to:\n{cfg_path}"
         if res_admin.message:

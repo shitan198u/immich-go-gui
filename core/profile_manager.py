@@ -148,6 +148,48 @@ def clear_profiles_cache() -> None:
     _profiles_cache_path = None
 
 
+def _migrate_legacy_config_file(
+    old_config: Path, default_cfg: Path, base_dir: Path
+) -> None:
+    """Copy a legacy config.toml into the default profile (best-effort).
+
+    Failure is logged but does not abort the caller, so an independent legacy
+    secrets.toml migration can still proceed on the same call.
+    """
+    try:
+        shutil.copy2(old_config, default_cfg)
+        if not default_cfg.exists():
+            _log.error(
+                "Profile migration failed: copy of %s did not create %s",
+                old_config,
+                default_cfg,
+            )
+            return
+        if default_cfg.read_text(encoding="utf-8") != old_config.read_text(
+            encoding="utf-8"
+        ):
+            _log.error(
+                "Profile migration failed: copied config at %s does not match source",
+                default_cfg,
+            )
+            default_cfg.unlink(missing_ok=True)
+            return
+        bak = base_dir / "config.toml.pre-profile.bak"
+        old_config.rename(bak)
+        _log.info(
+            "Migrated legacy config %s -> %s",
+            old_config,
+            default_cfg,
+        )
+    except Exception as exc:
+        _log.error(
+            "Profile migration failed copying %s to %s: %s",
+            old_config,
+            default_cfg,
+            exc,
+        )
+
+
 def migrate_single_config_to_default() -> None:
     """One-time migration helper converting legacy single-config to default profile."""
     env_override = os.environ.get("IMMICH_GO_GUI_CONFIG", "").strip()
@@ -173,39 +215,7 @@ def migrate_single_config_to_default() -> None:
     default_p_dir.mkdir(parents=True, exist_ok=True)
 
     if old_config.exists() and not default_cfg.exists():
-        try:
-            shutil.copy2(old_config, default_cfg)
-            if not default_cfg.exists():
-                _log.error(
-                    "Profile migration failed: copy of %s did not create %s",
-                    old_config,
-                    default_cfg,
-                )
-                return
-            if default_cfg.read_text(encoding="utf-8") != old_config.read_text(
-                encoding="utf-8"
-            ):
-                _log.error(
-                    "Profile migration failed: copied config at %s does not match source",
-                    default_cfg,
-                )
-                default_cfg.unlink(missing_ok=True)
-                return
-            bak = base_dir / "config.toml.pre-profile.bak"
-            old_config.rename(bak)
-            _log.info(
-                "Migrated legacy config %s -> %s",
-                old_config,
-                default_cfg,
-            )
-        except Exception as exc:
-            _log.error(
-                "Profile migration failed copying %s to %s: %s",
-                old_config,
-                default_cfg,
-                exc,
-            )
-            return
+        _migrate_legacy_config_file(old_config, default_cfg, base_dir)
 
     if old_secrets.exists() and not default_sec.exists():
         try:

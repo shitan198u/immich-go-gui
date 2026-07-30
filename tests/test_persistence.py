@@ -454,7 +454,7 @@ def test_save_config_uses_profile_path_without_env_override(tmp_path, monkeypatc
     reason="XDG_CONFIG_HOME is honored only on Linux",
 )
 def test_linux_xdg_save_server_details_roundtrip(tmp_path, monkeypatch):
-    """Regression: GUI save must persist server URL under Linux XDG profile paths."""
+    """Regression: GUI save must persist server URL and API key under Linux XDG profile paths."""
     from unittest.mock import patch
 
     from core.profile_manager import profile_config_path
@@ -463,15 +463,16 @@ def test_linux_xdg_save_server_details_roundtrip(tmp_path, monkeypatch):
     xdg = tmp_path / "xdg-config"
     monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg))
     monkeypatch.delenv("IMMICH_GO_GUI_CONFIG", raising=False)
+    # Force the file-backed secrets path (no OS keyring) so the round-trip
+    # exercises real secrets.toml I/O under the isolated XDG path and the
+    # final assertion verifies the persisted key rather than a mocked value.
+    monkeypatch.setattr(SecretStore, "set_secret", staticmethod(lambda *_: False))
+    monkeypatch.setattr(SecretStore, "get_secret", staticmethod(lambda *_: ""))
 
     with (
         patch.object(ImmichGoGUI, "check_binary_version"),
         patch.object(ImmichGoGUI, "_probe_keyring", return_value=True),
         patch("PySide6.QtWidgets.QMessageBox.warning"),
-        patch(
-            "gui.mixins.persistence.get_secret_with_fallback",
-            return_value="roundtrip-key",
-        ),
     ):
         gui = ImmichGoGUI()
         gui.inputs["config"]["server"].setText("http://linux-host:2283")
@@ -488,6 +489,9 @@ def test_linux_xdg_save_server_details_roundtrip(tmp_path, monkeypatch):
 
         assert gui.inputs["config"]["server"].text() == "http://linux-host:2283"
         assert gui.inputs["config"]["api_key"].text() == "roundtrip-key"
+
+        gui._force_close = True
+        gui.close()
 
 
 @pytest.mark.skipif(
