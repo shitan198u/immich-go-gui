@@ -169,6 +169,15 @@ QLabel#Hint {{
     color: {text_muted};
 }}
 
+QLabel#Hint a {{
+    color: {accent};
+    text-decoration: none;
+}}
+
+QLabel#Hint a:hover {{
+    text-decoration: underline;
+}}
+
 QLabel#WarningHint {{
     font-size: 12px;
     font-weight: 500;
