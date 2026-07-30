@@ -274,3 +274,38 @@ uv run python scripts/generate_build_icons.py      # regenerate .ico and .icns f
 uv run pyright core/
 uv run pre-commit run --all-files
 ```
+
+---
+
+## 14. Config Persistence & Test-Isolation Invariants (must-not-break)
+
+Durable rules established by the schema-v3 / slim-persistence work (PR #96 era). Violating these reintroduces real bugs — keep them in mind.
+
+### Persistence & secrets
+
+- **`form_state` is session-only** — it is never persisted under schema v3. Both `save_config()` and `save_server_url()` write `schema_version = 3` **unconditionally** (`save_server_url` uses assignment, not `setdefault`, so a legacy v2 config is upgraded when the public API writes it).
+- **`save_secret_with_fallback()` only raises `OSError`.** `SecretStore.set_secret`/`get_secret` swallow all keyring exceptions internally, so the only uncaught raise path is the fallback `secrets.toml` file write. GUI callers (`save_server_details`, `save_configuration` in `gui/mixins/persistence.py`) MUST wrap `save_secret_with_fallback` in `try/except OSError`, matching the adjacent `save_server_url`/`save_config` guards — otherwise a keyring+file write failure crashes `closeEvent`/profile-switch.
+- **Profile migration is independent.** In `migrate_single_config_to_default()` (`core/profile_manager.py`), legacy config migration is best-effort (`_migrate_legacy_config_file`) and must NOT `return` out of the whole function — the legacy `secrets.toml` migration on the same call always runs.
+- **Save flow bails on first failure.** `_save_pending_configuration` / `_save_from_menu` skip `save_configuration()` when `save_server_details()` fails, to avoid a second redundant "Save Failed" dialog for one disk error.
+
+### Async update check
+
+- **`check_for_application_updates()` never blocks the GUI thread.** It runs the GitHub fetch (`requests.get`, timeout 15s) on a `QThreadPool` worker (`QRunnable` + `Signal`); the result is handled in `_handle_update_check_result` (`gui/mixins/app_update.py`). Tests drain the worker with `QThreadPool.globalInstance().waitForDone()` + `QApplication.processEvents()` (see `_drain_update_check` in `tests/test_app_update.py`).
+
+### Test isolation (CRITICAL — was a real bug)
+
+- **The session `gui` fixture is built BEFORE function-scoped autouse fixtures.** `ImmichGoGUI.__init__` (`gui/main_window.py`) calls `active_profile_name()` (→ `ensure_default_profile()` → `_save_profiles_index()` writes `profiles.toml`) and `load_config()` at construction. Therefore `XDG_CONFIG_HOME` MUST be redirected to a session tmp dir **before** the `gui` fixture builds the window — see `_session_config_root` in `tests/conftest.py`, which `gui` depends on. Without it, `uv run pytest` rewrites the developer's real `~/.config/immich-go-gui/profiles.toml` and seeds the shared window with real config. **Verify after conftest changes:** `stat -c %y ~/.config/immich-go-gui/profiles.toml` before and after a test run — the mtime must NOT change.
+- **`XDG_CONFIG_HOME` is honored only on Linux.** Tests that assert an XDG path must be guarded with `@pytest.mark.skipif(not sys.platform.startswith("linux"), ...)` (see `test_linux_xdg_*` in `tests/test_persistence.py`); on macOS/Windows the app uses native dirs and ignores XDG.
+- **Tests that build their own `ImmichGoGUI` and exercise real `secrets.toml` I/O:** force file-backed secrets by stubbing `SecretStore.set_secret` → `False` and `get_secret` → `""` (avoids keyring flakiness/leak), and always close the GUI (`gui._force_close = True; gui.close()`).
+
+### Docs emission model
+
+- Only `client-timeout` / `from-client-timeout` is **unconditionally** emitted (applicable tabs). `server`, `skip-verify-ssl`, and `dry-run` are emitted **only when configured or requested** (`docs/user-guide/advanced-flags.md`).
+
+### PR / branch hygiene
+
+- **#96 (`feat/config-slim-and-updates-ui`) is the single merge path** for the config/UX wave; the focused splits #97–#100 were closed as superseded. Never keep an umbrella PR and its splits open at the same time. Before deleting umbrella branches, recover orphaned commits that live on no split (e.g., the ruff-formatting commit `3cfa2b6` on the wave-2 umbrella).
+
+### CI gating reality
+
+- **PR-gating** (`pr-fast-feedback.yml`) = multi-OS `pytest` + `pip-audit` + CodeQL. **Ruff / Pyright / pre-commit run in `ci.yml` on push to `master` only — they are NOT PR-gating.** CodeRabbit review is informational/non-gating (and frequently rate-limited).
