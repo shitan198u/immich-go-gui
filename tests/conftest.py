@@ -1,5 +1,6 @@
 """Shared pytest fixtures for Immich-Go GUI test suite."""
 
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -33,7 +34,34 @@ def qapp():
 
 
 @pytest.fixture(scope="session")
-def gui(qapp):
+def _session_config_root(tmp_path_factory):
+    """Redirect config to a session tmp dir BEFORE any ImmichGoGUI is built.
+
+    The function-scoped ``_isolate_user_config`` runs too late for the
+    session-scoped ``gui`` fixture (session scope is set up before function
+    scope). Without this, the shared window's ``__init__`` calls
+    ``active_profile_name()`` (which writes the real ``profiles.toml``) and
+    ``load_config()`` (which loads the developer's real config into
+    ``app_config``) against the real ``~/.config/immich-go-gui``. This closes
+    that leak by redirecting XDG for the whole session.
+    """
+    session_dir = tmp_path_factory.mktemp("session-config")
+    prev_xdg = os.environ.get("XDG_CONFIG_HOME")
+    os.environ["XDG_CONFIG_HOME"] = str(session_dir / "xdg-config")
+    os.environ.pop("IMMICH_GO_GUI_CONFIG", None)
+    from core.profile_manager import clear_profiles_cache
+
+    clear_profiles_cache()
+    yield session_dir
+    if prev_xdg is None:
+        os.environ.pop("XDG_CONFIG_HOME", None)
+    else:
+        os.environ["XDG_CONFIG_HOME"] = prev_xdg
+    clear_profiles_cache()
+
+
+@pytest.fixture(scope="session")
+def gui(qapp, _session_config_root):
     """One shared window for the whole suite.
 
     Session teardown must not show Save/Discard dialogs: function-scoped
