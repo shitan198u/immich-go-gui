@@ -86,21 +86,23 @@ def check_or_update_file(
         return False
 
     current_found = match.group(0)
-    if current_found == expected_str:
+    # Resolve backreferences in expected_str against the current match
+    expected_matched = re.sub(pattern, expected_str, current_found, count=1, flags=re.MULTILINE)
+    if current_found == expected_matched:
         return True
 
     if check_only:
         print(
             f"Version mismatch in {file_path.relative_to(ROOT_DIR)}:\n"
             f"  Found:    {current_found}\n"
-            f"  Expected: {expected_str}",
+            f"  Expected: {expected_matched}",
             file=sys.stderr,
         )
         return False
 
     new_content = re.sub(pattern, expected_str, content, flags=re.MULTILINE)
     file_path.write_text(new_content, encoding="utf-8")
-    print(f"Updated {file_path.relative_to(ROOT_DIR)} -> {expected_str}")
+    print(f"Updated {file_path.relative_to(ROOT_DIR)} -> {expected_matched}")
     return True
 
 
@@ -133,8 +135,8 @@ def main() -> int:
         ),
         (
             ROOT_DIR / ".github" / ".release-please-manifest.json",
-            r'"\."\s*:\s*"[^"]+"',
-            '".": "{version}"',
+            r'"\."(\s*:\s*)"[^"]+"',
+            r'"."\g<1>"{version}"',
         ),
         (
             ROOT_DIR / "docs" / "README.md",

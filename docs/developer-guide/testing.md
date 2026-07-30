@@ -1,6 +1,6 @@
 # Testing
 
-The test suite lives in `tests/` (269 tests across 20 modules) using `pytest` and `pytest-qt`.
+The test suite lives in `tests/` (229 tests across 19 modules) using `pytest` and `pytest-qt`.
 
 ## Running Tests
 
@@ -127,6 +127,6 @@ Configured in `.pre-commit-config.yaml`: trailing whitespace, YAML check, Ruff l
 | Workflow | Trigger | Platforms |
 |----------|---------|-----------|
 | `ci.yml` | Push to `master` | ubuntu-22.04, macos-latest, windows-latest |
-| `pr-fast-feedback.yml` | PR to `master`/`staging` | Same + Nuitka smoke build, CodeQL |
+| `pr-fast-feedback.yml` | PR to `master` | Same + Nuitka smoke build, CodeQL |
 
 See [CI/CD and Releases](ci-cd-and-releases.md).
