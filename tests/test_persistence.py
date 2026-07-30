@@ -475,6 +475,8 @@ def test_linux_xdg_save_server_details_roundtrip(tmp_path, monkeypatch):
         patch("PySide6.QtWidgets.QMessageBox.warning"),
     ):
         gui = ImmichGoGUI()
+        gui._conn_test_debounce.stop()
+        gui._auto_test_connection = lambda: None
         gui.inputs["config"]["server"].setText("http://linux-host:2283")
         gui.inputs["config"]["api_key"].setText("roundtrip-key")
         gui.save_server_details(show_popup=False)
@@ -519,6 +521,8 @@ def test_linux_xdg_save_configuration_roundtrip(tmp_path, monkeypatch):
         patch("PySide6.QtWidgets.QMessageBox.information"),
     ):
         gui = ImmichGoGUI()
+        gui._conn_test_debounce.stop()
+        gui._auto_test_connection = lambda: None
         gui._mark_configuration_clean()
         gui._mark_server_details_clean()
         gui.inputs["config"]["server"].setText("http://linux-save-config:2283")

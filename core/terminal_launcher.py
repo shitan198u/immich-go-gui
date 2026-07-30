@@ -185,7 +185,7 @@ def launch_external_terminal(
             '    touch "$HB_FILE" 2>/dev/null\n'
             "    sleep 10\n"
             "  done\n"
-            ") &\n"
+            ") >/dev/null 2>&1 &\n"
             "HB_PID=$!\n"
             "\n"
             'SAFE_DIR="$HOME"\n'

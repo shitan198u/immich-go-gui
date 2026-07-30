@@ -185,3 +185,11 @@ def _reset_shared_config(gui):
         picasa["folder-album"].setCurrentIndex(0)
     if "into-album" in picasa:
         picasa["into-album"].clear()
+
+
+@pytest.fixture(autouse=True)
+def _disable_gui_auto_conn_test(monkeypatch):
+    """Prevent ImmichGoGUI background connection timers from making live network requests in tests."""
+    from gui.mixins.connection import ConnectionMixin
+
+    monkeypatch.setattr(ConnectionMixin, "_auto_test_connection", lambda self: None)

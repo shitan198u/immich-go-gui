@@ -13,7 +13,10 @@ def test_keyring_probe_warning(monkeypatch):
     monkeypatch.setattr(ImmichGoGUI, "load_configuration", lambda self: None)
     monkeypatch.setattr(ImmichGoGUI, "_probe_keyring", lambda self: False)
 
-    ImmichGoGUI()
+    gui = ImmichGoGUI()
+    gui._conn_test_debounce.stop()
+    gui._force_close = True
+    gui.close()
     assert warn.called
     assert "keyring" in warn.call_args[0][2].lower()
 
