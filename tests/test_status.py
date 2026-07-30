@@ -16,12 +16,12 @@ def test_status_card_elides_and_sets_tooltip(qtbot):
     assert card.txt_s.toolTip() == long_text
     assert card.txt_s.text() == long_text
     w = card.txt_s.contentsRect().width() or card.txt_s.width()
-    if w > 0:
-        elided = card.txt_s.fontMetrics().elidedText(
-            long_text, card.txt_s._elide, w
-        )
-        assert len(elided) < len(long_text)
-        assert "…" in elided
+    assert w > 0, "Widget must have a positive width for elision to be measurable"
+    elided = card.txt_s.fontMetrics().elidedText(
+        long_text, card.txt_s._elide, w
+    )
+    assert len(elided) < len(long_text)
+    assert "…" in elided
 
 
 def test_running_process_boolean_state(gui):

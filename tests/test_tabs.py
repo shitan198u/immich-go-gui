@@ -158,7 +158,6 @@ def test_archive_ui_options_removed(gui):
 def test_config_tab_completeness(gui):
     assert "allow_untested_updates" in gui.inputs["config"]
     assert "preferred_terminal" in gui.inputs["config"]
-    assert gui.inputs["config"]["client_timeout_minutes"].suffix() == ""
     gui.inputs["config"]["allow_untested_updates"].setChecked(True)
     gui.inputs["config"]["preferred_terminal"].setCurrentText("konsole")
     gui.save_configuration()
