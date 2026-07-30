@@ -42,7 +42,6 @@ def test_client_timeout_emitted(gui):
     gui.upload_tabs.setCurrentIndex(0)  # upload-folder
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
-    gui.inputs["config"]["client_timeout_minutes"].setValue(60)
     gui.inputs["upload-folder"]["path"].setText("/photos")
     opts = gui.build_command(dry_run=False)
     assert "--client-timeout=60m" in opts
@@ -89,7 +88,6 @@ def test_from_client_timeout(gui):
     gui.upload_tabs.setCurrentIndex(4)  # upload-immich
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
-    gui.inputs["config"]["client_timeout_minutes"].setValue(60)
     gui.inputs["upload-immich"]["from-server"].setText("http://old:2283")
     gui.inputs["upload-immich"]["from-api-key"].setText("old-key")
     opts = gui.build_command(dry_run=False)

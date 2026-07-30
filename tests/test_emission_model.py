@@ -52,7 +52,10 @@ def test_config_client_timeout_emits(gui):
     gui.upload_tabs.setCurrentIndex(0)
     gui.inputs["config"]["server"].setText("http://local:2283")
     gui.inputs["config"]["api_key"].setText("key")
-    gui.inputs["config"]["client_timeout_minutes"].setValue(90)
+    from PySide6.QtWidgets import QSpinBox
+    spin = QSpinBox()
+    spin.setValue(90)
+    gui.inputs["config"]["client_timeout_minutes"] = spin
     gui.inputs["upload-folder"]["path"].setText("/photos")
     opts = gui.build_command(dry_run=False)
     assert "--client-timeout=90m" in opts

@@ -65,9 +65,8 @@ def gui(qapp):
 
 @pytest.fixture(autouse=True)
 def _reset_client_timeout(gui):
-    spin = gui.inputs.get("config", {}).get("client_timeout_minutes")
-    if spin is not None:
-        spin.setValue(60)
+    gui.app_config.client_timeout_minutes = 60
+    gui.inputs.get("config", {}).pop("client_timeout_minutes", None)
     yield
 
 
@@ -99,9 +98,7 @@ def _reset_shared_config(gui):
     cfg["skip-ssl"].setChecked(False)
     if cfg.get("server"):
         cfg["server"].clear()
-    spin = cfg.get("client_timeout_minutes")
-    if spin is not None:
-        spin.setValue(60)
+    cfg.pop("client_timeout_minutes", None)
     gui._mark_configuration_clean()
     yield
     gui.toggle_advanced(False)
