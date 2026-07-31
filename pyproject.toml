@@ -49,3 +49,10 @@ markers = [
 # composition (host attributes on `self`) that yields false positives under
 # strict static analysis — see `.agents/AGENTS.md`.
 include = ["core"]
+
+[tool.ty.rules]
+unresolved-import = "warn"
+unresolved-attribute = "warn"
+
+[tool.ty.terminal]
+error-on-warning = false

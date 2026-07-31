@@ -8,7 +8,7 @@ Authoritative context for AI agents working in this repository. When user-provid
 
 - **Step-by-step, source-first**: Read authoritative files (`core/flags.toml`, `core/command_builder.py`, tests) before editing. Do not guess flag names or CLI behavior.
 - **Frequent logical commits**: Small, reviewable commits with Conventional Commit prefixes (`fix:`, `feat:`, `chore:`, `test:`, `docs:`, `ci:`).
-- **Pre-Commit Verification**: The `.githooks/pre-commit` hook runs `pre-commit` (staged files only) automatically on every commit. Before **opening PRs**, run the full gate: `uv run pre-commit run --all-files`, `uv run ty check core/`, `uv run python app.py --self-test`, `uv run python scripts/sync_version.py --check`. This guarantees `pr-fast-feedback.yml` passes on first attempt.
+- **Pre-Commit Verification**: The `.githooks/pre-commit` hook runs `pre-commit` (staged files only) automatically on every commit. Before **opening PRs**, run the full local pre-PR gate: `uv run pre-commit run --all-files`, `uv run ty check core/`, `uv run python app.py --self-test`, `uv run python scripts/sync_version.py --check`. Note that `pr-fast-feedback.yml` additionally runs multi-OS pytest, test-count synchronization, and security checks (pip-audit, CodeQL).
 - **Minimal scope**: Match existing patterns. Avoid drive-by refactors — especially splitting `app.py` unless explicitly requested.
 
 ---
@@ -129,8 +129,8 @@ Nuitka directives live at the top of `app.py`. All release workflow invocations 
 |----------|---------|---------|
 | `ci.yml` | Push to `master` | `ty` type checker (`core/`), pre-commit, multi-OS pytest + coverage, `--self-test` |
 | `pr-fast-feedback.yml` | PR | Multi-OS tests, `ty` type checker, pre-commit, version sync check, pip-audit, CodeQL |
-| `docs.yml` | Tag `v*` / manual | Test count sync, MkDocs build, lychee link check, GitHub Pages deploy |
-| `release.yml` | Tag `v*` | **pytest gate** → Nuitka builds → SHA256SUMS → GitHub Release |
+| `docs.yml` | Tag `v[0-9]*` / manual | Test count sync, MkDocs build, lychee link check, GitHub Pages deploy |
+| `release.yml` | Tag `v[0-9]*` | **pytest gate** → Nuitka builds → SHA256SUMS → GitHub Release |
 | `release-please.yml` | Push to `master` | Version bump PR (updates pyproject.toml, manifest, docs via `extra-files`) |
 
 ### Packaging & Version Rules

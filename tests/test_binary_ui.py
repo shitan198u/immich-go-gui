@@ -326,3 +326,44 @@ def test_check_binary_help_all_11_tabs(tmp_path, monkeypatch):
     monkeypatch.setattr("core.cli_contract.subprocess.run", fake_run)
     check_binary_help(tmp_path / "immich-go")
     assert len(calls) == 11
+
+
+def test_load_binary_metadata_migration_non_dict_record(tmp_path):
+    """Regression test: load_binary_metadata handles non-dict version entries during migration."""
+    from core.binary_manager import load_binary_metadata
+    import json
+
+    metadata_path = tmp_path / "metadata.json"
+
+    # Create a metadata file with schema_version 1 (or missing)
+    # where 'versions' contains both a dict record and a non-dict (string) record
+    corrupt_meta = {
+        "schema_version": 1,
+        "selected_version": "0.32.0",
+        "manual_path": "",
+        "versions": {
+            "0.32.0": {
+                "path": "/some/path/immich-go",
+                "downloaded_at": "2024-01-01T00:00:00Z",
+            },
+            "0.31.0": "some-string-value",  # Non-dict entry
+        },
+    }
+
+    with open(metadata_path, "w", encoding="utf-8") as f:
+        json.dump(corrupt_meta, f)
+
+    # This should not raise AttributeError
+    result = load_binary_metadata(str(metadata_path))
+
+    # Verify migration completed
+    assert result["schema_version"] == 2
+
+    # Verify dict record got defaults applied
+    assert "gui_tested" in result["versions"]["0.32.0"]
+    assert "support_status" in result["versions"]["0.32.0"]
+    assert "sha256" in result["versions"]["0.32.0"]
+    assert "release_url" in result["versions"]["0.32.0"]
+
+    # Verify non-dict entry was left as-is (not modified, no crash)
+    assert result["versions"]["0.31.0"] == "some-string-value"

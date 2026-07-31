@@ -158,7 +158,7 @@ def load_binary_metadata(metadata_path: str = METADATA_PATH) -> dict:
                         get_version_support(version).value,
                     )
                     record.setdefault("sha256", "")
-                record.setdefault("release_url", "")
+                    record.setdefault("release_url", "")
         meta["schema_version"] = 2
 
     return meta

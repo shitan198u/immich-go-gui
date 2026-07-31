@@ -25,7 +25,7 @@ repos:
         entry: uv run ty check core/
         language: system
         pass_filenames: false
-        always_run: true
+        files: ^core/
       - id: version-sync-check
         name: version-sync-check
         entry: uv run python scripts/sync_version.py --check
