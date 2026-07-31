@@ -8,7 +8,7 @@ Authoritative context for AI agents working in this repository. When user-provid
 
 - **Step-by-step, source-first**: Read authoritative files (`core/flags.toml`, `core/command_builder.py`, tests) before editing. Do not guess flag names or CLI behavior.
 - **Frequent logical commits**: Small, reviewable commits with Conventional Commit prefixes (`fix:`, `feat:`, `chore:`, `test:`, `docs:`, `ci:`).
-- **Mandatory Pre-Commit Verification**: Run local checks (`uv run pre-commit run --all-files`, `uv run ty check core/`, `uv run python app.py --self-test`, `uv run python scripts/sync_version.py --check`) **before committing or opening PRs**. This guarantees `pr-fast-feedback.yml` passes on first attempt.
+- **Pre-Commit Verification**: The `.githooks/pre-commit` hook runs `pre-commit` (staged files only) automatically on every commit. Before **opening PRs**, run the full gate: `uv run pre-commit run --all-files`, `uv run ty check core/`, `uv run python app.py --self-test`, `uv run python scripts/sync_version.py --check`. This guarantees `pr-fast-feedback.yml` passes on first attempt.
 - **Minimal scope**: Match existing patterns. Avoid drive-by refactors — especially splitting `app.py` unless explicitly requested.
 
 ---
@@ -113,7 +113,7 @@ Nuitka directives live at the top of `app.py`. All release workflow invocations 
 
 ## 6. Testing
 
-- **Suite Metrics**: **269 tests across 20 modules**, coverage gate **80%** on `core` + `app` (Linux CI).
+- **Suite Metrics**: **271 tests across 20 modules**, coverage gate **75%** on `core` (Linux CI).
 - **Conventions**:
   - Windows path normalization: pass argv through `_norm_argv(...)` before comparing paths.
   - Golden fixtures: `tests/fixtures/command_states/*.json`
