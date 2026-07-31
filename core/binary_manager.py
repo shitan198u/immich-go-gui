@@ -126,7 +126,15 @@ def calculate_sha256(data: bytes) -> str:
 
 
 def load_binary_metadata(metadata_path: str = METADATA_PATH) -> dict:
-    """Loads binary metadata JSON from disk, migrating schema if needed."""
+    """
+    Load binary metadata from disk and migrate records from schema version 1.
+    
+    Parameters:
+        metadata_path (str): Path to the metadata JSON file.
+    
+    Returns:
+        dict: Metadata containing default top-level fields and migrated version records.
+    """
     meta = {
         "schema_version": 2,
         "selected_version": "",

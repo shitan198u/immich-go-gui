@@ -61,10 +61,12 @@ def _session_config_root(tmp_path_factory):
 
 @pytest.fixture(scope="session")
 def gui(qapp, _session_config_root):
-    """One shared window for the whole suite.
-
-    Session teardown must not show Save/Discard dialogs: function-scoped
-    monkeypatches are already gone when this fixture exits. Use _force_close.
+    """Create and yield a shared GUI window for the test session.
+    
+    The window is force-closed during session teardown to avoid modal save or discard dialogs.
+    
+    Yields:
+        ImmichGoGUI: The shared application window.
     """
     from PySide6.QtWidgets import QMessageBox
     from gui import ImmichGoGUI
@@ -113,6 +115,15 @@ def _reset_client_timeout(request):
     # Pure-core tests (unit marker, no `gui` fixture) must not pay the full
     # ImmichGoGUI construction cost. Only run the reset when the test actually
     # requests the shared `gui` fixture (or the gui marker is applied).
+    """
+    Reset the GUI client timeout control before tests that request the shared GUI fixture.
+    
+    Parameters:
+        request: Pytest fixture request used to determine whether the test requests the GUI.
+    
+    Yields:
+        None
+    """
     if "gui" in request.fixturenames:
         gui = request.getfixturevalue("gui")
         spin = gui.inputs.get("config", {}).get("client_timeout_minutes")
@@ -184,6 +195,12 @@ def _clear_profiles_cache():
 
 @pytest.fixture(autouse=True)
 def _reset_shared_config(request):
+    """
+    Reset shared GUI configuration before and after each test that uses the ``gui`` fixture.
+    
+    Parameters:
+    	request: Pytest fixture request used to determine whether the test requests ``gui``.
+    """
     if "gui" not in request.fixturenames:
         yield
         return
@@ -209,14 +226,20 @@ def _reset_shared_config(request):
 
 @pytest.fixture(autouse=True)
 def _block_network(monkeypatch):
-    """Deny real network access so a stray requests call fails fast instead of
-    hanging the suite on a multi-second timeout (also enforces hermeticity).
-    Tests that legitimately exercise network code re-patch requests explicitly
-    inside the test body, which overrides this deny via monkeypatch last-wins.
+    """
+    Prevent tests from making real HTTP requests.
+    
+    Requests that reach the patched methods raise ``RuntimeError`` immediately.
     """
     import requests
 
     def _deny(*args, **kwargs):
+        """
+        Raise an error when a test attempts an unmocked network request.
+        
+        Raises:
+            RuntimeError: Always, indicating that the request must be explicitly patched.
+        """
         raise RuntimeError(
             "Tests must not make real network calls. Patch requests explicitly."
         )

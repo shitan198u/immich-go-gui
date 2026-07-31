@@ -20,6 +20,12 @@ IMMICH_SOURCE_TABS = ("upload-immich", "archive-immich")
 
 
 def _config_state():
+    """
+    Build representative server configuration containing API credentials and client settings.
+    
+    Returns:
+    	dict: Configuration values for the server URL, API keys, SSL verification, and client timeout.
+    """
     return {
         "server": "http://localhost:2283",
         "api_key": SECRET_API_KEY,
@@ -30,6 +36,16 @@ def _config_state():
 
 
 def _tab_state(tab_key, tmp_path):
+    """
+    Build representative tab state for security-related command plan tests.
+    
+    Parameters:
+    	tab_key: The tab identifier whose state should be constructed.
+    	tmp_path: Temporary directory used to create input and output paths.
+    
+    Returns:
+    	dict: Tab state containing applicable paths and Immich source server credentials.
+    """
     path = str(tmp_path / "src")
     out = str(tmp_path / "out")
     state: dict = {}
@@ -106,7 +122,7 @@ def test_secrets_delivered_via_env(tab_key, tmp_path):
 
 @pytest.mark.parametrize("tab_key", sorted(REGISTRY.serverless_tabs))
 def test_serverless_tabs_never_receive_api_key_env(tab_key, tmp_path):
-    """Serverless tabs must not route API keys into the env dict."""
+    """Verify that serverless tabs exclude API keys from the process environment."""
     plan = build_plan_from_state(
         tab_key=tab_key,
         config_state=_config_state(),

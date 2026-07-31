@@ -45,7 +45,15 @@ class CompatibilityReport:
 
 
 def check_fixtures(version: str = TESTED_IMMICH_GO_VERSION) -> CompatibilityReport:
-    """Evaluates GUI flag allowlists against captured help fixtures for a version."""
+    """
+    Evaluate GUI flag allowlists against captured CLI help fixtures for a version.
+    
+    Parameters:
+        version (str): Immich-Go version whose help fixtures are checked.
+    
+    Returns:
+        CompatibilityReport: Compatibility results, including missing and unknown flags and any fixture-related notes.
+    """
     report = CompatibilityReport(version=version)
     matrix_entry = COMPATIBILITY_MATRIX.get(version, {})
     notes_val = matrix_entry.get("notes", "")
@@ -111,7 +119,16 @@ def collect_bool_defaults_from_binary(binary_path: Path) -> dict[str, dict[str, 
 def check_binary_help(
     binary_path: Path, version: str = TESTED_IMMICH_GO_VERSION
 ) -> CompatibilityReport:
-    """Runs --help on target subcommands of live binary and compares against GUI allowlists."""
+    """
+    Compare a live Immich-Go binary's subcommand help flags with the GUI allowlists.
+    
+    Parameters:
+    	binary_path (Path): Path to the Immich-Go binary.
+    	version (str): Version whose compatibility notes should be included in the report.
+    
+    Returns:
+    	CompatibilityReport: Compatibility results, including missing and unknown flags by tab.
+    """
     report = CompatibilityReport(version=version)
     matrix_entry = COMPATIBILITY_MATRIX.get(version, {})
     notes_val = matrix_entry.get("notes", "")

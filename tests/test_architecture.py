@@ -26,7 +26,15 @@ def _iter_py(root: Path):
 
 
 def _imported_top_levels(path: Path):
-    """Yield (path, top_level_module) for every import in *path*."""
+    """
+    Extract top-level module names from imports in a Python file.
+    
+    Parameters:
+        path (Path): Python file to inspect.
+    
+    Yields:
+        tuple[Path, str]: The file path and the imported top-level module name.
+    """
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):

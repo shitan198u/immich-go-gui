@@ -44,6 +44,7 @@ def test_all_tabs_have_nonempty_command():
 
 
 def test_server_required_and_serverless_are_mutually_exclusive():
+    """Ensure no registry tab is marked as both server-required and serverless."""
     for key, tab in REGISTRY.tabs.items():
         assert not (tab.server_required and tab.serverless), (
             f"Tab {key} is both server_required and serverless"

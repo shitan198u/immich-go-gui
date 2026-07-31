@@ -20,7 +20,15 @@ IMMICH_SOURCE_TABS = ("upload-immich", "archive-immich")
 
 
 def _trigger_value(def_: FlagDef) -> Any:
-    """Return a value guaranteed to produce CLI args for *def_*'s kind."""
+    """
+    Provide a representative non-default value for a flag definition.
+    
+    Parameters:
+        def_ (FlagDef): Flag definition whose kind determines the value.
+    
+    Returns:
+        Any: A value suitable for exercising the flag.
+    """
     if def_.kind == "bool":
         return True
     if def_.kind == "enum":
@@ -42,6 +50,9 @@ def _trigger_value(def_: FlagDef) -> Any:
 
 def _config_state():
     # admin_api_key present so the pause-jobs safety override is skipped.
+    """
+    Return the baseline server, authentication, SSL, and timeout configuration used by the tests.
+    """
     return {
         "server": "http://localhost:2283",
         "api_key": "k",
@@ -52,6 +63,16 @@ def _config_state():
 
 
 def _tab_state(tab_key, tmp_path):
+    """
+    Build tab-specific test state using paths and source server credentials where applicable.
+    
+    Parameters:
+        tab_key: The registered tab identifier.
+        tmp_path: Temporary directory used to construct source and output paths.
+    
+    Returns:
+        A dictionary containing the state required for the specified tab.
+    """
     state: dict = {}
     if tab_key != "stack" and tab_key != "archive-immich":
         state["path"] = str(tmp_path / "src")
@@ -70,6 +91,16 @@ def _tab_state(tab_key, tmp_path):
 
 
 def _build(tab_key, advanced_state, tmp_path):
+    """Build a plan for a tab using baseline configuration and the provided advanced state.
+    
+    Parameters:
+    	tab_key: The registry key of the tab to build.
+    	advanced_state: The advanced flag state to apply.
+    	tmp_path: Temporary directory used for tab-specific paths.
+    
+    Returns:
+    	The generated execution plan.
+    """
     return build_plan_from_state(
         tab_key=tab_key,
         config_state=_config_state(),
@@ -81,12 +112,29 @@ def _build(tab_key, advanced_state, tmp_path):
 
 
 def _has_flag(argv, flag_name):
+    """Determine whether command-line arguments contain a specified flag.
+    
+    Parameters:
+    	argv (iterable): Command-line arguments to inspect.
+    	flag_name (str): Flag name without the leading ``--``.
+    
+    Returns:
+    	bool: ``True`` if the flag appears alone or with an assigned value, ``False`` otherwise.
+    """
     prefix = f"--{flag_name}"
     return any(a == prefix or a.startswith(f"{prefix}=") for a in argv)
 
 
 def _emittable_defs(tab_key):
-    """Advanced defs we can meaningfully test for argv emission."""
+    """
+    Select advanced flag definitions that are emitted as command-line arguments.
+    
+    Parameters:
+    	tab_key: The registry tab whose advanced definitions are selected.
+    
+    Returns:
+    	A list of definitions with CLI flags that are neither secret environment variables nor dry-run options.
+    """
     return [
         d
         for d in REGISTRY.advanced_defs(tab_key)
