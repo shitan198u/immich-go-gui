@@ -48,7 +48,8 @@ def check_fixtures(version: str = TESTED_IMMICH_GO_VERSION) -> CompatibilityRepo
     """Evaluates GUI flag allowlists against captured help fixtures for a version."""
     report = CompatibilityReport(version=version)
     matrix_entry = COMPATIBILITY_MATRIX.get(version, {})
-    report.notes = matrix_entry.get("notes", "")
+    notes_val = matrix_entry.get("notes", "")
+    report.notes = str(notes_val) if notes_val else ""
 
     fixtures_dir = Path(__file__).resolve().parent / "fixtures" / "cli_help" / version
     if not fixtures_dir.exists():
@@ -113,7 +114,8 @@ def check_binary_help(
     """Runs --help on target subcommands of live binary and compares against GUI allowlists."""
     report = CompatibilityReport(version=version)
     matrix_entry = COMPATIBILITY_MATRIX.get(version, {})
-    report.notes = matrix_entry.get("notes", "")
+    notes_val = matrix_entry.get("notes", "")
+    report.notes = str(notes_val) if notes_val else ""
 
     for tab_key, args in _TAB_SUBCOMMANDS.items():
         gui_allowed = TAB_ALLOWED_FLAGS.get(tab_key, set())

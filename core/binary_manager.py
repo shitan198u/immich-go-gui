@@ -144,15 +144,20 @@ def load_binary_metadata(metadata_path: str = METADATA_PATH) -> dict:
             pass
 
     # Schema version migration
-    if meta.get("schema_version", 1) < 2:
-        for version, record in meta.get("versions", {}).items():
-            if isinstance(record, dict):
-                record.setdefault("gui_tested", version in TESTED_IMMICH_GO_VERSIONS)
-                record.setdefault(
-                    "support_status",
-                    get_version_support(version).value,
-                )
-                record.setdefault("sha256", "")
+    schema_ver = meta.get("schema_version", 1)
+    if isinstance(schema_ver, int) and schema_ver < 2:
+        versions_dict = meta.get("versions", {})
+        if isinstance(versions_dict, dict):
+            for version, record in versions_dict.items():
+                if isinstance(record, dict):
+                    record.setdefault(
+                        "gui_tested", version in TESTED_IMMICH_GO_VERSIONS
+                    )
+                    record.setdefault(
+                        "support_status",
+                        get_version_support(version).value,
+                    )
+                    record.setdefault("sha256", "")
                 record.setdefault("release_url", "")
         meta["schema_version"] = 2
 

@@ -12,10 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
-try:
-    import tomllib
-except ModuleNotFoundError:
-    import tomli as tomllib
+import tomllib
 
 _FLAGS_TOML = Path(__file__).resolve().parent / "flags.toml"
 

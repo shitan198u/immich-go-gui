@@ -26,13 +26,13 @@ dev = [
     "pre-commit>=4.6.0",
     "pyfakefs>=5.5.0",
     "pymdown-extensions>=10.14",
-    "pyright>=1.1.390",
     "pytest>=9.1.1",
     "pytest-cov>=6.0.0",
     "pytest-qt>=4.5.0",
     "pytest-timeout>=2.3.1",
     "pytest-xdist>=3.8.0",
     "ruff>=0.9.0",
+    "ty>=0.0.65",
 ]
 
 [tool.pytest.ini_options]
@@ -44,10 +44,8 @@ markers = [
     "integration: end-to-end tests that execute real subprocesses",
 ]
 
-[tool.pyright]
-venvPath = "."
-venv = ".venv"
-pythonVersion = "3.13"
-include = ["core", "gui"]
-reportMissingImports = "warning"
-reportAttributeAccessIssue = "warning"
+[tool.ty.src]
+# Type-check only `core/`. The Qt GUI mixins in `gui/` rely on runtime
+# composition (host attributes on `self`) that yields false positives under
+# strict static analysis — see `.agents/AGENTS.md`.
+include = ["core"]

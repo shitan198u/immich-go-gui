@@ -20,6 +20,12 @@ repos:
 
   - repo: local
     hooks:
+      - id: ty-check
+        name: ty-check
+        entry: uv run ty check core/
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: version-sync-check
         name: version-sync-check
         entry: uv run python scripts/sync_version.py --check

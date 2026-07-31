@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Immich-Go GUI — Native Git Pre-Commit Hook
+set -e
+
+echo "🔍 Running pre-commit quality checks..."
+# Check staged files only; CI runs --all-files as the safety net.
+uv run pre-commit run

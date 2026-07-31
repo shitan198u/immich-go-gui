@@ -130,11 +130,11 @@ jobs:
             libxcb-xinerama0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
             libxcb-render-util0 libxcb-shape0
 
-      - name: Pyright (core)
-        run: uv run pyright core/
+      - name: ty Type Checker (core)
+        run: uv run ty check core/
 
       - name: Pre-commit / Lint & Formatting
-        run: SKIP=version-sync-check,test-count-sync-check uv run pre-commit run --all-files --show-diff-on-failure
+        run: SKIP=ty-check,version-sync-check,test-count-sync-check uv run pre-commit run --all-files --show-diff-on-failure
 
       - name: Version Sync Check
         run: uv run python scripts/sync_version.py --check

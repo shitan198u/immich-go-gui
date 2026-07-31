@@ -8,7 +8,7 @@ Authoritative context for AI agents working in this repository. When user-provid
 
 - **Step-by-step, source-first**: Read authoritative files (`core/flags.toml`, `core/command_builder.py`, tests) before editing. Do not guess flag names or CLI behavior.
 - **Frequent logical commits**: Small, reviewable commits with Conventional Commit prefixes (`fix:`, `feat:`, `chore:`, `test:`, `docs:`, `ci:`).
-- **Mandatory Pre-Commit Verification**: Run local checks (`uv run pre-commit run --all-files`, `uv run pyright core/`, `uv run python app.py --self-test`, `uv run python scripts/sync_version.py --check`) **before committing or opening PRs**. This guarantees `pr-fast-feedback.yml` passes on first attempt.
+- **Mandatory Pre-Commit Verification**: Run local checks (`uv run pre-commit run --all-files`, `uv run ty check core/`, `uv run python app.py --self-test`, `uv run python scripts/sync_version.py --check`) **before committing or opening PRs**. This guarantees `pr-fast-feedback.yml` passes on first attempt.
 - **Minimal scope**: Match existing patterns. Avoid drive-by refactors — especially splitting `app.py` unless explicitly requested.
 
 ---
@@ -22,6 +22,7 @@ Authoritative context for AI agents working in this repository. When user-provid
 | **pytest** | `uv run pytest` (Linux headless requires `libegl1 libgl1 libxkbcommon-x11-0`: `QT_QPA_PLATFORM=offscreen xvfb-run uv run pytest`) |
 | **Self-test** | `uv run python app.py --self-test` — loads registry, builds a plan, checks config dir |
 | **pre-commit** | `uv run pre-commit run --all-files` — mandatory check before committing or creating PRs |
+| **githooks** | Native git hooks in `.githooks/` configured via `git config core.hooksPath .githooks` |
 
 ### Git Branching
 
@@ -126,9 +127,9 @@ Nuitka directives live at the top of `app.py`. All release workflow invocations 
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | Push to `master` | Pyright (`core/`), pre-commit, multi-OS pytest + coverage, `--self-test` |
-| `pr-fast-feedback.yml` | PR | Multi-OS tests, Pyright, pre-commit, version sync check, pip-audit, CodeQL |
-| `docs.yml` | Push to `master` | Test count sync, MkDocs build, lychee link check, GitHub Pages deploy |
+| `ci.yml` | Push to `master` | `ty` type checker (`core/`), pre-commit, multi-OS pytest + coverage, `--self-test` |
+| `pr-fast-feedback.yml` | PR | Multi-OS tests, `ty` type checker, pre-commit, version sync check, pip-audit, CodeQL |
+| `docs.yml` | Tag `v*` / manual | Test count sync, MkDocs build, lychee link check, GitHub Pages deploy |
 | `release.yml` | Tag `v*` | **pytest gate** → Nuitka builds → SHA256SUMS → GitHub Release |
 | `release-please.yml` | Push to `master` | Version bump PR (updates pyproject.toml, manifest, docs via `extra-files`) |
 
@@ -161,7 +162,7 @@ uv run python scripts/sync_version.py --check        # verify pyproject.toml mat
 uv run python scripts/sync_test_count.py --sync       # sync pytest count to documentation
 uv run python scripts/capture_cli_help.py            # refresh CLI help fixtures
 uv run python scripts/generate_build_icons.py        # regenerate .ico and .icns from .png
-uv run pyright core/
+uv run ty check core/
 uv run pre-commit run --all-files                     # MANDATORY before commit/PR
 ```
 
