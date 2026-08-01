@@ -3,7 +3,8 @@ name: Deploy Docs to GitHub Pages
 on:
   push:
     tags:
-      - 'v[0-9]*'
+      - 'immich-go-gui-v[0-9]*'  # Release Please tag format (since v1.2.0)
+      - 'v[0-9]*'                 # Legacy tag format (v0.9.x – v1.1.x)
   workflow_dispatch:
 
 permissions:
@@ -69,13 +70,19 @@ jobs:
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
-        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+        if: |
+          github.event_name == 'workflow_dispatch' ||
+          startsWith(github.ref, 'refs/tags/immich-go-gui-v') ||
+          startsWith(github.ref, 'refs/tags/v')
         with:
           path: site/
 
   deploy:
     needs: build
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/immich-go-gui-v') ||
+      startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     environment:
       name: github-pages

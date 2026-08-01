@@ -9,7 +9,8 @@ on:
         default: '1.0.0-test'
   push:
     tags:
-      - 'v[0-9]*'
+      - 'immich-go-gui-v[0-9]*'  # Release Please tag format (since v1.2.0)
+      - 'v[0-9]*'                 # Legacy tag format (v0.9.x – v1.1.x)
 
 env:
   CREATE_DMG_VERSION: '8.1.0'
@@ -73,7 +74,10 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.version }}" ]]; then
             VERSION="${{ github.event.inputs.version }}"
           else
-            VERSION=${GITHUB_REF_NAME#v}
+            # Strip Release Please prefix (immich-go-gui-v1.3.0 -> 1.3.0)
+            # or legacy bare prefix (v1.0.0 -> 1.0.0)
+            VERSION=${GITHUB_REF_NAME#immich-go-gui-v}
+            VERSION=${VERSION#v}
             if [[ "$VERSION" == *"/"* ]] || [[ -z "$VERSION" ]]; then VERSION="1.0.0-test"; fi
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
