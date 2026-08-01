@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from PySide6.QtCore import QSettings, QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -68,7 +70,7 @@ class ImmichGoGUI(
     DiagnosticsMixin,
     BrowseDialogsMixin,
 ):
-    TAB_KEYS = [
+    TAB_KEYS: ClassVar[list[str]] = [
         "config",
         "upload",
         "archive",
@@ -191,7 +193,7 @@ class ImmichGoGUI(
 
         self.update_status()
 
-    def build_environment(self, tab_key: str = None) -> dict:
+    def build_environment(self, tab_key: str | None = None) -> dict:
         if tab_key is None:
             tab_key = self._get_active_tab_key()
         server = (

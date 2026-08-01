@@ -1,7 +1,6 @@
 import os
 from unittest.mock import MagicMock, patch
 
-
 from core.binary_manager import BinaryManager, get_version_support
 from core.cli_contract import check_binary_help
 from core.models import VersionSupport
@@ -330,8 +329,9 @@ def test_check_binary_help_all_11_tabs(tmp_path, monkeypatch):
 
 def test_load_binary_metadata_migration_non_dict_record(tmp_path):
     """Regression test: load_binary_metadata handles non-dict version entries during migration."""
-    from core.binary_manager import load_binary_metadata
     import json
+
+    from core.binary_manager import load_binary_metadata
 
     metadata_path = tmp_path / "metadata.json"
 

@@ -8,11 +8,10 @@ SERVER_REQUIRED_TABS, SERVERLESS_TABS.
 
 from __future__ import annotations
 
+import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
-
-import tomllib
 
 _FLAGS_TOML = Path(__file__).resolve().parent / "flags.toml"
 

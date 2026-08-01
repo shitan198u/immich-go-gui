@@ -21,7 +21,7 @@ def normalize_server_url(url: str) -> str:
     url = url.strip()
     if not url:
         return ""
-    if not (url.startswith("http://") or url.startswith("https://")):
+    if not (url.startswith(("http://", "https://"))):
         url = "http://" + url
     return url.rstrip("/")
 

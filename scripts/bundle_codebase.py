@@ -130,24 +130,24 @@ def _should_skip_file(path: Path) -> bool:
         return True
     if name.endswith(_SKIP_NAME_SUFFIXES):
         return True
-    if name.endswith(
-        (
-            ".pyc",
-            ".pyo",
-            ".png",
-            ".ico",
-            ".jpg",
-            ".jpeg",
-            ".gif",
-            ".webp",
-            ".bin",
-            ".exe",
-            ".dmg",
-            ".AppImage",
+    return bool(
+        name.endswith(
+            (
+                ".pyc",
+                ".pyo",
+                ".png",
+                ".ico",
+                ".jpg",
+                ".jpeg",
+                ".gif",
+                ".webp",
+                ".bin",
+                ".exe",
+                ".dmg",
+                ".AppImage",
+            )
         )
-    ):
-        return True
-    return False
+    )
 
 
 def _is_text_file(path: Path) -> bool:

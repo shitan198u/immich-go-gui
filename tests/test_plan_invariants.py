@@ -19,9 +19,9 @@ IMMICH_SOURCE_TABS = ("upload-immich", "archive-immich")
 
 def _config_state():
     """Build the standard configuration state used by plan invariant tests.
-    
+
     Returns:
-    	dict: Configuration values for the server, API keys, SSL handling, and client timeout.
+        dict: Configuration values for the server, API keys, SSL handling, and client timeout.
     """
     return {
         "server": "http://localhost:2283",
@@ -34,13 +34,13 @@ def _config_state():
 
 def _tab_state(tab_key, tmp_path):
     """Build representative tab-specific state for plan invariant tests.
-    
+
     Parameters:
-    	tab_key (str): The tab identifier used to determine which state fields to include.
-    	tmp_path (path-like): Temporary directory used to construct source and output paths.
-    
+        tab_key (str): The tab identifier used to determine which state fields to include.
+        tmp_path (path-like): Temporary directory used to construct source and output paths.
+
     Returns:
-    	dict: State containing applicable source paths, output paths, and Immich source credentials.
+        dict: State containing applicable source paths, output paths, and Immich source credentials.
     """
     state: dict = {}
     if tab_key != "stack" and tab_key != "archive-immich":

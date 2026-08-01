@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout
 
@@ -5,7 +7,7 @@ from gui.widgets.eliding_label import ElidingLabel
 
 
 class StatusCard(QFrame):
-    _DOT = {
+    _DOT: ClassVar[dict[str, str]] = {
         "ok": "#22C55E",
         "warn": "#F59E0B",
         "err": "#EF4444",

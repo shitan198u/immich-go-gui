@@ -22,9 +22,9 @@ IMMICH_SOURCE_TABS = ("upload-immich", "archive-immich")
 def _config_state():
     """
     Build representative server configuration containing API credentials and client settings.
-    
+
     Returns:
-    	dict: Configuration values for the server URL, API keys, SSL verification, and client timeout.
+        dict: Configuration values for the server URL, API keys, SSL verification, and client timeout.
     """
     return {
         "server": "http://localhost:2283",
@@ -38,13 +38,13 @@ def _config_state():
 def _tab_state(tab_key, tmp_path):
     """
     Build representative tab state for security-related command plan tests.
-    
+
     Parameters:
-    	tab_key: The tab identifier whose state should be constructed.
-    	tmp_path: Temporary directory used to create input and output paths.
-    
+        tab_key: The tab identifier whose state should be constructed.
+        tmp_path: Temporary directory used to create input and output paths.
+
     Returns:
-    	dict: Tab state containing applicable paths and Immich source server credentials.
+        dict: Tab state containing applicable paths and Immich source server credentials.
     """
     path = str(tmp_path / "src")
     out = str(tmp_path / "out")

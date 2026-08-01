@@ -6,6 +6,7 @@ Pure Python module, Qt-free.
 import json
 import os
 import sys
+import time
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -197,7 +198,7 @@ def is_lock_active(lock_path: Path) -> bool:
     if hb_file.exists():
         try:
             mtime = hb_file.stat().st_mtime
-            age = datetime.now().timestamp() - mtime
+            age = time.time() - mtime
             if age < 60:
                 return True
         except OSError:

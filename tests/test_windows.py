@@ -1,7 +1,6 @@
 import tempfile
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from unittest.mock import patch
-
 
 from core.process_tracker import (
     create_lock,
@@ -11,7 +10,6 @@ from core.process_tracker import (
     scan_locks,
 )
 from core.terminal_launcher import launch_external_terminal
-from pathlib import PureWindowsPath
 
 
 def test_process_tracker_lifecycle(tmp_path, monkeypatch):
@@ -183,7 +181,7 @@ def test_forward_all_immich_go_env_vars(tmp_path, monkeypatch):
         )
         assert mock_popen.called
         call_args = mock_popen.call_args
-        args, kwargs = call_args
+        _args, kwargs = call_args
         env_used = kwargs.get("env", {})
         assert env_used.get("IMMICH_GO_CUSTOM_VAR") == "custom_val"
         assert (

@@ -7,11 +7,10 @@ import logging
 import os
 import re
 import shutil
+import tomllib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-
-import tomllib
 
 import tomli_w
 

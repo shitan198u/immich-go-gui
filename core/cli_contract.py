@@ -47,10 +47,10 @@ class CompatibilityReport:
 def check_fixtures(version: str = TESTED_IMMICH_GO_VERSION) -> CompatibilityReport:
     """
     Evaluate GUI flag allowlists against captured CLI help fixtures for a version.
-    
+
     Parameters:
         version (str): Immich-Go version whose help fixtures are checked.
-    
+
     Returns:
         CompatibilityReport: Compatibility results, including missing and unknown flags and any fixture-related notes.
     """
@@ -108,7 +108,9 @@ def collect_bool_defaults_from_binary(binary_path: Path) -> dict[str, dict[str, 
     for tab_key, args in _TAB_SUBCOMMANDS.items():
         cmd = [str(binary_path)] + args + ["--help"]
         try:
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            res = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=5, check=False
+            )
             text = res.stdout if res.stdout else res.stderr
             result[tab_key] = parse_help_bool_defaults(text)
         except Exception:
@@ -121,13 +123,13 @@ def check_binary_help(
 ) -> CompatibilityReport:
     """
     Compare a live Immich-Go binary's subcommand help flags with the GUI allowlists.
-    
+
     Parameters:
-    	binary_path (Path): Path to the Immich-Go binary.
-    	version (str): Version whose compatibility notes should be included in the report.
-    
+        binary_path (Path): Path to the Immich-Go binary.
+        version (str): Version whose compatibility notes should be included in the report.
+
     Returns:
-    	CompatibilityReport: Compatibility results, including missing and unknown flags by tab.
+        CompatibilityReport: Compatibility results, including missing and unknown flags by tab.
     """
     report = CompatibilityReport(version=version)
     matrix_entry = COMPATIBILITY_MATRIX.get(version, {})
@@ -138,7 +140,9 @@ def check_binary_help(
         gui_allowed = TAB_ALLOWED_FLAGS.get(tab_key, set())
         cmd = [str(binary_path)] + args + ["--help"]
         try:
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            res = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=5, check=False
+            )
             text = res.stdout if res.stdout else res.stderr
             binary_flags = parse_help_flags(text)
         except Exception as e:

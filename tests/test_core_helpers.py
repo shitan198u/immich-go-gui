@@ -11,10 +11,10 @@ from core.cli_contract import check_fixtures
 from core.cli_help import help_name_for_tab, load_help_fixture, parse_help_flags
 from core.cli_schema import TAB_ALLOWED_FLAGS
 from core.command_builder import (
+    FlagEmitter,
     build_environment,
     build_plan_from_state,
     collect_paths,
-    FlagEmitter,
     mask_command_for_display,
     validate_date_range,
 )

@@ -53,7 +53,7 @@ def test_profile_name_validation():
     valid, err = validate_profile_name("../bad_path")
     assert valid is False
 
-    valid, err = validate_profile_name("")
+    valid, _err = validate_profile_name("")
     assert valid is False
 
 

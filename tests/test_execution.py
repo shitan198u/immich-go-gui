@@ -1,7 +1,6 @@
 import os
 from unittest.mock import patch
 
-
 from core.command_builder import build_environment, build_plan_from_state
 from core.flag_registry import REGISTRY
 from core.models import CommandPlan

@@ -57,12 +57,11 @@ class ExecutionMixin:
         except OSError:
             resolved = Path(binary_path)
 
-        if not os.path.isfile(binary_path):
-            if not self.update_binary():
-                QMessageBox.critical(
-                    self, "Error", "Immich-Go binary is missing or not executable."
-                )
-                return
+        if not os.path.isfile(binary_path) and not self.update_binary():
+            QMessageBox.critical(
+                self, "Error", "Immich-Go binary is missing or not executable."
+            )
+            return
 
         if not sys.platform.startswith("win") and not os.access(binary_path, os.X_OK):
             QMessageBox.critical(

@@ -16,7 +16,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.binary_manager import (  # noqa: E402
+from core.binary_manager import (
     TESTED_IMMICH_GO_VERSION,
     get_binary_path,
     load_binary_metadata,

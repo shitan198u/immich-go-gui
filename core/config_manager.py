@@ -7,11 +7,10 @@ and plaintext secrets.toml) without PySide6 or Qt dependencies.
 import logging
 import os
 import sys
+import tomllib
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-
-import tomllib
 
 import keyring
 import tomli_w

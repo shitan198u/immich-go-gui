@@ -6,7 +6,7 @@ Pure Python module, Qt-free.
 import glob
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -47,19 +47,19 @@ def _parse_partial_date(date_str: str) -> tuple[datetime | None, str | None]:
 
     if re.match(r"^\d{4}$", s):
         try:
-            return datetime(int(s), 1, 1), None
+            return datetime(int(s), 1, 1, tzinfo=timezone.utc), None
         except ValueError as e:
             return None, str(e)
     elif re.match(r"^\d{4}-\d{2}$", s):
         try:
             parts = s.split("-")
-            return datetime(int(parts[0]), int(parts[1]), 1), None
+            return datetime(int(parts[0]), int(parts[1]), 1, tzinfo=timezone.utc), None
         except ValueError as e:
             return None, str(e)
     elif re.match(r"^\d{4}-\d{2}-\d{2}$", s):
         try:
             parts = [int(x) for x in s.split("-")]
-            return datetime(parts[0], parts[1], parts[2]), None
+            return datetime(parts[0], parts[1], parts[2], tzinfo=timezone.utc), None
         except ValueError as e:
             return None, str(e)
     else:
@@ -96,7 +96,7 @@ def validate_date_range(text: str) -> tuple[bool, str | None]:
         )
 
     if len(parts) == 1:
-        dt, err = _parse_partial_date(parts[0])
+        _dt, err = _parse_partial_date(parts[0])
         if err:
             return False, err
         return True, None

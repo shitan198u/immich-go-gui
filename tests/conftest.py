@@ -62,13 +62,14 @@ def _session_config_root(tmp_path_factory):
 @pytest.fixture(scope="session")
 def gui(qapp, _session_config_root):
     """Create and yield a shared GUI window for the test session.
-    
+
     The window is force-closed during session teardown to avoid modal save or discard dialogs.
-    
+
     Yields:
         ImmichGoGUI: The shared application window.
     """
     from PySide6.QtWidgets import QMessageBox
+
     from gui import ImmichGoGUI
 
     with (
@@ -117,10 +118,10 @@ def _reset_client_timeout(request):
     # requests the shared `gui` fixture (or the gui marker is applied).
     """
     Reset the GUI client timeout control before tests that request the shared GUI fixture.
-    
+
     Parameters:
         request: Pytest fixture request used to determine whether the test requests the GUI.
-    
+
     Yields:
         None
     """
@@ -197,9 +198,9 @@ def _clear_profiles_cache():
 def _reset_shared_config(request):
     """
     Reset shared GUI configuration before and after each test that uses the ``gui`` fixture.
-    
+
     Parameters:
-    	request: Pytest fixture request used to determine whether the test requests ``gui``.
+        request: Pytest fixture request used to determine whether the test requests ``gui``.
     """
     if "gui" not in request.fixturenames:
         yield
@@ -228,7 +229,7 @@ def _reset_shared_config(request):
 def _block_network(monkeypatch):
     """
     Prevent tests from making real HTTP requests.
-    
+
     Requests that reach the patched methods raise ``RuntimeError`` immediately.
     """
     import requests
@@ -236,7 +237,7 @@ def _block_network(monkeypatch):
     def _deny(*args, **kwargs):
         """
         Raise an error when a test attempts an unmocked network request.
-        
+
         Raises:
             RuntimeError: Always, indicating that the request must be explicitly patched.
         """

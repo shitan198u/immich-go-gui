@@ -238,7 +238,7 @@ def mask_command_for_display(command_parts: list[str]) -> list[str]:
             continue
 
         if "=" in part:
-            flag, val = part.split("=", 1)
+            flag, _val = part.split("=", 1)
             if flag in SECRET_FLAGS:
                 masked.append(f"{flag}=********")
                 continue
@@ -546,9 +546,8 @@ def validate_state_light(
         if not w:
             _add_error(res, "Destination folder is required.", "write-to")
 
-    elif tab_key == "archive-immich":
-        if not tab_state.get("write-to", "").strip():
-            _add_error(res, "Destination folder is required.", "write-to")
+    elif tab_key == "archive-immich" and not tab_state.get("write-to", "").strip():
+        _add_error(res, "Destination folder is required.", "write-to")
 
     for key in ("date-range", "from-date-range"):
         if key in tab_state and tab_state[key].strip():
@@ -734,22 +733,21 @@ def build_plan_from_state(
     path_opt = _collect_path_positional_args(tab_state)
 
     # ── 6. Safety: pause-jobs without admin key ────────────────
-    if tab_key in UPLOAD_TABS or tab_key == "stack":
-        if not admin_api_key:
-            pause_opts = [
-                o
-                for o in emitter.opts
-                if emitter._flag_name_from_arg(o) == "pause-immich-jobs"
-            ]
-            user_set_false = any(o.endswith("=false") for o in pause_opts)
-            emitter.opts = [
-                o
-                for o in emitter.opts
-                if emitter._flag_name_from_arg(o) != "pause-immich-jobs"
-            ]
-            emitter.add_bool_val("pause-immich-jobs", False, source="safety")
-            if not user_set_false:
-                plan.warnings.append(_PAUSE_JOBS_WARNING)
+    if (tab_key in UPLOAD_TABS or tab_key == "stack") and not admin_api_key:
+        pause_opts = [
+            o
+            for o in emitter.opts
+            if emitter._flag_name_from_arg(o) == "pause-immich-jobs"
+        ]
+        user_set_false = any(o.endswith("=false") for o in pause_opts)
+        emitter.opts = [
+            o
+            for o in emitter.opts
+            if emitter._flag_name_from_arg(o) != "pause-immich-jobs"
+        ]
+        emitter.add_bool_val("pause-immich-jobs", False, source="safety")
+        if not user_set_false:
+            plan.warnings.append(_PAUSE_JOBS_WARNING)
 
     if tab_key in ("upload-immich", "archive-immich"):
         from_pause_active = any(

@@ -76,7 +76,7 @@ def load_help_fixture(
     try:
         text = fixture_file.read_text(encoding="utf-8")
         return parse_help_flags(text)
-    except Exception as e:
+    except Exception:
         if raise_on_missing:
-            raise e
+            raise
         return set()

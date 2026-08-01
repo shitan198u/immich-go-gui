@@ -314,7 +314,7 @@ def test_secret_keyring_failure_fallback(tmp_path, monkeypatch):
 
 def test_collect_form_state_excludes_secrets(gui):
     state = gui.collect_form_state()
-    for tab_name, tab_dict in state.items():
+    for tab_dict in state.values():
         for secret_key in ("api_key", "from-api-key", "admin_api_key"):
             assert secret_key not in tab_dict
 

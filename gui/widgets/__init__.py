@@ -15,9 +15,9 @@ __all__ = [
     "DroppablePlainTextEdit",
     "ElidingLabel",
     "FormSection",
-    "spin_with_unit_label",
     "NavGroup",
     "NavItem",
     "StatusCard",
     "SwitchButton",
+    "spin_with_unit_label",
 ]

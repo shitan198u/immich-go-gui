@@ -53,6 +53,38 @@ markers = [
     "slow: tests that are slow to run",
 ]
 
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "PL", "RUF", "SIM", "DTZ", "PERF"]
+ignore = [
+    "BLE001",   # Allow generic Exception catching for Qt GUI fallbacks, OS keyring fallback, & teardown
+    "S110",     # Allow try-except-pass for non-critical OS feature detection & cleanup
+    "PLW0603",  # Allow cached global template in theme.py
+    "PLW2901",  # Allow reassignment of loop variables in line stripping loops
+    "PLR2004",  # Allow magic constants in comparisons/tests
+    "PLC0415",  # Allow lazy imports inside functions/tests
+    "E501",     # Line length handled by ruff format
+    "PLR0912",  # Allow branch counts in complex GUI builder methods
+    "PLR0913",  # Allow function argument count for build_plan_from_state & build_environment
+    "PLR0915",  # Allow statement counts in declarative Qt layout builders
+    "PLR0917",  # Allow positional argument counts
+    "PLR0911",  # Allow return statement counts in complex dispatch functions
+    "PLR1714",  # Allow explicit OR comparisons
+    "RUF001",   # Allow unicode icons (e.g. ℹ️) in UI banners
+    "RUF005",   # Allow list concatenation using +
+    "PLW0108",  # Allow explicit lambda slots in Qt signal connections
+    "SIM108",   # Allow explicit if-else blocks for UI paint layout calculation
+    "SIM105",   # Allow try-except-pass blocks
+    "SIM102",   # Allow nested if statements for readability
+    "PLR5501",  # Allow else-if constructs
+    "SIM910",   # Allow explicit dict.get default parameters
+    "PERF401",  # Allow explicit list appends
+    "PERF402",  # Allow explicit list copies
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "PLW1510", "PLR0911", "PLR1714", "RUF005", "RUF012", "RUF059", "SIM117", "E402", "SIM105"]
+"scripts/*" = ["E402", "PLW1510", "RUF005", "PERF401"]
+
 [tool.ty.src]
 # Type-check only `core/`. The Qt GUI mixins in `gui/` rely on runtime
 # composition (host attributes on `self`) that yields false positives under
