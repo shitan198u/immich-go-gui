@@ -9,6 +9,20 @@
       "bump-patch-for-minor-pre-major": false,
       "draft": false,
       "prerelease": false,
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "docs/README.md",
+          "match": "Docs track the application as of <strong>v[^<]+</strong>",
+          "replacement": "Docs track the application as of <strong>v${version}</strong>"
+        },
+        {
+          "type": "generic",
+          "path": "docs/developer-guide/ci-cd-and-releases.md",
+          "match": "Current version is defined in `pyproject.toml` \\(e\\.g\\. `[^`]+`\\)\\.",
+          "replacement": "Current version is defined in `pyproject.toml` (e.g. `${version}`)."
+        }
+      ],
       "changelog-sections": [
         { "type": "feat", "section": "🚀 Features & UI Completeness", "hidden": false },
         { "type": "fix", "section": "🐛 Bug Fixes & Discrepancy Resolution", "hidden": false },
