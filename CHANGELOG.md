@@ -5,6 +5,41 @@ All notable changes to the Immich-Go GUI project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0](https://github.com/shitan198u/immich-go-gui/compare/immich-go-gui-v1.2.0...immich-go-gui-v1.3.0) (2026-08-01)
+
+
+### 🚀 Features & UI Completeness
+
+* **ci:** tag-based version sync and PR automation ([#102](https://github.com/shitan198u/immich-go-gui/issues/102)) ([bce1b7a](https://github.com/shitan198u/immich-go-gui/commit/bce1b7a152901148660303ae35f6a4149b4a865b))
+* **docs:** dynamic GitHub stars/forks and daily docs cron ([#103](https://github.com/shitan198u/immich-go-gui/issues/103)) ([e670a03](https://github.com/shitan198u/immich-go-gui/commit/e670a03720a5a5cea8beb1c203ca89adaf532ea8))
+* slim config persistence, app updates, and Configuration UX ([#96](https://github.com/shitan198u/immich-go-gui/issues/96)) ([1c5b1c1](https://github.com/shitan198u/immich-go-gui/commit/1c5b1c148f77a89ae3b925f9a06f41836042dea3))
+
+
+### 🐛 Bug Fixes & Discrepancy Resolution
+
+* **ci:** make pyproject.toml single source of truth for version check ([d8034d0](https://github.com/shitan198u/immich-go-gui/commit/d8034d0194324763e8028c4822b2e410b21a35db))
+* **command_builder:** add safety warning for from-pause-immich-jobs without from-admin-api-key ([#101](https://github.com/shitan198u/immich-go-gui/issues/101)) ([c83241a](https://github.com/shitan198u/immich-go-gui/commit/c83241ad567ff009d8052921ffca5f107593f6df))
+* Ruff Formatting ([3358638](https://github.com/shitan198u/immich-go-gui/commit/33586383f49c60323e70f40b6f70c3f1f45b13ba))
+* **test:** isolate keyring operations and enforce XDG config dir in test suite ([#107](https://github.com/shitan198u/immich-go-gui/issues/107)) ([1378e4f](https://github.com/shitan198u/immich-go-gui/commit/1378e4fdda3ecb0ada42ebd499f022b2e497c02e))
+
+
+### ⚡ Performance & Safety
+
+* **test:** eliminate test suite bottlenecks and enable parallel pytest execution ([#109](https://github.com/shitan198u/immich-go-gui/issues/109)) ([0a26c37](https://github.com/shitan198u/immich-go-gui/commit/0a26c37a70f7dbdbd7e06da41013f54f668a19ca))
+
+
+### 📚 Documentation
+
+* **agents:** streamline AGENTS.md guide and enforce mandatory pre-commit verification ([323fc8f](https://github.com/shitan198u/immich-go-gui/commit/323fc8f1b8230b911ad8048f8487dbcd5907fac9))
+* port runbook palette, remove changelog page, and fix live github stats ([#106](https://github.com/shitan198u/immich-go-gui/issues/106)) ([a3c9844](https://github.com/shitan198u/immich-go-gui/commit/a3c98449281bf5b3fbdfee0f550bae5ed9d9eb46))
+* replace screenshots with immich-demo.webm video ([345d3d3](https://github.com/shitan198u/immich-go-gui/commit/345d3d3fa62d250478014e9321fabc14b23763f6))
+* replace video tag with trimmed full-resolution demo GIF ([d03cb1d](https://github.com/shitan198u/immich-go-gui/commit/d03cb1db8ffb73623795afa1cb50f0b382ef2ac1))
+
+
+### 🔧 Refactoring & Architecture
+
+* **app:** extract run_self_test and quality improvements ([#104](https://github.com/shitan198u/immich-go-gui/issues/104)) ([3d371d7](https://github.com/shitan198u/immich-go-gui/commit/3d371d7fc453852490705c50fd5bc0d637ebfc1d))
+
 ## [1.2.0](https://github.com/shitan198u/immich-go-gui/compare/immich-go-gui-v1.1.2...immich-go-gui-v1.2.0) (2026-07-29)
 
 
