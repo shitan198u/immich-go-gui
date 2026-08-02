@@ -5,6 +5,20 @@ All notable changes to the Immich-Go GUI project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0](https://github.com/shitan198u/immich-go-gui/compare/v1.3.0...v1.4.0) (2026-08-02)
+
+
+### 🚀 Features & UI Completeness
+
+* **ci:** streamline release workflows to bare v&lt;version&gt; tags ([#116](https://github.com/shitan198u/immich-go-gui/issues/116)) ([5447b7c](https://github.com/shitan198u/immich-go-gui/commit/5447b7c97c6afab2194289d10ed02af1d5107d40))
+* **ci:** upload release assets per-platform as builds finish ([#118](https://github.com/shitan198u/immich-go-gui/issues/118)) ([b5aeb60](https://github.com/shitan198u/immich-go-gui/commit/b5aeb601bedf5cea62eb0bdd77fd430b0e1b534f))
+
+
+### 🐛 Bug Fixes & Discrepancy Resolution
+
+* **ci:** fix release-please extra-files to use x-release-please-version markers ([#119](https://github.com/shitan198u/immich-go-gui/issues/119)) ([a7024ef](https://github.com/shitan198u/immich-go-gui/commit/a7024ef5e136c182d87a0f5dc5d7928bbf9164b2))
+* **ci:** update workflow tag triggers to match Release Please immich-go-gui-v* format ([#114](https://github.com/shitan198u/immich-go-gui/issues/114)) ([a9994c8](https://github.com/shitan198u/immich-go-gui/commit/a9994c8a6c30c1e71a9a8164575dd28c57788866))
+
 ## [1.3.0](https://github.com/shitan198u/immich-go-gui/compare/immich-go-gui-v1.2.0...immich-go-gui-v1.3.0) (2026-08-01)
 
 
