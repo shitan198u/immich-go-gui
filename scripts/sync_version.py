@@ -131,13 +131,13 @@ def main() -> int:
         ),
         (
             ROOT_DIR / "docs" / "README.md",
-            r"Docs track the application as of <strong>v[^<]+</strong>",
-            "Docs track the application as of <strong>v{version}</strong>",
+            r"Docs track the application as of <strong>v[^<]+<!-- x-release-please-version --></strong>",
+            "Docs track the application as of <strong>v{version}<!-- x-release-please-version --></strong>",
         ),
         (
             ROOT_DIR / "docs" / "developer-guide" / "ci-cd-and-releases.md",
-            r"Current version is defined in `pyproject.toml` \(e\.g\. `[^`]+`\)\.",
-            "Current version is defined in `pyproject.toml` (e.g. `{version}`).",
+            r"Current version is defined in `pyproject.toml` \(e\.g\. `[^`]+`<!-- x-release-please-version -->\)\.",
+            "Current version is defined in `pyproject.toml` (e.g. `{version}`<!-- x-release-please-version -->).",
         ),
         (
             ROOT_DIR / "docs" / "developer-guide" / "ci-cd-and-releases.md",

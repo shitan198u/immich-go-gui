@@ -32,7 +32,7 @@ When merging to `master`, Release Please opens a version bump PR. On merge, it c
 
 **Important:** Update `.github/.release-please-manifest.json` when performing manual version bumps so Release Please tracks the correct baseline.
 
-Current version is defined in `pyproject.toml` (e.g. `1.3.0`).
+Current version is defined in `pyproject.toml` (e.g. `1.3.0`<!-- x-release-please-version -->).
 
 ## Release Artifacts
 

@@ -314,5 +314,5 @@ flowchart TB
 
 <div class="version-banner">
   <strong>Version note:</strong>
-  <span>Docs track the application as of <strong>v1.3.0</strong>, tested with <strong>immich-go 0.32.0</strong>. If something in the UI disagrees with a page, prefer the running app and open an issue or PR.</span>
+  <span>Docs track the application as of <strong>v1.3.0<!-- x-release-please-version --></strong>, tested with <strong>immich-go 0.32.0</strong>. If something in the UI disagrees with a page, prefer the running app and open an issue or PR.</span>
 </div>
