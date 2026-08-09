@@ -121,6 +121,9 @@ class PersistenceMixin:
         self._mark_configuration_clean()
         self._mark_server_details_clean()
 
+        # Load monitor tab state if available
+        self._load_monitor_state()
+
     def _collect_server_snapshot(self) -> dict:
         config_inputs = self.inputs.get("config", {})
         return {
@@ -328,6 +331,183 @@ class PersistenceMixin:
         self._update_secret_status()
         self._mark_configuration_clean()
         self._mark_server_details_clean()
+
+        # Also save monitor tab state
+        self._save_monitor_state()
+
+    def _load_monitor_state(self) -> None:
+        """Load monitor tab state from saved config into the UI widgets."""
+        from core.monitor_config import MonitorConfigStore
+        from core.network_awareness import NetworkMonitor
+
+        monitor_data = MonitorConfigStore.load(
+            getattr(self.app_config, "profile_name", "default")
+        ).to_dict()
+        if hasattr(self, "monitor_config"):
+            self._watcher.stop()
+            self.monitor_config = MonitorConfigStore.load(
+                getattr(self.app_config, "profile_name", "default")
+            )
+            self._watcher.config = self.monitor_config
+            self._network_monitor = NetworkMonitor(
+                self.monitor_config.network_policy,
+                self.monitor_config.allowed_ssids,
+            )
+            self._configure_monitor_activation()
+
+        if not monitor_data:
+            return
+
+        monitor_inputs = self.inputs.get("monitor", {})
+        if "monitor_enabled" in monitor_data and "monitor_enabled" in monitor_inputs:
+            monitor_inputs["monitor_enabled"].setChecked(
+                monitor_data["monitor_enabled"]
+            )
+        if "minimize_to_tray" in monitor_data and "minimize_to_tray" in monitor_inputs:
+            monitor_inputs["minimize_to_tray"].setChecked(
+                monitor_data["minimize_to_tray"]
+            )
+        if (
+            "launch_on_startup" in monitor_data
+            and "launch_on_startup" in monitor_inputs
+        ):
+            monitor_inputs["launch_on_startup"].setChecked(
+                monitor_data["launch_on_startup"]
+            )
+
+        # Restore folder list
+        if hasattr(self, "folder_list"):
+            folders = monitor_data.get("folders", [])
+            self.folder_list.set_folders(folders)
+
+        # Restore schedule
+        if hasattr(self, "schedule_group"):
+            self.schedule_group.set_values(monitor_data)
+
+        # Restore options
+        monitor_inputs = self.inputs.get("monitor", {})
+        if "concurrency" in monitor_data and "concurrency" in monitor_inputs:
+            monitor_inputs["concurrency"].setValue(monitor_data["concurrency"])
+        if "days_back" in monitor_data and "days_back" in monitor_inputs:
+            monitor_inputs["days_back"].setValue(monitor_data["days_back"])
+        if "watcher_debounce_seconds" in monitor_data and "debounce" in monitor_inputs:
+            monitor_inputs["debounce"].setValue(
+                monitor_data["watcher_debounce_seconds"]
+            )
+        if (
+            "file_watcher_enabled" in monitor_data
+            and "file_watcher_enabled" in monitor_inputs
+        ):
+            monitor_inputs["file_watcher_enabled"].setChecked(
+                monitor_data["file_watcher_enabled"]
+            )
+
+        # Restore network policy
+        if "network_policy" in monitor_data and "network_policy" in monitor_inputs:
+            policy_map = {
+                0: "Always (any network)",
+                1: "No metered connections",
+                2: "Only specific Wi-Fi",
+            }
+            policy_val = monitor_data["network_policy"]
+            policy_text = {
+                "always": policy_map[0],
+                "no_metered": policy_map[1],
+                "ssid_only": policy_map[2],
+            }.get(policy_val, policy_map[0])
+            monitor_inputs["network_policy"].setCurrentText(policy_text)
+
+        if "allowed_ssids" in monitor_data and "allowed_ssids" in monitor_inputs:
+            ssids = monitor_data["allowed_ssids"]
+            if isinstance(ssids, list):
+                ssids = ", ".join(ssids)
+            monitor_inputs["allowed_ssids"].setText(ssids)
+
+        for key, state in monitor_data.get("advanced_state", {}).items():
+            row = getattr(self, "adv_rows", {}).get("upload-folder", {}).get(key)
+            if row is not None:
+                row.set_state(state)
+        if hasattr(self, "_refresh_watcher_status"):
+            self._refresh_watcher_status()
+
+    def _save_monitor_state(self) -> None:
+        """Save monitor tab state from the UI widgets to config."""
+        monitor_data = {}
+
+        # Folders
+        if hasattr(self, "folder_list"):
+            monitor_data["folders"] = self.folder_list.get_folders()
+
+        # Schedule
+        if hasattr(self, "schedule_group"):
+            monitor_data["schedule"] = self.schedule_group.get_values()
+
+        # Options
+        monitor_inputs = self.inputs.get("monitor", {})
+        if "concurrency" in monitor_inputs:
+            monitor_data["concurrency"] = monitor_inputs["concurrency"].value()
+        if "days_back" in monitor_inputs:
+            monitor_data["days_back"] = monitor_inputs["days_back"].value()
+        if "debounce" in monitor_inputs:
+            monitor_data["watcher_debounce_seconds"] = monitor_inputs[
+                "debounce"
+            ].value()
+        if "file_watcher_enabled" in monitor_inputs:
+            monitor_data["file_watcher_enabled"] = monitor_inputs[
+                "file_watcher_enabled"
+            ].isChecked()
+        if "monitor_enabled" in monitor_inputs:
+            monitor_data["monitor_enabled"] = monitor_inputs[
+                "monitor_enabled"
+            ].isChecked()
+        if "minimize_to_tray" in monitor_inputs:
+            monitor_data["minimize_to_tray"] = monitor_inputs[
+                "minimize_to_tray"
+            ].isChecked()
+        if "launch_on_startup" in monitor_inputs:
+            monitor_data["launch_on_startup"] = monitor_inputs[
+                "launch_on_startup"
+            ].isChecked()
+
+        # Network
+        if "network_policy" in monitor_inputs:
+            monitor_data["network_policy"] = {
+                "Always (any network)": "always",
+                "No metered connections": "no_metered",
+                "Only specific Wi-Fi": "ssid_only",
+            }.get(monitor_inputs["network_policy"].currentText(), "always")
+        if "allowed_ssids" in monitor_inputs:
+            ssids_text = monitor_inputs["allowed_ssids"].text().strip()
+            monitor_data["allowed_ssids"] = [
+                s.strip() for s in ssids_text.split(",") if s.strip()
+            ]
+
+        advanced_rows = getattr(self, "adv_rows", {}).get("upload-folder")
+        if advanced_rows is not None:
+            advanced_state = {}
+            for key, row in advanced_rows.items():
+                state = row.state()
+                if getattr(getattr(row, "def_", None), "secret_env", None):
+                    state = {"enabled": False, "value": ""}
+                advanced_state[key] = state
+            if hasattr(self, "monitor_config"):
+                self.monitor_config.advanced_state = advanced_state
+
+        # Merge with the active profile so UI-only saves do not erase monitor fields.
+        try:
+            from core.monitor_config import MonitorConfig, MonitorConfigStore
+
+            existing = MonitorConfigStore.load(
+                getattr(self.app_config, "profile_name", "default")
+            ).to_dict()
+            if advanced_rows is not None:
+                monitor_data["advanced_state"] = advanced_state
+            config = MonitorConfig.from_dict({**existing, **monitor_data})
+            MonitorConfigStore.save(
+                config, getattr(self.app_config, "profile_name", "default")
+            )
+        except (OSError, TypeError, ValueError):
+            pass
 
     def _probe_keyring(self) -> bool:
         """One-time check: can we actually talk to the keyring?"""

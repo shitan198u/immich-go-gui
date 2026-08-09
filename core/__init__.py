@@ -4,6 +4,11 @@ This package contains data models, CLI schemas, configuration persistence,
 binary management, and command building routines.
 """
 
+from .activity_monitor import (
+    ActivityMonitor,
+    ActivityState,
+    check_processes_running,
+)
 from .binary_manager import (
     BINARY_BASE_DIR,
     METADATA_PATH,
@@ -75,6 +80,19 @@ from .flag_registry import (
     FlagDef,
     Registry,
 )
+from .folder_runner import (
+    RunnerState,
+    count_pending_files,
+    run_folder_upload,
+)
+from .folder_runner import (
+    UploadResult as MonitorUploadResult,
+)
+from .folder_watcher import (
+    DebounceFileQueue,
+    FolderWatcher,
+    WatchedFolder,
+)
 from .models import (
     AppConfig,
     BinaryStatus,
@@ -84,7 +102,24 @@ from .models import (
     ValidationResult,
     VersionSupport,
 )
+from .monitor_config import (
+    ActivityConfig,
+    ActivityPauseMethod,
+    FolderFilter,
+    MonitorConfig,
+    MonitorConfigStore,
+    NetworkPolicy,
+)
+from .monitor_state import (
+    FolderUploadState,
+    MonitorState,
+    MonitorStateStore,
+)
 from .network import normalize_server_url
+from .network_awareness import (
+    NetworkMonitor,
+    NetworkStatus,
+)
 from .process_tracker import (
     RunLock,
     cleanup_stale_locks,
@@ -156,11 +191,34 @@ __all__ = [
     "get_secret_with_fallback",
     "load_config",
     "load_secrets",
+    "normalize_server_url",
     "save_config",
     "save_secret_with_fallback",
     "save_secrets",
     "save_server_url",
     "set_api_key",
+    # Monitor subsystem
+    "ActivityConfig",
+    "ActivityMonitor",
+    "ActivityPauseMethod",
+    "ActivityState",
+    "DebounceFileQueue",
+    "FolderFilter",
+    "FolderUploadState",
+    "FolderWatcher",
+    "MonitorConfig",
+    "MonitorConfigStore",
+    "MonitorState",
+    "MonitorStateStore",
+    "MonitorUploadResult",
+    "NetworkMonitor",
+    "NetworkPolicy",
+    "NetworkStatus",
+    "RunnerState",
+    "WatchedFolder",
+    "check_processes_running",
+    "count_pending_files",
+    "run_folder_upload",
     # binary_manager
     "BINARY_BASE_DIR",
     "METADATA_PATH",
@@ -180,7 +238,6 @@ __all__ = [
     "collect_paths",
     "collect_safety_warnings",
     "mask_command_for_display",
-    "normalize_server_url",
     "validate_date_range",
     "validate_state",
     "validate_state_light",

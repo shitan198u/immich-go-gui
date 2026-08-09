@@ -1,3 +1,6 @@
+import sys
+from pathlib import Path
+
 from PySide6.QtCore import QSettings, QTimer
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -35,12 +38,15 @@ from gui.mixins.form_helpers import FormHelpersMixin
 from gui.mixins.form_state import FormStateMixin
 from gui.mixins.layout import LayoutMixin
 from gui.mixins.menu import MenuMixin
+from gui.mixins.monitor_mixin import MonitorMixin
 from gui.mixins.persistence import PersistenceMixin
 from gui.mixins.profiles_ui import ProfilesUIMixin
 from gui.mixins.status import StatusMixin
 from gui.mixins.theme_mixin import ThemeMixin
 from gui.tabs.config_tab import build_config_tab
+from gui.tabs.monitor_tab import build_monitor_tab
 from gui.tabs.stack_tab import build_stack_tab
+from gui.tray import TrayManager
 from theme import (
     THEME_SYSTEM,
     apply_application_theme,
@@ -67,14 +73,8 @@ class ImmichGoGUI(
     ConnectionMixin,
     DiagnosticsMixin,
     BrowseDialogsMixin,
+    MonitorMixin,
 ):
-    TAB_KEYS = [
-        "config",
-        "upload",
-        "archive",
-        "stack",
-    ]
-
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Immich Go GUI")
@@ -130,11 +130,13 @@ class ImmichGoGUI(
         self.upload_page = self._build_upload_page()
         self.archive_page = self._build_archive_page()
         self.stack_tab = build_stack_tab(self)
+        self.monitor_tab = build_monitor_tab(self)
 
         self.stacked_widget.addWidget(self.config_tab)
         self.stacked_widget.addWidget(self.upload_page)
         self.stacked_widget.addWidget(self.archive_page)
         self.stacked_widget.addWidget(self.stack_tab)
+        self.stacked_widget.addWidget(self.monitor_tab)
 
         self.stacked_widget.setCurrentIndex(0)
         self.update_header_crumb("configuration")
@@ -191,6 +193,62 @@ class ImmichGoGUI(
 
         self.update_status()
 
+        # Initialize the monitor subsystem
+        self.init_monitor()
+        self.tray_manager = TrayManager(
+            self,
+            str(Path(__file__).resolve().parent.parent / "immich-go-gui.ico"),
+        )
+        self.tray_manager.set_minimize_to_tray(
+            self.monitor_config.monitor_enabled and self.monitor_config.minimize_to_tray
+        )
+        self.monitor_enabled_check.toggled.connect(self._on_monitor_enabled_toggled)
+        self.minimize_to_tray_check.toggled.connect(self._on_minimize_to_tray_toggled)
+        self.launch_on_startup_check.toggled.connect(self._set_launch_on_startup)
+        self._set_launch_on_startup(self.launch_on_startup_check.isChecked())
+        if self.monitor_config.monitor_enabled and self.monitor_config.start_minimized:
+            self.hide()
+
+    def _on_monitor_enabled_toggled(self, enabled: bool) -> None:
+        self.set_monitor_enabled(enabled)
+        self.tray_manager.set_minimize_to_tray(
+            enabled and self.minimize_to_tray_check.isChecked()
+        )
+
+    def _on_minimize_to_tray_toggled(self, enabled: bool) -> None:
+        self.monitor_config.minimize_to_tray = enabled
+        self.tray_manager.set_minimize_to_tray(
+            self.monitor_config.monitor_enabled and enabled
+        )
+        self._save_monitor_config()
+        self._save_monitor_state()
+
+    def _set_launch_on_startup(self, enabled: bool) -> None:
+        """Register or remove this application from Windows startup."""
+        if sys.platform != "win32":
+            return
+        try:
+            import winreg
+
+            run_key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+            app_path = Path(__file__).resolve().parent.parent / "app.py"
+            command = f'"{sys.executable}" "{app_path}"'
+            with winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                run_key_path,
+                0,
+                winreg.KEY_SET_VALUE,
+            ) as run_key:
+                if enabled:
+                    winreg.SetValueEx(run_key, "ImmichGoGUI", 0, winreg.REG_SZ, command)
+                else:
+                    try:
+                        winreg.DeleteValue(run_key, "ImmichGoGUI")
+                    except FileNotFoundError:
+                        pass
+        except OSError as exc:
+            self.log.warning("Unable to configure Windows startup: %s", exc)
+
     def build_environment(self, tab_key: str = None) -> dict:
         if tab_key is None:
             tab_key = self._get_active_tab_key()
@@ -243,7 +301,22 @@ class ImmichGoGUI(
         self._check_lock_file()
 
     def closeEvent(self, event):
+        if (
+            not getattr(self, "_force_close", False)
+            and hasattr(self, "tray_manager")
+            and self.monitor_config.monitor_enabled
+            and self.minimize_to_tray_check.isChecked()
+        ):
+            self.tray_manager.handle_close(event)
+            return
+
         if getattr(self, "_force_close", False):
+            # Shutdown monitor subsystem
+            if hasattr(self, "shutdown_monitor"):
+                try:
+                    self.shutdown_monitor()
+                except Exception:
+                    pass
             if hasattr(self, "log"):
                 self.log.info("GUI closed")
             event.accept()

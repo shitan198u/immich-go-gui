@@ -283,8 +283,8 @@ def load_config(path: Path | None = None, profile_name: str | None = None) -> Ap
             )
         cfg.schema_version = 3
         migrated = True
-    else:
-        cfg.form_state = data.get("form_state", {})
+    # ``form_state`` is session-only and is intentionally never loaded from
+    # schema-v3 configuration files.
 
     if migrated:
         _log.info(

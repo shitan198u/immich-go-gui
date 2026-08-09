@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFrame,
@@ -35,11 +37,11 @@ _UPLOAD_TAB_KEYS = (
     "upload-immich",
 )
 _UPLOAD_CRUMBS = (
-    "upload · from-folder",
-    "upload · from-google-photos",
-    "upload · from-icloud",
-    "upload · from-picasa",
-    "upload · from-immich",
+    "upload \u00b7 from-folder",
+    "upload \u00b7 from-google-photos",
+    "upload \u00b7 from-icloud",
+    "upload \u00b7 from-picasa",
+    "upload \u00b7 from-immich",
 )
 _ARCHIVE_TAB_KEYS = (
     "archive-folder",
@@ -49,15 +51,23 @@ _ARCHIVE_TAB_KEYS = (
     "archive-immich",
 )
 _ARCHIVE_CRUMBS = (
-    "archive · from-folder",
-    "archive · from-google-photos",
-    "archive · from-icloud",
-    "archive · from-picasa",
-    "archive · from-immich",
+    "archive \u00b7 from-folder",
+    "archive \u00b7 from-google-photos",
+    "archive \u00b7 from-icloud",
+    "archive \u00b7 from-picasa",
+    "archive \u00b7 from-immich",
 )
 
 
 class LayoutMixin:
+    TAB_KEYS: ClassVar[list[str]] = [
+        "config",
+        "upload",
+        "archive",
+        "stack",
+        "monitor",
+    ]
+
     def _get_active_tab_key(self) -> str:
         idx = self.stacked_widget.currentIndex()
         if idx == 0:
@@ -70,6 +80,8 @@ class LayoutMixin:
             return _ARCHIVE_TAB_KEYS[min(a, len(_ARCHIVE_TAB_KEYS) - 1)]
         if idx == 3:
             return "stack"
+        if idx == 4:
+            return "monitor"
         return "config"
 
     def _build_upload_page(self):
@@ -160,6 +172,13 @@ class LayoutMixin:
         )
         sidebar_layout.addWidget(NavGroup("ORGANIZE", [self.btn_stack]))
 
+        self.btn_monitor = NavItem("Monitor", None)
+        self.btn_monitor.icon_name = "sync"
+        self.btn_monitor.clicked.connect(
+            lambda: self.switch_tab(4, "monitor", self.btn_monitor)
+        )
+        sidebar_layout.addWidget(NavGroup("BACKUP", [self.btn_monitor]))
+
         sidebar_layout.addStretch()
 
         self.status_card = StatusCard()
@@ -216,7 +235,7 @@ class LayoutMixin:
         footer_layout.setContentsMargins(24, 0, 24, 0)
 
         self.lbl_running_warning = QLabel(
-            "⚠️ Immich-Go is currently running in a terminal. "
+            "\u26a0\ufe0f Immich-Go is currently running in a terminal. "
             "Close the terminal to run another command."
         )
         self.lbl_running_warning.setObjectName("RunningWarning")
@@ -265,11 +284,19 @@ class LayoutMixin:
         elif index == 2 and hasattr(self, "archive_tabs"):
             a = self.archive_tabs.currentIndex()
             crumb = _ARCHIVE_CRUMBS[min(a, len(_ARCHIVE_CRUMBS) - 1)]
+        elif index == 4:
+            crumb = "monitor"
         self.update_header_crumb(crumb)
-        for w in (self.btn_config, self.btn_upload, self.btn_archive, self.btn_stack):
+        for w in (
+            self.btn_config,
+            self.btn_upload,
+            self.btn_archive,
+            self.btn_stack,
+            self.btn_monitor,
+        ):
             w.setChecked(False)
         btn.setChecked(True)
-        self.footer.setVisible(index != 0)
+        self.footer.setVisible(index not in (0, 4))
         tab_key = self._get_active_tab_key()
         if tab_key in self.inputs and "target-server" in self.inputs[tab_key]:
             srv_edit = self.inputs.get("config", {}).get("server")
