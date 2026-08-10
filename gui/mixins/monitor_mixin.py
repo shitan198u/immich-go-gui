@@ -6,12 +6,13 @@ folder runner, and scheduler into a cohesive backup subsystem.
 
 import os
 import threading
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
 from core.config_manager import get_secret_with_fallback
+from core.folder_filters import is_within_folder
 from core.folder_runner import (
     RunnerState,
     UploadResult,
@@ -19,7 +20,7 @@ from core.folder_runner import (
     run_folder_upload,
 )
 from core.folder_watcher import FolderWatcher
-from core.monitor_config import MonitorConfig, MonitorConfigStore, NetworkPolicy
+from core.monitor_config import MonitorConfig, MonitorConfigStore
 from core.monitor_state import MonitorState, MonitorStateStore
 from core.network_awareness import NetworkMonitor, NetworkStatus
 
@@ -45,13 +46,11 @@ class MonitorMixin:
     def init_monitor(self) -> None:
         """Initialize the monitoring subsystem."""
         self.monitor_config = self._load_monitor_config()
-        self.monitor_state = MonitorStateStore.load()
+        self.monitor_state = MonitorStateStore.load(self._monitor_profile_name())
         self._monitor_runner_state = RunnerState()
         self._monitor_signals = MonitorSignals()
         self._monitor_thread: threading.Thread | None = None
-        self._monitor_semaphore = threading.Semaphore(
-            self.monitor_config.max_parallel_folders
-        )
+        self._state_lock = threading.Lock()
         self._auto_pause_reason: str | None = None
 
         # Watcher
@@ -104,17 +103,18 @@ class MonitorMixin:
         # Start
         self._configure_monitor_activation()
 
+    def _monitor_profile_name(self) -> str:
+        """Active profile name used for monitor config/state persistence."""
+        app_config = getattr(self, "app_config", None)
+        return getattr(app_config, "profile_name", "default")
+
     def _load_monitor_config(self) -> MonitorConfig:
         """Load monitor config from saved state or defaults."""
-        return MonitorConfigStore.load(
-            getattr(self.app_config, "profile_name", "default")
-        )
+        return MonitorConfigStore.load(self._monitor_profile_name())
 
     def _save_monitor_config(self) -> None:
         """Persist monitor config."""
-        MonitorConfigStore.save(
-            self.monitor_config, getattr(self.app_config, "profile_name", "default")
-        )
+        MonitorConfigStore.save(self.monitor_config, self._monitor_profile_name())
 
     def _start_watcher(self) -> None:
         """Start the file watcher if enabled."""
@@ -184,15 +184,19 @@ class MonitorMixin:
     def set_monitor_enabled(self, enabled: bool) -> None:
         """Enable or disable scheduled/background monitoring."""
         self.monitor_config.monitor_enabled = enabled
-        self._save_monitor_config()
         if hasattr(self, "_save_monitor_state"):
             self._save_monitor_state()
+        else:
+            self._save_monitor_config()
         self._configure_monitor_activation()
 
     def _start_network_monitor(self) -> None:
-        """Start network monitoring."""
-        if self.monitor_config.network_policy != NetworkPolicy.ALWAYS:
-            self._network_timer.start()
+        """Start network monitoring.
+
+        Runs for every policy: even ALWAYS needs offline detection, since
+        check_status reports BLOCKED_OFFLINE regardless of policy.
+        """
+        self._network_timer.start()
 
     # ── Watcher Callback ───────────────────────────────────
 
@@ -219,17 +223,19 @@ class MonitorMixin:
 
         by_folder: defaultdict[str, list[str]] = defaultdict(list)
         for f in files:
-            # Find which watched folder this file belongs to
+            # Find which watched folder this file belongs to (boundary-safe:
+            # "photos_backup" must not match a watch on "photos").
             for wf in self.monitor_config.folders:
                 resolved = str(Path(wf).resolve())
-                if f.startswith(resolved):
+                if is_within_folder(resolved, f):
                     by_folder[resolved].append(f)
                     break
 
-        for folder, folder_files in by_folder.items():
-            folder_state = self.monitor_state.get_folder_state(folder)
-            folder_state.pending_files.extend(folder_files)
-        MonitorStateStore.save(self.monitor_state)
+        with self._state_lock:
+            for folder, folder_files in by_folder.items():
+                folder_state = self.monitor_state.get_folder_state(folder)
+                folder_state.pending_files.extend(folder_files)
+            MonitorStateStore.save(self.monitor_state, self._monitor_profile_name())
 
         # The debounce callback runs on threading.Timer's worker thread.
         # Request the run through a Qt signal so _start_run executes on the
@@ -239,7 +245,12 @@ class MonitorMixin:
     # ── Scheduler ──────────────────────────────────────────
 
     def _on_scheduler_tick(self) -> None:
-        """Check if a scheduled run is due."""
+        """Check if a scheduled run is due.
+
+        Computes the most recent past occurrence of each schedule and
+        compares it against a persisted "last handled" marker so that every
+        occurrence fires exactly once, even across restarts.
+        """
         if self._monitor_runner_state.running:
             return
         if self._auto_pause_reason:
@@ -248,78 +259,109 @@ class MonitorMixin:
         now = datetime.now(UTC)
         cfg = self.monitor_config
 
-        # Weekly
+        # Weekly = incremental scan
         if cfg.scheduled_weekly_enabled:
-            next_weekly = self._next_weekly_time(now)
-            if now >= next_weekly:
+            occurrence = self._previous_weekly_time(now)
+            if self._is_due("weekly", occurrence):
+                self._mark_triggered("weekly", occurrence)
                 self._start_run(full_rescan=False, trigger="weekly")
 
-        # Monthly
+        # Monthly = full rescan
         if cfg.scheduled_monthly_enabled:
-            next_monthly = self._next_monthly_time(now)
-            if now >= next_monthly:
+            occurrence = self._previous_monthly_time(now)
+            if self._is_due("monthly", occurrence):
+                self._mark_triggered("monthly", occurrence)
                 self._start_run(full_rescan=True, trigger="monthly")
 
-    def _next_weekly_time(self, from_dt: datetime) -> datetime:
-        """Compute next weekly scheduled time."""
+    def _is_due(self, kind: str, occurrence: datetime) -> bool:
+        """Return True if this occurrence has not been handled yet."""
+        marker = (
+            self.monitor_state.last_weekly_handled_utc
+            if kind == "weekly"
+            else self.monitor_state.last_monthly_handled_utc
+        )
+        if not marker:
+            return True
+        try:
+            last_handled = datetime.fromisoformat(marker)
+        except (TypeError, ValueError):
+            return True
+        return occurrence > last_handled
+
+    def _mark_triggered(self, kind: str, occurrence: datetime) -> None:
+        """Persist that this occurrence has been handled."""
+        stamp = occurrence.isoformat()
+        with self._state_lock:
+            if kind == "weekly":
+                self.monitor_state.last_weekly_handled_utc = stamp
+            else:
+                self.monitor_state.last_monthly_handled_utc = stamp
+            MonitorStateStore.save(self.monitor_state, self._monitor_profile_name())
+
+    def _previous_weekly_time(self, from_dt: datetime) -> datetime:
+        """Most recent past occurrence of the weekly schedule (local time)."""
         cfg = self.monitor_config
-        target_day = cfg.weekly_day
-        target_hour = cfg.weekly_hour
-        target_minute = cfg.weekly_minute
-        days_ahead = target_day - from_dt.weekday()
+        local = from_dt.astimezone()
+        days_back = local.weekday() - cfg.weekly_day
+        if days_back < 0:
+            days_back += 7
+        candidate = (local - timedelta(days=days_back)).replace(
+            hour=cfg.weekly_hour, minute=cfg.weekly_minute, second=0, microsecond=0
+        )
+        if candidate > local:
+            candidate -= timedelta(days=7)
+        return candidate
+
+    def _previous_monthly_time(self, from_dt: datetime) -> datetime:
+        """Most recent past occurrence of the monthly schedule (local time)."""
+        cfg = self.monitor_config
+        local = from_dt.astimezone()
+        target_day = max(1, min(cfg.monthly_rescan_day, 28))
+        candidate = local.replace(
+            day=target_day,
+            hour=cfg.monthly_rescan_hour,
+            minute=cfg.monthly_rescan_minute,
+            second=0,
+            microsecond=0,
+        )
+        if candidate > local:
+            if local.month == 1:
+                candidate = candidate.replace(year=local.year - 1, month=12)
+            else:
+                candidate = candidate.replace(month=local.month - 1)
+        return candidate
+
+    def _next_weekly_time(self, from_dt: datetime) -> datetime:
+        """Compute next weekly scheduled time (local wall-clock)."""
+        cfg = self.monitor_config
+        local = from_dt.astimezone()
+        days_ahead = cfg.weekly_day - local.weekday()
         if days_ahead < 0:
             days_ahead += 7
-        from datetime import timedelta
-
-        candidate = (from_dt + timedelta(days=days_ahead)).replace(
-            hour=target_hour, minute=target_minute, second=0, microsecond=0
+        candidate = (local + timedelta(days=days_ahead)).replace(
+            hour=cfg.weekly_hour, minute=cfg.weekly_minute, second=0, microsecond=0
         )
-        if candidate <= from_dt:
+        if candidate <= local:
             candidate += timedelta(days=7)
         return candidate
 
     def _next_monthly_time(self, from_dt: datetime) -> datetime:
-        """Compute next monthly scheduled time."""
-        from datetime import timedelta
-
+        """Compute next monthly scheduled time (local wall-clock)."""
         cfg = self.monitor_config
+        local = from_dt.astimezone()
         target_day = max(1, min(cfg.monthly_rescan_day, 28))
-        target_hour = cfg.monthly_rescan_hour
-        target_minute = cfg.monthly_rescan_minute
-
-        # This month
-        try:
-            candidate = from_dt.replace(
-                day=target_day,
-                hour=target_hour,
-                minute=target_minute,
-                second=0,
-                microsecond=0,
-            )
-        except ValueError:
-            candidate = from_dt.replace(day=28) + timedelta(days=4)
-
-        if candidate <= from_dt:
-            # Next month
-            if from_dt.month == 12:
-                candidate = from_dt.replace(
-                    year=from_dt.year + 1,
-                    month=1,
-                    day=min(target_day, 31),
-                    hour=target_hour,
-                    minute=target_minute,
-                    second=0,
-                    microsecond=0,
-                )
+        candidate = local.replace(
+            day=target_day,
+            hour=cfg.monthly_rescan_hour,
+            minute=cfg.monthly_rescan_minute,
+            second=0,
+            microsecond=0,
+        )
+        if candidate <= local:
+            if local.month == 12:
+                candidate = candidate.replace(year=local.year + 1, month=1)
             else:
-                candidate = from_dt.replace(
-                    month=from_dt.month + 1,
-                    day=min(target_day, 28),
-                    hour=target_hour,
-                    minute=target_minute,
-                    second=0,
-                    microsecond=0,
-                )
+                candidate = candidate.replace(month=local.month + 1)
         return candidate
 
     # ── Network ────────────────────────────────────────────
@@ -353,7 +395,7 @@ class MonitorMixin:
             folders = self.folder_list.get_folders()
             # Pick up a path typed into the input box but not yet "Add"ed so
             # Run Now doesn't falsely report "no folders configured".
-            pending = self.folder_list._folder_input.text().strip()
+            pending = self.folder_list.pending_text()
             if pending and pending not in folders:
                 folders.append(pending)
             self.monitor_config.folders = folders
@@ -462,27 +504,20 @@ class MonitorMixin:
         if hasattr(self, "btn_monitor_full"):
             self.btn_monitor_full.setEnabled(False)
 
+        # Resolve credentials on the GUI thread — Qt widgets must never be
+        # read from the worker thread.
+        server_url, api_key = self._resolve_monitor_credentials()
+
         # Run in thread
         self._monitor_thread = threading.Thread(
             target=self._run_all_folders,
-            args=(folders, full_rescan, trigger),
+            args=(folders, full_rescan, trigger, server_url, api_key),
             daemon=True,
         )
         self._monitor_thread.start()
 
-    def _run_all_folders(
-        self, folders: list[str], full_rescan: bool, trigger: str
-    ) -> None:
-        """Thread target: upload all folders with parallelism."""
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-
-        state = self.monitor_state
-        cfg = self.monitor_config
-        rs = self._monitor_runner_state
-        state.last_run_started_utc = datetime.now(UTC).isoformat()
-        MonitorStateStore.save(state)
-
-        # Resolve secrets from the config tab UI
+    def _resolve_monitor_credentials(self) -> tuple[str, str]:
+        """Resolve (server_url, api_key) from the config UI, with stored fallbacks."""
         server_url = ""
         api_key = ""
         config_inputs = self.inputs.get("config", {})
@@ -497,109 +532,145 @@ class MonitorMixin:
             server_url = self.app_config.server_url or ""
         if not api_key and hasattr(self, "app_config"):
             api_key = get_secret_with_fallback(
-                profile_name=getattr(self.app_config, "profile_name", "default"),
+                profile_name=self._monitor_profile_name(),
                 key="api_key",
                 provider=self.app_config.secrets_provider,
             )
+        return server_url, api_key
 
-        from core.config_manager import default_config_dir
+    def _run_all_folders(
+        self,
+        folders: list[str],
+        full_rescan: bool,
+        trigger: str,
+        server_url: str,
+        api_key: str,
+    ) -> None:
+        """Thread target: upload all folders with parallelism."""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        log_dir = cfg.log_dir or os.path.join(str(default_config_dir()), "logs")
+        state = self.monitor_state
+        cfg = self.monitor_config
+        rs = self._monitor_runner_state
+        profile = self._monitor_profile_name()
 
-        total_uploaded = 0
-        total_skipped = 0
-        total_failed_folders = 0
-        completed = 0
+        try:
+            with self._state_lock:
+                state.last_run_started_utc = datetime.now(UTC).isoformat()
+                MonitorStateStore.save(state, profile)
 
-        max_workers = max(1, min(cfg.max_parallel_folders, len(folders)))
+            from core.config_manager import default_config_dir
 
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {}
-            for folder in folders:
-                future = executor.submit(
-                    self._run_single_folder,
-                    folder,
-                    cfg,
-                    server_url,
-                    api_key,
-                    full_rescan,
-                    log_dir,
-                    state,
-                    rs,
-                )
-                futures[future] = folder
+            log_dir = cfg.log_dir or os.path.join(str(default_config_dir()), "logs")
 
-            for future in as_completed(futures):
-                folder = futures[future]
-                try:
-                    result: UploadResult = future.result()
-                except Exception as exc:
-                    result = UploadResult(
-                        folder=folder, success=False, message=f"Exception: {exc}"
+            total_uploaded = 0
+            total_skipped = 0
+            total_failed_folders = 0
+            completed = 0
+
+            max_workers = max(1, min(cfg.max_parallel_folders, len(folders)))
+            skip_ssl = bool(getattr(self.app_config, "skip_ssl", False))
+            client_timeout = int(getattr(self.app_config, "client_timeout_minutes", 60))
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = {}
+                for folder in folders:
+                    future = executor.submit(
+                        self._run_single_folder,
+                        folder,
+                        cfg,
+                        server_url,
+                        api_key,
+                        full_rescan,
+                        log_dir,
+                        state,
+                        rs,
+                        skip_ssl,
+                        client_timeout,
+                    )
+                    futures[future] = folder
+
+                for future in as_completed(futures):
+                    folder = futures[future]
+                    try:
+                        result: UploadResult = future.result()
+                    except Exception as exc:
+                        result = UploadResult(
+                            folder=folder, success=False, message=f"Exception: {exc}"
+                        )
+
+                    completed += 1
+                    rs.completed_folders = completed
+
+                    with self._state_lock:
+                        if result.success:
+                            folder_state = state.get_folder_state(folder)
+                            folder_state.last_success_utc = datetime.now(
+                                UTC
+                            ).isoformat()
+                            folder_state.retry_count = 0
+                            folder_state.last_error = None
+                            folder_state.pending_files.clear()
+                            total_uploaded += result.files_uploaded
+                            total_skipped += result.files_skipped
+                        else:
+                            total_failed_folders += 1
+                            folder_state = state.get_folder_state(folder)
+                            folder_state.retry_count += 1
+                            folder_state.last_error = result.message
+
+                        MonitorStateStore.save(state, profile)
+
+                    self._monitor_signals.progress_update.emit(
+                        os.path.basename(folder) or folder,
+                        completed,
+                        len(folders),
+                        rs.current_file,
+                        result.files_uploaded,
+                        result.files_skipped,
+                        result.files_errored,
                     )
 
-                completed += 1
-                rs.completed_folders = completed
+                    self._monitor_signals.log_entry.emit(
+                        os.path.basename(folder) or folder,
+                        f"Folder complete: {result.message} "
+                        f"({result.duration_seconds:.1f}s)",
+                        "success" if result.success else "error",
+                    )
 
-                if result.success:
-                    folder_state = state.get_folder_state(folder)
-                    folder_state.last_success_utc = datetime.now(UTC).isoformat()
-                    folder_state.retry_count = 0
-                    folder_state.last_error = None
-                    folder_state.pending_files.clear()
-                    total_uploaded += result.files_uploaded
-                    total_skipped += result.files_skipped
+                    # Check cancel
+                    if rs.cancel_event.is_set():
+                        break
+
+            # Complete
+            with self._state_lock:
+                state.last_run_finished_utc = datetime.now(UTC).isoformat()
+                if rs.cancel_event.is_set() and completed < len(folders):
+                    state.last_run_result = "cancelled"
+                elif total_failed_folders == 0:
+                    state.last_run_result = "success"
+                elif completed > total_failed_folders:
+                    state.last_run_result = "partial"
                 else:
-                    total_failed_folders += 1
-                    folder_state = state.get_folder_state(folder)
-                    folder_state.retry_count += 1
-                    folder_state.last_error = result.message
+                    state.last_run_result = "failure"
+                MonitorStateStore.save(state, profile)
 
-                MonitorStateStore.save(state)
-
-                self._monitor_signals.progress_update.emit(
-                    os.path.basename(folder) or folder,
-                    completed,
-                    len(folders),
-                    rs.current_file,
-                    result.files_uploaded,
-                    result.files_skipped,
-                    result.files_errored,
-                )
-
-                self._monitor_signals.log_entry.emit(
-                    os.path.basename(folder) or folder,
-                    f"Folder complete: {result.message} "
-                    f"({result.duration_seconds:.1f}s)",
-                    "success" if result.success else "error",
-                )
-
-                # Check cancel
-                if rs.cancel_event.is_set():
-                    break
-
-        # Complete
-        rs.running = False
-        rs.current_file = ""
-        rs.current_folder = ""
-        state.last_run_finished_utc = datetime.now(UTC).isoformat()
-        if rs.cancel_event.is_set() and completed < len(folders):
-            state.last_run_result = "cancelled"
-        elif total_failed_folders == 0:
-            state.last_run_result = "success"
-        elif completed > total_failed_folders:
-            state.last_run_result = "partial"
-        else:
-            state.last_run_result = "failure"
-        MonitorStateStore.save(state)
-
-        self._monitor_signals.state_changed.emit("complete")
-        self._monitor_signals.log_entry.emit(
-            "",
-            f"Run complete: {total_uploaded} uploaded, {total_skipped} skipped, "
-            f"{total_failed_folders} folders failed",
-            "summary",
-        )
+            self._monitor_signals.state_changed.emit("complete")
+            self._monitor_signals.log_entry.emit(
+                "",
+                f"Run complete: {total_uploaded} uploaded, {total_skipped} skipped, "
+                f"{total_failed_folders} folders failed",
+                "summary",
+            )
+        except Exception as exc:
+            # Never leave rs.running stuck True: any worker-thread failure
+            # must release the run lock so future runs can start.
+            self._monitor_signals.log_entry.emit("", f"Run aborted: {exc}", "error")
+            self._monitor_signals.state_changed.emit("complete")
+        finally:
+            rs.running = False
+            rs.current_file = ""
+            rs.current_folder = ""
 
     def _run_single_folder(
         self,
@@ -611,10 +682,10 @@ class MonitorMixin:
         log_dir: str,
         state: MonitorState,
         rs: RunnerState,
+        skip_ssl: bool = False,
+        client_timeout_minutes: int = 60,
     ) -> UploadResult:
         """Run upload for a single folder."""
-        from datetime import timedelta
-
         folder_state = state.get_folder_state(folder)
 
         if full_rescan:
@@ -647,8 +718,12 @@ class MonitorMixin:
             since_utc=since,
             log_dir=log_dir,
             state=rs,
-            on_log=lambda fk, msg: self._on_monitor_log(fk, msg, "info"),
+            on_log=lambda fk, msg: self._monitor_signals.log_entry.emit(
+                fk, msg, "info"
+            ),
             advanced_state=advanced_state,
+            skip_ssl=skip_ssl,
+            client_timeout_minutes=client_timeout_minutes,
         )
 
     # ── Signal Handlers ────────────────────────────────────
@@ -721,4 +796,5 @@ class MonitorMixin:
             self._monitor_thread.join(timeout=10)
         if hasattr(self, "tray_manager"):
             self.tray_manager.shutdown()
-        MonitorStateStore.save(self.monitor_state)
+        with self._state_lock:
+            MonitorStateStore.save(self.monitor_state, self._monitor_profile_name())
