@@ -119,7 +119,15 @@ class FormHelpersMixin:
         if folder:
             line_edit.setText(folder)
 
-    def _build_advanced_flags_card(self, tab_key: str):
+    def _build_advanced_flags_card(self, tab_key: str, schema_key: str | None = None):
+        """Build an advanced-flags card.
+
+        Args:
+            tab_key: Storage key for ``adv_rows`` (also the default schema).
+            schema_key: Optional different schema to source flag definitions
+                from (e.g. the Monitor tab reuses "upload-folder" flags but
+                stores rows under its own key).
+        """
         card = Card("Advanced Flags")
         form = FormSection()
 
@@ -135,7 +143,7 @@ class FormHelpersMixin:
             self.adv_rows = {}
         self.adv_rows[tab_key] = {}
 
-        for def_ in ADVANCED_FLAGS.get(tab_key, ()):
+        for def_ in ADVANCED_FLAGS.get(schema_key or tab_key, ()):
             row = AdvancedFlagRow(def_)
             row.enable.toggled.connect(lambda _, r=row: self._schedule_status_update())
             if hasattr(row.value_widget, "textChanged"):

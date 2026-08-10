@@ -35,12 +35,11 @@ class ActivityFeed(QFrame):
         super().__init__(parent)
         self.setObjectName("ActivityFeed")
 
-        self._entries: list[ActivityEntry] = []
         self._pending: list[ActivityEntry] = []
         self._flush_timer = QTimer(self)
+        self._flush_timer.setSingleShot(True)
         self._flush_timer.setInterval(100)
         self._flush_timer.timeout.connect(self._flush)
-        self._flush_timer.start()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -74,6 +73,8 @@ class ActivityFeed(QFrame):
     def add_entry(self, folder: str, message: str, level: str = "info") -> None:
         """Queue an entry to be appended to the feed."""
         self._pending.append(ActivityEntry(folder, message, level))
+        if not self._flush_timer.isActive():
+            self._flush_timer.start()
 
     def _flush(self) -> None:
         """Flush pending entries to the text widget (batched for performance)."""
@@ -82,11 +83,6 @@ class ActivityFeed(QFrame):
 
         entries = self._pending
         self._pending = []
-        self._entries.extend(entries)
-
-        # Trim old entries
-        if len(self._entries) > self.max_entries:
-            self._entries = self._entries[-self.max_entries :]
 
         cursor = self._text.textCursor()
         cursor.movePosition(QTextCursor.MoveOperation.End)
@@ -122,7 +118,6 @@ class ActivityFeed(QFrame):
 
     def clear(self) -> None:
         """Clear all entries."""
-        self._entries.clear()
         self._pending.clear()
         self._text.clear()
 
@@ -133,9 +128,6 @@ class ProgressCard(QFrame):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("ProgressCard")
-        self.setStyleSheet(
-            "ProgressCard { background: #1e293b; border-radius: 8px; padding: 12px; }"
-        )
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 12, 16, 12)

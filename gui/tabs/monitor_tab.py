@@ -26,6 +26,14 @@ from PySide6.QtWidgets import (
 
 from gui.widgets.activity_feed import ActivityFeed, ProgressCard
 
+# (config value, display label) pairs for the network policy combo.
+# Defined once so load/save never match on display text.
+NETWORK_POLICY_OPTIONS = [
+    ("always", "Always (any network)"),
+    ("no_metered", "No metered connections"),
+    ("ssid_only", "Only specific Wi-Fi"),
+]
+
 
 class FolderListWidget(QFrame):
     """Widget for managing the list of watched folders."""
@@ -49,13 +57,13 @@ class FolderListWidget(QFrame):
         )
         add_row.addWidget(self._folder_input)
 
-        btn_browse = QPushButton("Browse...")
-        btn_browse.clicked.connect(self._browse_folder)
-        add_row.addWidget(btn_browse)
+        self._btn_browse = QPushButton("Browse...")
+        self._btn_browse.clicked.connect(self._browse_folder)
+        add_row.addWidget(self._btn_browse)
 
-        btn_add = QPushButton("Add")
-        btn_add.clicked.connect(self._add_current)
-        add_row.addWidget(btn_add)
+        self._btn_add = QPushButton("Add")
+        self._btn_add.clicked.connect(self._add_current)
+        add_row.addWidget(self._btn_add)
         layout.addLayout(add_row)
 
         # Folder list
@@ -65,9 +73,9 @@ class FolderListWidget(QFrame):
 
         # Remove button
         btn_row = QHBoxLayout()
-        btn_remove = QPushButton("Remove Selected")
-        btn_remove.clicked.connect(self._remove_selected)
-        btn_row.addWidget(btn_remove)
+        self._btn_remove = QPushButton("Remove Selected")
+        self._btn_remove.clicked.connect(self._remove_selected)
+        btn_row.addWidget(self._btn_remove)
         btn_row.addStretch()
         layout.addLayout(btn_row)
 
@@ -112,10 +120,17 @@ class FolderListWidget(QFrame):
         """Get all folders currently in the list."""
         return [self._list.item(i).text() for i in range(self._list.count())]
 
+    def pending_text(self) -> str:
+        """Path typed into the input box but not yet added to the list."""
+        return self._folder_input.text().strip()
+
     def set_enabled(self, enabled: bool) -> None:
-        """Enable or disable the widget."""
+        """Enable or disable the widget including its buttons."""
         self._folder_input.setEnabled(enabled)
         self._list.setEnabled(enabled)
+        self._btn_browse.setEnabled(enabled)
+        self._btn_add.setEnabled(enabled)
+        self._btn_remove.setEnabled(enabled)
 
 
 class ScheduleGroup(QGroupBox):
@@ -253,27 +268,35 @@ class WatcherStatusWidget(QFrame):
         layout.setContentsMargins(0, 0, 0, 0)
 
         self._status_dot = QLabel("●")
-        self._status_dot.setStyleSheet("color: #22c55e; font-size: 16px;")
+        self._status_dot.setObjectName("WatcherStatusDot")
         self._status_dot.setFixedWidth(24)
         layout.addWidget(self._status_dot)
 
         self._status_text = QLabel("File watcher active — monitoring for changes")
-        self._status_text.setStyleSheet("color: #94a3b8; font-size: 12px;")
+        self._status_text.setObjectName("WatcherStatusText")
         layout.addWidget(self._status_text)
         layout.addStretch()
+        self._set_dot_state("active")
+
+    def _set_dot_state(self, state: str) -> None:
+        """Update the dot's state property so the theme stylesheet applies."""
+        self._status_dot.setProperty("state", state)
+        style = self._status_dot.style()
+        style.unpolish(self._status_dot)
+        style.polish(self._status_dot)
 
     def set_active(self, folder_count: int) -> None:
-        self._status_dot.setStyleSheet("color: #22c55e; font-size: 16px;")
+        self._set_dot_state("active")
         self._status_text.setText(
             f"File watcher active — monitoring {folder_count} folder(s)"
         )
 
     def set_inactive(self, reason: str = "") -> None:
-        self._status_dot.setStyleSheet("color: #64748b; font-size: 16px;")
+        self._set_dot_state("inactive")
         self._status_text.setText(reason or "File watcher inactive")
 
     def set_error(self, message: str) -> None:
-        self._status_dot.setStyleSheet("color: #ef4444; font-size: 16px;")
+        self._set_dot_state("error")
         self._status_text.setText(message)
 
 
@@ -362,13 +385,8 @@ def build_monitor_tab(host) -> QWidget:
     net_row.addWidget(QLabel("Upload policy:"))
 
     host.network_policy_combo = QComboBox()
-    host.network_policy_combo.addItems(
-        [
-            "Always (any network)",
-            "No metered connections",
-            "Only specific Wi-Fi",
-        ]
-    )
+    for value, label in NETWORK_POLICY_OPTIONS:
+        host.network_policy_combo.addItem(label, value)
     host.inputs["monitor"]["network_policy"] = host.network_policy_combo
     net_row.addWidget(host.network_policy_combo)
     net_row.addStretch()
@@ -432,14 +450,23 @@ def build_monitor_tab(host) -> QWidget:
     host.inputs["monitor"]["minimize_to_tray"] = host.minimize_to_tray_check
     opts_layout.addWidget(host.minimize_to_tray_check)
 
+    host.start_minimized_check = QCheckBox("Start minimized to tray")
+    host.start_minimized_check.setToolTip(
+        "Hide the main window at launch and keep the app in the system tray. "
+        "Only applies when a system tray is available."
+    )
+    host.inputs["monitor"]["start_minimized"] = host.start_minimized_check
+    opts_layout.addWidget(host.start_minimized_check)
+
     host.launch_on_startup_check = QCheckBox("Start monitor with Windows")
     host.inputs["monitor"]["launch_on_startup"] = host.launch_on_startup_check
     opts_layout.addWidget(host.launch_on_startup_check)
 
     layout.addWidget(opts_group)
 
-    # ── Advanced Flags (reuses upload-folder schema) ──────
-    adv_card = host._build_advanced_flags_card("upload-folder")
+    # ── Advanced Flags (reuses upload-folder schema, stored under "monitor"
+    #    so the Upload tab's rows are not overwritten) ──────
+    adv_card = host._build_advanced_flags_card("monitor", schema_key="upload-folder")
     layout.addWidget(adv_card)
 
     # ── Activity Feed ──────────────────────────────────────
