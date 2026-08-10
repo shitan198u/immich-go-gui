@@ -621,6 +621,12 @@ class MonitorMixin:
 
                         MonitorStateStore.save(state, profile)
 
+                    # Aggregate for the UI progress card / tray status.
+                    rs.total_uploaded = total_uploaded
+                    rs.total_skipped = total_skipped
+                    rs.total_errored = total_failed_folders
+                    rs.failed_folders = total_failed_folders
+
                     self._monitor_signals.progress_update.emit(
                         os.path.basename(folder) or folder,
                         completed,
@@ -758,24 +764,38 @@ class MonitorMixin:
 
     def _on_monitor_state_changed(self, new_state: str) -> None:
         """Handle state changes from the monitor."""
-        if hasattr(self, "progress_card"):
-            if new_state == "idle":
+        if new_state == "idle":
+            if hasattr(self, "progress_card"):
                 self.progress_card.set_idle()
-            elif new_state == "running":
-                pass  # handled by progress_update
-            elif new_state == "paused":
-                self.progress_card.set_paused(self._auto_pause_reason or "")
-            elif new_state == "complete":
-                # Reset controls
-                if hasattr(self, "btn_monitor_run"):
-                    self.btn_monitor_run.setEnabled(True)
-                if hasattr(self, "btn_monitor_full"):
-                    self.btn_monitor_full.setEnabled(True)
-                if hasattr(self, "btn_monitor_pause"):
-                    self.btn_monitor_pause.setEnabled(False)
-                    self.btn_monitor_pause.setText("Pause")
-                if hasattr(self, "btn_monitor_cancel"):
-                    self.btn_monitor_cancel.setEnabled(False)
+        elif new_state == "running":
+            if hasattr(self, "tray_manager"):
+                self.tray_manager.set_status("Running…")
+        elif new_state == "paused":
+            if hasattr(self, "tray_manager"):
+                self.tray_manager.set_status("Paused")
+        elif new_state == "complete":
+            rs = self._monitor_runner_state
+            if hasattr(self, "progress_card"):
+                # Always reset the card away from "Running" on completion,
+                # including after a cancel.
+                if rs.total_uploaded or rs.failed_folders or rs.total_skipped:
+                    self.progress_card.set_complete(
+                        rs.total_uploaded, rs.failed_folders
+                    )
+                else:
+                    self.progress_card.set_idle()
+            # Reset controls
+            if hasattr(self, "btn_monitor_run"):
+                self.btn_monitor_run.setEnabled(True)
+            if hasattr(self, "btn_monitor_full"):
+                self.btn_monitor_full.setEnabled(True)
+            if hasattr(self, "btn_monitor_pause"):
+                self.btn_monitor_pause.setEnabled(False)
+                self.btn_monitor_pause.setText("Pause")
+            if hasattr(self, "btn_monitor_cancel"):
+                self.btn_monitor_cancel.setEnabled(False)
+            if hasattr(self, "tray_manager"):
+                self.tray_manager.set_status("Idle")
 
     def _on_paused_reason(self, reason: str) -> None:
         """Handle auto-pause reason."""

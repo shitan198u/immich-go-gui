@@ -124,7 +124,7 @@ class MonitorConfig:
 
     # File watcher
     file_watcher_enabled: bool = True
-    watcher_debounce_seconds: int = 30  # batch changes within this window
+    watcher_debounce_seconds: int = 300  # batch changes within this window
 
     # Network
     network_policy: NetworkPolicy = NetworkPolicy.ALWAYS

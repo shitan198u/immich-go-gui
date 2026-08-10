@@ -50,6 +50,10 @@ class RunnerState:
     completed_folders: int = 0
     current_folder: str = ""
     current_file: str = ""
+    total_uploaded: int = 0
+    total_skipped: int = 0
+    total_errored: int = 0
+    failed_folders: int = 0
 
     def reset(self) -> None:
         self.running = True
@@ -61,6 +65,10 @@ class RunnerState:
         self.completed_folders = 0
         self.current_folder = ""
         self.current_file = ""
+        self.total_uploaded = 0
+        self.total_skipped = 0
+        self.total_errored = 0
+        self.failed_folders = 0
 
 
 def count_pending_files(
@@ -265,6 +273,7 @@ def run_folder_upload(
                             )
                         if "Uploaded" in line or "uploading" in line.lower():
                             state.current_file = line.strip()
+                        _tally_report_line(line, result)
 
                 for reader in readers:
                     reader.join(timeout=2)
@@ -382,6 +391,21 @@ def _build_upload_plan(
     if plan.warnings:
         _log.info("Command plan warnings: %s", plan.warnings)
 
+    # The monitor runs immich-go as a hidden subprocess with piped stdout.
+    # Without --no-ui the interactive TUI starts up and, because stdout is
+    # not a terminal, never exits after the upload completes — leaving the
+    # run stuck in "running" and the process lingering.  Force headless mode.
+    # plan.argv is "cmd_parts + options + positional path"; Go's flag parser
+    # stops at the first positional argument, so --no-ui must precede it.
+    from .cli_schema import TAB_COMMANDS
+    from .command_builder import mask_command_for_display
+
+    cmd_count = len(TAB_COMMANDS.get("upload-folder", ()))
+    plan.argv.insert(cmd_count, "--no-ui")
+    plan.display_argv = mask_command_for_display(
+        [binary_path or "./immich-go"] + plan.argv
+    )
+
     return plan
 
 
@@ -398,6 +422,46 @@ def _resolve_binary_path() -> str:
     if not path:
         raise FileNotFoundError("immich-go binary not found")
     return path
+
+
+def _tally_report_line(line: str, result: UploadResult) -> None:
+    """Update UploadResult file counts from immich-go report output lines.
+
+    immich-go emits a running summary line such as::
+
+        Immich read 100%, Assets found: 8, Upload errors: 0, Uploaded 1
+
+    and an Asset Tracking Report whose lifecycle lines look like::
+
+        uploaded successfully              :       1  (4.2 MB)
+        server has duplicate               :       7  (22.3 MB)
+
+    These are parsed so the GUI can report accurate totals instead of 0.
+    Regexes are anchored to the report fields so unrelated lines are ignored.
+    """
+    import re
+
+    try:
+        # The whole-run summary line can carry several fields at once, e.g.
+        #   "Immich read 100%, Assets found: 8, Upload errors: 0, Uploaded 1"
+        # so parse every field on the line rather than returning on the first.
+        m = re.search(r"[Uu]pload errors?:\s*(\d+)", line)
+        if m:
+            result.files_errored = int(m.group(1))
+        m = re.search(r"\bUploaded\s+(\d+)\s*$", line)
+        if m:
+            result.files_uploaded = int(m.group(1))
+        # Asset Tracking Report lifecycle lines (count then size in parens).
+        m = re.search(r"uploaded successfully\s*:?\s*(\d+)", line)
+        if m:
+            result.files_uploaded = int(m.group(1))
+        m = re.search(r"server has duplicate\s*:?\s*(\d+)", line)
+        if m:
+            result.files_skipped = int(m.group(1))
+        # Regular per-file progress like "Uploading file=..." is ignored;
+        # only the whole-run summary and report tallies are captured.
+    except (ValueError, TypeError):
+        pass
 
 
 def _suspend_process(pid: int) -> None:

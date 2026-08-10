@@ -26,7 +26,7 @@ class DebounceFileQueue:
     uploads forever).
     """
 
-    def __init__(self, debounce_seconds: int = 30):
+    def __init__(self, debounce_seconds: int = 300):
         self._lock = threading.Lock()
         self._files: dict[str, float] = {}  # file_path -> first_seen_time
         self._debounce_seconds = debounce_seconds

@@ -427,6 +427,10 @@ def test_build_upload_plan_propagates_config_flags(tmp_path):
     assert plan.env.get("IMMICH_GO_UPLOAD_API_KEY") == "test-key"
     assert "test-key" not in " ".join(plan.argv)
 
+    # The monitor runs immich-go headless; --no-ui must precede the path.
+    path_index = plan.argv.index(str(tmp_path))
+    assert plan.argv.index("--no-ui") < path_index
+
 
 def test_run_folder_upload_end_to_end_with_stub(tmp_path, monkeypatch):
     from core import folder_runner
@@ -466,6 +470,34 @@ def test_run_folder_upload_end_to_end_with_stub(tmp_path, monkeypatch):
     assert result.files_skipped == 0
     assert result.files_errored == 0
     assert logs
+
+
+def test_tally_report_line_parses_summary_and_report():
+    from core.folder_runner import UploadResult, _tally_report_line
+
+    result = UploadResult(folder="x", success=True)
+
+    # Per-file progress lines must NOT be tallied as the run total.
+    _tally_report_line("Uploaded file=2026-08-09_00.04.39.png", result)
+    _tally_report_line("uploading file=photo.jpg", result)
+    assert result.files_uploaded == 0
+
+    # The whole-run summary line.
+    _tally_report_line(
+        "Immich read 100%, Assets found: 8, Upload errors: 0, Uploaded 1", result
+    )
+    assert result.files_uploaded == 1
+    assert result.files_errored == 0
+
+    # Asset Tracking Report lifecycle tallies override to report numbers.
+    _tally_report_line(
+        "  uploaded successfully              :       1  (4.2 MB)", result
+    )
+    assert result.files_uploaded == 1
+    _tally_report_line(
+        "  server has duplicate               :       7  (22.3 MB)", result
+    )
+    assert result.files_skipped == 7
 
 
 def test_run_folder_upload_cancel_writes_log_and_duration(tmp_path, monkeypatch):
