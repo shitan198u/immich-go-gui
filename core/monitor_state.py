@@ -33,6 +33,10 @@ class MonitorState:
     last_run_started_utc: str | None = None
     last_run_finished_utc: str | None = None
     last_run_result: str | None = None  # "success", "partial", "failure"
+    # Fire-once markers for scheduled runs (ISO timestamp of the most recent
+    # occurrence that has already been handled).
+    last_weekly_handled_utc: str | None = None
+    last_monthly_handled_utc: str | None = None
 
     def get_folder_state(self, folder: str) -> FolderUploadState:
         """Get or create state for a folder path."""
@@ -50,19 +54,19 @@ class MonitorState:
 
 
 class MonitorStateStore:
-    """Load/save MonitorState to a JSON file."""
+    """Load/save MonitorState to a per-profile JSON file."""
 
     @staticmethod
-    def resolve_path() -> Path:
+    def resolve_path(profile_name: str | None = None) -> Path:
         from .config_manager import default_config_path
 
-        return default_config_path().parent / "monitor_state.json"
+        return default_config_path(profile_name).parent / "monitor_state.json"
 
     _write_lock = Lock()
 
-    @staticmethod
-    def load() -> MonitorState:
-        path = MonitorStateStore.resolve_path()
+    @classmethod
+    def load(cls, profile_name: str | None = None) -> MonitorState:
+        path = cls.resolve_path(profile_name)
         if not path.exists():
             return MonitorState()
         try:
@@ -81,30 +85,36 @@ class MonitorStateStore:
             state.last_run_started_utc = data.get("last_run_started_utc")
             state.last_run_finished_utc = data.get("last_run_finished_utc")
             state.last_run_result = data.get("last_run_result")
+            state.last_weekly_handled_utc = data.get("last_weekly_handled_utc")
+            state.last_monthly_handled_utc = data.get("last_monthly_handled_utc")
             return state
         except (AttributeError, OSError, TypeError, ValueError):
             return MonitorState()
 
-    @staticmethod
-    def save(state: MonitorState) -> None:
-        path = MonitorStateStore.resolve_path()
-        data = {
-            "folders": {
-                k: {
-                    "last_success_utc": v.last_success_utc,
-                    "last_attempt_utc": v.last_attempt_utc,
-                    "retry_count": v.retry_count,
-                    "last_error": v.last_error,
-                    "pending_files": v.pending_files,
-                }
-                for k, v in state.folders.items()
-            },
-            "last_full_rescan_utc": state.last_full_rescan_utc,
-            "last_run_started_utc": state.last_run_started_utc,
-            "last_run_finished_utc": state.last_run_finished_utc,
-            "last_run_result": state.last_run_result,
-        }
-        with MonitorStateStore._write_lock:
+    @classmethod
+    def save(cls, state: MonitorState, profile_name: str | None = None) -> None:
+        path = cls.resolve_path(profile_name)
+        with cls._write_lock:
+            # Snapshot inside the lock: worker threads mutate folder state
+            # concurrently, so copy mutable collections before serializing.
+            data = {
+                "folders": {
+                    k: {
+                        "last_success_utc": v.last_success_utc,
+                        "last_attempt_utc": v.last_attempt_utc,
+                        "retry_count": v.retry_count,
+                        "last_error": v.last_error,
+                        "pending_files": list(v.pending_files),
+                    }
+                    for k, v in list(state.folders.items())
+                },
+                "last_full_rescan_utc": state.last_full_rescan_utc,
+                "last_run_started_utc": state.last_run_started_utc,
+                "last_run_finished_utc": state.last_run_finished_utc,
+                "last_run_result": state.last_run_result,
+                "last_weekly_handled_utc": state.last_weekly_handled_utc,
+                "last_monthly_handled_utc": state.last_monthly_handled_utc,
+            }
             path.parent.mkdir(parents=True, exist_ok=True)
             tmp = path.with_suffix(".tmp")
             tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")

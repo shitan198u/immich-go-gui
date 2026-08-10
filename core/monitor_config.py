@@ -140,7 +140,7 @@ class MonitorConfig:
     )  # backoff schedule
 
     # GUI
-    start_minimized: bool = True
+    start_minimized: bool = False
     minimize_to_tray: bool = True
     launch_on_startup: bool = False
 
@@ -250,13 +250,7 @@ class MonitorConfig:
         filters = data.get("folder_filters", {})
         cfg.folder_filters = (
             {
-                path: FolderFilter(
-                    **{
-                        k: v
-                        for k, v in value.items()
-                        if k in FolderFilter.__dataclass_fields__
-                    }
-                )
+                path: _folder_filter_from_dict(value)
                 for path, value in filters.items()
                 if isinstance(path, str) and isinstance(value, dict)
             }
@@ -265,14 +259,16 @@ class MonitorConfig:
         )
         activity = data.get("activity")
         if isinstance(activity, dict):
+            raw_methods = activity.get("detection_methods")
+            if not isinstance(raw_methods, list):
+                raw_methods = [ActivityPauseMethod.PROCESS_LIST.value]
+            valid_method_values = {m.value for m in ActivityPauseMethod}
             cfg.activity = ActivityConfig(
                 enabled=activity.get("enabled", True),
                 detection_methods=[
                     ActivityPauseMethod(v)
-                    for v in activity.get(
-                        "detection_methods", [ActivityPauseMethod.PROCESS_LIST.value]
-                    )
-                    if v in {m.value for m in ActivityPauseMethod}
+                    for v in raw_methods
+                    if v in valid_method_values
                 ],
                 monitored_processes=activity.get(
                     "monitored_processes", ActivityConfig().monitored_processes
@@ -284,7 +280,7 @@ class MonitorConfig:
             )
         cfg.max_retries = data.get("max_retries", 4)
         cfg.retry_delays_minutes = data.get("retry_delays_minutes", [1, 5, 15, 30])
-        cfg.start_minimized = data.get("start_minimized", True)
+        cfg.start_minimized = data.get("start_minimized", False)
         cfg.minimize_to_tray = data.get("minimize_to_tray", True)
         cfg.launch_on_startup = data.get("launch_on_startup", False)
         cfg.log_dir = data.get("log_dir", "")
@@ -292,7 +288,9 @@ class MonitorConfig:
         if isinstance(advanced_state, dict):
             from .advanced_flags import ADVANCED_FLAGS
 
-            valid_keys = {definition.key for definition in ADVANCED_FLAGS.get("upload-folder", ())}
+            valid_keys = {
+                definition.key for definition in ADVANCED_FLAGS.get("upload-folder", ())
+            }
             valid_state: dict[str, dict[str, Any]] = {}
             for key, entry in advanced_state.items():
                 if key not in valid_keys or not isinstance(entry, dict):
@@ -309,6 +307,21 @@ class MonitorConfig:
         return cfg
 
 
+def _coerce_int(value: Any, default: int = 0) -> int:
+    """Coerce a persisted value to int so strings never raise TypeError later."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _folder_filter_from_dict(value: dict[str, Any]) -> FolderFilter:
+    fields = {k: v for k, v in value.items() if k in FolderFilter.__dataclass_fields__}
+    fields["max_file_size_mb"] = _coerce_int(fields.get("max_file_size_mb", 0))
+    fields["min_file_size_kb"] = _coerce_int(fields.get("min_file_size_kb", 0))
+    return FolderFilter(**fields)
+
+
 class MonitorConfigStore:
     """Persist monitor settings beside the active profile configuration."""
 
@@ -323,11 +336,11 @@ class MonitorConfigStore:
             return MonitorConfig()
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, TypeError, ValueError):
+            if not isinstance(data, dict):
+                return MonitorConfig()
+            return MonitorConfig.from_dict(data)
+        except (AttributeError, OSError, TypeError, ValueError):
             return MonitorConfig()
-        return (
-            MonitorConfig.from_dict(data) if isinstance(data, dict) else MonitorConfig()
-        )
 
     @classmethod
     def save(cls, config: MonitorConfig, profile_name: str | None = None) -> None:

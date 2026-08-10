@@ -123,6 +123,9 @@ class ActivityMonitor:
             now = datetime.now(UTC).timestamp()
             with self._lock:
                 if active:
+                    # Measure the resume grace period from the END of
+                    # activity, not from before it started.
+                    self._idle_since = None
                     if self._active_since is None:
                         self._active_since = now
                     elapsed = now - self._active_since
@@ -154,12 +157,11 @@ class ActivityMonitor:
         try:
             import psutil
 
+            names_lower = {p.lower() for p in self._config.monitored_processes}
             for proc in psutil.process_iter(["name"]):
                 try:
                     name = proc.info["name"] or ""
-                    if name.lower() in [
-                        p.lower() for p in self._config.monitored_processes
-                    ]:
+                    if name.lower() in names_lower:
                         return f"Process running: {name}"
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     continue

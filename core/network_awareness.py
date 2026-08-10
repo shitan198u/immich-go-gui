@@ -67,18 +67,20 @@ class NetworkMonitor:
         import socket
 
         try:
-            socket.setdefaulttimeout(3)
-            socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect(("8.8.8.8", 53))
-            return True
+            with socket.create_connection(("8.8.8.8", 53), timeout=3):
+                return True
         except OSError:
             return False
 
     @staticmethod
     def _is_metered() -> bool:
-        """Check if the current network is metered (Windows only for now)."""
-        if sys.platform.startswith("win"):
-            return _is_metered_windows()
-        # Linux/others: no reliable API without NetworkManager
+        """Check if the current network is metered.
+
+        No reliable detection is available yet: the correct Windows
+        implementation requires the INetworkConnectionCost COM API and is
+        tracked as a follow-up.  Returning False avoids permanently
+        blocking uploads on a false positive.
+        """
         return False
 
     @staticmethod
@@ -88,64 +90,6 @@ class NetworkMonitor:
             return _get_ssid_windows()
         else:
             return _get_ssid_linux()
-
-
-def _is_metered_windows() -> bool:
-    """Windows: check metered connection via COM/NLM API."""
-    try:
-        # Use netsh as a reliable fallback
-        return _is_metered_netsh()
-
-    except Exception:
-        return _is_metered_netsh()
-
-
-def _is_metered_netsh() -> bool:
-    """Check metered connection via netsh (Windows Vista+)."""
-    try:
-        subprocess.run(
-            ["netsh", "wlan", "show", "interfaces"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-            encoding="utf-8",
-            check=False,
-        )
-        # netsh doesn't directly expose metered status reliably
-        # Use a simpler heuristic: check Cost GUID via registry
-        return _is_metered_registry()
-    except Exception:
-        return False
-
-
-def _is_metered_registry() -> bool:
-    """Check Windows registry for metered connection cost."""
-    try:
-        import winreg
-
-        # Network profiles are under:
-        # HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\Profiles
-        key_path = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\NetworkList\Profiles"
-        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:
-            i = 0
-            while True:
-                try:
-                    subkey_name = winreg.EnumKey(key, i)
-                    with winreg.OpenKey(key, subkey_name) as subkey:
-                        try:
-                            cost, _ = winreg.QueryValueEx(subkey, "Category")
-                            # Category 0=Public, 1=Private, 2=Domain
-                            # Check if this is the active profile
-                            if cost == 0:  # Public networks often metered
-                                return True
-                        except OSError:
-                            pass
-                    i += 1
-                except OSError:
-                    break
-    except Exception:
-        pass
-    return False
 
 
 def _get_ssid_windows() -> str | None:
