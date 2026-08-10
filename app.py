@@ -9,6 +9,7 @@
 #   nuitka-project: --standalone
 #   nuitka-project: --windows-console-mode=disable
 #   nuitka-project: --windows-icon-from-ico=immich-go-gui.ico
+#   nuitka-project: --include-data-files=immich-go-gui.ico=immich-go-gui.ico
 #   nuitka-project: --company-name="Shitan198u"
 #   nuitka-project: --product-name="Immich-Go GUI"
 #   nuitka-project: --file-description="Immich-Go Graphical User Interface"

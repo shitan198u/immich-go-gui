@@ -4,6 +4,8 @@ Provides a QSystemTrayIcon with status-aware icons, context menu,
 balloon notifications, and minimize-to-tray behavior.
 """
 
+from pathlib import Path
+
 from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
@@ -11,14 +13,12 @@ from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 class TrayManager:
     """Manages the system tray icon and its context menu."""
 
-    def __init__(self, window, app_icon_path: str = ""):
+    def __init__(self, window, app_icon_path: str = "", fallback_icon_path: str = ""):
         self._window = window
-        self._app_icon = None
-        if app_icon_path:
-            from pathlib import Path
+        self._minimize_to_tray = False
+        self._app_icon = self._resolve_icon(app_icon_path, fallback_icon_path)
 
-            if Path(app_icon_path).is_file():
-                self._app_icon = QIcon(app_icon_path)
+        self.tray_available = QSystemTrayIcon.isSystemTrayAvailable()
 
         self._tray = QSystemTrayIcon(window)
         if self._app_icon:
@@ -45,16 +45,27 @@ class TrayManager:
         self._tray.setContextMenu(self._menu)
         self._tray.activated.connect(self._on_tray_activated)
 
-        self._tray.show()
+        # A QSystemTrayIcon without an icon is invisible on Windows, and on
+        # platforms without a system tray show() is pointless.  Only show
+        # when the tray is actually available and an icon was resolved.
+        if self.tray_available and self._app_icon:
+            self._tray.show()
 
-    def set_status(self, text: str, icon_type: str = "idle") -> None:
+    @staticmethod
+    def _resolve_icon(app_icon_path: str, fallback_icon_path: str) -> QIcon | None:
+        """Resolve the tray icon, falling back so it is never icon-less."""
+        for candidate in (app_icon_path, fallback_icon_path):
+            if candidate and Path(candidate).is_file():
+                return QIcon(candidate)
+        app_icon = QApplication.windowIcon()
+        if app_icon and not app_icon.isNull():
+            return app_icon
+        return None
+
+    def set_status(self, text: str) -> None:
         """Update tray tooltip and status menu item."""
         self._status_action.setText(f"Status: {text}")
         self._tray.setToolTip(f"Immich-Go GUI — {text}")
-
-        # Update icon style based on state
-        if icon_type == "running" or icon_type == "paused" or icon_type == "error":
-            self._tray.setToolTip(f"Immich-Go GUI — {text}")
 
     def notify(
         self, title: str, message: str, icon_type: str = "info", duration_ms: int = 5000
@@ -70,11 +81,11 @@ class TrayManager:
 
     def set_minimize_to_tray(self, enabled: bool) -> None:
         """Enable or disable minimize-to-tray behavior."""
-        self._minimize_to_tray = enabled
+        self._minimize_to_tray = bool(enabled and self.tray_available)
 
     def handle_close(self, event) -> bool:
         """Handle window close event. Returns True if handled (i.e., hidden to tray)."""
-        if getattr(self, "_minimize_to_tray", True):
+        if self._minimize_to_tray:
             self._window.hide()
             self._tray.showMessage(
                 "Immich-Go GUI",

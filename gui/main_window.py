@@ -195,9 +195,11 @@ class ImmichGoGUI(
 
         # Initialize the monitor subsystem
         self.init_monitor()
+        icon_root = Path(__file__).resolve().parent.parent
         self.tray_manager = TrayManager(
             self,
-            str(Path(__file__).resolve().parent.parent / "immich-go-gui.ico"),
+            str(icon_root / "immich-go-gui.ico"),
+            str(icon_root / "immich-go-gui.png"),
         )
         self.tray_manager.set_minimize_to_tray(
             self.monitor_config.monitor_enabled and self.monitor_config.minimize_to_tray
@@ -206,22 +208,40 @@ class ImmichGoGUI(
         self.minimize_to_tray_check.toggled.connect(self._on_minimize_to_tray_toggled)
         self.launch_on_startup_check.toggled.connect(self._set_launch_on_startup)
         self._set_launch_on_startup(self.launch_on_startup_check.isChecked())
-        if self.monitor_config.monitor_enabled and self.monitor_config.start_minimized:
+        if (
+            self.monitor_config.monitor_enabled
+            and self.monitor_config.start_minimized
+            and self.tray_manager.tray_available
+        ):
             self.hide()
 
     def _on_monitor_enabled_toggled(self, enabled: bool) -> None:
         self.set_monitor_enabled(enabled)
-        self.tray_manager.set_minimize_to_tray(
-            enabled and self.minimize_to_tray_check.isChecked()
-        )
+        self._sync_tray_minimize()
 
     def _on_minimize_to_tray_toggled(self, enabled: bool) -> None:
         self.monitor_config.minimize_to_tray = enabled
-        self.tray_manager.set_minimize_to_tray(
-            self.monitor_config.monitor_enabled and enabled
-        )
-        self._save_monitor_config()
+        self._sync_tray_minimize()
         self._save_monitor_state()
+
+    def _sync_tray_minimize(self) -> None:
+        """Push the effective minimize-to-tray preference to the tray manager."""
+        if not hasattr(self, "tray_manager"):
+            return
+        self.tray_manager.set_minimize_to_tray(
+            self.monitor_config.monitor_enabled
+            and self.minimize_to_tray_check.isChecked()
+        )
+
+    def _shutdown_monitor_safely(self) -> None:
+        """Shut down the monitor subsystem, logging (not swallowing) failures."""
+        if not hasattr(self, "shutdown_monitor"):
+            return
+        try:
+            self.shutdown_monitor()
+        except Exception:
+            if hasattr(self, "log"):
+                self.log.exception("Monitor subsystem shutdown failed")
 
     def _set_launch_on_startup(self, enabled: bool) -> None:
         """Register or remove this application from Windows startup."""
@@ -301,22 +321,12 @@ class ImmichGoGUI(
         self._check_lock_file()
 
     def closeEvent(self, event):
-        if (
-            not getattr(self, "_force_close", False)
-            and hasattr(self, "tray_manager")
-            and self.monitor_config.monitor_enabled
-            and self.minimize_to_tray_check.isChecked()
-        ):
-            self.tray_manager.handle_close(event)
-            return
+        if not getattr(self, "_force_close", False) and hasattr(self, "tray_manager"):
+            if self.tray_manager.handle_close(event):
+                return
 
         if getattr(self, "_force_close", False):
-            # Shutdown monitor subsystem
-            if hasattr(self, "shutdown_monitor"):
-                try:
-                    self.shutdown_monitor()
-                except Exception:
-                    pass
+            self._shutdown_monitor_safely()
             if hasattr(self, "log"):
                 self.log.info("GUI closed")
             event.accept()
@@ -343,6 +353,7 @@ class ImmichGoGUI(
         if reply == QMessageBox.StandardButton.Save:
             self._save_pending_configuration(show_popup=False)
 
+        self._shutdown_monitor_safely()
         if hasattr(self, "log"):
             self.log.info("GUI closed")
         event.accept()
