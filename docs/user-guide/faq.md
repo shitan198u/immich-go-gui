@@ -109,6 +109,24 @@ Provide an **Admin API key**, or turn off job pausing. The GUI tries to auto-dis
 
 Install a terminal emulator (`gnome-terminal`, `konsole`, `xfce4-terminal`, `xterm`, …) or set Preferred Terminal in Config.
 
+## Backup Monitor
+
+### How do I make the Monitor upload automatically?
+
+Tick **Enable Backup Monitor** on the [Monitor](monitoring.md) tab, add at least one watched folder, and set credentials on the Config tab. Real-time watching, scheduled scans, and tray operation then run in the background.
+
+### Dialog-free monitoring? How do runs happen?
+
+Monitor runs launch immich-go as a **hidden background process** (no terminal window). Progress appears in the Monitor tab's progress card and Activity feed instead of a terminal.
+
+### Why did nothing upload after I added a folder?
+
+The master **Enable Backup Monitor** switch must be on, and only files that pass the folder filters are uploaded. Also confirm the [network policy](monitoring.md#network-policy) isn't pausing uploads and that no [activity pause](monitoring.md#activity-based-auto-pause) is active.
+
+### Where are Monitor settings stored?
+
+Per profile, in `monitor_config.json` (settings) and `monitor_state.json` (last-success timestamps, retries, run results), next to the profile's `config.toml`. See [Backup Monitor — Where Data Is Stored](monitoring.md#where-data-is-stored).
+
 ## Contributing & Development
 
 ### Where should pull requests target?

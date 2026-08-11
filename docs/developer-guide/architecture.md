@@ -76,6 +76,7 @@ immich-go-gui/
 │   │   ├── execution.py   # Command building & terminal execution
 │   │   ├── confirm_dialog.py # Run confirmation dialog
 │   │   ├── persistence.py # TOML config & secret store persistence
+│   │   ├── monitor_mixin.py # Monitor orchestration (watcher, scheduler, runner)
 │   │   ├── profiles_ui.py # Profile switcher menu & dialogs
 │   │   ├── status.py      # Debounced status updates & light validation
 │   │   ├── binary_ui.py   # Binary download & version management UI
@@ -83,11 +84,15 @@ immich-go-gui/
 │   │   ├── diagnostics.py # System diagnostics & log export
 │   │   ├── menu.py        # Top bar & context menus
 │   │   └── theme_mixin.py # Dynamic theme switching
-│   └── tabs/              # Tab builder modules
-│       ├── config_tab.py  # Server & credentials configuration tab
-│       ├── stack_tab.py   # Photo stacking subcommand tab
-│       ├── upload/        # Upload subcommand tabs (folder, GP, icloud, picasa, immich)
-│       └── archive/       # Archive subcommand tabs (folder, GP, icloud, picasa, immich)
+│   ├── tabs/              # Tab builder modules
+│   │   ├── config_tab.py  # Server & credentials configuration tab
+│   │   ├── monitor_tab.py # Backup monitor tab (watched folders, schedule, network)
+│   │   ├── stack_tab.py   # Photo stacking subcommand tab
+│   │   ├── upload/        # Upload subcommand tabs (folder, GP, icloud, picasa, immich)
+│   │   └── archive/       # Archive subcommand tabs (folder, GP, icloud, picasa, immich)
+│   ├── widgets/           # Custom Qt widgets
+│   │   ├── activity_feed.py # Live monitor upload/activity feed
+│   ├── tray.py            # System tray (status, balloon notifications, minim-to-tray)
 ├── core/                  # Qt-free business logic (testable without GUI)
 │   ├── flags.toml         # Single source of truth for tabs + flags
 │   ├── flag_registry.py   # Loads flags.toml → REGISTRY singleton
@@ -103,6 +108,13 @@ immich-go-gui/
 │   ├── terminal_launcher.py
 │   ├── validation.py
 │   ├── cli_help.py / cli_contract.py
+│   ├── monitor_config.py  # Monitor settings model + persistence
+│   ├── monitor_state.py   # Per-folder upload state + persistence
+│   ├── folder_watcher.py  # Real-time (watchdog) folder watching + debounce
+│   ├── folder_runner.py   # Hidden headless immich-go upload runner
+│   ├── folder_filters.py  # File filtering & path-containment helpers
+│   ├── activity_monitor.py# Activity-based auto-pause detection
+│   ├── network_awareness.py # Metered/SSID/offline detection & policy
 │   └── __init__.py        # Public re-exports
 ├── tests/                 # Focused Pytest modules (20 modules, ~298 tests)
 ├── scripts/               # CLI help capture, review bundles, icon generator
@@ -117,7 +129,7 @@ immich-go-gui/
 |-------|-------|----------------|
 | **Entrypoint** | `app.py` | App startup, exception hook, CLI flags (`--self-test`) |
 | **UI** | `gui/`, `theme.py` | Window management, tab builders, mixins, widgets, visual feedback |
-| **Core** | `core/*.py` | CLI schema, command building, config, binary mgmt, process locks |
+| **Core** | `core/*.py` | CLI schema, command building, config, binary mgmt, process locks, monitor logic |
 | **External** | immich-go CLI, Immich API, GitHub Releases | Runtime dependencies |
 
 The `core/` package MUST NOT import PySide6 or Qt. All network, file I/O, subprocess, and keyring operations live here so unit tests can run headlessly.
@@ -214,6 +226,31 @@ Lock files live in `{config_dir}/locks/run_{id}.lock` as JSON documents tracking
 
 - **POSIX:** Launcher uses a temporary run directory with safe `$HOME` fallback to avoid CWD deletion errors.
 - **Windows:** `.bat` launcher runs a background `.heartbeat` process to clean `.lock` files if the terminal is killed abruptly.
+
+## Monitor (Backup) Subsystem
+
+```mermaid
+flowchart LR
+    Watcher[folder_watcher<br/>watchdog + debounce] --> Mixin[monitor_mixin<br/>orchestrator]
+    Scheduler[QTimer 30s<br/>weekly / monthly due] --> Mixin
+    Network[network_awareness<br/>offline / metered / SSID] --> Mixin
+    Activity[activity_monitor<br/>gaming / fullscreen] --> Mixin
+    Mixin --> Runner[folder_runner<br/>hidden upload <br/>--no-ui subprocess]
+    Runner --> Immich[(Immich)]
+    State[monitor_state<br/>last success / retries] --> Mixin
+```
+
+The Monitor tab is orchestrated by `gui/mixins/monitor_mixin.py` (`MonitorMixin`) and driven entirely by Qt-free `core/` modules:
+
+- `core/folder_watcher.py` — real-time recursive watching via `watchdog`, batching file changes through a debounce queue.
+- `core/scheduler` state in the mixin — a 30 s `QTimer` fires each weekly/monthly occurrence exactly once (persisted markers in `monitor_state.json`).
+- `core/activity_monitor.py` — auto-pause on monitored processes, CPU/GPU thresholds, or a fullscreen foreground window, with grace periods.
+- `core/network_awareness.py` — offline / metered / SSID checks that pause or resume uploads.
+- `core/folder_runner.py` — launches immich-go as a **hidden** subprocess (`CREATE_NO_WINDOW`, `--no-ui` inserted before any positional arg) and captures piped stdout/stderr.
+- `core/monitor_config.py` / `core/monitor_state.py` — per-profile persistence (`monitor_config.json`, `monitor_state.json`), JSON written atomically.
+- `core/folder_filters.py` — shared `should_skip_file()` filtering and boundary-safe path containment used by both the watcher and the runner.
+
+Monitor runs always reuse the normal flag registry: `folder_runner._build_upload_plan()` calls `build_plan_from_state()` with the `upload-folder` schema plus the Monitor tab's advanced flags, so secret delivery (env vars) and validation behave identically to a manual Upload run. Upload logs land in `{config_dir}/logs/upload-{timestamp}-{folder}.log`.
 
 ## Entry Point
 

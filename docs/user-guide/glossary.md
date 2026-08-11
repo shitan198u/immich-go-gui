@@ -34,6 +34,13 @@ Terms used throughout Immich-Go GUI documentation and the immich-go ecosystem.
 | **staging / master** | Development vs production branches; PRs target `staging`. |
 | **SHA256 verification** | Checksum validation when downloading immich-go releases. |
 | **Skip SSL verification** | Disables TLS certificate validation — lab/self-signed only. |
+| **Monitor** | Background subsystem that watches local folders and uploads new media to Immich automatically. |
+| **Watched folder** | A folder the Monitor watches for changes (recursively) and uploads from. |
+| **Watcher debounce** | Time window for batching file changes before an upload starts. |
+| **Incremental scan** | Uploads only files modified since the folder's last successful upload. |
+| **Full rescan** | Re-scans and uploads everything in watched folders. |
+| **Network policy** | Rule for when uploads are allowed (always / no metered / only specific SSIDs). |
+| **Activity pause** | Auto-pause of uploads while gaming, editing video, or running fullscreen apps. |
 
 ## Related
 

@@ -75,6 +75,7 @@ The main window has three areas:
 - **Upload** — Five sub-tabs for uploading to Immich from different sources
 - **Archive** — Five sub-tabs for exporting media to local folders
 - **Stack** — Deduplicate/stack assets on the Immich server
+- **Monitor** — Background monitoring of local folders (real-time watching, scheduled scans, tray) — see [Backup Monitor](monitoring.md)
 
 ### Stacked Pages
 
@@ -93,6 +94,7 @@ The Config tab lets you choose **System**, **Light**, or **Dark** theme. The cho
 - [Platform Notes](platform-notes.md) — OS-specific install and paths
 - [Choose Your Workflow](choose-your-workflow.md) — Decision tree and recipes
 - [Configuration](configuration.md) — Server, API keys, and binary setup
+- [Backup Monitor](monitoring.md) — Automated background uploads
 - [Security & Privacy](security-and-privacy.md) — How credentials are handled
 - [Profiles](profiles.md) — Multiple Immich servers or environments
 - [FAQ](faq.md) — Short answers

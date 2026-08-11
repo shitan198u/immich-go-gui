@@ -77,6 +77,7 @@ nav:
       - Configuration: user-guide/configuration.md
       - Profiles: user-guide/profiles.md
       - Upload Workflows: user-guide/upload-workflows.md
+      - Backup Monitor: user-guide/monitoring.md
       - Archive Workflows: user-guide/archive-workflows.md
       - Stack: user-guide/stack.md
       - Advanced Flags: user-guide/advanced-flags.md

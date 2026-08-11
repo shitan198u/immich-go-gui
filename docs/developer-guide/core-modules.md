@@ -179,10 +179,79 @@ CLI help parsing and compatibility checking against versioned fixtures in `core/
 
 Shared validation helpers for dates, paths, and destination folders.
 
+### `core/monitor_config.py`
+
+Monitor settings model and persistence (Qt-free).
+
+| Type | Purpose |
+|------|---------|
+| `MonitorConfig` | Watched folders, schedule, network policy, activity rules, retries, tray options, advanced flags |
+| `MonitorConfigStore` | Load/save `monitor_config.json` per profile (atomic write, `0600`) |
+| `FolderFilter` | Per-folder include/exclude extensions, size limits, hidden/system skip, glob excludes |
+| `NetworkPolicy` | Enum: `always`, `no_metered`, `ssid_only` |
+| `ActivityConfig` / `ActivityPauseMethod` | Auto-pause settings and detection methods |
+
+### `core/monitor_state.py`
+
+Persistent runtime state per profile (`monitor_state.json`).
+
+| Type | Purpose |
+|------|---------|
+| `MonitorState` / `FolderUploadState` | Per-folder last-success/attempt timestamps, retry count, last error, pending files; last-run results; weekly/monthly "last handled" markers |
+| `MonitorStateStore` | Thread-safe atomic load/save of monitor state |
+
+### `core/folder_watcher.py`
+
+Real-time recursive folder watching via `watchdog`.
+
+| Type | Purpose |
+|------|---------|
+| `FolderWatcher` | Observes configured folders, batches changes through a debounce queue |
+| `DebounceFileQueue` | Window-based batching so ongoing change streams still flush at least once per window |
+| `WatchedFolder` | Per-folder filter acceptance (`should_accept_event`) |
+
+### `core/folder_runner.py`
+
+Hidden headless upload runner for monitor runs.
+
+| Type | Purpose |
+|------|---------|
+| `run_folder_upload()` | Launches immich-go as a hidden subprocess (`CREATE_NO_WINDOW`, `--no-ui`) with piped stdout/stderr, pause/cancel suspension, and log capture |
+| `count_pending_files()` | Pre-scan count of files modified since a timestamp that pass filters |
+| `UploadResult` / `RunnerState` | Per-folder results and shared runner coordination state |
+| `_build_upload_plan()` | Reuses `build_plan_from_state()` with the `upload-folder` schema + monitor advanced flags |
+
+### `core/folder_filters.py`
+
+Shared filtering helpers used by both watcher and runner.
+
+| Function | Purpose |
+|----------|---------|
+| `should_skip_file()` | Apply hidden/system, extension, size, and glob exclude rules |
+| `is_within_folder()` | Boundary-safe path-containment check |
+
+### `core/activity_monitor.py`
+
+Activity-based auto-pause detection.
+
+| Type | Purpose |
+|------|---------|
+| `ActivityMonitor` | Periodically detects monitored processes, CPU/GPU thresholds, or a fullscreen foreground window and signals pause/resume |
+| `check_processes_running()` | One-shot process-name check |
+
+### `core/network_awareness.py`
+
+Network policy enforcement for the Monitor subsystem.
+
+| Type | Purpose |
+|------|---------|
+| `NetworkMonitor` | Checks offline / metered / SSID state against the configured policy |
+| `NetworkStatus` | Enum: `allowed`, `blocked_metered`, `blocked_ssid`, `blocked_offline`, `unknown` |
+
 ## Dependency Rules
 
 ```text
-app.py  →  core/*  →  (stdlib, keyring, requests, packaging, psutil, tomli-w)
+app.py  →  core/*  →  (stdlib, keyring, requests, packaging, psutil, watchdog, tomli-w)
 core/*  ↛  PySide6, Qt
 tests/  →  app.py, core/*
 ```
