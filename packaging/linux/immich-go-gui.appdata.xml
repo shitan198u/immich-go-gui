@@ -8,5 +8,6 @@
   <description>
     <p>Desktop GUI application for immich-go to easily upload Google Photos, Apple Photos, and media archives to Immich.</p>
   </description>
-  <homepage>https://github.com/shitan198u/immich-go-gui</homepage>
+  <launchable type="desktop-id">immich-go-gui.desktop</launchable>
+  <url type="homepage">https://github.com/shitan198u/immich-go-gui</url>
 </component>
