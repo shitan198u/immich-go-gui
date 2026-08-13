@@ -221,4 +221,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          gh release create "test-${{ env.VERSION }}" Immich-Go-GUI-${{ env.VERSION }}-* --title "Test Build test-${{ env.VERSION }}" --prerelease --clobber 2>/dev/null || gh release upload "test-${{ env.VERSION }}" Immich-Go-GUI-${{ env.VERSION }}-* --clobber
+          gh release upload "test-${{ env.VERSION }}" Immich-Go-GUI-${{ env.VERSION }}-* --clobber || \
+          gh release create "test-${{ env.VERSION }}" Immich-Go-GUI-${{ env.VERSION }}-* --title "Test Build test-${{ env.VERSION }}" --target "${{ github.sha }}" --prerelease
