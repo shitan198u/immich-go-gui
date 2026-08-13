@@ -204,36 +204,21 @@ jobs:
             fi
           done
 
-      # Upload this platform's assets to the GitHub Release immediately —
-      # do not wait for other platforms. softprops/action-gh-release safely
-      # upserts the release and appends assets from concurrent jobs.
+      # Upload this platform's assets to the GitHub Release using GitHub CLI —
+      # gh release upload directly uploads matching platform files with --clobber,
+      # avoiding softprops API race condition HttpErrors on concurrent matrix jobs.
       - name: Publish assets to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v3
-        with:
-          files: |
-            Immich-Go-GUI-${{ env.VERSION }}-Windows-x86_64-Setup.exe
-            Immich-Go-GUI-${{ env.VERSION }}-Windows-x86_64-Portable.zip
-            Immich-Go-GUI-${{ env.VERSION }}-macOS-*.dmg
-            Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64.AppImage
-            Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64-Portable.tar.gz
-            Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64.deb
-            Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64.rpm
-            Immich-Go-GUI-${{ env.VERSION }}-SHA256SUMS.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh release upload "${{ github.ref_name }}" Immich-Go-GUI-${{ env.VERSION }}-* --clobber
 
       - name: Publish assets to Test Pre-Release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: "test-${{ env.VERSION }}"
-          name: "Test Build test-${{ env.VERSION }}"
-          prerelease: true
-          files: |
-            Immich-Go-GUI-${{ env.VERSION }}-Windows-x86_64-Setup.exe
-            Immich-Go-GUI-${{ env.VERSION }}-Windows-x86_64-Portable.zip
-            Immich-Go-GUI-${{ env.VERSION }}-macOS-*.dmg
-            Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64.AppImage
-            Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64-Portable.tar.gz
-            Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64.deb
-            Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64.rpm
-            Immich-Go-GUI-${{ env.VERSION }}-SHA256SUMS.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh release create "test-${{ env.VERSION }}" Immich-Go-GUI-${{ env.VERSION }}-* --title "Test Build test-${{ env.VERSION }}" --prerelease --clobber 2>/dev/null || gh release upload "test-${{ env.VERSION }}" Immich-Go-GUI-${{ env.VERSION }}-* --clobber
