@@ -602,3 +602,138 @@ def test_run_folder_upload_masks_secrets_and_streams_logs(tmp_path, monkeypatch)
     assert secret_key not in log_content
     assert "********" in log_content
     assert any("********" in line for line in logs)
+
+
+def test_network_awareness_ssid_helpers(monkeypatch):
+    from core.monitor_config import NetworkPolicy
+    from core.network_awareness import (
+        NetworkMonitor,
+        NetworkStatus,
+        _get_ssid_linux,
+        _get_ssid_macos,
+        _get_ssid_windows,
+    )
+
+    class MockRunWin:
+        stdout = "    SSID 1                   : HomeWiFi\n"
+
+    monkeypatch.setattr("subprocess.run", lambda *a, **k: MockRunWin())
+    assert _get_ssid_windows() == "HomeWiFi"
+
+    class MockRunMac1:
+        stdout = "SSID: OfficeWiFi\n"
+
+    monkeypatch.setattr("os.path.exists", lambda p: True)
+    monkeypatch.setattr("subprocess.run", lambda *a, **k: MockRunMac1())
+    assert _get_ssid_macos() == "OfficeWiFi"
+
+    class MockRunMac2:
+        stdout = "Current Wi-Fi Network: GuestWiFi\n"
+
+    def mock_run_mac2(cmd, *a, **k):
+        if len(cmd) > 0 and "networksetup" in cmd[0]:
+            return MockRunMac2()
+        raise Exception("airport failed")
+
+    monkeypatch.setattr("os.path.exists", lambda p: False)
+    monkeypatch.setattr("subprocess.run", mock_run_mac2)
+    assert _get_ssid_macos() == "GuestWiFi"
+
+    class MockRunLinuxNmcli:
+        stdout = "yes:LinuxWiFi\n"
+
+    monkeypatch.setattr("subprocess.run", lambda *a, **k: MockRunLinuxNmcli())
+    assert _get_ssid_linux() == "LinuxWiFi"
+
+    class MockRunLinuxIwconfig:
+        stdout = 'wlan0     IEEE 802.11  ESSID:"IwconfigWiFi"\n'
+
+    def mock_run_linux_iwconfig(cmd, *a, **k):
+        if len(cmd) > 0 and "iwconfig" in cmd[0]:
+            return MockRunLinuxIwconfig()
+        raise Exception("nmcli failed")
+
+    monkeypatch.setattr("subprocess.run", mock_run_linux_iwconfig)
+    assert _get_ssid_linux() == "IwconfigWiFi"
+
+    nm = NetworkMonitor(NetworkPolicy.SSID_ONLY, allowed_ssids=["HomeWiFi"])
+    monkeypatch.setattr(NetworkMonitor, "_is_online", lambda *a: True)
+    monkeypatch.setattr(NetworkMonitor, "_get_ssid", lambda *a: "HomeWiFi")
+    assert nm.check_status() == NetworkStatus.ALLOWED
+
+    monkeypatch.setattr(NetworkMonitor, "_get_ssid", lambda *a: "OtherWiFi")
+    assert nm.check_status() == NetworkStatus.BLOCKED_SSID
+
+    monkeypatch.setattr(NetworkMonitor, "_get_ssid", lambda *a: None)
+    assert nm.check_status() == NetworkStatus.UNKNOWN
+
+    monkeypatch.setattr(NetworkMonitor, "_is_online", lambda *a: False)
+    assert nm.check_status() == NetworkStatus.BLOCKED_OFFLINE
+
+
+def test_activity_monitor_detection_methods(monkeypatch):
+    from core.activity_monitor import (
+        ActivityMonitor,
+        check_processes_running,
+    )
+    from core.monitor_config import ActivityConfig, ActivityPauseMethod
+
+    config = ActivityConfig(
+        enabled=True,
+        detection_methods=[
+            ActivityPauseMethod.PROCESS_LIST,
+            ActivityPauseMethod.CPU_THRESHOLD,
+            ActivityPauseMethod.GPU_THRESHOLD,
+            ActivityPauseMethod.FULLSCREEN,
+        ],
+        monitored_processes=["game.exe"],
+        cpu_threshold_percent=80,
+        gpu_threshold_percent=80,
+        activity_grace_seconds=0,
+        resume_grace_seconds=0,
+    )
+
+    monitor = ActivityMonitor(config)
+    monitor._running = True
+
+    monkeypatch.setattr(
+        monitor, "_check_processes", lambda: "Process running: game.exe"
+    )
+    monitor._check_activity()
+    assert monitor.is_active is True
+
+    class MockTasklist:
+        stdout = '"game.exe","1234","Console","1","100 KB"\n'
+
+    monkeypatch.setattr("subprocess.run", lambda *a, **k: MockTasklist())
+    assert monitor._check_processes_windows() == "Process running: game.exe"
+
+    class MockNvidiaSmi:
+        stdout = "85\n"
+
+    monkeypatch.setattr("subprocess.run", lambda *a, **k: MockNvidiaSmi())
+    assert monitor._check_gpu() is True or not sys.platform.startswith("win")
+
+    assert isinstance(check_processes_running(["game.exe"]), set)
+
+    # Test CPU, GPU, Fullscreen branches in _check_activity
+    monkeypatch.setattr(monitor, "_check_processes", lambda: None)
+    monkeypatch.setattr(monitor, "_check_cpu", lambda: True)
+    monitor._check_activity()
+    assert monitor.is_active is True
+
+    monkeypatch.setattr(monitor, "_check_cpu", lambda: False)
+    monkeypatch.setattr(monitor, "_check_gpu", lambda: True)
+    monitor._check_activity()
+    assert monitor.is_active is True
+
+    monkeypatch.setattr(monitor, "_check_gpu", lambda: False)
+    monkeypatch.setattr(monitor, "_check_fullscreen", lambda: True)
+    monitor._check_activity()
+    assert monitor.is_active is True
+
+    # Test start and stop
+    monitor.start()
+    assert monitor._running is True
+    monitor.stop()
+    assert monitor._running is False

@@ -116,7 +116,7 @@ immich-go-gui/
 │   ├── activity_monitor.py# Activity-based auto-pause detection
 │   ├── network_awareness.py # Metered/SSID/offline detection & policy
 │   └── __init__.py        # Public re-exports
-├── tests/                 # Focused Pytest modules (28 modules, ~455 tests)
+├── tests/                 # Focused Pytest modules (28 modules, ~457 tests)
 ├── scripts/               # CLI help capture, review bundles, icon generator
 ├── docs/                  # User + developer + reference docs
 ├── packaging/             # Linux nfpm + Windows Inno Setup
