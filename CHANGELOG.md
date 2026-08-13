@@ -5,6 +5,18 @@ All notable changes to the Immich-Go GUI project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0](https://github.com/shitan198u/immich-go-gui/compare/v1.3.0...v1.4.0) (2026-08-13)
+
+
+### 🚀 Features & UI Completeness
+
+* add background folder monitoring ([#124](https://github.com/shitan198u/immich-go-gui/issues/124)) ([c0f0f38](https://github.com/shitan198u/immich-go-gui/commit/c0f0f388358b375835ced54771ba1212ebda1520))
+
+
+### 🐛 Bug Fixes & Discrepancy Resolution
+
+* **ci:** remove macos-13 x86_64 runner due to runner capacity timeouts ([#130](https://github.com/shitan198u/immich-go-gui/issues/130)) ([4dd296a](https://github.com/shitan198u/immich-go-gui/commit/4dd296a24ffa74c0a912c9f7eaa340f0b82cf281))
+
 ## [1.3.0](https://github.com/shitan198u/immich-go-gui/compare/v1.2.0...v1.3.0) (2026-08-02)
 
 
