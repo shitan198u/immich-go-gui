@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Setup uv
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
@@ -64,7 +64,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Set Version
         id: set-version
@@ -89,7 +89,7 @@ jobs:
         run: uv sync --dev
 
       - name: Setup Ccache
-        uses: hendrikmuhs/ccache-action@v1.2
+        uses: hendrikmuhs/ccache-action@v1.2.23
         with:
           key: ${{ runner.os }}-ccache-${{ matrix.name }}-${{ hashFiles('pyproject.toml', 'app.py', 'core/**') }}
           restore-keys: |
@@ -152,7 +152,7 @@ jobs:
 
       - name: Setup Node.js
         if: matrix.name == 'macos'
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
 
