@@ -98,7 +98,7 @@ jobs:
           max-size: 2G
 
       - name: Cache Nuitka build directory
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/Nuitka
