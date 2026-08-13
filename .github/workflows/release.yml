@@ -103,7 +103,7 @@ jobs:
           path: |
             ~/.cache/Nuitka
             ~/Library/Caches/Nuitka
-            ${{ env.LOCALAPPDATA }}\Nuitka\Nuitka
+            ~/AppData/Local/Nuitka/Nuitka
           key: ${{ runner.os }}-nuitka-${{ matrix.name }}-${{ hashFiles('pyproject.toml', 'app.py', 'core/**') }}
           restore-keys: |
             ${{ runner.os }}-nuitka-${{ matrix.name }}-
