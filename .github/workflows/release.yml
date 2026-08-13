@@ -88,6 +88,27 @@ jobs:
       - name: Install dependencies
         run: uv sync --dev
 
+      - name: Setup Ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ runner.os }}-ccache-${{ matrix.name }}-${{ hashFiles('pyproject.toml', 'app.py', 'core/**') }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-${{ matrix.name }}-
+            ${{ runner.os }}-ccache-
+          max-size: 2G
+
+      - name: Cache Nuitka build directory
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/Nuitka
+            ~/Library/Caches/Nuitka
+            ${{ env.LOCALAPPDATA }}\Nuitka\Nuitka
+          key: ${{ runner.os }}-nuitka-${{ matrix.name }}-${{ hashFiles('pyproject.toml', 'app.py', 'core/**') }}
+          restore-keys: |
+            ${{ runner.os }}-nuitka-${{ matrix.name }}-
+            ${{ runner.os }}-nuitka-
+
       - name: Detect macOS architecture
         if: matrix.name == 'macos'
         id: macos-arch
