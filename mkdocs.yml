@@ -116,6 +116,7 @@ plugins:
       type: timeago
       fallback_to_build_date: true
       enable_git_follow: false
+      enable_parallel_processing: false
 
 markdown_extensions:
   - pymdownx.highlight:
