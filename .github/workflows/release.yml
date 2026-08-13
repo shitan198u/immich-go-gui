@@ -180,9 +180,10 @@ jobs:
       - name: Build Linux AppImage
         if: matrix.name == 'linux'
         run: |
-          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/bin AppDir/usr/share/metainfo
           cp -r app.dist/* AppDir/usr/bin/
           cp immich-go-gui.png AppDir/
+          cp packaging/linux/immich-go-gui.appdata.xml AppDir/usr/share/metainfo/
 
           cat << 'EOF' > AppDir/immich-go-gui.desktop
           [Desktop Entry]

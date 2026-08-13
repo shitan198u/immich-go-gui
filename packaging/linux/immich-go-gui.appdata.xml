@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>immich-go-gui</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Immich-Go GUI</name>
+  <summary>Desktop GUI for immich-go bulk media operations</summary>
+  <description>
+    <p>Desktop GUI application for immich-go to easily upload Google Photos, Apple Photos, and media archives to Immich.</p>
+  </description>
+  <homepage>https://github.com/shitan198u/immich-go-gui</homepage>
+</component>
