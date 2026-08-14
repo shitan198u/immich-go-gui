@@ -31,11 +31,10 @@ Authoritative context for AI agents working in this repository. When user-provid
 
 | Branch | Purpose |
 |--------|---------|
-| `master` | Production; Release Please merges only |
-| `staging` | Active integration |
-| Feature/fix branches | Target `staging` via PR |
+| `master` | Main integration & production; PR target |
+| Feature/fix branches | Target `master` via PR |
 
-**Squash merges required** when merging `staging` → `master` so Release Please commit scanning stays clean.
+**Squash merges or Conventional Commits required** when merging PRs → `master` so Release Please commit scanning stays clean.
 
 ---
 

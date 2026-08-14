@@ -3,9 +3,7 @@ name: "CodeQL"
 on:
   push:
     branches: [ "master" ]
-  # NOTE: No `branches:` filter on pull_request — CI must run on PRs targeting
-  # ANY base branch. Filtering to `branches: [master]` only caused PRs opened
-  # against staging to silently get zero CI checks.
+  # NOTE: No `branches:` filter on pull_request — CI runs on all pull requests.
   pull_request:
   schedule:
     - cron: '30 1 * * 0' # Run every Sunday at 1:30 AM

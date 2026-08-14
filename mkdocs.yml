@@ -4,8 +4,8 @@ site_author: shitan198u
 site_url: https://shitan198u.github.io/immich-go-gui/
 repo_url: https://github.com/shitan198u/immich-go-gui
 repo_name: shitan198u/immich-go-gui
-# Point edit links at staging (active development branch for docs edits).
-edit_uri: edit/staging/docs/
+# Point edit links at master (active development branch for docs edits).
+edit_uri: edit/master/docs/
 
 # absolute_links: warn under --strict fails the build on absolute self-links.
 # Prefer relative paths within the docs tree; keep absolute only for external URLs.
