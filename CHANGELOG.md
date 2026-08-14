@@ -5,6 +5,13 @@ All notable changes to the Immich-Go GUI project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1](https://github.com/shitan198u/immich-go-gui/compare/v1.4.0...v1.4.1) (2026-08-14)
+
+
+### 🐛 Bug Fixes & Discrepancy Resolution
+
+* **ci:** switch release asset upload to native gh release CLI to prevent API race conditions ([#133](https://github.com/shitan198u/immich-go-gui/issues/133)) ([be9c717](https://github.com/shitan198u/immich-go-gui/commit/be9c7173f9ed0d43b1a72d9f4f0c725d727f6379))
+
 ## [1.4.0](https://github.com/shitan198u/immich-go-gui/compare/v1.3.0...v1.4.0) (2026-08-13)
 
 
