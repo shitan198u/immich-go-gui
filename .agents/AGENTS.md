@@ -25,7 +25,7 @@ Authoritative context for AI agents working in this repository. When user-provid
 | **Self-test** | `uv run python app.py --self-test` — loads registry, builds a plan, checks config dir |
 | **pre-commit** | `uv run pre-commit run --all-files` — mandatory check before committing or creating PRs |
 | **githooks** | Native git hooks in `.githooks/` configured via `git config core.hooksPath .githooks` |
-| **githooks** | Native git hooks in `.githooks/` configured via `git config core.hooksPath .githooks` |
+| **subshell/env** | On first command, initialize a persistent terminal (`RunPersistent: true`) with `export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"; unset GITHUB_TOKEN GH_TOKEN; export GH_PROMPT_DISABLED=1 NO_COLOR=1` and reuse `TerminalID` across commands to avoid repetitive prefixes and token bloat. |
 
 ### Git Branching
 
