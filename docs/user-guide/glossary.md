@@ -31,7 +31,7 @@ Terms used throughout Immich-Go GUI documentation and the immich-go ecosystem.
 | **Process lock** | File under `{config_dir}/locks/` preventing concurrent GUI-launched jobs. |
 | **Nuitka** | Python compiler used to produce standalone release binaries. |
 | **Release Please** | Automation that versions the project and updates `CHANGELOG.md` from conventional commits. |
-| **staging / master** | Development vs production branches; PRs target `staging`. |
+| **master** | Main repository branch; contributor PRs target `master`. |
 | **SHA256 verification** | Checksum validation when downloading immich-go releases. |
 | **Skip SSL verification** | Disables TLS certificate validation — lab/self-signed only. |
 | **Monitor** | Background subsystem that watches local folders and uploads new media to Immich automatically. |

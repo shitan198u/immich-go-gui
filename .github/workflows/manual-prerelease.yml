@@ -10,10 +10,9 @@ on:
       branch:
         description: "Branch to create prerelease from"
         required: true
-        default: "staging"
+        default: "master"
         type: choice
         options:
-          - staging
           - master
       version_type:
         description: "Version increment type"

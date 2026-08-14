@@ -2,7 +2,7 @@
 
 Thank you for helping improve Immich-Go GUI. Clear PRs and docs keep the project healthy for users and maintainers alike.
 
-> When browsing on GitHub at the repository root, open [docs/CONTRIBUTING.md](https://github.com/shitan198u/immich-go-gui/blob/staging/docs/CONTRIBUTING.md) (or the [published docs](https://shitan198u.github.io/immich-go-gui/CONTRIBUTING/)) so internal doc links resolve correctly.
+> When browsing on GitHub at the repository root, open [docs/CONTRIBUTING.md](https://github.com/shitan198u/immich-go-gui/blob/master/docs/CONTRIBUTING.md) (or the [published docs](https://shitan198u.github.io/immich-go-gui/CONTRIBUTING/)) so internal doc links resolve correctly.
 
 ## Where do I go from here?
 
@@ -81,9 +81,9 @@ Details: [Testing guide](developer-guide/testing.md).
 
 ## Making a pull request
 
-1. Branch from **`staging`**: `git checkout -b feature-or-bugfix-name`
+1. Branch from **`master`**: `git checkout -b feature-or-bugfix-name master`
 2. Make focused commits (see commit style below)
-3. Push and open a PR **targeting `staging`**
+3. Push and open a PR **targeting `master`**
 4. Fill out the PR template (platforms tested, docs updated, tests run)
 
 ### Commit message style
@@ -111,10 +111,10 @@ docs: document admin API key and job pausing
 
 | Branch | Role |
 |--------|------|
-| `staging` | Active development; **all contributor PRs land here** |
-| `master` | Production; advanced by Release Please after squash merge from `staging` |
+| `master` | Main integration & production; all contributor PRs target `master` |
+| Feature/fix branches | Created from `master` and merged via PR |
 
-Do not open routine feature PRs directly against `master`.
+Feature branches are merged into `master` using Conventional Commits so Release Please automates versioning and changelog updates.
 
 ## Design rules worth knowing early
 

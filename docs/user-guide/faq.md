@@ -131,7 +131,7 @@ Per profile, in `monitor_config.json` (settings) and `monitor_state.json` (last-
 
 ### Where should pull requests target?
 
-Always open PRs against **`staging`**, not `master`. See [CONTRIBUTING](../CONTRIBUTING.md).
+Always open PRs against **`master`**. See [CONTRIBUTING](../CONTRIBUTING.md).
 
 ### How do I run tests?
 

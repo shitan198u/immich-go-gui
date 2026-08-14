@@ -118,7 +118,7 @@ Contributions are welcome. Please:
 
 1. Read [CONTRIBUTING.md](CONTRIBUTING.md)
 2. Skim the [Developer Guide](docs/developer-guide/architecture.md)
-3. Open PRs against **`staging`** (not `master`)
+3. Open PRs against **`master`**
 4. Prefer [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, …) so Release Please can version cleanly
 
 ```bash
