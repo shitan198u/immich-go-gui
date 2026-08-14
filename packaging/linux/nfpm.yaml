@@ -4,6 +4,7 @@ platform: "linux"
 version: "${VERSION:-1.0.0}"
 description: "GUI for Immich-Go"
 homepage: "https://github.com/shitan198u/immich-go-gui"
+maintainer: "shitan198u <shitan198u@users.noreply.github.com>"
 license: "MIT"
 contents:
   - src: ../../app.dist/

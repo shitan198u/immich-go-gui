@@ -53,6 +53,7 @@ jobs:
         with:
           ref: ${{ github.event.inputs.branch }}
           fetch-depth: 0
+          persist-credentials: false
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup uv
@@ -118,7 +119,10 @@ jobs:
         run: xvfb-run uv run pytest
 
       - name: Create and Push Tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          gh auth setup-git
           PRERELEASE_VERSION="${{ steps.version.outputs.prerelease_version }}"
           SHORT_COMMIT=$(git rev-parse --short HEAD)
 

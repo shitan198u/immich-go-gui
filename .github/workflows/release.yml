@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Setup uv
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
@@ -49,8 +51,6 @@ jobs:
       contents: write
     outputs:
       version: ${{ steps.set-version.outputs.version }}
-    env:
-      VERSION: '1.0.0'
     strategy:
       fail-fast: false
       matrix:
@@ -65,17 +65,23 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Set Version
         id: set-version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
         shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.version }}" ]]; then
-            VERSION="${{ github.event.inputs.version }}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "$INPUT_VERSION" ]]; then
+            VERSION="$INPUT_VERSION"
           else
             VERSION=${GITHUB_REF_NAME#v}
             if [[ "$VERSION" == *"/"* ]] || [[ -z "$VERSION" ]]; then VERSION="1.0.0-test"; fi
           fi
+          VERSION=$(echo "$VERSION" | tr -cd 'a-zA-Z0-9.-')
+          if [ -z "$VERSION" ]; then VERSION="1.0.0-test"; fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
@@ -84,6 +90,27 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --dev
+
+      - name: Setup Ccache
+        uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
+        with:
+          key: ${{ runner.os }}-ccache-${{ matrix.name }}-${{ hashFiles('pyproject.toml', 'app.py', 'core/**') }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-${{ matrix.name }}-
+            ${{ runner.os }}-ccache-
+          max-size: 2G
+
+      - name: Cache Nuitka build directory
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/Nuitka
+            ~/Library/Caches/Nuitka
+            ~/AppData/Local/Nuitka/Nuitka
+          key: ${{ runner.os }}-nuitka-${{ matrix.name }}-${{ hashFiles('pyproject.toml', 'app.py', 'core/**') }}
+          restore-keys: |
+            ${{ runner.os }}-nuitka-${{ matrix.name }}-
+            ${{ runner.os }}-nuitka-
 
       - name: Detect macOS architecture
         if: matrix.name == 'macos'
@@ -100,7 +127,7 @@ jobs:
         if: matrix.name == 'windows'
         shell: bash
         run: |
-          NUMERIC_VERSION=$(echo "${{ env.VERSION }}" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' || echo "1.0.0")
+          NUMERIC_VERSION=$(echo "$VERSION" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' || echo "1.0.0")
           uv run python -m nuitka --output-filename=Immich-Go-GUI.exe \
             --file-version="${NUMERIC_VERSION}.0" --product-version="${NUMERIC_VERSION}.0" app.py
 
@@ -109,7 +136,7 @@ jobs:
         run: |
           if (Test-Path "app.dist/app.exe") { Rename-Item -Path "app.dist/app.exe" -NewName "Immich-Go-GUI.exe" }
           Set-Content -Path "app.dist/README.txt" -Value "To launch the application, simply double-click the file named Immich-Go-GUI.exe. You do not need to install anything else."
-          Compress-Archive -Path "app.dist/*" -DestinationPath "Immich-Go-GUI-${{ env.VERSION }}-Windows-x86_64-Portable.zip"
+          Compress-Archive -Path "app.dist/*" -DestinationPath "Immich-Go-GUI-$env:VERSION-Windows-x86_64-Portable.zip"
 
       - name: Compile Windows Installer
         if: matrix.name == 'windows'
@@ -118,7 +145,7 @@ jobs:
           if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) {
             choco install innosetup -y
           }
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion="${{ env.VERSION }}" /DMyOutputFilename="Immich-Go-GUI-${{ env.VERSION }}-Windows-x86_64-Setup" packaging/windows/installer.iss
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion="$env:VERSION" /DMyOutputFilename="Immich-Go-GUI-$env:VERSION-Windows-x86_64-Setup" packaging/windows/installer.iss
           if (Test-Path "..\..\Immich-Go-GUI-*.exe") {
             Move-Item -Path "..\..\Immich-Go-GUI-*.exe" -Destination "." -Force
           }
@@ -138,7 +165,7 @@ jobs:
           uv run python -m nuitka --output-filename=Immich-Go-GUI app.py
           npm install -g create-dmg@${{ env.CREATE_DMG_VERSION }}
           create-dmg --no-code-sign app.app
-          mv *.dmg "Immich-Go-GUI-${{ env.VERSION }}-${{ steps.macos-arch.outputs.suffix }}.dmg"
+          mv *.dmg "Immich-Go-GUI-$VERSION-${{ steps.macos-arch.outputs.suffix }}.dmg"
 
       - name: Build Linux Standalone
         if: matrix.name == 'linux'
@@ -151,14 +178,15 @@ jobs:
           if [ -f app.dist/app.bin ]; then mv app.dist/app.bin app.dist/Immich-Go-GUI; fi
           if [ -f app.dist/app ]; then mv app.dist/app app.dist/Immich-Go-GUI; fi
           echo "To launch the application, double-click the file named Immich-Go-GUI, or run ./Immich-Go-GUI in the terminal. You do not need to install anything else." > app.dist/README.txt
-          tar -czvf "Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64-Portable.tar.gz" -C app.dist .
+          tar -czvf "Immich-Go-GUI-$VERSION-Linux-x86_64-Portable.tar.gz" -C app.dist .
 
       - name: Build Linux AppImage
         if: matrix.name == 'linux'
         run: |
-          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/bin AppDir/usr/share/metainfo
           cp -r app.dist/* AppDir/usr/bin/
           cp immich-go-gui.png AppDir/
+          cp packaging/linux/immich-go-gui.appdata.xml AppDir/usr/share/metainfo/
 
           cat << 'EOF' > AppDir/immich-go-gui.desktop
           [Desktop Entry]
@@ -178,7 +206,7 @@ jobs:
 
           wget -q "https://github.com/AppImage/appimagetool/releases/download/${{ env.APPIMAGETOOL_VERSION }}/appimagetool-x86_64.AppImage" -O appimagetool
           chmod +x appimagetool
-          ./appimagetool --appimage-extract-and-run AppDir "Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64.AppImage"
+          ./appimagetool --appimage-extract-and-run AppDir "Immich-Go-GUI-$VERSION-Linux-x86_64.AppImage"
 
       - name: Install nFPM
         if: matrix.name == 'linux'
@@ -190,50 +218,41 @@ jobs:
         if: matrix.name == 'linux'
         run: |
           cd packaging/linux
-          nfpm pkg --packager deb --target "../../Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64.deb"
-          nfpm pkg --packager rpm --target "../../Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64.rpm"
+          nfpm pkg --packager deb --target "../../Immich-Go-GUI-$VERSION-Linux-x86_64.deb"
+          nfpm pkg --packager rpm --target "../../Immich-Go-GUI-$VERSION-Linux-x86_64.rpm"
 
       - name: Generate SHA256 checksums
         shell: bash
         run: |
-          SUMS_FILE="Immich-Go-GUI-${{ env.VERSION }}-SHA256SUMS.txt"
+          SUMS_FILE="Immich-Go-GUI-$VERSION-${{ matrix.name }}-SHA256SUMS.txt"
           : > "$SUMS_FILE"
-          for f in Immich-Go-GUI-${{ env.VERSION }}-*; do
-            if [ -f "$f" ]; then
+          for f in Immich-Go-GUI-$VERSION-*; do
+            if [ -f "$f" ] && [ "$f" != "$SUMS_FILE" ]; then
               sha256sum "$f" >> "$SUMS_FILE"
             fi
           done
 
-      # Upload this platform's assets to the GitHub Release immediately —
-      # do not wait for other platforms. softprops/action-gh-release safely
-      # upserts the release and appends assets from concurrent jobs.
+      # Upload this platform's assets to the GitHub Release using GitHub CLI —
+      # gh release upload directly uploads matching platform files with --clobber,
+      # avoiding softprops API race condition HttpErrors on concurrent matrix jobs.
       - name: Publish assets to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v3
-        with:
-          files: |
-            Immich-Go-GUI-${{ env.VERSION }}-Windows-x86_64-Setup.exe
-            Immich-Go-GUI-${{ env.VERSION }}-Windows-x86_64-Portable.zip
-            Immich-Go-GUI-${{ env.VERSION }}-macOS-*.dmg
-            Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64.AppImage
-            Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64-Portable.tar.gz
-            Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64.deb
-            Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64.rpm
-            Immich-Go-GUI-${{ env.VERSION }}-SHA256SUMS.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          gh release upload "$RELEASE_TAG" Immich-Go-GUI-$VERSION-* --clobber 2>/dev/null || \
+          (gh release create "$RELEASE_TAG" Immich-Go-GUI-$VERSION-* --title "$RELEASE_TAG" 2>/dev/null || true; \
+           gh release upload "$RELEASE_TAG" Immich-Go-GUI-$VERSION-* --clobber)
 
       - name: Publish assets to Test Pre-Release
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: "test-${{ env.VERSION }}"
-          name: "Test Build test-${{ env.VERSION }}"
-          prerelease: true
-          files: |
-            Immich-Go-GUI-${{ env.VERSION }}-Windows-x86_64-Setup.exe
-            Immich-Go-GUI-${{ env.VERSION }}-Windows-x86_64-Portable.zip
-            Immich-Go-GUI-${{ env.VERSION }}-macOS-*.dmg
-            Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64.AppImage
-            Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64-Portable.tar.gz
-            Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64.deb
-            Immich-Go-GUI-${{ env.VERSION }}-Linux-x86_64.rpm
-            Immich-Go-GUI-${{ env.VERSION }}-SHA256SUMS.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: test-${{ steps.set-version.outputs.version }}
+        shell: bash
+        run: |
+          gh release upload "$RELEASE_TAG" Immich-Go-GUI-$VERSION-* --clobber 2>/dev/null || \
+          (gh release create "$RELEASE_TAG" Immich-Go-GUI-$VERSION-* --title "Test Build $RELEASE_TAG" --target "${{ github.sha }}" --prerelease 2>/dev/null || true; \
+           gh release upload "$RELEASE_TAG" Immich-Go-GUI-$VERSION-* --clobber)
