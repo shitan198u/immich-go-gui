@@ -81,7 +81,7 @@ Details: [Testing guide](developer-guide/testing.md).
 
 ## Making a pull request
 
-1. Branch from **`master`**: `git checkout -b feature-or-bugfix-name`
+1. Branch from **`master`**: `git checkout -b feature-or-bugfix-name master`
 2. Make focused commits (see commit style below)
 3. Push and open a PR **targeting `master`**
 4. Fill out the PR template (platforms tested, docs updated, tests run)
