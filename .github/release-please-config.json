@@ -12,6 +12,10 @@
       "extra-files": [
         {
           "type": "generic",
+          "path": "core/version.py"
+        },
+        {
+          "type": "generic",
           "path": "docs/README.md"
         },
         {

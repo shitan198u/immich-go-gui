@@ -1,6 +1,4 @@
 import webbrowser
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as _pkg_version
 
 from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 from PySide6.QtWidgets import QMessageBox
@@ -11,13 +9,7 @@ from core.app_update import (
     is_parseable_semver,
     is_update_available,
 )
-
-
-def _gui_version() -> str:
-    try:
-        return _pkg_version("immich-go-gui")
-    except PackageNotFoundError:
-        return "dev"
+from core.version import get_app_version as _gui_version
 
 
 class _UpdateCheckSignals(QObject):

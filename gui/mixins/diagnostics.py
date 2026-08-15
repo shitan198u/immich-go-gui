@@ -1,7 +1,5 @@
 import tomllib
 import zipfile
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 from PySide6.QtCore import QUrl
@@ -16,13 +14,7 @@ from core import (
     get_config_load_warning,
 )
 from core.profile_manager import profile_dir
-
-
-def _gui_version() -> str:
-    try:
-        return _pkg_version("immich-go-gui")
-    except PackageNotFoundError:
-        return "dev"
+from core.version import get_app_version as _gui_version
 
 
 def _redact_diagnostics_toml(text: str) -> str:

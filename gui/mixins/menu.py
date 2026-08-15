@@ -1,6 +1,4 @@
 import webbrowser
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
 from PySide6.QtGui import QAction
@@ -8,13 +6,7 @@ from PySide6.QtWidgets import QMessageBox
 
 from core import TESTED_IMMICH_GO_VERSION
 from core.profile_manager import active_profile_name, list_profiles
-
-
-def _gui_version() -> str:
-    try:
-        return _pkg_version("immich-go-gui")
-    except PackageNotFoundError:
-        return "dev"
+from core.version import get_app_version as _gui_version
 
 
 class MenuMixin:

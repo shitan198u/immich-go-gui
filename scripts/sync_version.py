@@ -125,6 +125,11 @@ def main() -> int:
             'version = "{version}"',
         ),
         (
+            ROOT_DIR / "core" / "version.py",
+            r'^__version__\s*=\s*"[^"]+"',
+            '__version__ = "{version}"',
+        ),
+        (
             ROOT_DIR / ".github" / ".release-please-manifest.json",
             r'"\."(\s*:\s*)"[^"]+"',
             r'"."\g<1>"{version}"',
