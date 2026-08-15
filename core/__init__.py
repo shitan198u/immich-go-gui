@@ -144,7 +144,7 @@ from .profile_manager import (
     validate_profile_name,
 )
 from .terminal_launcher import LaunchResult, launch_external_terminal
-from .version import __version__, get_app_version
+from .version import __version__, get_app_version, is_development_build
 
 __all__ = [
     # cli_schema
@@ -239,6 +239,7 @@ __all__ = [
     "get_version_support",
     # cli_help
     "help_name_for_tab",
+    "is_development_build",
     "is_lock_active",
     "launch_external_terminal",
     "list_profiles",

@@ -39,7 +39,11 @@ class AppUpdateMixin:
         installed = _gui_version()
         if hasattr(self, "lbl_app_version"):
             self.lbl_app_version.setText(installed)
-        if not is_parseable_semver(installed):
+        if (
+            not is_parseable_semver(installed)
+            or installed.endswith("-dev")
+            or installed == "dev"
+        ):
             self._set_app_update_status("Development build", "default")
         else:
             self._set_app_update_status(self._APP_UPDATE_STATUS_DEFAULT, "default")
@@ -72,7 +76,11 @@ class AppUpdateMixin:
     def check_for_application_updates(self) -> None:
         self._ensure_update_check_worker()
         installed = _gui_version()
-        is_dev = not is_parseable_semver(installed)
+        is_dev = (
+            not is_parseable_semver(installed)
+            or installed.endswith("-dev")
+            or installed == "dev"
+        )
         self._pending_update_check = (installed, is_dev)
         if hasattr(self, "btn_check_app_updates"):
             self.btn_check_app_updates.setEnabled(False)
