@@ -95,7 +95,7 @@ jobs:
         if: matrix.name == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxkbcommon-x11-0 libxcb-cursor0 xvfb libegl1 libgl1 libxcb-xinerama0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0
+          sudo apt-get install -y libxkbcommon-x11-0 libxcb-cursor0 xvfb libegl1 libgl1 libxcb-xinerama0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0 rpm
 
       - name: Setup Ccache
         uses: hendrikmuhs/ccache-action@d62db5f07c26379fc4b4e0916f098a92573c3b03 # v1.2.23
@@ -236,12 +236,20 @@ jobs:
         if: matrix.name == 'linux'
         run: |
           DEB_FILE="Immich-Go-GUI-$VERSION-Linux-x86_64.deb"
+          RPM_FILE="Immich-Go-GUI-$VERSION-Linux-x86_64.rpm"
           echo "Verifying $DEB_FILE directory structure..."
           dpkg-deb -c "$DEB_FILE" | grep -E 'opt/immich-go-gui/shiboken6/Shiboken' || { echo "ERROR: DEB package is missing shiboken6/ subdirectory (directory flattening regression)"; exit 1; }
           dpkg-deb -c "$DEB_FILE" | grep -E 'opt/immich-go-gui/PySide6/QtCore' || { echo "ERROR: DEB package is missing PySide6/ subdirectory (directory flattening regression)"; exit 1; }
           dpkg-deb -c "$DEB_FILE" | grep -E 'opt/immich-go-gui/core/flags.toml' || { echo "ERROR: DEB package is missing core/flags.toml"; exit 1; }
           dpkg-deb -c "$DEB_FILE" | grep -E 'opt/immich-go-gui/assets/icons/' || { echo "ERROR: DEB package is missing assets/icons/"; exit 1; }
           echo "DEB package structure successfully verified."
+
+          echo "Verifying $RPM_FILE directory structure..."
+          rpm -qlp "$RPM_FILE" | grep -E 'opt/immich-go-gui/shiboken6/Shiboken' || { echo "ERROR: RPM package is missing shiboken6/ subdirectory (directory flattening regression)"; exit 1; }
+          rpm -qlp "$RPM_FILE" | grep -E 'opt/immich-go-gui/PySide6/QtCore' || { echo "ERROR: RPM package is missing PySide6/ subdirectory (directory flattening regression)"; exit 1; }
+          rpm -qlp "$RPM_FILE" | grep -E 'opt/immich-go-gui/core/flags.toml' || { echo "ERROR: RPM package is missing core/flags.toml"; exit 1; }
+          rpm -qlp "$RPM_FILE" | grep -E 'opt/immich-go-gui/assets/icons/' || { echo "ERROR: RPM package is missing assets/icons/"; exit 1; }
+          echo "RPM package structure successfully verified."
 
       - name: Generate SHA256 checksums
         shell: bash

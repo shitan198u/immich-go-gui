@@ -107,6 +107,11 @@ def main() -> int:
             r"(?:\d+\s+modules,\s+)?~\d+\s+tests",
             f"{module_count} modules, ~{test_count} tests",
         ),
+        (
+            ROOT_DIR / ".agents" / "AGENTS.md",
+            r"\*\*Suite Metrics\*\*:\s+\*\*\d+\s+tests\s+across\s+\d+\s+modules\*\*",
+            f"**Suite Metrics**: **{test_count} tests across {module_count} modules**",
+        ),
     ]
 
     all_ok = True

@@ -102,6 +102,7 @@ def test_linux_appdata_xml_validity():
     appdata_path = LINUX_PKG_ROOT / "immich-go-gui.appdata.xml"
     assert appdata_path.is_file(), f"Missing {appdata_path}"
 
+    # Static repository-controlled AppStream metadata file
     tree = ET.parse(appdata_path)
     root = tree.getroot()
     assert root.tag == "component"
