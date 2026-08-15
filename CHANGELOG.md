@@ -5,6 +5,13 @@ All notable changes to the Immich-Go GUI project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2](https://github.com/shitan198u/immich-go-gui/compare/v1.4.1...v1.4.2) (2026-08-15)
+
+
+### 🐛 Bug Fixes & Discrepancy Resolution
+
+* preserve directory structure in Linux deb and rpm packages ([#135](https://github.com/shitan198u/immich-go-gui/issues/135)) ([1fb125e](https://github.com/shitan198u/immich-go-gui/commit/1fb125efeb846ff0f336f4742093accc64308f6c))
+
 ## [1.4.1](https://github.com/shitan198u/immich-go-gui/compare/v1.4.0...v1.4.1) (2026-08-14)
 
 
