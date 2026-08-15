@@ -104,8 +104,8 @@ def main() -> int:
         ),
         (
             ROOT_DIR / "docs" / "developer-guide" / "architecture.md",
-            r"~\d+\s+tests",
-            f"~{test_count} tests",
+            r"(?:\d+\s+modules,\s+)?~\d+\s+tests",
+            f"{module_count} modules, ~{test_count} tests",
         ),
     ]
 

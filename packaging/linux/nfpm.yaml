@@ -7,8 +7,8 @@ homepage: "https://github.com/shitan198u/immich-go-gui"
 maintainer: "shitan198u <shitan198u@users.noreply.github.com>"
 license: "MIT"
 contents:
-  - src: ../../app.dist/
-    dst: /opt/immich-go-gui/
+  - src: ../../app.dist
+    dst: /opt/immich-go-gui
   - src: ../../immich-go-gui.png
     dst: /usr/share/pixmaps/immich-go-gui.png
   - src: ./immich-go-gui.desktop

@@ -180,6 +180,11 @@ jobs:
           echo "To launch the application, double-click the file named Immich-Go-GUI, or run ./Immich-Go-GUI in the terminal. You do not need to install anything else." > app.dist/README.txt
           tar -czvf "Immich-Go-GUI-$VERSION-Linux-x86_64-Portable.tar.gz" -C app.dist .
 
+      - name: Smoke test Linux standalone binary
+        if: matrix.name == 'linux'
+        run: |
+          QT_QPA_PLATFORM=offscreen xvfb-run app.dist/Immich-Go-GUI --self-test
+
       - name: Build Linux AppImage
         if: matrix.name == 'linux'
         run: |
@@ -220,6 +225,17 @@ jobs:
           cd packaging/linux
           nfpm pkg --packager deb --target "../../Immich-Go-GUI-$VERSION-Linux-x86_64.deb"
           nfpm pkg --packager rpm --target "../../Immich-Go-GUI-$VERSION-Linux-x86_64.rpm"
+
+      - name: Verify Linux package structure
+        if: matrix.name == 'linux'
+        run: |
+          DEB_FILE="Immich-Go-GUI-$VERSION-Linux-x86_64.deb"
+          echo "Verifying $DEB_FILE directory structure..."
+          dpkg-deb -c "$DEB_FILE" | grep -E 'opt/immich-go-gui/shiboken6/Shiboken' || { echo "ERROR: DEB package is missing shiboken6/ subdirectory (directory flattening regression)"; exit 1; }
+          dpkg-deb -c "$DEB_FILE" | grep -E 'opt/immich-go-gui/PySide6/QtCore' || { echo "ERROR: DEB package is missing PySide6/ subdirectory (directory flattening regression)"; exit 1; }
+          dpkg-deb -c "$DEB_FILE" | grep -E 'opt/immich-go-gui/core/flags.toml' || { echo "ERROR: DEB package is missing core/flags.toml"; exit 1; }
+          dpkg-deb -c "$DEB_FILE" | grep -E 'opt/immich-go-gui/assets/icons/' || { echo "ERROR: DEB package is missing assets/icons/"; exit 1; }
+          echo "DEB package structure successfully verified."
 
       - name: Generate SHA256 checksums
         shell: bash
