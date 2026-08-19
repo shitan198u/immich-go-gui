@@ -144,6 +144,7 @@ from .profile_manager import (
     validate_profile_name,
 )
 from .terminal_launcher import LaunchResult, launch_external_terminal
+from .version import __version__, get_app_version, is_development_build
 
 __all__ = [
     # cli_schema
@@ -206,6 +207,7 @@ __all__ = [
     "ValidationResult",
     "VersionSupport",
     "WatchedFolder",
+    "__version__",
     "active_profile_name",
     "assert_flag_allowed",
     # command_builder
@@ -230,12 +232,14 @@ __all__ = [
     "ensure_default_profile",
     "flag_allowed_for_tab",
     "get_api_key",
+    "get_app_version",
     "get_binary_path",
     "get_config_load_warning",
     "get_secret_with_fallback",
     "get_version_support",
     # cli_help
     "help_name_for_tab",
+    "is_development_build",
     "is_lock_active",
     "launch_external_terminal",
     "list_profiles",
