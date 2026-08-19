@@ -33,6 +33,34 @@ def test_is_development_build_compiled_flag(monkeypatch):
     assert is_development_build() is False
 
 
+def test_is_development_build_git_detection(monkeypatch, tmp_path):
+    monkeypatch.delenv("IMMICH_GO_GUI_DEV", raising=False)
+    monkeypatch.delattr("sys.__compiled__", raising=False)
+    monkeypatch.delattr("sys.frozen", raising=False)
+
+    fake_version_file = tmp_path / "core" / "version.py"
+    fake_version_file.parent.mkdir(parents=True)
+    fake_version_file.touch()
+
+    monkeypatch.setattr("core.version.__file__", str(fake_version_file))
+
+    # Case 1: .git is a directory (standard git clone)
+    git_path = tmp_path / ".git"
+    git_path.mkdir()
+    assert is_development_build() is True
+
+    # Case 2: .git is a regular file (git worktree / submodule)
+    git_path.rmdir()
+    git_path.write_text(
+        "gitdir: /path/to/main/repo/.git/worktrees/feat\n", encoding="utf-8"
+    )
+    assert is_development_build() is True
+
+    # Case 3: .git does not exist
+    git_path.unlink()
+    assert is_development_build() is False
+
+
 def test_get_app_version_dev_mode(monkeypatch):
     monkeypatch.setenv("IMMICH_GO_GUI_DEV", "1")
     ver = get_app_version()

@@ -26,7 +26,7 @@ def is_development_build() -> bool:
     # If running from a directory with a .git repository, it is a developer git checkout
     try:
         repo_root = Path(__file__).resolve().parent.parent
-        if (repo_root / ".git").is_dir():
+        if (repo_root / ".git").exists():
             return True
     except Exception:
         pass
