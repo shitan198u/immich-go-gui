@@ -7,7 +7,7 @@ import sys
 from importlib.metadata import version as _pkg_version
 from pathlib import Path
 
-__version__ = "1.4.2"
+__version__ = "1.4.3"
 
 
 def is_development_build() -> bool:
