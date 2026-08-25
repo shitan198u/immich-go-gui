@@ -306,13 +306,13 @@ class MonitorMixin:
             last_handled = datetime.fromisoformat(marker)
             if last_handled.tzinfo is None:
                 last_handled = last_handled.replace(tzinfo=UTC)
-            return occurrence > last_handled
+            return occurrence.astimezone(UTC) > last_handled.astimezone(UTC)
         except (TypeError, ValueError):
             return True
 
     def _mark_triggered(self, kind: str, occurrence: datetime) -> None:
         """Persist that this occurrence has been handled."""
-        stamp = occurrence.isoformat()
+        stamp = occurrence.astimezone(UTC).isoformat()
         with self._state_lock:
             if kind == "weekly":
                 self.monitor_state.last_weekly_handled_utc = stamp

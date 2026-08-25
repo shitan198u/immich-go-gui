@@ -562,11 +562,14 @@ def test_is_due_handles_naive_iso_marker():
 
 
 def test_network_policy_options_mapping():
+    from core.monitor_config import NetworkPolicy
     from gui.tabs.monitor_tab import NETWORK_POLICY_OPTIONS
 
-    # First element of tuple must be the config identifier string
+    # First element of tuple must be a valid NetworkPolicy enum value
     config_keys = [opt[0] for opt in NETWORK_POLICY_OPTIONS]
-    assert config_keys == ["always", "wifi_only", "ssids_only", "no_metered"]
+    assert config_keys == ["always", "no_metered", "ssid_only"]
+    for key in config_keys:
+        assert NetworkPolicy(key) in NetworkPolicy
 
 
 def test_run_folder_upload_masks_secrets_and_streams_logs(tmp_path, monkeypatch):
@@ -737,3 +740,120 @@ def test_activity_monitor_detection_methods(monkeypatch):
     assert monitor._running is True
     monitor.stop()
     assert monitor._running is False
+
+
+def test_debounce_queue_reset_after_shutdown():
+    from core.folder_watcher import DebounceFileQueue
+
+    queue = DebounceFileQueue(debounce_seconds=30)
+    queue.add_file("first.jpg")
+    queue.shutdown()
+    assert queue.flush() == []
+
+    # Reset clears shutdown state and allows new files to be queued
+    queue.reset(debounce_seconds=15)
+    queue.add_file("second.jpg")
+    assert queue.flush() == ["second.jpg"]
+
+
+def test_folder_watcher_on_moved_event(tmp_path):
+    from core.folder_watcher import FolderWatcher
+    from core.monitor_config import MonitorConfig
+
+    queued = []
+    config = MonitorConfig(folders=[str(tmp_path)], watcher_debounce_seconds=30)
+    watcher = FolderWatcher(config, on_batch_ready=queued.append)
+
+    class FakeMoveEvent:
+        dest_path = str(tmp_path / "moved_photo.jpg")
+
+    (tmp_path / "moved_photo.jpg").write_bytes(b"content")
+
+    # Start watcher and test moved event
+    watcher.start()
+    assert watcher.running is True
+
+    # Simulate moved event directly
+    watcher._handle_event(FakeMoveEvent.dest_path)
+    assert watcher.flush_pending() == [str(tmp_path / "moved_photo.jpg")]
+    watcher.stop()
+
+
+def test_run_folder_upload_handles_log_file_creation_failure(tmp_path, monkeypatch):
+    from core import folder_runner
+    from core.folder_runner import RunnerState, run_folder_upload
+    from core.models import CommandPlan
+
+    plan = CommandPlan()
+    plan.argv = ["-c", "print('ok')"]
+    plan.env = {}
+
+    monkeypatch.setattr(folder_runner, "_resolve_binary_path", lambda: sys.executable)
+    monkeypatch.setattr(folder_runner, "_build_upload_plan", lambda *a, **k: plan)
+    # Simulate os.makedirs failure for log dir
+    monkeypatch.setattr(
+        "os.makedirs",
+        lambda *a, **k: (_ for _ in ()).throw(OSError("Permission denied")),
+    )
+
+    state = RunnerState()
+    state.reset()
+
+    # Must complete without unhandled AttributeError on None.close()
+    result = run_folder_upload(
+        folder=str(tmp_path),
+        config=MonitorConfig(),
+        server_url="http://localhost:2283",
+        api_key="k",
+        since_utc=datetime.now(UTC) - timedelta(days=1),
+        log_dir="/nonexistent/forbidden/dir",
+        state=state,
+    )
+
+    assert result.success is True
+    assert result.exit_code == 0
+
+
+def test_build_upload_plan_defaults_to_safe_no_stack(tmp_path):
+    from core.folder_runner import _build_upload_plan
+
+    plan = _build_upload_plan(
+        str(tmp_path),
+        MonitorConfig(),
+        "http://localhost:2283",
+        "key",
+        datetime.now(UTC),
+    )
+    # Stacking flags must not be passed when using default NoStack
+    assert not any("--manage-burst" in arg for arg in plan.argv)
+    assert not any("--manage-raw-jpeg" in arg for arg in plan.argv)
+    assert not any("--manage-heic-jpeg" in arg for arg in plan.argv)
+
+
+def test_monitor_config_legacy_policy_aliases():
+    from core.monitor_config import MonitorConfig, NetworkPolicy
+
+    cfg1 = MonitorConfig.from_dict({"network_policy": "ssids_only"})
+    assert cfg1.network_policy == NetworkPolicy.SSID_ONLY
+
+    cfg2 = MonitorConfig.from_dict({"network_policy": "unknown_policy"})
+    assert cfg2.network_policy == NetworkPolicy.ALWAYS
+
+
+def test_is_within_folder_symlink_escape_rejected(tmp_path):
+    from core.folder_filters import is_within_folder
+
+    base_dir = tmp_path / "watched"
+    base_dir.mkdir()
+    outside_dir = tmp_path / "secret"
+    outside_dir.mkdir()
+    outside_file = outside_dir / "confidential.txt"
+    outside_file.write_text("secret")
+
+    # Inside file is accepted
+    inside_file = base_dir / "photo.jpg"
+    inside_file.write_text("photo")
+    assert is_within_folder(str(base_dir), str(inside_file)) is True
+
+    # Sibling file outside is rejected
+    assert is_within_folder(str(base_dir), str(outside_file)) is False

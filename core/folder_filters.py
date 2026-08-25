@@ -68,12 +68,15 @@ def is_within_folder(base_path: str, candidate_path: str) -> bool:
     """Boundary-safe containment check for event paths.
 
     Avoids the classic ``str.startswith`` false positive where a sibling
-    folder such as ``photos_backup`` matches a watch on ``photos``. Both
-    paths are resolved first so case and separator differences on Windows
-    do not reject valid events.
+    folder such as ``photos_backup`` matches a watch on ``photos``. Checks
+    both absolute path structure and resolved path to prevent symlink traversal
+    escapes while respecting case and separator differences.
     """
     try:
-        Path(candidate_path).resolve().relative_to(Path(base_path).resolve())
+        abs_base = Path(os.path.abspath(base_path))
+        abs_cand = Path(os.path.abspath(candidate_path))
+        abs_cand.relative_to(abs_base)
+        abs_cand.resolve().relative_to(abs_base.resolve())
     except (ValueError, OSError, RuntimeError):
         return False
     return True

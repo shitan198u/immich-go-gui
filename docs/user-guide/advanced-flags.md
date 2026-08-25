@@ -17,7 +17,7 @@ A flag reaches the CLI **if and only if** the user explicitly asked for it:
 
 | Source | Rule |
 |--------|------|
-| **Structural** | `client-timeout` / `from-client-timeout` (from Config tab) always emitted for applicable tabs; `server`, `skip-verify-ssl`, and `dry-run` (and `from-dry-run` on Immich tabs) emitted only when configured or requested |
+| **Structural** | `client-timeout` (from Config tab) always emitted for upload and stack tabs; `from-client-timeout` always emitted for `archive-immich`; `server`, `skip-verify-ssl`, and `dry-run` (and `from-dry-run` on Immich tabs) emitted only when configured or requested |
 | **Simple widget** | Emitted when value ≠ TOML default |
 | **Advanced row** | Emitted when the row is enabled |
 | **Safety** | `pause-immich-jobs=false` auto-emitted on upload/stack when no Admin API key is configured |

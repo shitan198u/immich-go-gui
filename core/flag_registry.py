@@ -145,7 +145,9 @@ def _load_registry(path: Path = _FLAGS_TOML) -> Registry:
             wv_raw = e.get("warn_values", {})
             warn_values = {}
             for k, v in wv_raw.items():
-                if isinstance(k, str) and k.lower() == "true":
+                if isinstance(k, bool):
+                    warn_values[k] = v
+                elif isinstance(k, str) and k.lower() == "true":
                     warn_values[True] = v
                 elif isinstance(k, str) and k.lower() == "false":
                     warn_values[False] = v

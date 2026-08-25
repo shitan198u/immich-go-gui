@@ -11,6 +11,7 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 from .folder_filters import should_skip_file
 from .monitor_config import FolderFilter, MonitorConfig
@@ -54,21 +55,39 @@ class RunnerState:
     total_skipped: int = 0
     total_errored: int = 0
     failed_folders: int = 0
+    _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def reset(self) -> None:
-        self.running = True
-        self.paused = False
-        self.cancelled = False
-        self.pause_event.set()  # not paused initially
-        self.cancel_event.clear()
-        self.total_folders = 0
-        self.completed_folders = 0
-        self.current_folder = ""
-        self.current_file = ""
-        self.total_uploaded = 0
-        self.total_skipped = 0
-        self.total_errored = 0
-        self.failed_folders = 0
+        with self._lock:
+            self.running = True
+            self.paused = False
+            self.cancelled = False
+            self.pause_event.set()  # not paused initially
+            self.cancel_event.clear()
+            self.total_folders = 0
+            self.completed_folders = 0
+            self.current_folder = ""
+            self.current_file = ""
+            self.total_uploaded = 0
+            self.total_skipped = 0
+            self.total_errored = 0
+            self.failed_folders = 0
+
+    def snapshot(self) -> dict[str, Any]:
+        with self._lock:
+            return {
+                "running": self.running,
+                "paused": self.paused,
+                "cancelled": self.cancelled,
+                "total_folders": self.total_folders,
+                "completed_folders": self.completed_folders,
+                "current_folder": self.current_folder,
+                "current_file": self.current_file,
+                "total_uploaded": self.total_uploaded,
+                "total_skipped": self.total_skipped,
+                "total_errored": self.total_errored,
+                "failed_folders": self.failed_folders,
+            }
 
 
 def count_pending_files(
@@ -82,6 +101,8 @@ def count_pending_files(
     count = 0
     if not os.path.isdir(folder):
         return 0
+
+    start_boundary = since_utc.replace(hour=0, minute=0, second=0, microsecond=0)
 
     for root, dirs, files in os.walk(folder):
         # Filter directories in-place using FolderFilter semantics
@@ -103,7 +124,9 @@ def count_pending_files(
             fpath = os.path.join(root, f)
             try:
                 mtime = datetime.fromtimestamp(os.path.getmtime(fpath), tz=UTC)
-                if mtime >= since_utc and not should_skip_file(fpath, filter_rules):
+                if mtime >= start_boundary and not should_skip_file(
+                    fpath, filter_rules
+                ):
                     count += 1
             except OSError:
                 continue
@@ -335,7 +358,7 @@ def run_folder_upload(
         if on_log:
             on_log(folder_key, f"[error] {exc}")
 
-    if log_handle:
+    if log_handle is not None:
         try:
             log_handle.write(
                 f"\nResult: {'success' if result.success else 'failed'} "
@@ -345,7 +368,10 @@ def run_folder_upload(
         except OSError:
             pass
         finally:
-            log_handle.close()
+            try:
+                log_handle.close()
+            except OSError:
+                pass
 
     result.duration_seconds = time.monotonic() - start_time
     return result
@@ -369,8 +395,9 @@ def _build_upload_plan(
     Advanced flags from the Monitor tab's Advanced Flags card are included
     when advanced_state is provided.
 
-    Album/stacking choices are intentionally fixed: monitor runs are
-    independent of the Upload tab's UI selections.
+    Album/stacking choices are intentionally safe defaults (NoStack): monitor
+    runs must not silently destroy or discard burst/RAW assets without
+    explicit configuration.
 
     Raises:
         ValueError: when the plan contains validation errors, so no
@@ -395,8 +422,8 @@ def _build_upload_plan(
         "path": folder,
         "folder-album": "NONE",
         "into-album": "",
-        "manage-burst": "Stack",
-        "manage-raw-jpeg": "StackCoverRaw",
+        "manage-burst": "NoStack",
+        "manage-raw-jpeg": "NoStack",
         "manage-heic-jpeg": "NoStack",
         "date-range": date_range,
     }

@@ -90,5 +90,3 @@ class AppConfig:
     client_timeout_minutes: int = 60
 
     secrets_provider: str = "keyring"
-
-    form_state: dict = field(default_factory=dict)

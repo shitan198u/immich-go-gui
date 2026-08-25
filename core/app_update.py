@@ -57,7 +57,7 @@ class GuiReleaseInfo:
 
 
 def get_latest_gui_release() -> GuiReleaseInfo | None:
-    """Fetch the latest GUI release from GitHub."""
+    """Fetch the latest stable GUI release from GitHub (/releases/latest)."""
     try:
         res = requests.get(LATEST_RELEASE_URL, timeout=15)
         res.raise_for_status()

@@ -379,6 +379,15 @@ label = "Enable API trace"
 kind = "bool"
 default = false
 mode = "advanced"
+
+[[flags.upload-folder]]
+key = "no-ui"
+flag = "no-ui"
+label = "Headless mode"
+kind = "bool"
+default = false
+mode = "advanced"
+hidden = true
 # ── upload-gp (33 flags) ─────────────────────────────────────
 
 [[flags.upload-gp]]
