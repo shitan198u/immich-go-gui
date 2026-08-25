@@ -245,10 +245,11 @@ jobs:
           dpkg-deb -c "$DEB_FILE" | grep -E 'opt/immich-go-gui/core/flags.toml' || { echo "ERROR: DEB package is missing core/flags.toml"; exit 1; }
           dpkg-deb -c "$DEB_FILE" | grep -E 'opt/immich-go-gui/assets/icons/' || { echo "ERROR: DEB package is missing assets/icons/"; exit 1; }
           dpkg-deb -c "$DEB_FILE" | grep -E 'usr/share/metainfo/immich-go-gui.metainfo.xml' || { echo "ERROR: DEB package is missing metainfo.xml"; exit 1; }
+          EXPECTED_DEB_VER=$(echo "$VERSION" | tr '-' '~')
           DEB_VER=$(dpkg-deb -I "$DEB_FILE" | grep -E "^ Version: " | awk '{print $2}')
-          echo "DEB Version: $DEB_VER"
-          if [ -z "$DEB_VER" ] || [ "$DEB_VER" = "0.0.0" ] || [ "$DEB_VER" = "0.0.0~rc0" ]; then
-            echo "ERROR: DEB package has invalid or fallback version: '$DEB_VER'"
+          echo "DEB Version: $DEB_VER (expected: $EXPECTED_DEB_VER or $VERSION)"
+          if [ -z "$DEB_VER" ] || [ "$DEB_VER" = "0.0.0" ] || [ "$DEB_VER" = "0.0.0~rc0" ] || ([ "$DEB_VER" != "$EXPECTED_DEB_VER" ] && [ "$DEB_VER" != "$VERSION" ]); then
+            echo "ERROR: DEB package has invalid or unexpected version: '$DEB_VER'"
             exit 1
           fi
           echo "DEB package structure and control metadata successfully verified."
@@ -259,10 +260,11 @@ jobs:
           rpm -qlp "$RPM_FILE" | grep -E 'opt/immich-go-gui/core/flags.toml' || { echo "ERROR: RPM package is missing core/flags.toml"; exit 1; }
           rpm -qlp "$RPM_FILE" | grep -E 'opt/immich-go-gui/assets/icons/' || { echo "ERROR: RPM package is missing assets/icons/"; exit 1; }
           rpm -qlp "$RPM_FILE" | grep -E 'usr/share/metainfo/immich-go-gui.metainfo.xml' || { echo "ERROR: RPM package is missing metainfo.xml"; exit 1; }
+          EXPECTED_RPM_VER=$(echo "$VERSION" | tr '-' '~')
           RPM_VER=$(rpm -qip "$RPM_FILE" | grep -E "^Version\s*:\s*" | awk '{print $3}')
-          echo "RPM Version: $RPM_VER"
-          if [ -z "$RPM_VER" ] || [ "$RPM_VER" = "0.0.0" ]; then
-            echo "ERROR: RPM package has invalid or fallback version: '$RPM_VER'"
+          echo "RPM Version: $RPM_VER (expected: $EXPECTED_RPM_VER or $VERSION)"
+          if [ -z "$RPM_VER" ] || [ "$RPM_VER" = "0.0.0" ] || ([ "$RPM_VER" != "$EXPECTED_RPM_VER" ] && [ "$RPM_VER" != "$VERSION" ]); then
+            echo "ERROR: RPM package has invalid or unexpected version: '$RPM_VER'"
             exit 1
           fi
           echo "RPM package structure and metadata successfully verified."
