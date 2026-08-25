@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QMessageBox
 from core.app_update import (
     GuiReleaseInfo,
     clean_gui_release_version,
+    extract_base_semver,
     get_latest_gui_release,
     is_parseable_semver,
     is_update_available,
@@ -27,6 +28,19 @@ def test_is_update_available_compares_versions():
     assert is_update_available("1.0.0", "1.1.0") is True
     assert is_update_available("1.1.0", "1.1.0") is False
     assert is_update_available("v1.2.0", "1.1.9") is False
+
+
+def test_is_update_available_handles_dev_suffix():
+    assert is_update_available("1.4.3-dev", "1.4.3") is False
+    assert is_update_available("1.4.3-dev", "1.5.0") is True
+    assert is_update_available("1.4.3-dev", "1.4.2") is False
+
+
+def test_extract_base_semver():
+    assert extract_base_semver("1.4.3-dev") == "1.4.3"
+    assert extract_base_semver("v1.2.0") == "1.2.0"
+    assert extract_base_semver("1.0.0-rc1") == "1.0.0"
+    assert extract_base_semver("dev") == "dev"
 
 
 def test_clean_gui_release_version_strips_release_please_tag():
@@ -136,6 +150,50 @@ def test_check_for_application_updates_dev_build(qapp, monkeypatch):
     assert host.lbl_app_update_status.text().startswith("Development build")
     assert "1.2.0" in host.lbl_app_update_status.text()
     assert host.app_update_status_state() == "default"
+
+
+def test_check_for_application_updates_semver_dev_build_up_to_date(qapp, monkeypatch):
+    host = _UpdateHost()
+    monkeypatch.setattr(
+        "gui.mixins.app_update._gui_version",
+        lambda: "1.4.3-dev",
+    )
+    monkeypatch.setattr(
+        "gui.mixins.app_update.get_latest_gui_release",
+        lambda: GuiReleaseInfo(
+            tag="v1.4.3",
+            version="1.4.3",
+            html_url="https://example.com/release",
+        ),
+    )
+    monkeypatch.setattr("gui.mixins.app_update.QMessageBox", MagicMock())
+    host.check_for_application_updates()
+    _drain_update_check()
+    assert host.lbl_app_update_status.text().startswith("Up to date")
+    assert host.app_update_status_state() == "ok"
+
+
+def test_check_for_application_updates_semver_dev_build_update_available(
+    qapp, monkeypatch
+):
+    host = _UpdateHost()
+    monkeypatch.setattr(
+        "gui.mixins.app_update._gui_version",
+        lambda: "1.4.3-dev",
+    )
+    monkeypatch.setattr(
+        "gui.mixins.app_update.get_latest_gui_release",
+        lambda: GuiReleaseInfo(
+            tag="v1.5.0",
+            version="1.5.0",
+            html_url="https://example.com/release",
+        ),
+    )
+    monkeypatch.setattr("gui.mixins.app_update.QMessageBox", MagicMock())
+    host.check_for_application_updates()
+    _drain_update_check()
+    assert host.lbl_app_update_status.text().startswith("Update available")
+    assert host.app_update_status_state() == "warn"
 
 
 def test_check_for_application_updates_network_error(qapp, monkeypatch):
