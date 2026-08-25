@@ -25,6 +25,8 @@ def validate_server_url(url: str) -> tuple[bool, str | None]:
         return False, "Server URL must start with http:// or https://"
     if not parts.hostname:
         return False, "Server URL hostname is missing"
+    if parts.netloc and any(c.isspace() for c in parts.netloc):
+        return False, "Server URL must not contain whitespace"
     try:
         port = parts.port
     except ValueError:

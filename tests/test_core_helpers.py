@@ -588,6 +588,10 @@ def test_validate_server_url():
     assert ok is False
     assert "port" in err.lower()
 
+    ok, err = validate_server_url("http://host name")
+    assert ok is False
+    assert "whitespace" in err.lower()
+
 
 def test_cleanup_stale_temp_dirs(tmp_path, monkeypatch):
     import time

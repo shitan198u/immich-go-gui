@@ -242,6 +242,11 @@ class MonitorConfig:
         raw_policy = data.get("network_policy", "always")
         if raw_policy == "ssids_only":
             raw_policy = "ssid_only"
+        if raw_policy == "wifi_only":
+            # Legacy wifi_only value: map to no_metered for restricted but not
+            # SSID-locked policy. Users who need SSID-specific control must
+            # explicitly configure ssid_only.
+            raw_policy = "no_metered"
         try:
             cfg.network_policy = NetworkPolicy(raw_policy)
         except (TypeError, ValueError):

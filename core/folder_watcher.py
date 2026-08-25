@@ -33,11 +33,13 @@ class DebounceFileQueue:
         self._timer: threading.Timer | None = None
         self._callback: Callable[[list[str]], None] | None = None
         self._shutdown = False
+        self._generation = 0
 
     def reset(self, debounce_seconds: int | None = None) -> None:
         """Reset shutdown state and clear queue so watching can resume."""
         with self._lock:
             self._shutdown = False
+            self._generation += 1
             if debounce_seconds is not None:
                 self._debounce_seconds = debounce_seconds
             if self._timer:
@@ -93,13 +95,19 @@ class DebounceFileQueue:
             return
         if self._timer:
             self._timer.cancel()
-        self._timer = threading.Timer(self._debounce_seconds, self._on_timeout)
+        generation = self._generation
+        self._timer = threading.Timer(
+            self._debounce_seconds, lambda: self._on_timeout(generation)
+        )
         self._timer.daemon = True
         self._timer.start()
 
-    def _on_timeout(self) -> None:
+    def _on_timeout(self, generation: int) -> None:
         """Called when the debounce window expires."""
         with self._lock:
+            if generation != self._generation:
+                # Stale callback from before reset; do not drain or cancel.
+                return
             self._timer = None
             files = self._drain_locked()
         # Invoke the callback outside the lock.

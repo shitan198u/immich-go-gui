@@ -104,7 +104,7 @@ def test_posix_terminal_discovery_includes_alacritty_and_kitty(tmp_path, monkeyp
         assert res.ok is True
         assert mock_popen.call_args[0][0][0] == "alacritty"
 
-    # Test kitty
+    # Test kitty (must pass script path directly, not via -e)
     with patch("subprocess.Popen") as mock_popen, patch("shutil.which") as mock_which:
         mock_which.side_effect = lambda term: (
             "/usr/bin/kitty" if term == "kitty" else None
@@ -112,4 +112,8 @@ def test_posix_terminal_discovery_includes_alacritty_and_kitty(tmp_path, monkeyp
         mock_popen.return_value.pid = 5002
         res = launch_external_terminal(cmd, {}, lock_path, preferred_terminal="auto")
         assert res.ok is True
-        assert mock_popen.call_args[0][0][0] == "kitty"
+        call_args = mock_popen.call_args[0][0]
+        assert call_args[0] == "kitty"
+        assert len(call_args) == 2
+        assert call_args[1].endswith("run.sh")
+        assert "-e" not in call_args

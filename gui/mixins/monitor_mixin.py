@@ -271,7 +271,7 @@ class MonitorMixin:
         compares it against a persisted "last handled" marker so that every
         occurrence fires exactly once, even across restarts.
         """
-        if self._monitor_runner_state.running:
+        if self._monitor_runner_state.get_running():
             return
         if self._auto_pause_reason:
             return
@@ -448,7 +448,7 @@ class MonitorMixin:
 
     def _on_run_now(self) -> None:
         """Manual 'Run Now' button."""
-        if self._monitor_runner_state.running:
+        if self._monitor_runner_state.get_running():
             return
         self._sync_folders_from_ui()
         if not self.monitor_config.folders:
@@ -460,7 +460,7 @@ class MonitorMixin:
 
     def _on_full_rescan(self) -> None:
         """Manual 'Full Rescan' button."""
-        if self._monitor_runner_state.running:
+        if self._monitor_runner_state.get_running():
             return
         self._sync_folders_from_ui()
         if not self.monitor_config.folders:
@@ -472,16 +472,16 @@ class MonitorMixin:
 
     def _on_toggle_pause(self) -> None:
         """Toggle pause/resume."""
-        if not self._monitor_runner_state.running:
+        if not self._monitor_runner_state.get_running():
             return
-        if self._monitor_runner_state.paused:
+        if self._monitor_runner_state.get_paused():
             self._resume_uploads()
         else:
             self._pause_uploads("Manually paused")
 
     def _on_cancel(self) -> None:
         """Cancel current run."""
-        if not self._monitor_runner_state.running:
+        if not self._monitor_runner_state.get_running():
             return
         self._monitor_runner_state.cancel_event.set()
         self._monitor_runner_state.pause_event.set()  # unblock
@@ -489,7 +489,7 @@ class MonitorMixin:
 
     def _pause_uploads(self, reason: str) -> None:
         """Pause all upload activity."""
-        self._monitor_runner_state.paused = True
+        self._monitor_runner_state.set_paused(True)
         self._monitor_runner_state.pause_event.clear()
         self._monitor_signals.paused_reason.emit(reason)
         if hasattr(self, "btn_monitor_pause"):
@@ -497,22 +497,22 @@ class MonitorMixin:
 
     def _resume_uploads(self) -> None:
         """Resume upload activity."""
-        self._monitor_runner_state.paused = False
+        self._monitor_runner_state.set_paused(False)
         self._monitor_runner_state.pause_event.set()
         if hasattr(self, "btn_monitor_pause"):
             self.btn_monitor_pause.setText("Pause")
         if hasattr(self, "progress_card"):
             self.progress_card.set_running(
-                self._monitor_runner_state.current_folder,
-                self._monitor_runner_state.completed_folders,
-                self._monitor_runner_state.total_folders,
+                self._monitor_runner_state.get_current_folder(),
+                self._monitor_runner_state.get_completed_folders(),
+                self._monitor_runner_state.get_total_folders(),
             )
 
     # ── Run Orchestration ──────────────────────────────────
 
     def _start_run(self, full_rescan: bool = False, trigger: str = "manual") -> None:
         """Start a batch upload run across all folders."""
-        if self._monitor_runner_state.running:
+        if self._monitor_runner_state.get_running():
             return
 
         folders = [f for f in self.monitor_config.folders if os.path.isdir(f)]
@@ -523,7 +523,7 @@ class MonitorMixin:
             return
 
         self._monitor_runner_state.reset()
-        self._monitor_runner_state.total_folders = len(folders)
+        self._monitor_runner_state.set_total_folders(len(folders))
 
         self._monitor_signals.state_changed.emit("running")
         self._monitor_signals.log_entry.emit(
@@ -646,7 +646,7 @@ class MonitorMixin:
                         )
 
                     completed += 1
-                    rs.completed_folders = completed
+                    rs.set_completed_folders(completed)
 
                     with self._state_lock:
                         if result.success:
@@ -668,16 +668,15 @@ class MonitorMixin:
                         MonitorStateStore.save(state, profile)
 
                     # Aggregate for the UI progress card / tray status.
-                    rs.total_uploaded = total_uploaded
-                    rs.total_skipped = total_skipped
-                    rs.total_errored = total_failed_folders
-                    rs.failed_folders = total_failed_folders
+                    rs.set_aggregate_counters(
+                        total_uploaded, total_skipped, total_failed_folders, total_failed_folders
+                    )
 
                     self._monitor_signals.progress_update.emit(
                         os.path.basename(folder) or folder,
                         completed,
                         len(folders),
-                        rs.current_file,
+                        rs.get_current_file(),
                         result.files_uploaded,
                         result.files_skipped,
                         result.files_errored,
@@ -722,9 +721,9 @@ class MonitorMixin:
             self._monitor_signals.log_entry.emit("", f"Run aborted: {exc}", "error")
             self._monitor_signals.state_changed.emit("complete")
         finally:
-            rs.running = False
-            rs.current_file = ""
-            rs.current_folder = ""
+            rs.set_running(False)
+            rs.set_current_file("")
+            rs.set_current_folder("")
 
     def _run_single_folder(
         self,
@@ -805,8 +804,8 @@ class MonitorMixin:
         failed: int,
     ) -> None:
         """Handle a progress update."""
-        self._monitor_runner_state.current_folder = folder
-        self._monitor_runner_state.current_file = current_file
+        self._monitor_runner_state.set_current_folder(folder)
+        self._monitor_runner_state.set_current_file(current_file)
         if hasattr(self, "progress_card"):
             self.progress_card.set_running(
                 folder,
@@ -830,13 +829,12 @@ class MonitorMixin:
                 self.tray_manager.set_status("Paused")
         elif new_state == "complete":
             rs = self._monitor_runner_state
+            uploaded, skipped, errored, failed = rs.get_aggregate_counters()
             if hasattr(self, "progress_card"):
                 # Always reset the card away from "Running" on completion,
                 # including after a cancel.
-                if rs.total_uploaded or rs.failed_folders or rs.total_skipped:
-                    self.progress_card.set_complete(
-                        rs.total_uploaded, rs.failed_folders
-                    )
+                if uploaded or failed or skipped:
+                    self.progress_card.set_complete(uploaded, failed)
                 else:
                     self.progress_card.set_idle()
             # Reset controls

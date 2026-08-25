@@ -839,6 +839,9 @@ def test_monitor_config_legacy_policy_aliases():
     cfg2 = MonitorConfig.from_dict({"network_policy": "unknown_policy"})
     assert cfg2.network_policy == NetworkPolicy.ALWAYS
 
+    cfg3 = MonitorConfig.from_dict({"network_policy": "wifi_only"})
+    assert cfg3.network_policy == NetworkPolicy.NO_METERED
+
 
 def test_is_within_folder_symlink_escape_rejected(tmp_path):
     from core.folder_filters import is_within_folder
@@ -857,3 +860,77 @@ def test_is_within_folder_symlink_escape_rejected(tmp_path):
 
     # Sibling file outside is rejected
     assert is_within_folder(str(base_dir), str(outside_file)) is False
+
+
+def test_runner_state_concurrent_access_is_thread_safe():
+    from core.folder_runner import RunnerState
+
+    state = RunnerState()
+    state.reset()
+    errors = []
+
+    def writer_thread():
+        try:
+            for i in range(100):
+                state.set_current_folder(f"folder_{i}")
+                state.set_current_file(f"file_{i}.jpg")
+                state.set_completed_folders(i)
+                state.increment_counters(uploaded=1, skipped=1)
+                time.sleep(0.001)
+        except Exception as e:
+            errors.append(("writer", e))
+
+    def reader_thread():
+        try:
+            for _ in range(100):
+                snap = state.snapshot()
+                assert isinstance(snap["running"], bool)
+                assert isinstance(snap["current_folder"], str)
+                assert isinstance(snap["total_uploaded"], int)
+                state.get_running()
+                state.get_current_folder()
+                state.get_aggregate_counters()
+                time.sleep(0.001)
+        except Exception as e:
+            errors.append(("reader", e))
+
+    threads = [
+        threading.Thread(target=writer_thread, daemon=True),
+        threading.Thread(target=reader_thread, daemon=True),
+        threading.Thread(target=reader_thread, daemon=True),
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=5)
+
+    assert not errors, f"Thread-safety violations: {errors}"
+    final_snap = state.snapshot()
+    assert final_snap["completed_folders"] >= 0
+    assert final_snap["total_uploaded"] >= 0
+
+
+def test_debounce_queue_stale_callback_after_reset_does_not_drain():
+    from core.folder_watcher import DebounceFileQueue
+
+    queue = DebounceFileQueue(debounce_seconds=1)
+    fired = []
+    queue.set_callback(fired.append)
+
+    # Add file and capture the old timer callback
+    queue.add_file("before_reset.jpg")
+    with queue._lock:
+        old_timer = queue._timer
+        old_generation = queue._generation
+
+    # Reset queue and add new files
+    queue.reset()
+    queue.add_file("after_reset.jpg")
+
+    # Simulate the old timer callback firing after reset
+    old_timer.function(old_generation)
+
+    # The stale callback must not have drained the queue
+    assert queue.flush() == ["after_reset.jpg"]
+    # Only post-reset files should have been included
+    assert not any("before_reset" in str(batch) for batch in fired)

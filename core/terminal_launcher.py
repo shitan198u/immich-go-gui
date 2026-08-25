@@ -262,6 +262,10 @@ def launch_external_terminal(
                         launched_proc = subprocess.Popen(
                             [term, "--", str(run_sh_path)], env=posix_env
                         )
+                    elif term == "kitty":
+                        launched_proc = subprocess.Popen(
+                            [term, str(run_sh_path)], env=posix_env
+                        )
                     elif term == "xterm":
                         launched_proc = subprocess.Popen(
                             [term, "-hold", "-e", str(run_sh_path)], env=posix_env

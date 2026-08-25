@@ -89,6 +89,81 @@ class RunnerState:
                 "failed_folders": self.failed_folders,
             }
 
+    def get_running(self) -> bool:
+        with self._lock:
+            return self.running
+
+    def set_running(self, value: bool) -> None:
+        with self._lock:
+            self.running = value
+
+    def get_paused(self) -> bool:
+        with self._lock:
+            return self.paused
+
+    def set_paused(self, value: bool) -> None:
+        with self._lock:
+            self.paused = value
+
+    def get_current_folder(self) -> str:
+        with self._lock:
+            return self.current_folder
+
+    def set_current_folder(self, value: str) -> None:
+        with self._lock:
+            self.current_folder = value
+
+    def get_current_file(self) -> str:
+        with self._lock:
+            return self.current_file
+
+    def set_current_file(self, value: str) -> None:
+        with self._lock:
+            self.current_file = value
+
+    def get_completed_folders(self) -> int:
+        with self._lock:
+            return self.completed_folders
+
+    def set_completed_folders(self, value: int) -> None:
+        with self._lock:
+            self.completed_folders = value
+
+    def get_total_folders(self) -> int:
+        with self._lock:
+            return self.total_folders
+
+    def set_total_folders(self, value: int) -> None:
+        with self._lock:
+            self.total_folders = value
+
+    def increment_counters(
+        self, uploaded: int = 0, skipped: int = 0, errored: int = 0, failed_folders: int = 0
+    ) -> None:
+        with self._lock:
+            self.total_uploaded += uploaded
+            self.total_skipped += skipped
+            self.total_errored += errored
+            self.failed_folders += failed_folders
+
+    def set_aggregate_counters(
+        self, total_uploaded: int, total_skipped: int, total_errored: int, failed_folders: int
+    ) -> None:
+        with self._lock:
+            self.total_uploaded = total_uploaded
+            self.total_skipped = total_skipped
+            self.total_errored = total_errored
+            self.failed_folders = failed_folders
+
+    def get_aggregate_counters(self) -> tuple[int, int, int, int]:
+        with self._lock:
+            return (
+                self.total_uploaded,
+                self.total_skipped,
+                self.total_errored,
+                self.failed_folders,
+            )
+
 
 def count_pending_files(
     folder: str,
@@ -171,7 +246,7 @@ def run_folder_upload(
     safe_folder_key = "".join(
         char if char.isalnum() or char in "-_" else "_" for char in folder_key
     )
-    state.current_folder = folder_key
+    state.set_current_folder(folder_key)
 
     log_file = os.path.join(
         log_dir,
@@ -322,7 +397,7 @@ def run_folder_upload(
                             except OSError:
                                 pass
                         if "Uploaded" in line or "uploading" in line.lower():
-                            state.current_file = masked_line.strip()
+                            state.set_current_file(masked_line.strip())
                         _tally_report_line(line, result)
 
                 for reader in readers:
