@@ -85,6 +85,9 @@ def test_posix_stale_lock_dead_shell_pid(tmp_path, monkeypatch):
     reason="POSIX terminal launcher tests",
 )
 def test_posix_terminal_discovery_includes_alacritty_and_kitty(tmp_path, monkeypatch):
+    import sys
+
+    monkeypatch.setattr(sys, "platform", "linux")
     monkeypatch.setenv("IMMICH_GO_GUI_CONFIG", str(tmp_path / "config.toml"))
     lock_path = create_lock("upload-folder", "upload", "./immich-go")
     cmd = ["./immich-go", "upload", "from-folder", "/photos"]
