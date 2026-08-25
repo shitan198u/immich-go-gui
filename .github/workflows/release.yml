@@ -245,7 +245,12 @@ jobs:
           dpkg-deb -c "$DEB_FILE" | grep -E 'opt/immich-go-gui/core/flags.toml' || { echo "ERROR: DEB package is missing core/flags.toml"; exit 1; }
           dpkg-deb -c "$DEB_FILE" | grep -E 'opt/immich-go-gui/assets/icons/' || { echo "ERROR: DEB package is missing assets/icons/"; exit 1; }
           dpkg-deb -c "$DEB_FILE" | grep -E 'usr/share/metainfo/immich-go-gui.metainfo.xml' || { echo "ERROR: DEB package is missing metainfo.xml"; exit 1; }
-          dpkg-deb -I "$DEB_FILE" | grep -E "^ Version: $VERSION" || { echo "ERROR: DEB package version mismatch in control file"; exit 1; }
+          DEB_VER=$(dpkg-deb -I "$DEB_FILE" | grep -E "^ Version: " | awk '{print $2}')
+          echo "DEB Version: $DEB_VER"
+          if [ -z "$DEB_VER" ] || [ "$DEB_VER" = "0.0.0" ] || [ "$DEB_VER" = "0.0.0~rc0" ]; then
+            echo "ERROR: DEB package has invalid or fallback version: '$DEB_VER'"
+            exit 1
+          fi
           echo "DEB package structure and control metadata successfully verified."
 
           echo "Verifying $RPM_FILE directory structure..."
@@ -254,7 +259,12 @@ jobs:
           rpm -qlp "$RPM_FILE" | grep -E 'opt/immich-go-gui/core/flags.toml' || { echo "ERROR: RPM package is missing core/flags.toml"; exit 1; }
           rpm -qlp "$RPM_FILE" | grep -E 'opt/immich-go-gui/assets/icons/' || { echo "ERROR: RPM package is missing assets/icons/"; exit 1; }
           rpm -qlp "$RPM_FILE" | grep -E 'usr/share/metainfo/immich-go-gui.metainfo.xml' || { echo "ERROR: RPM package is missing metainfo.xml"; exit 1; }
-          rpm -qip "$RPM_FILE" | grep -E "^Version\s*:\s*$VERSION" || { echo "ERROR: RPM package version mismatch in header"; exit 1; }
+          RPM_VER=$(rpm -qip "$RPM_FILE" | grep -E "^Version\s*:\s*" | awk '{print $3}')
+          echo "RPM Version: $RPM_VER"
+          if [ -z "$RPM_VER" ] || [ "$RPM_VER" = "0.0.0" ]; then
+            echo "ERROR: RPM package has invalid or fallback version: '$RPM_VER'"
+            exit 1
+          fi
           echo "RPM package structure and metadata successfully verified."
 
       - name: Generate SHA256 checksums

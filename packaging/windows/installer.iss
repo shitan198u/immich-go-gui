@@ -33,7 +33,8 @@ VersionInfoVersion={#MyNumericVersion}
 VersionInfoCompany=shitan198u
 VersionInfoDescription=Immich-Go GUI Installer
 VersionInfoProductName=Immich-Go GUI
-VersionInfoProductVersion={#MyAppVersion}
+VersionInfoProductVersion={#MyNumericVersion}
+VersionInfoTextVersion={#MyAppVersion}
 VersionInfoCopyright=Copyright (C) 2026 shitan198u
 
 [Files]
