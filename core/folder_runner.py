@@ -138,7 +138,11 @@ class RunnerState:
             self.total_folders = value
 
     def increment_counters(
-        self, uploaded: int = 0, skipped: int = 0, errored: int = 0, failed_folders: int = 0
+        self,
+        uploaded: int = 0,
+        skipped: int = 0,
+        errored: int = 0,
+        failed_folders: int = 0,
     ) -> None:
         with self._lock:
             self.total_uploaded += uploaded
@@ -147,7 +151,11 @@ class RunnerState:
             self.failed_folders += failed_folders
 
     def set_aggregate_counters(
-        self, total_uploaded: int, total_skipped: int, total_errored: int, failed_folders: int
+        self,
+        total_uploaded: int,
+        total_skipped: int,
+        total_errored: int,
+        failed_folders: int,
     ) -> None:
         with self._lock:
             self.total_uploaded = total_uploaded

@@ -669,7 +669,10 @@ class MonitorMixin:
 
                     # Aggregate for the UI progress card / tray status.
                     rs.set_aggregate_counters(
-                        total_uploaded, total_skipped, total_failed_folders, total_failed_folders
+                        total_uploaded,
+                        total_skipped,
+                        total_failed_folders,
+                        total_failed_folders,
                     )
 
                     self._monitor_signals.progress_update.emit(
@@ -829,7 +832,7 @@ class MonitorMixin:
                 self.tray_manager.set_status("Paused")
         elif new_state == "complete":
             rs = self._monitor_runner_state
-            uploaded, skipped, errored, failed = rs.get_aggregate_counters()
+            uploaded, skipped, _errored, failed = rs.get_aggregate_counters()
             if hasattr(self, "progress_card"):
                 # Always reset the card away from "Running" on completion,
                 # including after a cancel.

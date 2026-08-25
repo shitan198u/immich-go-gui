@@ -921,14 +921,13 @@ def test_debounce_queue_stale_callback_after_reset_does_not_drain():
     queue.add_file("before_reset.jpg")
     with queue._lock:
         old_timer = queue._timer
-        old_generation = queue._generation
 
     # Reset queue and add new files
     queue.reset()
     queue.add_file("after_reset.jpg")
 
     # Simulate the old timer callback firing after reset
-    old_timer.function(old_generation)
+    old_timer.function()
 
     # The stale callback must not have drained the queue
     assert queue.flush() == ["after_reset.jpg"]

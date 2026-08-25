@@ -102,10 +102,10 @@ class DebounceFileQueue:
         self._timer.daemon = True
         self._timer.start()
 
-    def _on_timeout(self, generation: int) -> None:
+    def _on_timeout(self, generation: int | None = None) -> None:
         """Called when the debounce window expires."""
         with self._lock:
-            if generation != self._generation:
+            if generation is not None and generation != self._generation:
                 # Stale callback from before reset; do not drain or cancel.
                 return
             self._timer = None
