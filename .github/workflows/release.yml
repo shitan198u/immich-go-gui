@@ -129,6 +129,11 @@ jobs:
             echo "suffix=macOS-x86_64" >> $GITHUB_OUTPUT
           fi
 
+      - name: Inject build version into source
+        shell: bash
+        run: |
+          sed -i.bak "s/__version__ = .*/__version__ = \"$VERSION\"/" core/version.py
+
       - name: Build Windows
         if: matrix.name == 'windows'
         shell: bash

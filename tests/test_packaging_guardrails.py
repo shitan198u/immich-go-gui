@@ -139,6 +139,17 @@ def test_nfpm_yaml_metadata_complete():
     assert re.search(r'^priority:\s*"[^"]+"', content, re.MULTILINE)
 
 
+def test_nfpm_yaml_deb_fields_metadata():
+    """Verify deb.fields contains explicit Author, Maintainer, License, and Homepage."""
+    nfpm_path = LINUX_PKG_ROOT / "nfpm.yaml"
+    content = nfpm_path.read_text(encoding="utf-8")
+    assert "deb:" in content
+    assert re.search(r"^\s+Maintainer:\s*.+$", content, re.MULTILINE)
+    assert re.search(r"^\s+Author:\s*.+$", content, re.MULTILINE)
+    assert re.search(r"^\s+License:\s*.+$", content, re.MULTILINE)
+    assert re.search(r"^\s+Homepage:\s*.+$", content, re.MULTILINE)
+
+
 def test_nfpm_yaml_contents_include_metainfo_and_licenses():
     """Verify nfpm.yaml includes AppStream metadata, desktop, icons, and licenses."""
     nfpm_path = LINUX_PKG_ROOT / "nfpm.yaml"

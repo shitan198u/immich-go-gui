@@ -30,7 +30,13 @@ contents:
     dst: /usr/share/licenses/immich-go-gui/LICENSE
 deb:
   fields:
+    Maintainer: "shitan198u <shitan198u@users.noreply.github.com>"
+    Author: "shitan198u"
+    Vendor: "shitan198u"
     License: "MIT"
+    X-License: "MIT"
+    X-Project-License: "MIT"
+    Homepage: "https://github.com/shitan198u/immich-go-gui"
 rpm:
   group: "Applications/Graphics"
   summary: "Desktop GUI for immich-go bulk media operations"
