@@ -24,7 +24,7 @@ These appear in Simple mode on most upload tabs:
 | **Include / exclude extensions** | Filter by file type (e.g. `.jpg`, `.mp4`) |
 | **Include type** | Filter by media type (image, video, etc.) |
 
-Global settings from the Config tab (server, timeout, concurrent tasks, on-errors behavior) apply unless overridden in advanced mode.
+Global connection settings from the Config tab (server URL, API key, skip SSL, timeout) apply across all upload tabs. Other runtime flags (such as `concurrent-tasks` and `on-errors`) can be enabled and configured per tab via **Advanced Flags**.
 
 ## Upload from Folder
 

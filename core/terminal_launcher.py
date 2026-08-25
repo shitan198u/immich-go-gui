@@ -248,6 +248,8 @@ def launch_external_terminal(
                 "gnome-terminal",
                 "konsole",
                 "xfce4-terminal",
+                "alacritty",
+                "kitty",
                 "xterm",
             ]
         )
@@ -259,6 +261,10 @@ def launch_external_terminal(
                     if term == "gnome-terminal":
                         launched_proc = subprocess.Popen(
                             [term, "--", str(run_sh_path)], env=posix_env
+                        )
+                    elif term == "kitty":
+                        launched_proc = subprocess.Popen(
+                            [term, str(run_sh_path)], env=posix_env
                         )
                     elif term == "xterm":
                         launched_proc = subprocess.Popen(
@@ -282,7 +288,7 @@ def launch_external_terminal(
                 pass
             return LaunchResult(
                 ok=False,
-                message="No supported terminal emulator found (tried gnome-terminal, konsole, xfce4-terminal, xterm).",
+                message="No supported terminal emulator found (tried x-terminal-emulator, gnome-terminal, konsole, xfce4-terminal, alacritty, kitty, xterm).",
             )
 
         update_lock(l_path, terminal_pid=launched_proc.pid)

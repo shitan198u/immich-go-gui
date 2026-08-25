@@ -11,6 +11,7 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 from .folder_filters import should_skip_file
 from .monitor_config import FolderFilter, MonitorConfig
@@ -54,21 +55,122 @@ class RunnerState:
     total_skipped: int = 0
     total_errored: int = 0
     failed_folders: int = 0
+    _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def reset(self) -> None:
-        self.running = True
-        self.paused = False
-        self.cancelled = False
-        self.pause_event.set()  # not paused initially
-        self.cancel_event.clear()
-        self.total_folders = 0
-        self.completed_folders = 0
-        self.current_folder = ""
-        self.current_file = ""
-        self.total_uploaded = 0
-        self.total_skipped = 0
-        self.total_errored = 0
-        self.failed_folders = 0
+        with self._lock:
+            self.running = True
+            self.paused = False
+            self.cancelled = False
+            self.pause_event.set()  # not paused initially
+            self.cancel_event.clear()
+            self.total_folders = 0
+            self.completed_folders = 0
+            self.current_folder = ""
+            self.current_file = ""
+            self.total_uploaded = 0
+            self.total_skipped = 0
+            self.total_errored = 0
+            self.failed_folders = 0
+
+    def snapshot(self) -> dict[str, Any]:
+        with self._lock:
+            return {
+                "running": self.running,
+                "paused": self.paused,
+                "cancelled": self.cancelled,
+                "total_folders": self.total_folders,
+                "completed_folders": self.completed_folders,
+                "current_folder": self.current_folder,
+                "current_file": self.current_file,
+                "total_uploaded": self.total_uploaded,
+                "total_skipped": self.total_skipped,
+                "total_errored": self.total_errored,
+                "failed_folders": self.failed_folders,
+            }
+
+    def get_running(self) -> bool:
+        with self._lock:
+            return self.running
+
+    def set_running(self, value: bool) -> None:
+        with self._lock:
+            self.running = value
+
+    def get_paused(self) -> bool:
+        with self._lock:
+            return self.paused
+
+    def set_paused(self, value: bool) -> None:
+        with self._lock:
+            self.paused = value
+
+    def get_current_folder(self) -> str:
+        with self._lock:
+            return self.current_folder
+
+    def set_current_folder(self, value: str) -> None:
+        with self._lock:
+            self.current_folder = value
+
+    def get_current_file(self) -> str:
+        with self._lock:
+            return self.current_file
+
+    def set_current_file(self, value: str) -> None:
+        with self._lock:
+            self.current_file = value
+
+    def get_completed_folders(self) -> int:
+        with self._lock:
+            return self.completed_folders
+
+    def set_completed_folders(self, value: int) -> None:
+        with self._lock:
+            self.completed_folders = value
+
+    def get_total_folders(self) -> int:
+        with self._lock:
+            return self.total_folders
+
+    def set_total_folders(self, value: int) -> None:
+        with self._lock:
+            self.total_folders = value
+
+    def increment_counters(
+        self,
+        uploaded: int = 0,
+        skipped: int = 0,
+        errored: int = 0,
+        failed_folders: int = 0,
+    ) -> None:
+        with self._lock:
+            self.total_uploaded += uploaded
+            self.total_skipped += skipped
+            self.total_errored += errored
+            self.failed_folders += failed_folders
+
+    def set_aggregate_counters(
+        self,
+        total_uploaded: int,
+        total_skipped: int,
+        total_errored: int,
+        failed_folders: int,
+    ) -> None:
+        with self._lock:
+            self.total_uploaded = total_uploaded
+            self.total_skipped = total_skipped
+            self.total_errored = total_errored
+            self.failed_folders = failed_folders
+
+    def get_aggregate_counters(self) -> tuple[int, int, int, int]:
+        with self._lock:
+            return (
+                self.total_uploaded,
+                self.total_skipped,
+                self.total_errored,
+                self.failed_folders,
+            )
 
 
 def count_pending_files(
@@ -82,6 +184,8 @@ def count_pending_files(
     count = 0
     if not os.path.isdir(folder):
         return 0
+
+    start_boundary = since_utc.replace(hour=0, minute=0, second=0, microsecond=0)
 
     for root, dirs, files in os.walk(folder):
         # Filter directories in-place using FolderFilter semantics
@@ -103,7 +207,9 @@ def count_pending_files(
             fpath = os.path.join(root, f)
             try:
                 mtime = datetime.fromtimestamp(os.path.getmtime(fpath), tz=UTC)
-                if mtime >= since_utc and not should_skip_file(fpath, filter_rules):
+                if mtime >= start_boundary and not should_skip_file(
+                    fpath, filter_rules
+                ):
                     count += 1
             except OSError:
                 continue
@@ -148,7 +254,7 @@ def run_folder_upload(
     safe_folder_key = "".join(
         char if char.isalnum() or char in "-_" else "_" for char in folder_key
     )
-    state.current_folder = folder_key
+    state.set_current_folder(folder_key)
 
     log_file = os.path.join(
         log_dir,
@@ -299,7 +405,7 @@ def run_folder_upload(
                             except OSError:
                                 pass
                         if "Uploaded" in line or "uploading" in line.lower():
-                            state.current_file = masked_line.strip()
+                            state.set_current_file(masked_line.strip())
                         _tally_report_line(line, result)
 
                 for reader in readers:
@@ -335,7 +441,7 @@ def run_folder_upload(
         if on_log:
             on_log(folder_key, f"[error] {exc}")
 
-    if log_handle:
+    if log_handle is not None:
         try:
             log_handle.write(
                 f"\nResult: {'success' if result.success else 'failed'} "
@@ -345,7 +451,10 @@ def run_folder_upload(
         except OSError:
             pass
         finally:
-            log_handle.close()
+            try:
+                log_handle.close()
+            except OSError:
+                pass
 
     result.duration_seconds = time.monotonic() - start_time
     return result
@@ -369,8 +478,9 @@ def _build_upload_plan(
     Advanced flags from the Monitor tab's Advanced Flags card are included
     when advanced_state is provided.
 
-    Album/stacking choices are intentionally fixed: monitor runs are
-    independent of the Upload tab's UI selections.
+    Album/stacking choices are intentionally safe defaults (NoStack): monitor
+    runs must not silently destroy or discard burst/RAW assets without
+    explicit configuration.
 
     Raises:
         ValueError: when the plan contains validation errors, so no
@@ -395,8 +505,8 @@ def _build_upload_plan(
         "path": folder,
         "folder-album": "NONE",
         "into-album": "",
-        "manage-burst": "Stack",
-        "manage-raw-jpeg": "StackCoverRaw",
+        "manage-burst": "NoStack",
+        "manage-raw-jpeg": "NoStack",
         "manage-heic-jpeg": "NoStack",
         "date-range": date_range,
     }

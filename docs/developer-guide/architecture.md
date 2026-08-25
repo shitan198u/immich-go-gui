@@ -67,6 +67,7 @@ immich-go-gui/
 │   │   ├── droppable.py   # DroppableLineEdit, DroppablePlainTextEdit
 │   │   ├── status_card.py # Live status summary card
 │   │   ├── navigation.py  # NavGroup, NavItem sidebar navigation
+│   │   ├── activity_feed.py # Live monitor upload/activity feed
 │   │   └── ...            # cards, base_page, advanced_flag_row, etc.
 │   ├── mixins/            # Focused QMainWindow mixins (all ≤300 lines)
 │   │   ├── layout.py      # Main layout & tab assembly
@@ -90,8 +91,6 @@ immich-go-gui/
 │   │   ├── stack_tab.py   # Photo stacking subcommand tab
 │   │   ├── upload/        # Upload subcommand tabs (folder, GP, icloud, picasa, immich)
 │   │   └── archive/       # Archive subcommand tabs (folder, GP, icloud, picasa, immich)
-│   ├── widgets/           # Custom Qt widgets
-│   │   ├── activity_feed.py # Live monitor upload/activity feed
 │   ├── tray.py            # System tray (status, balloon notifications, minim-to-tray)
 ├── core/                  # Qt-free business logic (testable without GUI)
 │   ├── flags.toml         # Single source of truth for tabs + flags
@@ -116,7 +115,7 @@ immich-go-gui/
 │   ├── activity_monitor.py# Activity-based auto-pause detection
 │   ├── network_awareness.py # Metered/SSID/offline detection & policy
 │   └── __init__.py        # Public re-exports
-├── tests/                 # Focused Pytest modules (30 modules, ~469 tests)
+├── tests/                 # Focused Pytest modules (30 modules, ~478 tests)
 ├── scripts/               # CLI help capture, review bundles, icon generator
 ├── docs/                  # User + developer + reference docs
 ├── packaging/             # Linux nfpm + Windows Inno Setup

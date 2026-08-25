@@ -8,6 +8,7 @@ import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 
 def validate_server_url(url: str) -> tuple[bool, str | None]:
@@ -15,8 +16,24 @@ def validate_server_url(url: str) -> tuple[bool, str | None]:
     if not url or not url.strip():
         return False, "Server URL is empty"
     clean = url.strip()
-    if not re.match(r"^https?://[^/\s]+", clean):
+    try:
+        parts = urlsplit(clean)
+    except Exception:
+        return False, "Invalid server URL format"
+
+    if parts.scheme not in ("http", "https"):
         return False, "Server URL must start with http:// or https://"
+    if not parts.hostname:
+        return False, "Server URL hostname is missing"
+    if parts.netloc and any(c.isspace() for c in parts.netloc):
+        return False, "Server URL must not contain whitespace"
+    try:
+        port = parts.port
+    except ValueError:
+        return False, "Server port must be between 1 and 65535"
+
+    if port is not None and not (1 <= port <= 65535):
+        return False, "Server port must be between 1 and 65535"
     return True, None
 
 

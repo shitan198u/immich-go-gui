@@ -77,7 +77,43 @@ def test_posix_stale_lock_dead_shell_pid(tmp_path, monkeypatch):
 
     pid_file = lock_path.with_suffix(".pid")
     pid_file.write_text("999999", encoding="utf-8")
-    hb_file = lock_path.with_suffix(".heartbeat")
-    hb_file.write_text("", encoding="utf-8")
-
     assert is_lock_active(lock_path) is False
+
+
+@pytest.mark.skipif(
+    __import__("sys").platform.startswith("win"),
+    reason="POSIX terminal launcher tests",
+)
+def test_posix_terminal_discovery_includes_alacritty_and_kitty(tmp_path, monkeypatch):
+    import sys
+
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("IMMICH_GO_GUI_CONFIG", str(tmp_path / "config.toml"))
+    lock_path = create_lock("upload-folder", "upload", "./immich-go")
+    cmd = ["./immich-go", "upload", "from-folder", "/photos"]
+
+    from unittest.mock import patch
+
+    # Test alacritty
+    with patch("subprocess.Popen") as mock_popen, patch("shutil.which") as mock_which:
+        mock_which.side_effect = lambda term: (
+            "/usr/bin/alacritty" if term == "alacritty" else None
+        )
+        mock_popen.return_value.pid = 5001
+        res = launch_external_terminal(cmd, {}, lock_path, preferred_terminal="auto")
+        assert res.ok is True
+        assert mock_popen.call_args[0][0][0] == "alacritty"
+
+    # Test kitty (must pass script path directly, not via -e)
+    with patch("subprocess.Popen") as mock_popen, patch("shutil.which") as mock_which:
+        mock_which.side_effect = lambda term: (
+            "/usr/bin/kitty" if term == "kitty" else None
+        )
+        mock_popen.return_value.pid = 5002
+        res = launch_external_terminal(cmd, {}, lock_path, preferred_terminal="auto")
+        assert res.ok is True
+        call_args = mock_popen.call_args[0][0]
+        assert call_args[0] == "kitty"
+        assert len(call_args) == 2
+        assert call_args[1].endswith("run.sh")
+        assert "-e" not in call_args

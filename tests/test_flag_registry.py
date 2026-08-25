@@ -27,7 +27,7 @@ def test_registry_loads():
 def test_registry_flag_counts_match_docs():
     """Counts must match docs/reference/cli-command-mapping.md."""
     expected = {
-        "upload-folder": 30,
+        "upload-folder": 31,
         "upload-gp": 33,
         "upload-icloud": 31,
         "upload-picasa": 31,

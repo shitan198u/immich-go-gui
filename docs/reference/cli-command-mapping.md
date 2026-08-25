@@ -84,7 +84,7 @@ Flag counts against the **0.32.0** fixture set (exact; regenerate after CLI upgr
 
 | Tab | Allowed flags |
 |-----|---------------|
-| `upload-folder` | 30 |
+| `upload-folder` | 31 |
 | `upload-gp` | 33 |
 | `upload-icloud` | 31 |
 | `upload-picasa` | 31 |

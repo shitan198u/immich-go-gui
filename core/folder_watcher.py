@@ -26,13 +26,26 @@ class DebounceFileQueue:
     uploads forever).
     """
 
-    def __init__(self, debounce_seconds: int = 300):
+    def __init__(self, debounce_seconds: int = 30):
         self._lock = threading.Lock()
         self._files: dict[str, float] = {}  # file_path -> first_seen_time
         self._debounce_seconds = debounce_seconds
         self._timer: threading.Timer | None = None
         self._callback: Callable[[list[str]], None] | None = None
         self._shutdown = False
+        self._generation = 0
+
+    def reset(self, debounce_seconds: int | None = None) -> None:
+        """Reset shutdown state and clear queue so watching can resume."""
+        with self._lock:
+            self._shutdown = False
+            self._generation += 1
+            if debounce_seconds is not None:
+                self._debounce_seconds = debounce_seconds
+            if self._timer:
+                self._timer.cancel()
+                self._timer = None
+            self._files.clear()
 
     def set_callback(self, callback: Callable[[list[str]], None]) -> None:
         """Set the function called when the debounce window expires."""
@@ -82,13 +95,19 @@ class DebounceFileQueue:
             return
         if self._timer:
             self._timer.cancel()
-        self._timer = threading.Timer(self._debounce_seconds, self._on_timeout)
+        generation = self._generation
+        self._timer = threading.Timer(
+            self._debounce_seconds, lambda: self._on_timeout(generation)
+        )
         self._timer.daemon = True
         self._timer.start()
 
-    def _on_timeout(self) -> None:
+    def _on_timeout(self, generation: int | None = None) -> None:
         """Called when the debounce window expires."""
         with self._lock:
+            if generation is not None and generation != self._generation:
+                # Stale callback from before reset; do not drain or cancel.
+                return
             self._timer = None
             files = self._drain_locked()
         # Invoke the callback outside the lock.
@@ -188,6 +207,8 @@ class FolderWatcher:
             if not self._watched_folders:
                 return
 
+            self._queue.reset(self.config.watcher_debounce_seconds)
+
             class _Handler(FileSystemEventHandler):
                 def __init__(self, watcher: FolderWatcher):
                     super().__init__()
@@ -198,6 +219,11 @@ class FolderWatcher:
 
                 def on_modified(self, event):
                     self._watcher._handle_event(str(event.src_path))
+
+                def on_moved(self, event):
+                    dest = getattr(event, "dest_path", None)
+                    if dest:
+                        self._watcher._handle_event(str(dest))
 
             self._observer = Observer()
             handler = _Handler(self)

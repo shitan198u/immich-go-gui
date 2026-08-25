@@ -222,6 +222,12 @@ def get_config_load_warning() -> str | None:
     return _config_load_warning
 
 
+def reset_config_load_warning() -> None:
+    """Explicitly reset the config load warning."""
+    global _config_load_warning
+    _config_load_warning = None
+
+
 def load_config(path: Path | None = None, profile_name: str | None = None) -> AppConfig:
     """Loads configuration from user-level TOML file."""
     global _config_load_warning

@@ -25,12 +25,7 @@ You do not need Immich server credentials configured to run them. The primary ou
 
 ### Archive from Immich
 
-This tab connects to a **source Immich server** to download/export assets. It requires:
-
-- **From server URL**
-- **From API key** (and optionally from admin API key)
-
-It does not use your main Config-tab destination server for the archive source — only the "from" credentials.
+This tab connects to your **Immich server** configured on the **Configuration tab** to download/export assets to a local directory.
 
 ## Common Fields
 
@@ -80,22 +75,16 @@ Archive from Picasa-compatible exports.
 
 Download assets from a remote Immich server to a local folder.
 
-**Required credentials:**
-
-| Field | Description |
-|-------|-------------|
-| From server URL | Source Immich instance |
-| From API key | Source API key |
+**Credentials:** Configured on the **Configuration tab** (Server URL and API Key).
 
 **Notable options:** `from-albums`, `from-tags`, `from-people`, `from-date-range`, `from-favorite`, `from-archived`, `from-trash`
 
 ## Running an Archive
 
 1. Select the archive sub-tab matching your source type.
-2. Set source and destination paths.
-3. For **Archive from Immich**, configure from-server credentials.
-4. Review the command preview — serverless tabs will not show server/API flags.
-5. Click **Run**.
+2. Set source and destination paths (or configure options for Archive from Immich).
+3. Review the command preview — serverless tabs will not show server/API flags.
+4. Click **Run**.
 
 Serverless tabs skip the Immich pre-flight connection check.
 

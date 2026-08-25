@@ -581,6 +581,17 @@ def test_validate_server_url():
     ok, err = validate_server_url("invalid-url")
     assert ok is False
 
+    ok, err = validate_server_url("http://")
+    assert ok is False
+
+    ok, err = validate_server_url("http://localhost:999999")
+    assert ok is False
+    assert "port" in err.lower()
+
+    ok, err = validate_server_url("http://host name")
+    assert ok is False
+    assert "whitespace" in err.lower()
+
 
 def test_cleanup_stale_temp_dirs(tmp_path, monkeypatch):
     import time

@@ -4,6 +4,7 @@ Provides the full UI for the backup monitoring system: watched folder list,
 schedule configuration, file watcher status, manual controls, and activity feed.
 """
 
+import sys
 from typing import ClassVar
 
 from PySide6.QtCore import Qt, Signal
@@ -30,9 +31,8 @@ from gui.widgets.activity_feed import ActivityFeed, ProgressCard
 # Defined once so load/save never match on display text.
 NETWORK_POLICY_OPTIONS = [
     ("always", "Always (any network)"),
-    ("wifi_only", "Wi-Fi Only (exclude cellular)"),
-    ("ssids_only", "Allowed SSIDs Only"),
-    ("no_metered", "No Metered Connections"),
+    ("no_metered", "No Metered Connections (Limited OS Support)"),
+    ("ssid_only", "Allowed SSIDs Only"),
 ]
 
 TRAY_ICON_STYLE_OPTIONS = [
@@ -467,6 +467,11 @@ def build_monitor_tab(host) -> QWidget:
     opts_layout.addWidget(host.start_minimized_check)
 
     host.launch_on_startup_check = QCheckBox("Start monitor with Windows")
+    if sys.platform != "win32":
+        host.launch_on_startup_check.setEnabled(False)
+        host.launch_on_startup_check.setToolTip(
+            "Auto-start on logon is only supported on Windows."
+        )
     host.inputs["monitor"]["launch_on_startup"] = host.launch_on_startup_check
     opts_layout.addWidget(host.launch_on_startup_check)
 

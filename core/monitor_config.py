@@ -124,7 +124,7 @@ class MonitorConfig:
 
     # File watcher
     file_watcher_enabled: bool = True
-    watcher_debounce_seconds: int = 300  # batch changes within this window
+    watcher_debounce_seconds: int = 30  # batch changes within this window
 
     # Network
     network_policy: NetworkPolicy = NetworkPolicy.ALWAYS
@@ -239,8 +239,16 @@ class MonitorConfig:
         )
         cfg.file_watcher_enabled = data.get("file_watcher_enabled", True)
         cfg.watcher_debounce_seconds = data.get("watcher_debounce_seconds", 30)
+        raw_policy = data.get("network_policy", "always")
+        if raw_policy == "ssids_only":
+            raw_policy = "ssid_only"
+        if raw_policy == "wifi_only":
+            # Legacy wifi_only value: map to no_metered for restricted but not
+            # SSID-locked policy. Users who need SSID-specific control must
+            # explicitly configure ssid_only.
+            raw_policy = "no_metered"
         try:
-            cfg.network_policy = NetworkPolicy(data.get("network_policy", "always"))
+            cfg.network_policy = NetworkPolicy(raw_policy)
         except (TypeError, ValueError):
             cfg.network_policy = NetworkPolicy.ALWAYS
         ssids = data.get("allowed_ssids", [])
