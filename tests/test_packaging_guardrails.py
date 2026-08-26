@@ -231,4 +231,5 @@ def test_windows_installer_iss_metadata():
     assert re.search(r"^SetupIconFile\s*=\s*.+$", content, re.MULTILINE)
     assert re.search(r"^VersionInfoVersion\s*=\s*.+$", content, re.MULTILINE)
     assert re.search(r"^VersionInfoProductName\s*=\s*.+$", content, re.MULTILINE)
+    assert re.search(r"^VersionInfoProductTextVersion\s*=\s*.+$", content, re.MULTILINE)
     assert re.search(r"^VersionInfoCompany\s*=\s*.+$", content, re.MULTILINE)

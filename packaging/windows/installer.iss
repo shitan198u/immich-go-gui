@@ -34,6 +34,7 @@ VersionInfoCompany=shitan198u
 VersionInfoDescription=Immich-Go GUI Installer
 VersionInfoProductName=Immich-Go GUI
 VersionInfoProductVersion={#MyNumericVersion}
+VersionInfoProductTextVersion={#MyAppVersion}
 VersionInfoTextVersion={#MyAppVersion}
 VersionInfoCopyright=Copyright (C) 2026 shitan198u
 

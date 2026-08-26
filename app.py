@@ -10,14 +10,17 @@
 #   nuitka-project: --windows-console-mode=disable
 #   nuitka-project: --windows-icon-from-ico=immich-go-gui.ico
 #   nuitka-project: --include-data-files=immich-go-gui.ico=immich-go-gui.ico
-#   nuitka-project: --company-name="Shitan198u"
+#   nuitka-project: --company-name="shitan198u"
 #   nuitka-project: --product-name="Immich-Go GUI"
 #   nuitka-project: --file-description="Immich-Go Graphical User Interface"
-#   nuitka-project: --copyright="MIT License"
+#   nuitka-project: --copyright="Copyright (C) 2026 shitan198u"
 
 # nuitka-project-if: {OS} == "Darwin":
 #   nuitka-project: --macos-create-app-bundle
 #   nuitka-project: --macos-app-icon=immich-go-gui.icns
+#   nuitka-project: --company-name="shitan198u"
+#   nuitka-project: --product-name="Immich-Go GUI"
+#   nuitka-project: --copyright="Copyright (C) 2026 shitan198u"
 
 # nuitka-project-if: {OS} == "Linux":
 #   nuitka-project: --standalone
