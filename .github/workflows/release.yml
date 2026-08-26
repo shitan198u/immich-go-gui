@@ -141,11 +141,7 @@ jobs:
           NUMERIC_VERSION=$(echo "$VERSION" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' || echo "1.0.0")
           uv run python -m nuitka --output-filename=Immich-Go-GUI.exe \
             --file-version="${NUMERIC_VERSION}.0" \
-            --product-version="$VERSION" \
-            --product-name="Immich-Go GUI" \
-            --company-name="shitan198u" \
-            --file-description="Immich-Go GUI" \
-            --copyright="Copyright (C) 2026 shitan198u" \
+            --product-version="${NUMERIC_VERSION}.0" \
             app.py
 
       - name: Create Windows Portable Archive
