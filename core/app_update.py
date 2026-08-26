@@ -77,11 +77,18 @@ def get_latest_gui_release() -> GuiReleaseInfo | None:
         return None
 
 
+def extract_base_semver(version: str) -> str:
+    """Extract the base major.minor.patch numeric version without pre/dev suffixes."""
+    cleaned = clean_gui_release_version(version)
+    match = re.match(r"^(\d+\.\d+\.\d+)", cleaned)
+    return match.group(1) if match else cleaned
+
+
 def is_update_available(installed_version: str, latest_version: str) -> bool:
     """Return True when latest_version is newer than installed_version."""
     if not is_parseable_semver(installed_version):
         return False
-    installed = clean_gui_release_version(installed_version)
+    installed = extract_base_semver(installed_version)
     latest = clean_gui_release_version(latest_version)
     if not installed or not latest:
         return False

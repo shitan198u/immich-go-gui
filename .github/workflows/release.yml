@@ -129,13 +129,20 @@ jobs:
             echo "suffix=macOS-x86_64" >> $GITHUB_OUTPUT
           fi
 
+      - name: Inject build version into source
+        shell: bash
+        run: |
+          sed -i.bak "s/__version__ = .*/__version__ = \"$VERSION\"/" core/version.py
+
       - name: Build Windows
         if: matrix.name == 'windows'
         shell: bash
         run: |
           NUMERIC_VERSION=$(echo "$VERSION" | grep -oE '^[0-9]+\.[0-9]+\.[0-9]+' || echo "1.0.0")
           uv run python -m nuitka --output-filename=Immich-Go-GUI.exe \
-            --file-version="${NUMERIC_VERSION}.0" --product-version="${NUMERIC_VERSION}.0" app.py
+            --file-version="${NUMERIC_VERSION}.0" \
+            --product-version="${NUMERIC_VERSION}.0" \
+            app.py
 
       - name: Create Windows Portable Archive
         if: matrix.name == 'windows'
@@ -151,7 +158,8 @@ jobs:
           if (-not (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe")) {
             choco install innosetup -y
           }
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion="$env:VERSION" /DMyOutputFilename="Immich-Go-GUI-$env:VERSION-Windows-x86_64-Setup" packaging/windows/installer.iss
+          $NUMERIC_VER = if ($env:VERSION -match '^([0-9]+\.[0-9]+\.[0-9]+)') { "$($Matches[1]).0" } else { "1.0.0.0" }
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion="$env:VERSION" /DMyNumericVersion="$NUMERIC_VER" /DMyOutputFilename="Immich-Go-GUI-$env:VERSION-Windows-x86_64-Setup" packaging/windows/installer.iss
           if (Test-Path "..\..\Immich-Go-GUI-*.exe") {
             Move-Item -Path "..\..\Immich-Go-GUI-*.exe" -Destination "." -Force
           }
@@ -168,9 +176,13 @@ jobs:
       - name: Build macOS
         if: matrix.name == 'macos'
         run: |
-          uv run python -m nuitka --output-filename=Immich-Go-GUI app.py
+          uv run python -m nuitka --output-filename=Immich-Go-GUI \
+            --macos-app-name="Immich-Go GUI" \
+            --macos-signed-app-name="com.shitan198u.immich-go-gui" \
+            --macos-app-version="$VERSION" \
+            app.py
           npm install -g create-dmg@${{ env.CREATE_DMG_VERSION }}
-          create-dmg --no-code-sign app.app
+          create-dmg --no-code-sign "Immich-Go GUI.app" 2>/dev/null || create-dmg --no-code-sign app.app
           mv *.dmg "Immich-Go-GUI-$VERSION-${{ steps.macos-arch.outputs.suffix }}.dmg"
 
       - name: Build Linux Standalone
@@ -194,19 +206,15 @@ jobs:
       - name: Build Linux AppImage
         if: matrix.name == 'linux'
         run: |
-          mkdir -p AppDir/usr/bin AppDir/usr/share/metainfo
+          mkdir -p AppDir/usr/bin AppDir/usr/share/metainfo AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/512x512/apps
           cp -r app.dist/* AppDir/usr/bin/
           cp immich-go-gui.png AppDir/
-          cp packaging/linux/immich-go-gui.appdata.xml AppDir/usr/share/metainfo/
-
-          cat << 'EOF' > AppDir/immich-go-gui.desktop
-          [Desktop Entry]
-          Name=Immich-Go GUI
-          Exec=Immich-Go-GUI
-          Icon=immich-go-gui
-          Type=Application
-          Categories=Utility;
-          EOF
+          cp immich-go-gui.png AppDir/usr/share/icons/hicolor/512x512/apps/immich-go-gui.png
+          cp packaging/linux/immich-go-gui.metainfo.xml AppDir/usr/share/metainfo/
+          cp packaging/linux/immich-go-gui.desktop AppDir/
+          cp packaging/linux/immich-go-gui.desktop AppDir/usr/share/applications/
+          # Adjust Exec for AppDir root execution
+          sed -i 's|Exec=/opt/immich-go-gui/Immich-Go-GUI|Exec=Immich-Go-GUI|' AppDir/immich-go-gui.desktop
 
           cat << 'EOF' > AppDir/AppRun
           #!/bin/sh
@@ -229,6 +237,7 @@ jobs:
         if: matrix.name == 'linux'
         run: |
           cd packaging/linux
+          export VERSION="$VERSION"
           nfpm pkg --packager deb --target "../../Immich-Go-GUI-$VERSION-Linux-x86_64.deb"
           nfpm pkg --packager rpm --target "../../Immich-Go-GUI-$VERSION-Linux-x86_64.rpm"
 
@@ -242,14 +251,40 @@ jobs:
           dpkg-deb -c "$DEB_FILE" | grep -E 'opt/immich-go-gui/PySide6/QtCore' || { echo "ERROR: DEB package is missing PySide6/ subdirectory (directory flattening regression)"; exit 1; }
           dpkg-deb -c "$DEB_FILE" | grep -E 'opt/immich-go-gui/core/flags.toml' || { echo "ERROR: DEB package is missing core/flags.toml"; exit 1; }
           dpkg-deb -c "$DEB_FILE" | grep -E 'opt/immich-go-gui/assets/icons/' || { echo "ERROR: DEB package is missing assets/icons/"; exit 1; }
-          echo "DEB package structure successfully verified."
+          dpkg-deb -c "$DEB_FILE" | grep -E 'usr/share/metainfo/immich-go-gui.metainfo.xml' || { echo "ERROR: DEB package is missing metainfo.xml"; exit 1; }
+          # Derive exact nFPM 2.47.0 packager-normalized versions
+          if [[ "$VERSION" == *"-"* ]]; then
+            BASE_VER="${VERSION%%-*}"
+            PRERELEASE_VER="${VERSION#*-}"
+            EXPECTED_DEB_VER="${BASE_VER}~${PRERELEASE_VER}"
+            EXPECTED_RPM_VER="${BASE_VER}~${PRERELEASE_VER//-/_}"
+          else
+            EXPECTED_DEB_VER="$VERSION"
+            EXPECTED_RPM_VER="$VERSION"
+          fi
+
+          DEB_VER=$(dpkg-deb -I "$DEB_FILE" | grep -E "^ Version: " | awk '{print $2}')
+          echo "DEB Version: $DEB_VER (expected: $EXPECTED_DEB_VER)"
+          if [ "$DEB_VER" != "$EXPECTED_DEB_VER" ]; then
+            echo "ERROR: DEB package version '$DEB_VER' does not match expected '$EXPECTED_DEB_VER'"
+            exit 1
+          fi
+          echo "DEB package structure and control metadata successfully verified."
 
           echo "Verifying $RPM_FILE directory structure..."
           rpm -qlp "$RPM_FILE" | grep -E 'opt/immich-go-gui/shiboken6/Shiboken' || { echo "ERROR: RPM package is missing shiboken6/ subdirectory (directory flattening regression)"; exit 1; }
           rpm -qlp "$RPM_FILE" | grep -E 'opt/immich-go-gui/PySide6/QtCore' || { echo "ERROR: RPM package is missing PySide6/ subdirectory (directory flattening regression)"; exit 1; }
           rpm -qlp "$RPM_FILE" | grep -E 'opt/immich-go-gui/core/flags.toml' || { echo "ERROR: RPM package is missing core/flags.toml"; exit 1; }
           rpm -qlp "$RPM_FILE" | grep -E 'opt/immich-go-gui/assets/icons/' || { echo "ERROR: RPM package is missing assets/icons/"; exit 1; }
-          echo "RPM package structure successfully verified."
+          rpm -qlp "$RPM_FILE" | grep -E 'usr/share/metainfo/immich-go-gui.metainfo.xml' || { echo "ERROR: RPM package is missing metainfo.xml"; exit 1; }
+
+          RPM_VER=$(rpm -qip "$RPM_FILE" | grep -E "^Version\s*:\s*" | awk '{print $3}')
+          echo "RPM Version: $RPM_VER (expected: $EXPECTED_RPM_VER)"
+          if [ "$RPM_VER" != "$EXPECTED_RPM_VER" ]; then
+            echo "ERROR: RPM package version '$RPM_VER' does not match expected '$EXPECTED_RPM_VER'"
+            exit 1
+          fi
+          echo "RPM package structure and metadata successfully verified."
 
       - name: Generate SHA256 checksums
         shell: bash

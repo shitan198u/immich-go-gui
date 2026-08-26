@@ -1,6 +1,12 @@
 [Desktop Entry]
 Name=Immich-Go GUI
+GenericName=Photo Backup Utility
+Comment=Desktop GUI for immich-go bulk media operations
 Exec=/opt/immich-go-gui/Immich-Go-GUI
 Icon=immich-go-gui
 Type=Application
-Categories=Utility;
+Terminal=false
+Categories=Utility;Graphics;
+Keywords=photo;backup;immich;uploader;sync;
+StartupNotify=true
+StartupWMClass=Immich-Go-GUI
