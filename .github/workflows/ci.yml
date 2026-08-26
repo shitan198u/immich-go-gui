@@ -1,5 +1,6 @@
 name: CI Checks
 
+# Runs quality gates, multi-OS PySide6 tests, and self-test on master.
 on:
   push:
     branches: [ "master" ]
