@@ -5,6 +5,13 @@ All notable changes to the Immich-Go GUI project will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.5](https://github.com/shitan198u/immich-go-gui/compare/v1.4.4...v1.4.5) (2026-10-26)
+
+
+### 🐛 Bug Fixes & Discrepancy Resolution
+
+* **deps:** migrate dependabot to uv and resolve pip-audit vulnerabilities ([#156](https://github.com/shitan198u/immich-go-gui/issues/156)) ([1aa672e](https://github.com/shitan198u/immich-go-gui/commit/1aa672e2da43aa652c8358f99a2082724c32cc9f))
+
 ## [1.4.4](https://github.com/shitan198u/immich-go-gui/compare/v1.4.3...v1.4.4) (2026-08-26)
 
 
