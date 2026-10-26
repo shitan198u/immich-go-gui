@@ -91,7 +91,7 @@ a full Nuitka smoke-build pass on all three platforms.
 
 ## Dependabot
 
-Configured in `.github/dependabot.yml` for dependency update PRs (open PR limit currently 15).
+Configured in `.github/dependabot.yml` for GitHub Actions and `uv` dependency updates (with grouped Python updates and an open PR limit of 10).
 
 ## Conventional commits
 
