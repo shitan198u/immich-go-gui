@@ -85,3 +85,51 @@ def test_run_self_test_creates_and_cleans_up_config_dir(tmp_path, monkeypatch):
     assert code == 0
     assert cfg_dir.is_dir()
     assert not (cfg_dir / ".self-test-write").exists()
+
+
+def test_run_terminal_smoke_test_success(monkeypatch, capsys):
+    from core.terminal_launcher import LaunchResult
+
+    def fake_launch(command, env, lock_path):
+        import subprocess
+
+        # Directly run the helper script to simulate terminal execution
+        subprocess.run(command, check=True)
+        return LaunchResult(ok=True, message="mocked launch", pid=999999)
+
+    monkeypatch.setattr("core.terminal_launcher.launch_external_terminal", fake_launch)
+    code = app_module.run_terminal_smoke_test(timeout_seconds=5.0)
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "smoke-test-terminal: ok" in captured.out
+
+
+def test_run_terminal_smoke_test_launch_failure(monkeypatch, capsys):
+    from core.terminal_launcher import LaunchResult
+
+    monkeypatch.setattr(
+        "core.terminal_launcher.launch_external_terminal",
+        lambda command, env, lock_path: LaunchResult(
+            ok=False, message="terminal not found"
+        ),
+    )
+    code = app_module.run_terminal_smoke_test(timeout_seconds=1.0)
+    captured = capsys.readouterr()
+    assert code == 1
+    assert "failed to launch terminal: terminal not found" in captured.err
+
+
+def test_run_terminal_smoke_test_timeout(monkeypatch, capsys):
+    from core.terminal_launcher import LaunchResult
+
+    # Simulate terminal launch that never executes the command
+    monkeypatch.setattr(
+        "core.terminal_launcher.launch_external_terminal",
+        lambda command, env, lock_path: LaunchResult(
+            ok=True, message="mocked launch", pid=999999
+        ),
+    )
+    code = app_module.run_terminal_smoke_test(timeout_seconds=0.1)
+    captured = capsys.readouterr()
+    assert code == 1
+    assert "timed out after" in captured.err
