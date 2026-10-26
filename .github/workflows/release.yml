@@ -151,6 +151,19 @@ jobs:
           Set-Content -Path "app.dist/README.txt" -Value "To launch the application, simply double-click the file named Immich-Go-GUI.exe. You do not need to install anything else."
           Compress-Archive -Path "app.dist/*" -DestinationPath "Immich-Go-GUI-$env:VERSION-Windows-x86_64-Portable.zip"
 
+      - name: Smoke test Windows standalone binary
+        if: matrix.name == 'windows'
+        shell: powershell
+        run: |
+          $env:IMMICH_GO_GUI_HEADLESS = "1"
+          $exe = if (Test-Path "app.dist/Immich-Go-GUI.exe") { "app.dist/Immich-Go-GUI.exe" } else { "app.dist/app.exe" }
+          Write-Host "Running Windows self-test on $exe..."
+          & $exe --self-test
+          if ($LASTEXITCODE -ne 0) { throw "Windows standalone self-test failed with exit code $LASTEXITCODE" }
+          Write-Host "Running Windows terminal smoke test on $exe..."
+          & $exe --smoke-test-terminal
+          if ($LASTEXITCODE -ne 0) { throw "Windows standalone terminal smoke test failed with exit code $LASTEXITCODE" }
+
       - name: Compile Windows Installer
         if: matrix.name == 'windows'
         shell: powershell
@@ -185,6 +198,26 @@ jobs:
           create-dmg --no-code-sign "Immich-Go GUI.app" 2>/dev/null || create-dmg --no-code-sign app.app
           mv *.dmg "Immich-Go-GUI-$VERSION-${{ steps.macos-arch.outputs.suffix }}.dmg"
 
+      - name: Smoke test macOS application bundle
+        if: matrix.name == 'macos'
+        run: |
+          APP_BIN=""
+          for candidate in "Immich-Go GUI.app/Contents/MacOS/Immich-Go-GUI" "Immich-Go GUI.app/Contents/MacOS/app" "app.app/Contents/MacOS/Immich-Go-GUI" "app.app/Contents/MacOS/app"; do
+            if [ -f "$candidate" ]; then
+              APP_BIN="$candidate"
+              break
+            fi
+          done
+          if [ -z "$APP_BIN" ]; then
+            echo "ERROR: Could not locate macOS application executable inside .app bundle"
+            exit 1
+          fi
+          echo "Running macOS self-test on $APP_BIN..."
+          "$APP_BIN" --self-test
+          echo "Running macOS terminal smoke test on $APP_BIN..."
+          IMMICH_GO_GUI_HEADLESS=1 "$APP_BIN" --smoke-test-terminal
+          osascript -e 'tell application "Terminal" to quit' 2>/dev/null || true
+
       - name: Build Linux Standalone
         if: matrix.name == 'linux'
         run: |
@@ -201,7 +234,9 @@ jobs:
       - name: Smoke test Linux standalone binary
         if: matrix.name == 'linux'
         run: |
-          QT_QPA_PLATFORM=offscreen xvfb-run app.dist/Immich-Go-GUI --self-test
+          sudo apt-get install -y xterm
+          QT_QPA_PLATFORM=offscreen xvfb-run -a app.dist/Immich-Go-GUI --self-test
+          IMMICH_GO_GUI_HEADLESS=1 xvfb-run -a app.dist/Immich-Go-GUI --smoke-test-terminal
 
       - name: Build Linux AppImage
         if: matrix.name == 'linux'
