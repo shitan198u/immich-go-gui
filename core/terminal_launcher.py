@@ -20,6 +20,7 @@ from .process_tracker import update_lock
 class LaunchResult:
     ok: bool
     message: str = ""
+    pid: int | None = None
 
 
 def cleanup_stale_temp_dirs(max_age_hours: int = 24) -> int:
@@ -134,7 +135,9 @@ def launch_external_terminal(
             )
             update_lock(l_path, terminal_pid=proc.pid)
             return LaunchResult(
-                ok=True, message="External terminal launched successfully."
+                ok=True,
+                message="External terminal launched successfully.",
+                pid=proc.pid,
             )
         except Exception as e:
             return LaunchResult(
@@ -235,7 +238,11 @@ def launch_external_terminal(
                 env=posix_env,
             )
             update_lock(l_path, terminal_pid=proc.pid)
-            return LaunchResult(ok=True, message="Terminal launched on macOS.")
+            return LaunchResult(
+                ok=True,
+                message="Terminal launched on macOS.",
+                pid=proc.pid,
+            )
 
         # Linux execution with terminal discovery order
         terminals_to_try = []
@@ -292,7 +299,11 @@ def launch_external_terminal(
             )
 
         update_lock(l_path, terminal_pid=launched_proc.pid)
-        return LaunchResult(ok=True, message="Terminal launched successfully.")
+        return LaunchResult(
+            ok=True,
+            message="Terminal launched successfully.",
+            pid=launched_proc.pid,
+        )
 
     except Exception as e:
         return LaunchResult(ok=False, message=f"Terminal launch failed: {e!s}")

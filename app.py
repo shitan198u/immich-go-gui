@@ -119,9 +119,145 @@ def run_self_test() -> int:
         return 1
 
 
+def run_terminal_smoke_test(timeout_seconds: float = 15.0) -> int:
+    """
+    Run smoke diagnostics: verify Qt application initialization and that
+    launch_external_terminal successfully spawns the OS-native terminal
+    and executes a non-destructive test command.
+
+    Parameters:
+        timeout_seconds: Maximum time to wait for the sentinel command to execute.
+
+    Returns:
+        int: `0` on success, `1` on failure.
+    """
+    import os
+    import shutil
+    import tempfile
+    import time
+
+    try:
+        # 1. Initialize Qt (verifies PySide6 shared libraries & plugins load in standalone bundle)
+        app = QApplication.instance()
+        if app is None:
+            if (
+                sys.platform.startswith("linux")
+                and not os.environ.get("DISPLAY")
+                and not os.environ.get("WAYLAND_DISPLAY")
+            ):
+                os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+            app = QApplication(sys.argv)
+
+        from core.process_tracker import create_lock, release_lock
+        from core.terminal_launcher import launch_external_terminal
+
+        temp_dir = Path(tempfile.mkdtemp(prefix="immich-smoke-"))
+        sentinel_file = temp_dir / "sentinel.txt"
+        # 2. Write a cross-platform helper script that writes the sentinel token
+        token = f"SMOKE_SUCCESS_{int(time.time())}"
+        if sys.platform.startswith("win"):
+            helper = temp_dir / "helper.bat"
+            helper.write_text(
+                f'@echo {token} > "{sentinel_file}"\r\n', encoding="utf-8"
+            )
+        else:
+            helper = temp_dir / "helper.sh"
+            helper.write_text(
+                f'#!/bin/sh\necho "{token}" > "{sentinel_file}"\n', encoding="utf-8"
+            )
+            helper.chmod(0o755)
+
+        lock_path = create_lock(
+            tab_key="smoke-test",
+            command_summary="smoke-test-terminal",
+            binary_path=str(helper),
+        )
+
+        # 3. Launch external terminal with headless flag to prevent interactive shell prompts
+        launch_env = {"IMMICH_GO_GUI_HEADLESS": "1"}
+        result = launch_external_terminal(
+            command=[str(helper)],
+            env=launch_env,
+            lock_path=lock_path,
+        )
+
+        if not result.ok:
+            print(
+                f"smoke-test-terminal: failed to launch terminal: {result.message}",
+                file=sys.stderr,
+            )
+            release_lock(lock_path)
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            return 1
+
+        # 4. Poll for sentinel file with strict timeout to prevent CI hangs
+        deadline = time.time() + timeout_seconds
+        success = False
+        while time.time() < deadline:
+            if sentinel_file.is_file():
+                try:
+                    content = sentinel_file.read_text(encoding="utf-8")
+                    if token in content:
+                        success = True
+                        break
+                except OSError:
+                    pass
+            time.sleep(0.3)
+
+        # 5. Clean up launched terminal process
+        if result.pid:
+            try:
+                if sys.platform.startswith("win"):
+                    import subprocess
+
+                    subprocess.run(
+                        ["taskkill", "/F", "/T", "/PID", str(result.pid)],
+                        capture_output=True,
+                        check=False,
+                    )
+                else:
+                    import signal
+
+                    os.kill(result.pid, signal.SIGTERM)
+            except Exception:
+                pass
+
+        if sys.platform == "darwin":
+            try:
+                import subprocess
+
+                subprocess.run(
+                    ["osascript", "-e", 'tell application "Terminal" to quit'],
+                    capture_output=True,
+                    timeout=5,
+                    check=False,
+                )
+            except Exception:
+                pass
+
+        release_lock(lock_path)
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+        if not success:
+            print(
+                f"smoke-test-terminal: timed out after {timeout_seconds}s waiting for sentinel execution",
+                file=sys.stderr,
+            )
+            return 1
+
+        print("smoke-test-terminal: ok")
+        return 0
+
+    except Exception as exc:
+        print(f"smoke-test-terminal failed: {exc}", file=sys.stderr)
+        return 1
+
+
 if __name__ == "__main__":
     if "--self-test" in sys.argv:
         sys.exit(run_self_test())
+    if "--smoke-test-terminal" in sys.argv:
+        sys.exit(run_terminal_smoke_test())
 
     log = setup_logging()
     _install_exception_hook(log)
